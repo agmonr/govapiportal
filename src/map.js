@@ -6,6 +6,7 @@
 import { el, esc } from './ui.js';
 import { attachExplorer } from './explorer.js';
 import { openPortal, hasPreview } from './portal.js';
+import { mountCkan } from './ckan.js';
 
 const portalGrid = el('portals');
 const list = el('list');
@@ -13,6 +14,7 @@ const summary = el('summary');
 const stats = el('stats');
 const matrix = el('matrix');
 const drill = el('drill');
+const ckan = el('ckan');
 
 let data = { portals: [], apis: [] };
 const state = { q: '', browserOnly: false, portal: null, verdict: null };
@@ -305,6 +307,9 @@ async function load() {
     renderMatrix();
     renderPortals();
     renderList();
+    // Its own section, not a portal drill-in: data.gov.il is the only source
+    // here that exposes records rather than a catalogue of files.
+    mountCkan(ckan);
   } catch (err) {
     list.innerHTML = `<div class="notice error">טעינת apis.json נכשלה: ${esc(err.message)}</div>`;
   }

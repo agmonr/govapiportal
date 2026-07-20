@@ -457,6 +457,50 @@ Only data.gov.il is paged (`paged: true`), for the same reason only it is sorted
 the other four previews either arrive whole or have no offset contract worth
 claiming.
 
+### A section of its own for data.gov.il
+
+Asked for a dedicated section with "all the tools to look around". The useful
+answer was not more catalogue browsing - the drill-in already does that - but
+going into the **records**, which CKAN is the only API here to expose.
+
+Three levels: `package_search` catalogue (faceted, sorted, paged) -> dataset
+detail (licence, tags, dates, resources) -> `datastore_search` over one
+resource's rows, with per-column filters, column sort and paging. Every control
+probed before it was wired: `q`, per-field `q`, `filters`, `sort`, `offset`,
+`fields` all work server-side.
+
+Judgement calls worth keeping:
+
+- **Per-field `q` rather than `filters` for column boxes.** `filters` is exact
+  match; someone typing a partial value would get an empty table that reads as
+  "no such record" instead of "not an exact match".
+- **`≈` on estimated record counts.** `datastore_search` returns
+  `total_was_estimated`; large tables get an estimate. Noticed because a test run
+  printed 12,000 and then 12,500 for the same resource seconds apart. Printing
+  that as exact would be a precision claim the API never made.
+- **No statistics anywhere.** `datastore_search_sql` is still WAF-blocked, so any
+  aggregate would be computed over the fetched page while looking like it covered
+  the resource. The one feature not offered is the one that would have to lie.
+
+**Two bugs, both of which shipped a "successful" build:**
+
+The bundler flattens every source into one scope, and `ckan.js` declared
+`state`, `renderList` and `pager` - each already defined by `map.js` or
+`portal.js`. Unbundled the site was fine, because ES modules have their own
+scopes; the bundle was silently dead, `#ckan` rendered empty, and `bundle.py`
+reported success. This is the second time flattening has produced a working build
+of a broken page (the first was `portal.js` missing from `SOURCES`), so
+`verify_no_collisions()` now fails the build on any top-level name defined twice
+and names the files. Verified by reintroducing the collision and watching it exit
+non-zero.
+
+The card grid then blew the page out sideways by 85px at 380px. A `1fr` track
+floors at min-content, so one long unbroken string in a dataset title widened the
+track past the viewport. Fixed with `minmax(min(17rem, 100%), 1fr)` plus
+`min-inline-size: 0` and `overflow-wrap: anywhere` on the card. Only reproducible
+by resizing *down* from a wide viewport, which is exactly what smoke.mjs does and
+what a hand check at 380px did not.
+
 ### Set aside, not deleted
 
 ~~The original CKAN portal lives in the session scratchpad.~~ **Gone.** The

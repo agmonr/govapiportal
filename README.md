@@ -147,6 +147,38 @@ broken panel — that distinction is the point of the map, so the drill-in
 respects it. The exact request URL is shown under each table so the result can
 be reproduced with `curl`.
 
+## Going all the way into data.gov.il
+
+`המאגר הממשלתי הפתוח — חקירה מלאה` is its own section, not a portal preview,
+because CKAN is the only API here that exposes **the records themselves** rather
+than a catalogue of files. Three levels:
+
+| Level | Request | What you get |
+|---|---|---|
+| קטלוג | `package_search` | 1,197 datasets — search, organisation, format, sort, paging |
+| מאגר | (already in hand) | description, licence, tags, dates, every resource |
+| נתונים | `datastore_search` | the actual rows: per-column filter, column sort, paging |
+
+Every control is server-side, over the whole collection. Probed before being
+wired: `q`, `q={"FIELD":"…"}` (full text within one field), `filters` (exact),
+`sort`, `offset`, `fields`.
+
+Three details that are deliberate:
+
+- **Column filters send per-field `q`, not `filters`.** `filters` is exact-match,
+  so a partial value typed by hand returns nothing — a blank table that looks
+  like "no such record" rather than "not an exact match".
+- **The record count says `≈` when CKAN estimated it.** `datastore_search`
+  returns `total_was_estimated` for large tables, and printing an estimate as an
+  exact figure would be a precision claim the API never made. Caught by watching
+  the same resource report two different totals seconds apart.
+- **There are no statistics, on purpose.** `datastore_search_sql` is WAF-blocked,
+  so there is no server-side aggregation; any count or grouping would be computed
+  over the fetched page and presented as if it covered the resource.
+
+Only ~55% of resources are `datastore_active`. The rest say `קובץ להורדה בלבד`
+instead of offering a data view that would fail.
+
 ## Downloading files
 
 data.gov.il rows expand into their files — click a dataset to see its CSV, XLSX,

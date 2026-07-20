@@ -33,7 +33,7 @@ OUT = ROOT / "dist" / "map.html"
 # must be listed - a missing one still produces a bundle, but one that throws on
 # load because the symbol it imported was never defined. verify_symbols() below
 # turns that silent break into a build failure.
-SOURCES = ["src/ui.js", "src/explorer.js", "src/portal.js", "src/map.js"]
+SOURCES = ["src/ui.js", "src/explorer.js", "src/portal.js", "src/ckan.js", "src/map.js"]
 
 IMPORT_RE = re.compile(r"^\s*import\s.*?;\s*$", re.M)
 EXPORT_RE = re.compile(r"^export\s+", re.M)
@@ -84,8 +84,39 @@ def verify_symbols() -> None:
                  f"SOURCES.\n       Add the module that exports it to SOURCES in bundle.py.")
 
 
+def verify_no_collisions() -> None:
+    """No two sources may define the same top-level name.
+
+    Flattening puts every file in one scope, so two modules that each declare
+    `state` are a redeclaration that kills the whole inline script, and two that
+    each declare `function renderList` silently resolve to whichever came last.
+    Both are invisible in the unbundled site, where modules have their own
+    scopes - the served page works and only the offline copy breaks.
+
+    That is exactly how ckan.js shipped broken once: `state`, `renderList` and
+    `pager` each collided with an existing module, #ckan rendered empty in
+    dist/map.html, and the build reported success.
+    """
+    owners: dict[str, list[str]] = {}
+    for rel in SOURCES:
+        src = read(rel)
+        names = set(re.findall(r"^(?:export\s+)?(?:async\s+)?function\s+([A-Za-z_$][\w$]*)", src, re.M))
+        names |= set(re.findall(r"^(?:export\s+)?(?:const|let|var)\s+([A-Za-z_$][\w$]*)", src, re.M))
+        for name in names:
+            owners.setdefault(name, []).append(rel)
+
+    clashes = {n: fs for n, fs in owners.items() if len(fs) > 1}
+    if clashes:
+        lines = "\n".join(f"       {n}: {', '.join(fs)}" for n, fs in sorted(clashes.items()))
+        sys.exit("error: top-level names defined in more than one source file.\n"
+                 "       bundle.py flattens them into one scope, so these collide:\n"
+                 f"{lines}\n"
+                 "       Rename them, or move the shared one into src/ui.js and import it.")
+
+
 def build() -> str:
     verify_symbols()
+    verify_no_collisions()
     html = read("index.html")
     data = json.loads(read("apis.json"))  # parse to validate, not just to embed
 

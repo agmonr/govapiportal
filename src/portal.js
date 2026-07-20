@@ -12,18 +12,7 @@
  * them, so if one changes the map reports it rather than this quietly breaking.
  */
 
-import { esc, debounce } from './ui.js';
-
-const num = (v) => (v == null ? '—' : Number(v).toLocaleString('he-IL'));
-
-/** Bytes -> a size someone can judge a download by. */
-function bytes(n) {
-  if (n == null || Number.isNaN(Number(n))) return '';
-  const u = ['B', 'KB', 'MB', 'GB'];
-  let v = Number(n), i = 0;
-  while (v >= 1024 && i < u.length - 1) { v /= 1024; i += 1; }
-  return `${v.toFixed(v < 10 && i ? 1 : 0)} ${u[i]}`;
-}
+import { esc, debounce, num, bytes } from './ui.js';
 
 /**
  * One entry per browser-callable portal.

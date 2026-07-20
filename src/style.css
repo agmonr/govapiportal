@@ -305,6 +305,75 @@ button.stat { cursor: pointer; }
   white-space: nowrap;
 }
 
+/* ---------- data.gov.il explorer ---------- */
+
+.ckan { border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem; }
+.ckan .lead { margin-block-start: 0; font-size: .92rem; }
+
+.ck-crumbs { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem; margin-block-end: .8rem; font-size: .85rem; }
+.ck-crumb {
+  font: inherit; font-size: .85rem; padding: .15rem .4rem; cursor: pointer;
+  color: var(--accent); background: none; border: none; border-radius: 4px; text-decoration: underline;
+}
+.ck-crumb:hover { background: var(--surface); }
+.ck-here { color: var(--muted); }
+.ck-sep { color: var(--muted); }
+
+.ck-controls { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin-block-end: .6rem; }
+.ck-controls input[type="search"] { flex: 1 1 14rem; font-size: .9rem; padding: .45rem .65rem; }
+.ck-controls input[type="search"]:disabled { opacity: .5; cursor: not-allowed; }
+.ck-controls select {
+  font: inherit; font-size: .82rem; padding: .35rem .5rem; max-inline-size: 100%;
+  color: var(--fg); background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius);
+}
+.ck-count { font-size: .85rem; color: var(--muted); margin-block-end: .6rem; }
+
+/* min(17rem, 100%) rather than a bare 17rem: below a 17rem viewport the track
+   would otherwise stay 17rem wide and push the page sideways. */
+.ck-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(17rem, 100%), 1fr)); gap: .6rem; }
+.ck-card {
+  display: flex; flex-direction: column; gap: .3rem; text-align: start; cursor: pointer;
+  padding: .7rem .8rem; font: inherit;
+  background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius);
+  /* A `1fr` track floors at min-content, so one long unbroken string in a title
+     or description widens the track past the viewport and scrolls the whole
+     page - measured at 85px over on a 380px screen. These two lines are what
+     stop dataset text from dictating the layout. */
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+.ck-card:hover { background: var(--surface); border-color: var(--accent); }
+.ck-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.ck-title { font-weight: 600; font-size: .92rem; }
+.ck-org { font-size: .78rem; color: var(--muted); }
+.ck-notes { font-size: .8rem; color: var(--muted); line-height: 1.4; }
+.ck-meta { display: flex; flex-wrap: wrap; gap: .3rem; align-items: center; margin-block-start: .2rem; }
+.ck-n { font-size: .72rem; color: var(--muted); }
+
+.ck-detail h3 { margin-block: 0 .6rem; font-size: 1.05rem; }
+.ck-detail h4 { margin-block: 1.2rem .5rem; font-size: .9rem; color: var(--muted); }
+.ck-facts { display: grid; grid-template-columns: auto 1fr; gap: .25rem .8rem; margin: 0 0 .8rem; font-size: .85rem; }
+.ck-facts dt { color: var(--muted); }
+.ck-facts dd { margin: 0; }
+.ck-desc { font-size: .88rem; line-height: 1.6; white-space: pre-wrap; }
+.ck-tags { display: flex; flex-wrap: wrap; gap: .3rem; }
+.ck-open {
+  font: inherit; font-size: .76rem; padding: .2rem .55rem; cursor: pointer;
+  color: var(--bg); background: var(--accent); border: 1px solid var(--accent); border-radius: 999px;
+}
+.ck-open:hover { filter: brightness(1.1); }
+.ck-nodata { font-size: .72rem; color: var(--muted); }
+
+/* The record table: one column per field, so it is wide by nature. */
+.ck-rec th { vertical-align: top; }
+.ck-type { display: block; font-size: .65rem; font-weight: 400; color: var(--muted); }
+.ck-fil th { padding: .25rem .35rem; background: var(--surface); position: sticky; inset-block-start: 3.1rem; }
+.ck-fil input {
+  inline-size: 100%; min-inline-size: 6rem; font: inherit; font-size: .75rem; padding: .2rem .35rem;
+  color: var(--fg); background: var(--bg); border: 1px solid var(--border); border-radius: 4px;
+}
+.ck-rec tbody td { border-block-end: 1px solid var(--border); max-inline-size: 22rem; overflow: hidden; text-overflow: ellipsis; }
+
 /* ---------- portal drill-in ---------- */
 
 .p-open { font-size: .8rem; color: var(--accent); margin-block-start: .2rem; }

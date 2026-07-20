@@ -178,6 +178,28 @@ async function runPass(label, url, { bundled = false } = {}) {
   ok(await page.locator('#drill .drill').count() === 0, 'close button dismisses the drill-in');
   ok(await page.locator('.card.api').count() === n, 'closing the drill-in also clears its filter');
 
+  /* --- the data.gov.il section ---
+     Its own section rather than a portal drill-in, because CKAN is the only API
+     here that exposes records and not just a catalogue. Soft-skipped like the
+     drill-in above when data.gov.il does not answer. */
+  const ckLive = await page.locator('#ckan .ck-card').first()
+    .waitFor({ timeout: 30000 }).then(() => true, () => false);
+
+  if (!ckLive) {
+    console.log('\x1b[33m  SKIP\x1b[0m  data.gov.il did not answer - explorer section not asserted');
+  } else {
+    ok(await page.locator('#ckan .ck-card').count() === 20, 'catalogue shows a page of datasets');
+    ok((await page.locator('#ckan .ck-count').innerText()).includes('1,197'),
+      'catalogue states the full total, not the fetched count');
+    ok(await page.locator('#ckan .ck-controls select').count() === 3,
+      'org / format / sort controls present');
+    ok((await page.locator('#ckan .drill-url code').innerText()).includes('package_search'),
+      'the exact request is shown');
+    // Every control here is server-side; a local filter would be the one thing
+    // this section must not do.
+    ok(await page.locator('#ckan .drill-scope').count() === 1, 'section states its filtering scope');
+  }
+
   /* --- explorer: the method badge opens the request, and only when it can ---
      A new tab can only issue GET, so a POST endpoint must not offer one; sending
      a different request than the one displayed would be worse than not offering

@@ -2,6 +2,21 @@
 
 export const el = (id) => document.getElementById(id);
 
+/* Shared by every renderer. They live here rather than in one module because
+   bundle.py flattens all sources into a single scope - a second `const num`
+   anywhere would be a redeclaration, not a shadow. */
+
+export const num = (v) => (v == null ? '—' : Number(v).toLocaleString('he-IL'));
+
+/** Bytes -> a size someone can judge a download by. */
+export function bytes(n) {
+  if (n == null || Number.isNaN(Number(n))) return '';
+  const u = ['B', 'KB', 'MB', 'GB'];
+  let v = Number(n), i = 0;
+  while (v >= 1024 && i < u.length - 1) { v /= 1024; i += 1; }
+  return `${v.toFixed(v < 10 && i ? 1 : 0)} ${u[i]}`;
+}
+
 export function esc(s) {
   return String(s ?? '').replace(/[&<>"']/g, (c) => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
