@@ -21,7 +21,7 @@
  * search, filter, sort and paging - and deliberately offers no statistics.
  */
 
-import { esc, debounce, num, bytes } from './ui.js';
+import { esc, debounce, num, bytes, buildCsv, saveCsv } from './ui.js';
 
 const CK_API = 'https://data.gov.il/api/3/action';
 const CK_DATASETS = 20;   // cards are taller than table rows
@@ -100,32 +100,6 @@ async function ckGet(url) {
 
 const CK_DUMP_PAGE = 32000;
 
-/** RFC 4180 quoting, and a BOM so Excel reads Hebrew as UTF-8 rather than mojibake. */
-function ckCsv(fields, records) {
-  const cell = (v) => {
-    const s = v == null ? '' : String(v);
-    return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-  };
-  const rows = records.map((r) => fields.map((f) => cell(r[f])).join(','));
-  return `﻿${fields.map(cell).join(',')}\r\n${rows.join('\r\n')}\r\n`;
-}
-
-/**
- * `download` is ignored for cross-origin URLs - that is why the file links open
- * in a tab. A blob: URL is same-origin, so here the attribute does work and the
- * browser saves rather than navigates.
- */
-function ckSave(text, name) {
-  const href = URL.createObjectURL(new Blob([text], { type: 'text/csv;charset=utf-8' }));
-  const a = document.createElement('a');
-  a.href = href;
-  a.download = name;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(href), 10000);
-}
-
 /** Pages through the whole result set, reporting progress as it goes. */
 async function ckFetchAll(resourceId, extra, onProgress) {
   const records = [];
@@ -162,7 +136,7 @@ function ckBindDownload(btn, resourceId, extra, base) {
         btn.textContent = `מוריד… ${num(n)} / ${num(total)}`;
       });
       if (!records.length) { btn.textContent = 'אין רשומות'; return; }
-      ckSave(ckCsv(fields, records), `${base.replace(/[\\/:*?"<>|]/g, '_').slice(0, 80)}.csv`);
+      saveCsv(buildCsv(fields, records), `${base.replace(/[\\/:*?"<>|]/g, '_').slice(0, 80)}.csv`);
       btn.textContent = `✓ ${num(records.length)} שורות`;
     } catch (err) {
       btn.textContent = err.name === 'AbortError' ? 'תם הזמן — נסה שוב' : 'ההורדה נכשלה';

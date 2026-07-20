@@ -56,3 +56,37 @@ export function debounce(fn, ms = 300) {
     t = setTimeout(() => fn(...args), ms);
   };
 }
+
+/* ---------- CSV, built here rather than trusting an advertised download ----------
+ * Shared by the data.gov.il explorer and any live-preview download button:
+ * some CKAN resource downloads are WAF-challenged (see ckan.js), and some
+ * data (e.g. accidents) never had a direct file link to begin with - either
+ * way, datastore_search is the call already in use to show the rows, so the
+ * CSV is assembled here from data actually in hand.
+ */
+
+/** RFC 4180 quoting, and a BOM so Excel reads Hebrew as UTF-8 rather than mojibake. */
+export function buildCsv(fields, records) {
+  const cell = (v) => {
+    const s = v == null ? '' : String(v);
+    return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const rows = records.map((r) => fields.map((f) => cell(r[f])).join(','));
+  return `﻿${fields.map(cell).join(',')}\r\n${rows.join('\r\n')}\r\n`;
+}
+
+/**
+ * `download` is ignored for cross-origin URLs, which is why file links open
+ * in a tab elsewhere on this site. A blob: URL is same-origin, so here the
+ * attribute does work and the browser saves rather than navigates.
+ */
+export function saveCsv(text, name) {
+  const href = URL.createObjectURL(new Blob([text], { type: 'text/csv;charset=utf-8' }));
+  const a = document.createElement('a');
+  a.href = href;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(href), 10000);
+}

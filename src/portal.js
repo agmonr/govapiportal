@@ -12,7 +12,7 @@
  * them, so if one changes the map reports it rather than this quietly breaking.
  */
 
-import { esc, debounce, num, bytes } from './ui.js';
+import { esc, debounce, num, bytes, buildCsv, saveCsv } from './ui.js';
 
 /**
  * One entry per browser-callable portal.
@@ -30,7 +30,89 @@ import { esc, debounce, num, bytes } from './ui.js';
 
 /** Encodes a value for a CQL / SQL LIKE clause. Quotes are the injection risk. */
 const like = (q) => `%${q.replace(/'/g, "''")}%`;
+
+/** HUMRAT_TEUNA / SUG_DEREH are coded columns - values taken from the resource's
+ *  own Dictionary file (MS_TAVLA 4 and 2), not guessed. */
+const ACCIDENT_SEVERITY = { 1: 'קטלנית', 2: 'קשה', 3: 'קלה' };
+const ACCIDENT_ROAD = {
+  1: 'עירונית בצומת', 2: 'עירונית לא בצומת',
+  3: 'לא-עירונית בצומת', 4: 'לא-עירונית לא בצומת', 5: 'שטח',
+};
+const ACCIDENTS_RESOURCE_2024 = '05d14adb-fe54-49f7-b7ce-f30348e2d959';
+// Settlement code -> name. A separate dataset (Population and Immigration
+// Authority), not part of the accidents resource - its own dictionary never
+// spells out city names, only codes.
+const SETTLEMENTS_RESOURCE = '5c78e9fa-c2e2-4771-93ff-7f400a12f7ba';
+const OUTSIDE_SETTLEMENT = 'מחוץ לתחום ישוב';
+
+/** Shared by the live preview and the CSV download, so "download what's
+ *  shown" and "what's shown" can never drift apart into two answers. */
+function accidentFilters(query, primed) {
+  const needle = query.trim();
+  if (!needle || !primed) return null;
+  const codes = [...primed.entries()]
+    .filter(([, name]) => name.includes(needle))
+    .map(([code]) => Number(code));
+  // No match still has to ask the server something, or the empty filter is
+  // ignored and the request silently returns everything instead of the "no
+  // results" the search text promised.
+  return { SEMEL_YISHUV: codes.length ? codes : [-1] };
+}
+
 const PREVIEWS = {
+  accidents: {
+    label: 'רשומות תאונה (DataStore, נתוני 2024)',
+    placeholder: 'סנן לפי יישוב — למשל חיפה',
+    pageSize: 15,
+    paged: true,
+    // One request to resolve a typed settlement name to its code(s), cached -
+    // 1,310 rows is small enough to hold whole, and it almost never changes
+    // mid-session.
+    prime: async () => {
+      const fields = encodeURIComponent('סמל_ישוב,שם_ישוב');
+      const res = await fetch(
+        `https://data.gov.il/api/3/action/datastore_search?resource_id=${SETTLEMENTS_RESOURCE}&fields=${fields}&limit=1500`);
+      const j = await res.json();
+      const map = new Map();
+      (j.result?.records || []).forEach((r) => {
+        const code = String(r['סמל_ישוב'] ?? '').trim();
+        const name = String(r['שם_ישוב'] ?? '').trim();
+        if (code) map.set(code, name);
+      });
+      return map;
+    },
+    // Filters, not q: every column here is a numeric code, so CKAN's full-text
+    // q would search codes, not the city name someone actually types.
+    url: (q, o, primed) => {
+      const p = new URLSearchParams({ resource_id: ACCIDENTS_RESOURCE_2024, limit: String(o.limit || 15) });
+      if (o.start) p.set('offset', String(o.start));
+      const filters = accidentFilters(q, primed);
+      if (filters) p.set('filters', JSON.stringify(filters));
+      return `https://data.gov.il/api/3/action/datastore_search?${p}`;
+    },
+    total: (j) => j.result.total,
+    unit: 'תאונות',
+    columns: [['year', 'שנה'], ['severity', 'חומרה'], ['city', 'יישוב'], ['road', 'סוג דרך'], ['hour', 'שעה']],
+    rows: (j, primed) => (j.result.records || []).map((r) => {
+      const code = String(r.SEMEL_YISHUV ?? '').trim();
+      return {
+        year: r.SHNAT_TEUNA ?? '—',
+        severity: ACCIDENT_SEVERITY[r.HUMRAT_TEUNA] || '—',
+        city: !code || code === '0' ? OUTSIDE_SETTLEMENT : (primed?.get(code) || `יישוב #${code}`),
+        road: ACCIDENT_ROAD[r.SUG_DEREH] || '—',
+        hour: r.SHAA ?? '—',
+      };
+    }),
+    // Downloads exactly the active filter, not the whole 8,315-row table by
+    // default - the same distinction the datagov preview draws for its own
+    // per-dataset download, just one level up. Reuses this spec's own url()/
+    // rows()/total() - see fetchAllRows() - so what downloads can never show
+    // different columns or a different filter than what's on screen.
+    download: {
+      filename: (q) => `תאונות_דרכים_2024${q ? `_${q}` : ''}`,
+    },
+  },
+
   datagov: {
     label: 'חיפוש מאגרים (package_search)',
     placeholder: 'חפש בכל 1,197 המאגרים — נושא, גוף מפרסם…',
@@ -356,6 +438,53 @@ function bindRows(scope) {
 }
 
 /**
+ * Pages through a spec's own url()/rows()/total() until the whole filtered
+ * result set is in hand, decoded exactly as the on-screen table decodes it
+ * (severity, city names, ...) - so a download can never show different
+ * columns or a different filter than what's on screen. A large `limit`
+ * override keeps this to a handful of requests rather than one per on-screen
+ * page; `spec.pageSize` stays untouched for the live table.
+ */
+const DUMP_PAGE = 32000;
+
+async function fetchAllRows(spec, query, primed, onProgress) {
+  const rows = [];
+  let start = 0;
+  // A ceiling rather than `while (true)`: if the server's own total ever
+  // disagreed with what it actually returns, this would otherwise loop forever.
+  for (let guard = 0; guard < 500; guard += 1) {
+    const url = spec.url(query, { start, limit: DUMP_PAGE }, primed);
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+    const total = spec.total(json);
+    const page = spec.rows(json, primed);
+    rows.push(...page);
+    start += page.length;
+    onProgress(rows.length, total);
+    if (!page.length || rows.length >= total) break;
+  }
+  return rows;
+}
+
+/**
+ * `home` sits on every portal in apis.json but nothing ever rendered it - the
+ * drill-in is where it belongs, since a portal like the tree-objections
+ * tracker has no API entry and no live preview, so this link is the only way
+ * to actually reach what the card is about.
+ */
+function drillHead(portal) {
+  return `
+    <div class="drill-head">
+      <span class="drill-title">
+        <h2 dir="auto">${esc(portal.name_he)}</h2>
+        ${portal.home ? `<a class="drill-home" href="${esc(portal.home)}" target="_blank" rel="noopener">אתר הבית ↗</a>` : ''}
+      </span>
+      <button type="button" class="drill-close">סגור ✕</button>
+    </div>`;
+}
+
+/**
  * Renders into `node` for a portal.
  *
  * Portals that are not browser-callable get an explanation rather than a failed
@@ -368,14 +497,13 @@ export async function openPortal(node, portal) {
   if (!spec) {
     node.innerHTML = `
       <div class="drill">
-        <div class="drill-head">
-          <h2 dir="auto">${esc(portal.name_he)}</h2>
-          <button type="button" class="drill-close">סגור ✕</button>
-        </div>
+        ${drillHead(portal)}
         <div class="notice info" dir="auto">
-          ${portal.browser_count === 0
-            ? 'אף ממשק בפורטל הזה אינו ניתן לקריאה מדפדפן — ראה את הסיבה בכרטיסי הממשקים למטה.'
-            : 'אין תצוגה מקדימה מוגדרת לפורטל הזה.'}
+          ${portal.api_count === 0
+            ? 'זהו כלי חיצוני ולא API ממשלתי — הדוח עצמו נמצא בקישור לאתר הבית שלמעלה.'
+            : portal.browser_count === 0
+              ? 'אף ממשק בפורטל הזה אינו ניתן לקריאה מדפדפן — ראה את הסיבה בכרטיסי הממשקים למטה.'
+              : 'אין תצוגה מקדימה מוגדרת לפורטל הזה.'}
         </div>
       </div>`;
     return;
@@ -383,16 +511,14 @@ export async function openPortal(node, portal) {
 
   node.innerHTML = `
     <div class="drill">
-      <div class="drill-head">
-        <h2 dir="auto">${esc(portal.name_he)}</h2>
-        <button type="button" class="drill-close">סגור ✕</button>
-      </div>
+      ${drillHead(portal)}
       <p class="drill-sub" dir="auto">${esc(spec.label)}${spec.more
         ? ` <a class="drill-more" href="${esc(spec.more.href)}">${esc(spec.more.label)} ←</a>` : ''}</p>
       <div class="drill-filter">
         <input type="search" class="drill-q" dir="auto" spellcheck="false"
                placeholder="${esc(spec.placeholder)}" aria-label="סינון">
         <span class="drill-scope">${spec.local ? 'סינון מקומי' : 'סינון בשרת'}</span>
+        ${spec.download ? '<button type="button" class="drill-dl">הורדת CSV ⭳</button>' : ''}
       </div>
       ${spec.facets ? '<div class="drill-cols"></div>' : ''}
       <div class="drill-out"></div>
@@ -401,7 +527,35 @@ export async function openPortal(node, portal) {
   const out = node.querySelector('.drill-out');
   const input = node.querySelector('.drill-q');
   const cols = node.querySelector('.drill-cols');
+  const dl = node.querySelector('.drill-dl');
   let cached = null;   // local-filter portals fetch once and re-filter in place
+  let primed = null;   // spec.prime()'s result (e.g. a code -> name lookup), fetched once
+
+  if (dl) {
+    const dlLabel = dl.textContent;
+    dl.addEventListener('click', async () => {
+      dl.disabled = true;
+      try {
+        if (spec.prime && !primed) primed = await spec.prime();
+        const query = input.value.trim();
+        const rows = await fetchAllRows(spec, query, primed, (n, total) => {
+          dl.textContent = `מוריד… ${num(n)} / ${num(total)}`;
+        });
+        if (!rows.length) { dl.textContent = 'אין רשומות'; return; }
+        const fields = spec.columns.map(([, label]) => label);
+        const csvRows = rows.map((r) => Object.fromEntries(spec.columns.map(([key, label]) => [label, r[key]])));
+        const name = spec.download.filename(query).replace(/[\\/:*?"<>|]/g, '_').slice(0, 80);
+        saveCsv(buildCsv(fields, csvRows), `${name}.csv`);
+        dl.textContent = `✓ ${num(rows.length)} שורות`;
+      } catch (err) {
+        dl.textContent = err.name === 'AbortError' ? 'תם הזמן — נסה שוב' : 'ההורדה נכשלה';
+        console.error(err);
+      } finally {
+        dl.disabled = false;
+        setTimeout(() => { dl.textContent = dlLabel; }, 6000);
+      }
+    });
+  }
 
   // Column sort + column filters. Sort starts unset so the first view keeps
   // CKAN's own relevance order rather than imposing one.
@@ -450,7 +604,10 @@ export async function openPortal(node, portal) {
   async function load(query) {
     out.innerHTML = `<div class="skeleton" dir="auto">שולח בקשה…${
       spec.slow && query ? ` <span class="slow-note">${esc(spec.slowNote)}</span>` : ''}</div>`;
-    const url = spec.url(spec.local ? '' : query, state);
+    // Runs once per drill-in, not per keystroke - primed stays cached across
+    // reloads the same way `cached` does for a local-filter portal.
+    if (spec.prime && !primed) primed = await spec.prime();
+    const url = spec.url(spec.local ? '' : query, state, primed);
     const t0 = performance.now();
 
     try {
@@ -474,7 +631,7 @@ export async function openPortal(node, portal) {
         if (spec.local) cached = json;
       }
 
-      let rows = spec.rows(json);
+      let rows = spec.rows(json, primed);
       const total = spec.total?.(json);
 
       if (spec.facetsOf && !facetOpts) {

@@ -32,6 +32,11 @@ const expected = data.apis.reduce((acc, a) => {
   return acc;
 }, {});
 
+// Not every portal has an API row - one (the tree-objections tracker) is
+// deliberately API-less, and the matrix skips empty groups (see map.js), so
+// the group count is portals-with-an-api, not portals.length.
+const portalsWithApis = new Set(data.apis.map((a) => a.portal)).size;
+
 const failures = [];
 const browser = await chromium.launch();
 
@@ -55,8 +60,8 @@ async function runPass(label, url, { bundled = false } = {}) {
   const n = data.apis.length;
   ok(await page.locator('#matrix tr.row').count() === n, `matrix lists all ${n} APIs`);
   ok(await page.locator('.card.api').count() === n, `detail list holds all ${n} APIs`);
-  ok(await page.locator('#matrix tr.grp').count() === data.portals.length,
-    `matrix groups by all ${data.portals.length} portals`);
+  ok(await page.locator('#matrix tr.grp').count() === portalsWithApis,
+    `matrix groups by all ${portalsWithApis} portals that have an API`);
 
   /* --- tile counts must agree with both views, or the top view is lying --- */
   for (const [cls, count] of Object.entries(expected)) {
@@ -115,8 +120,12 @@ async function runPass(label, url, { bundled = false } = {}) {
      Only structure and wiring are asserted. Whether the live request succeeds
      depends on five government hosts being up, and this suite deliberately does
      not fail because someone else's server is down. */
+  // Hand-maintained, like verdict() above: bump this when a PREVIEWS entry
+  // is added to or removed from src/portal.js.
+  const EXPECTED_PREVIEWS = 6;
   const withPreview = await page.locator('.portal .p-open').count();
-  ok(withPreview === 5, `5 portals advertise a live preview (found ${withPreview})`);
+  ok(withPreview === EXPECTED_PREVIEWS,
+    `${EXPECTED_PREVIEWS} portals advertise a live preview (found ${withPreview})`);
 
   /* data.gov.il carries the column sort and column filters, and is the only
      portal whose rows expand into files.

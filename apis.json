@@ -3,6 +3,34 @@
   "note": "Every status/cors/format field below was probed directly, not recalled. 'unknown' means the probe failed to find a working endpoint - it is not a claim that none exists.",
   "portals": [
     {
+      "id": "accidents",
+      "name": "Road Accidents (CBS)",
+      "name_he": "תאונות דרכים עם נפגעים",
+      "home": "https://data.gov.il/dataset/02789da8-7a3e-4bfc-b771-1732b1cf403c",
+      "docs": "https://docs.ckan.org/en/latest/maintaining/datastore.html",
+      "kind": "ממשלתי",
+      "about": "נתוני הלמ\"ס ברמת התאונה הבודדת, מתפרסמים דרך data.gov.il. ב-2020–2024 נרשמו 1,684 תאונות קטלניות — 988 מהן (59%) מחוץ לתחום כל ישוב, לא ברחוב של עיר מסוימת. מבין הישובים עצמם (לפי מספר תאונות מוחלט, לא לנפש) ת\"א-יפו מובילה עם 82, ירושלים 71, חיפה 37.",
+      "api_count": 1,
+      "browser_count": 1,
+      "domains": [
+        "transport"
+      ]
+    },
+    {
+      "id": "trees",
+      "name": "Tree Objections Tracker",
+      "name_he": "עצים והשגות",
+      "home": "https://agmonr.github.io/yeela-license-tracker/statics/reports/open_for_objection.html",
+      "docs": null,
+      "kind": "פרויקט אישי",
+      "about": "דוח סטטי - לא API - העוקב אחר רישיונות כריתה/העתקה של עצים שפתוחים כרגע להגשת השגה. כלי אישי, לא ממשלתי; מוצג כאן כי הוא נשען על נתוני רישוי ממשלתיים, לא כי יש לו ממשק לבדוק.",
+      "api_count": 0,
+      "browser_count": 0,
+      "domains": [
+        "trees"
+      ]
+    },
+    {
       "id": "datagov",
       "name": "data.gov.il",
       "name_he": "המאגר הממשלתי הפתוח",
@@ -402,6 +430,22 @@
       "notes": "גבולות תכניות בנייה. מחזיר מספר תכנית, שם, שטח בדונם, ייעודי קרקע, ועדה, תאריכי הפקדה/פרסום, ו-pl_url למסמכים במבא\"ת. תומך שאילתת נקודה (esriGeometryPoint) ושאילתות attribute. מחזיר את ה-Origin המבקש בכותרת CORS ולא '*'.",
       "example": "https://ags.iplan.gov.il/arcgisiplan/rest/services/PlanningPublic/Xplan/MapServer/1/query?where=jurstiction_area_name%3D%27%D7%A8%D7%A2%D7%A0%D7%A0%D7%94%27&outFields=pl_number%2Cpl_name&returnGeometry=false&resultRecordCount=3&f=json",
       "portal": "iplan"
+    },
+    {
+      "source": "CBS — תאונות דרכים",
+      "source_he": "הלשכה המרכזית לסטטיסטיקה — תאונות דרכים עם נפגעים",
+      "name": "CKAN — DataStore query (נתוני 2024, ברמת תאונה)",
+      "endpoint": "https://data.gov.il/api/3/action/datastore_search",
+      "method": "GET",
+      "auth": "none",
+      "cors": "*",
+      "browser": true,
+      "format": "JSON",
+      "status": 200,
+      "domain": "transport",
+      "notes": "8,315 תאונות ב-2024, ברמת אירוע בודד — אין כאן שדה של מספר הרוגים לתאונה, רק חומרה (HUMRAT_TEUNA: 1=קטלנית). 405 מהן קטלניות, 256 (63%) מחוץ לתחום ישוב. שדות רבים מקודדים במספרים; משאב ה-Dictionary באותו מאגר ממפה קוד→תיאור, ורשימת יישובים נפרדת (data.gov.il, מאגר 3fc54b81) נדרשת לפענוח סמל הישוב. אין שדה או מאגר נפרד לתאונות מסילת ברזל — נבדק ולא נמצא. גרסאות מקבילות ל-2020–2023 קיימות תחת resource_id שונה לכל שנה; הצירוף של חמש השנים הוא מה שמופיע בתיאור הפורטל למעלה.",
+      "example": "https://data.gov.il/api/3/action/datastore_search?resource_id=05d14adb-fe54-49f7-b7ce-f30348e2d959&filters=%7B%22HUMRAT_TEUNA%22%3A1%7D&limit=5",
+      "portal": "accidents"
     }
   ]
 }

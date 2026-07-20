@@ -152,7 +152,7 @@ function portalCard(p) {
     <button class="portal${active}" data-portal="${esc(p.id)}" type="button">
       <span class="p-head">
         <span class="p-name" dir="auto">${esc(p.name_he)}</span>
-        <span class="badge ${cls}">${p.browser_count}/${p.api_count}</span>
+        ${p.api_count ? `<span class="badge ${cls}">${p.browser_count}/${p.api_count}</span>` : ''}
       </span>
       <span class="p-sub" dir="ltr">${esc(p.name)}</span>
       <span class="p-about" dir="auto">${esc(p.about)}</span>
