@@ -136,6 +136,78 @@ button:disabled { opacity: .5; cursor: default; }
 .card.api.warn { border-inline-start-color: #9a6700; }
 .card.api.bad  { border-inline-start-color: var(--danger); }
 
+/* ---------- portal grid ---------- */
+
+.section { font-size: 1rem; margin-block: 2rem .75rem; color: var(--muted); font-weight: 600; }
+.section:first-of-type { margin-block-start: 0; }
+
+.portal-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+  gap: .75rem;
+}
+
+.portal {
+  display: flex;
+  flex-direction: column;
+  gap: .35rem;
+  text-align: start;
+  padding: .85rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  cursor: pointer;
+}
+.portal:hover { border-color: var(--accent); }
+.portal.active { border-color: var(--accent); background: var(--surface); box-shadow: inset 0 0 0 1px var(--accent); }
+
+.p-head { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
+.p-name { font-weight: 600; }
+.p-sub  { font-size: .78rem; color: var(--muted); }
+.p-about { font-size: .85rem; color: var(--muted); line-height: 1.45; }
+
+/* ---------- live explorer ---------- */
+
+.toggle-ex { font-size: .85rem; padding: .35rem .7rem; margin-block-start: .5rem; }
+
+.explorer {
+  margin-block-start: .75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: .7rem;
+  background: var(--surface);
+}
+.ex-bar { display: flex; gap: .4rem; align-items: stretch; flex-wrap: wrap; }
+.ex-method {
+  font-size: .78rem; font-weight: 600;
+  padding: .5rem .6rem;
+  border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--bg); color: var(--muted);
+}
+.ex-url { flex: 1; min-inline-size: 12rem; font-family: ui-monospace, Menlo, monospace; font-size: .8rem; }
+.ex-status { display: flex; gap: .4rem; align-items: center; flex-wrap: wrap; margin-block: .6rem .4rem; }
+
+.ex-out pre {
+  margin: 0;
+  max-block-size: 22rem;
+  overflow: auto;              /* long responses scroll inside the panel */
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: .6rem;
+  font-size: .78rem;
+  line-height: 1.45;
+  white-space: pre;
+}
+.j-key  { color: var(--accent); }
+.j-str  { color: #1a7f45; }
+.j-num  { color: #9a6700; }
+.j-bool { color: var(--danger); }
+@media (prefers-color-scheme: dark) {
+  .j-str { color: #5fce8f; }
+  .j-num { color: #e0b341; }
+}
+
 /* Endpoints are LTR inside an RTL page; they must scroll, not widen it. */
 .endpoint { overflow-x: auto; }
 .endpoint code {

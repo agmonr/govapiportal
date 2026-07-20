@@ -19,9 +19,22 @@ Must be served over HTTP — `fetch` and ES modules are blocked on `file://`.
 
 | Path | Purpose |
 |---|---|
-| `apis.json` | The map. One entry per API — edit this to add sources. |
-| `index.html` / `src/map.js` | Renders and filters the map |
+| `apis.json` | The map — `portals` (9) and `apis` (13). Edit this to add sources. |
+| `index.html` / `src/map.js` | Portal grid + API list, filterable |
+| `src/explorer.js` | Live in-browser request panel |
 | `src/style.css` | RTL-first styling |
+| `SESSION.md` | Build log: decisions, corrections, what's unverified |
+
+## Browsing APIs from the page
+
+Each API with a known endpoint has a **נסה בדפדפן** panel: edit the URL, send it,
+and see status, timing, content-type and a formatted JSON response — no server
+involved.
+
+For the server-only APIs the request genuinely fails, and that is the point. A
+cross-origin block reaches JavaScript as an opaque `TypeError` with no status
+code, so the panel names CORS as the cause rather than reporting a vague network
+error. Try Knesset OData to see it.
 
 ## The finding that drives the whole thing
 

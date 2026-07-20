@@ -1,12 +1,17 @@
-/** Renders apis.json as a filterable reference map. */
+/**
+ * Two-level map: portals at the top, APIs underneath, each with a live
+ * request panel.
+ */
 
 import { el, esc } from './ui.js';
+import { attachExplorer } from './explorer.js';
 
+const portalGrid = el('portals');
 const list = el('list');
 const summary = el('summary');
 
-let apis = [];
-const state = { q: '', browserOnly: false };
+let data = { portals: [], apis: [] };
+const state = { q: '', browserOnly: false, portal: null };
 
 /** Three states, not two: usable / blocked / unknown. Conflating the last two lies. */
 function verdict(api) {
@@ -17,9 +22,45 @@ function verdict(api) {
   return { cls: 'warn', label: 'מוגבל' };
 }
 
-function row(api) {
+/* ---------- portal level ---------- */
+
+function portalCard(p) {
+  const active = state.portal === p.id ? ' active' : '';
+  const cls = p.browser_count ? 'ok' : 'warn';
+  return `
+    <button class="portal${active}" data-portal="${esc(p.id)}" type="button">
+      <span class="p-head">
+        <span class="p-name" dir="auto">${esc(p.name_he)}</span>
+        <span class="badge ${cls}">${p.browser_count}/${p.api_count}</span>
+      </span>
+      <span class="p-sub" dir="ltr">${esc(p.name)}</span>
+      <span class="p-about" dir="auto">${esc(p.about)}</span>
+      <span class="meta">
+        <span class="tag">${esc(p.kind)}</span>
+        ${p.domains.map((d) => `<span class="tag">${esc(d)}</span>`).join('')}
+      </span>
+    </button>`;
+}
+
+function renderPortals() {
+  portalGrid.innerHTML = data.portals.map(portalCard).join('');
+  portalGrid.querySelectorAll('.portal').forEach((btn) =>
+    btn.addEventListener('click', () => {
+      // Second click on the same portal clears the filter.
+      state.portal = state.portal === btn.dataset.portal ? null : btn.dataset.portal;
+      renderPortals();
+      renderList();
+    })
+  );
+}
+
+/* ---------- api level ---------- */
+
+function apiCard(api, i) {
   const v = verdict(api);
   const url = api.endpoint !== 'unknown' ? api.endpoint : null;
+  const portal = data.portals.find((p) => p.id === api.portal);
+  const canTry = Boolean(api.example || url);
 
   return `
     <article class="card api ${v.cls}">
@@ -28,7 +69,7 @@ function row(api) {
         <span class="badge ${v.cls}">${esc(v.label)}</span>
       </div>
       <div class="meta">
-        <span class="tag" dir="auto">${esc(api.source_he || api.source)}</span>
+        <span class="tag" dir="auto">${esc(portal?.name_he || api.source)}</span>
         <span class="tag">${esc(api.domain)}</span>
         <span class="tag">${esc(api.format)}</span>
         <span class="tag">auth: ${esc(api.auth)}</span>
@@ -37,45 +78,72 @@ function row(api) {
       </div>
       ${url ? `<p class="endpoint" dir="ltr"><code>${esc(api.method)} ${esc(url)}</code></p>` : ''}
       <p dir="auto">${esc(api.notes)}</p>
-      ${api.example ? `<p><a href="${esc(api.example)}" target="_blank" rel="noopener" dir="ltr">נסה →</a></p>` : ''}
+      ${canTry
+        ? `<button class="toggle-ex" type="button" data-i="${i}">נסה בדפדפן ▾</button>
+           <div class="ex-slot" data-i="${i}" hidden></div>`
+        : ''}
     </article>`;
 }
 
-function render() {
+function renderList() {
   const q = state.q.toLowerCase();
-  const shown = apis.filter((a) => {
+  const shown = data.apis.filter((a) => {
+    if (state.portal && a.portal !== state.portal) return false;
     if (state.browserOnly && !a.browser) return false;
     if (!q) return true;
     return [a.name, a.source, a.source_he, a.domain, a.endpoint, a.notes]
       .join(' ').toLowerCase().includes(q);
   });
 
-  const callable = apis.filter((a) => a.browser).length;
+  const callable = data.apis.filter((a) => a.browser).length;
+  const scope = state.portal
+    ? data.portals.find((p) => p.id === state.portal)?.name_he
+    : 'הכל';
   summary.textContent =
-    `${shown.length} מתוך ${apis.length} ממשקים · ${callable} ניתנים לקריאה ישירה מהדפדפן`;
+    `${scope} · ${shown.length} מתוך ${data.apis.length} ממשקים · ` +
+    `${callable} ניתנים לקריאה ישירה מהדפדפן`;
 
   list.innerHTML = shown.length
-    ? shown.map(row).join('')
+    ? shown.map(apiCard).join('')
     : '<div class="notice info">לא נמצאו תוצאות.</div>';
+
+  // Explorers are built on demand - one live panel per API, only once opened.
+  list.querySelectorAll('.toggle-ex').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const slot = list.querySelector(`.ex-slot[data-i="${btn.dataset.i}"]`);
+      const opening = slot.hidden;
+      slot.hidden = !opening;
+      btn.textContent = opening ? 'נסה בדפדפן ▴' : 'נסה בדפדפן ▾';
+      if (opening && !slot.dataset.ready) {
+        attachExplorer(slot, shown[Number(btn.dataset.i)]);
+        slot.dataset.ready = '1';
+      }
+    });
+  });
 }
 
-el('q').addEventListener('input', (e) => { state.q = e.target.value.trim(); render(); });
+/* ---------- wiring ---------- */
+
+el('q').addEventListener('input', (e) => { state.q = e.target.value.trim(); renderList(); });
 el('browser-only').addEventListener('change', (e) => {
-  state.browserOnly = e.target.checked; render();
+  state.browserOnly = e.target.checked; renderList();
+});
+el('clear').addEventListener('click', () => {
+  state.portal = null; state.q = ''; state.browserOnly = false;
+  el('q').value = ''; el('browser-only').checked = false;
+  renderPortals(); renderList();
 });
 
 async function load() {
   try {
-    // Resolved against this module, not the document, so it survives being
-    // imported from a page at any path.
     const res = await fetch(new URL('../apis.json', import.meta.url));
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-    apis = data.apis;
+    data = await res.json();
     // Browser-callable first - that is the decision most visitors are here to make.
-    apis.sort((a, b) => Number(b.browser) - Number(a.browser) || a.source.localeCompare(b.source));
+    data.apis.sort((a, b) => Number(b.browser) - Number(a.browser) || a.source.localeCompare(b.source));
     el('probed').textContent = `נבדק: ${data.probed}`;
-    render();
+    renderPortals();
+    renderList();
   } catch (err) {
     list.innerHTML = `<div class="notice error">טעינת apis.json נכשלה: ${esc(err.message)}</div>`;
   }
