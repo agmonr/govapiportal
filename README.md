@@ -43,7 +43,7 @@ than shipping to whoever downloads it.
 
 | Path | Purpose |
 |---|---|
-| `apis.json` | The map — `portals` (10) and `apis` (15). Edit this to add sources. |
+| `apis.json` | The map — `portals` (10) and `apis` (16). Edit this to add sources. |
 | `index.html` / `src/map.js` | Top view + portal grid + API list, filterable |
 | `src/portal.js` | Portal drill-in: live request per portal, rendered as a table |
 | `src/explorer.js` | Live in-browser request panel |
@@ -54,7 +54,7 @@ than shipping to whoever downloads it.
 
 ## Top view
 
-`מבט־על` sits above everything: a count of all 15 APIs, then one tile per
+`מבט־על` sits above everything: a count of all 16 APIs, then one tile per
 verdict. The portal grid follows directly, so the portals are reachable without
 scrolling past the full matrix — that table now sits below them under
 `כל הממשקים`, holding every API grouped by portal
@@ -157,11 +157,11 @@ error. Try Knesset OData to see it.
 
 **CORS is the deciding field.** Several of these APIs are live and unauthenticated
 but send no `Access-Control-Allow-Origin` header, so a static page cannot call
-them at all. Of 15 entries, **7 are browser-callable**:
+them at all. Of 16 entries, **8 are browser-callable**:
 
 | Verdict | n | Meaning | Examples |
 |---|---|---|---|
-| דפדפן ✓ (browser) | 7 | 200 + CORS. Usable from a static page. | data.gov.il CKAN ×2, CBS ×2, Open Bus Stride, GovMap WFS cadastre, iplan Xplan |
+| דפדפן ✓ (browser) | 8 | 200 + CORS. Usable from a static page. | data.gov.il CKAN ×2, CBS ×2, Open Bus Stride ×2, GovMap WFS cadastre, iplan Xplan |
 | שרת בלבד (server only) | 3 | 200 but no CORS. Needs a proxy or build-time fetch. | Knesset OData ×2, Bank of Israel SDMX |
 | מוגבל (limited) | 2 | Reachable, but the contract is unresolved. | GovMap layers catalog (undocumented auth), Nadlan (SPA shell) |
 | חסום (blocked) | 1 | Actively refused. | `datastore_search_sql` — 403 from the WAF |
@@ -188,6 +188,16 @@ build-time snapshot.
   `limit`/`offset`.
 - **Open Bus Stride** is NGO-run (Hasadna), not government, and is the
   best-documented API here — full OpenAPI spec at `/openapi.json`.
+- **Bus GPS positions** are at `/siri_vehicle_locations/list` — lon/lat, bearing,
+  velocity, line, operator, vehicle. It is a near-real-time *archive* of the MOT
+  SIRI feed, not a live feed: measured ~12 min behind, at minute resolution,
+  3,927,063 rows in 24h. **Always bound the range at both ends.**
+  `order_by=recorded_at_time desc` without a `recorded_at_time_to` returns rows
+  stamped `2038-01-14` whose data is months old — a wrong answer, not an error,
+  the same failure mode as the EPSG one below. Also: `get_count=true` over an
+  unbounded range 500s on a Postgres statement timeout and returns a full
+  SQLAlchemy traceback, and `/siri_snapshots/list` is simply broken (500 on a
+  pydantic validation error). A bounded 10-minute window returns in 0.15s.
 - **GovMap's layers catalog** returns CORS `*` but `{"error":"access denied"}`
   without credentials; the auth flow is undocumented and unverified. Its **WFS
   cadastre** needs no auth at all and answers fine — see the two-row note above.
@@ -207,7 +217,7 @@ build-time snapshot.
 Every field here is a claim about live server behaviour on a particular day, and
 those claims rot — a WAF rule lifts, a CORS header appears, an endpoint moves.
 
-`.github/workflows/probe.yml` re-probes all 13 identified endpoints every Monday
+`.github/workflows/probe.yml` re-probes all 14 identified endpoints every Monday
 and **opens an issue when reality and `apis.json` disagree**. Run it yourself:
 
 ```bash

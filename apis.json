@@ -1,5 +1,5 @@
 {
-  "probed": "2026-07-20T16:46+03:00",
+  "probed": "2026-07-20T19:34+03:00",
   "note": "Every status/cors/format field below was probed directly, not recalled. 'unknown' means the probe failed to find a working endpoint - it is not a claim that none exists.",
   "portals": [
     {
@@ -38,9 +38,9 @@
       "home": "https://open-bus.hasadna.org.il",
       "docs": "https://open-bus-stride-api.hasadna.org.il/docs",
       "kind": "עמותה",
-      "about": "תחבורה ציבורית: מתוכנן מול בפועל. לא ממשלתי — עמותה. התיעוד הטוב ביותר כאן.",
-      "api_count": 1,
-      "browser_count": 1,
+      "about": "תחבורה ציבורית: מתוכנן מול בפועל, כולל מיקומי GPS של אוטובוסים. לא ממשלתי — עמותה. התיעוד הטוב ביותר כאן.",
+      "api_count": 2,
+      "browser_count": 2,
       "domains": [
         "transit"
       ]
@@ -288,6 +288,22 @@
       "domain": "transit",
       "notes": "NGO-run, not government — mirrors and enriches MOT GTFS with planned vs actual arrivals. Best-documented API here: full OpenAPI spec at /openapi.json. Browser-callable.",
       "example": "https://open-bus-stride-api.hasadna.org.il/gtfs_stops/list?limit=5",
+      "portal": "openbus"
+    },
+    {
+      "source": "Open Bus / Hasadna",
+      "source_he": "הסדנא לידע ציבורי",
+      "name": "Stride API — מיקומי אוטובוסים (SIRI)",
+      "endpoint": "https://open-bus-stride-api.hasadna.org.il/siri_vehicle_locations/list",
+      "method": "GET",
+      "auth": "none",
+      "cors": "*",
+      "browser": true,
+      "format": "JSON",
+      "status": 200,
+      "domain": "transit",
+      "notes": "מיקומי GPS של אוטובוסים: lon/lat, כיוון, מהירות, קו, מפעיל ורכב. ארכיון קרוב-לזמן-אמת של פיד ה-SIRI של משרד התחבורה, לא פיד חי — הרשומה העדכנית ביותר נמדדה בפיגור של כ-12 דקות, והצילומים הם ברזולוציית דקה. נפח: 3,927,063 רשומות ב-24 השעות שנמדדו. אזהרה: order_by=recorded_at_time desc ללא recorded_at_time_to מחזיר רשומות פגומות עם חותמת 2038-01-14 שנתוניהן בני חודשים — תמיד יש לתחום את הטווח משני הצדדים, אחרת מתקבלת תשובה שגויה ולא שגיאה. get_count=true על טווח פתוח מחזיר 500 (statement timeout) עם traceback מלא של השרת. הנקודה /siri_snapshots/list שבורה — 500 על שגיאת ולידציה (snapshot_id ריק). טווח תחום של 10 דקות חוזר ב-0.15 שניות.",
+      "example": "https://open-bus-stride-api.hasadna.org.il/siri_vehicle_locations/list?recorded_at_time_from=2026-07-20T16%3A00%3A00Z&recorded_at_time_to=2026-07-20T16%3A10%3A00Z&limit=5&order_by=recorded_at_time%20desc",
       "portal": "openbus"
     },
     {

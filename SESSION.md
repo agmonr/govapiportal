@@ -351,6 +351,44 @@ more than arithmetic:
 - The EPSG:3857 trap, the unindexed-filter timings and the Xplan Origin echo were
   all in this log but never in the README, where a caller would look.
 
+### Bus locations: a new entry, and a trap in it
+
+Asked whether bus positions are open data. They are —
+`/siri_vehicle_locations/list` on Stride, CORS `*`, browser-callable. Added as a
+second `openbus` entry (16 APIs, 8 browser-callable), the same way `datagov`
+carries three CKAN entries.
+
+It is **not** a live feed, and calling it one would be the kind of claim this map
+exists to prevent: measured ~12 minutes behind wall clock, minute-resolution
+snapshots, 3,927,063 rows in 24h. A near-real-time archive of the MOT SIRI feed.
+
+Three things probing caught, the first serious:
+
+- **`order_by=recorded_at_time desc` alone returns garbage.** The top rows come
+  back stamped `2038-01-14T17:22:21` — a Y2038-shaped sentinel — on records whose
+  own snapshot id reads `2026/03/19`. So the obvious query for "latest bus
+  positions" silently yields four-month-old rows wearing a future timestamp.
+  Bounding with `recorded_at_time_to` fixes it. Same class as the EPSG:3857
+  finding: a wrong answer, not a failure, which is the only kind worth writing
+  down.
+- `get_count=true` over an unbounded range 500s on a Postgres statement timeout
+  and returns a full SQLAlchemy traceback with generated SQL and server paths.
+- `/siri_snapshots/list` is broken outright — 500 on a pydantic validation error
+  (`snapshot_id: none is not an allowed value`). Not usable as a freshness check.
+
+The `example` is a **fixed** 10-minute window rather than a relative one, since
+the prober needs a static URL; the archive retains months, so it stays 200. It
+returns in 0.15s, so no per-API `timeout` was needed.
+
+**A stored count had drifted.** Portal cards carry `api_count` / `browser_count`
+in `apis.json` rather than deriving them, so adding the entry left `openbus`
+reading `1/1` while showing two APIs. Audited all ten — only that one was wrong,
+now `2/2`. Worth noting that `smoke.mjs` would not have caught this: it checks
+tile == matrix == card, all three of which derive from `verdict()`, while the
+portal badge is the one number nothing cross-checks.
+
+Re-probed clean (14 probed, 2 skipped, 0 drifted) and stamped.
+
 ### Set aside, not deleted
 
 ~~The original CKAN portal lives in the session scratchpad.~~ **Gone.** The
