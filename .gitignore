@@ -3,3 +3,5 @@ __pycache__/
 *.log
 _site/
 .DS_Store
+node_modules/
+tools/*.png
