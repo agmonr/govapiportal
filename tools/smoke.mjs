@@ -63,6 +63,30 @@ async function runPass(label, url, { bundled = false } = {}) {
   ok(await page.locator('#matrix tr.grp').count() === portalsWithApis,
     `matrix groups by all ${portalsWithApis} portals that have an API`);
 
+  /* --- data.gov.il's drill-in opens itself, before any click - see map.js.
+     Asserted immediately, before anything else on the page is clicked
+     (a later test intentionally clears #drill via reset() to test the
+     matrix-row jump, so this has to run first or it checks a moment where
+     the drill was legitimately emptied by something else already).
+     Deliberately does not set state.portal (that would also filter the API
+     list below to just this one portal, which is what a *click* does, not
+     what the page should look like unasked), so the signal here is
+     content, not an "active" class on the card. */
+  ok(await page.locator('#drill .drill-head h2').innerText() === 'המאגר הממשלתי הפתוח',
+    'data.gov.il\'s drill-in is open on load, with no click');
+  ok(await page.locator('.card.api').count() === n,
+    'and the API list below stays unfiltered - opening it is not the same as clicking it');
+
+  /* --- apps are a distinct concept from portals, not a variant of one --- */
+  const appLinks = page.locator('#apps a.portal');
+  ok(await appLinks.count() === data.apps.length, `apps grid holds all ${data.apps.length} apps`);
+  for (const app of data.apps) {
+    const link = page.locator(`#apps a.portal[href="${app.href}"]`);
+    ok(await link.count() === 1, `app "${app.id}" links to ${app.href}`);
+    ok(await link.getAttribute('target') === (app.external ? '_blank' : null),
+      `app "${app.id}" ${app.external ? 'opens in a new tab' : 'navigates in place'}`);
+  }
+
   /* --- tile counts must agree with both views, or the top view is lying --- */
   for (const [cls, count] of Object.entries(expected)) {
     const tile = page.locator(`.stat.${cls} .stat-n`);
@@ -122,15 +146,22 @@ async function runPass(label, url, { bundled = false } = {}) {
      not fail because someone else's server is down. */
   // Hand-maintained, like verdict() above: bump this when a PREVIEWS entry
   // is added to or removed from src/portal.js.
-  const EXPECTED_PREVIEWS = 6;
-  const withPreview = await page.locator('.portal .p-open').count();
+  const EXPECTED_PREVIEWS = 5;
+  // Scoped to #portals: the apps grid uses the same .p-open span for its
+  // "go to the full page" / "external site" hint, which isn't a preview.
+  const withPreview = await page.locator('#portals .portal .p-open').count();
   ok(withPreview === EXPECTED_PREVIEWS,
     `${EXPECTED_PREVIEWS} portals advertise a live preview (found ${withPreview})`);
 
-  /* data.gov.il carries the column sort and column filters, and is the only
-     portal whose rows expand into files.
+  /* It carries the column sort and column filters, and is the only portal
+     whose rows expand into files.
 
-     It is opened before the `download` assertion below on purpose: that check
+     Re-opened with a click here: the row-jump test above calls reset(),
+     which clears #drill same as the close button does - by this point in
+     the run the default-open from page load is long gone, deliberately, so
+     this is not redundant with the "no click needed" assertion earlier.
+
+     This is asserted before the `download` check below on purpose: that check
      used to run against an empty #drill and passed vacuously - there were no
      links for it to look at, so it would have stayed green if the attribute
      came back. Everything here is skipped rather than failed when data.gov.il
@@ -297,10 +328,68 @@ async function runCkanPass(label, url) {
   failures.push(...problems);
 }
 
+/**
+ * The road-accidents app is a third page, reusing openPortal() in
+ * standalone mode - so it gets its own pass too, exactly like the explorer.
+ * Soft-skipped when data.gov.il does not answer, same policy as the other
+ * two passes: this suite never fails because someone else's server is down.
+ */
+async function runAccidentsPass(label, url, { bundled = false } = {}) {
+  console.log(`\n\x1b[1m${label}\x1b[0m  ${url}`);
+  const problems = [];
+  const ok = (cond, msg) => {
+    console.log(`${cond ? '\x1b[32m  PASS\x1b[0m' : '\x1b[31m  FAIL\x1b[0m'}  ${msg}`);
+    if (!cond) problems.push(`${label}: ${msg}`);
+  };
+
+  const page = await browser.newPage({ viewport: { width: 1280, height: 1000 } });
+  page.on('console', (m) => { if (m.type() === 'error') problems.push(`${label} console: ${m.text()}`); });
+  page.on('pageerror', (e) => problems.push(`${label} pageerror: ${e.message}`));
+
+  await page.goto(url, { waitUntil: 'load' });
+  ok(await page.locator('body.accidents-page').count() === 1,
+    'the page carries its own design hook (body.accidents-page)');
+
+  if (bundled) {
+    ok(await page.locator('#fileproto').count() === 0,
+      'no "run a server" notice in the bundle - it does not apply there');
+  } else {
+    ok(await page.locator('#fileproto').isVisible() === false,
+      'file:// notice stays hidden when served over HTTP');
+  }
+
+  const live = await page.locator('#accidents .matrix.preview tbody tr').first()
+    .waitFor({ timeout: 30000 }).then(() => true, () => false);
+
+  if (!live) {
+    console.log('\x1b[33m  SKIP\x1b[0m  data.gov.il did not answer - accidents app not asserted');
+  } else {
+    ok(await page.locator('#accidents .drill-close').count() === 0,
+      'standalone mode has nothing to close back to, so no close button');
+    ok(await page.locator('#accidents .drill-home').count() === 1,
+      'links back to the source dataset on data.gov.il');
+    ok(await page.locator('#accidents .drill-dl').count() === 1,
+      'offers the same CSV download as the map\'s live preview');
+  }
+
+  for (const width of [380, 768, 1280]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.waitForTimeout(150);
+    const over = await page.evaluate(() =>
+      document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    ok(over <= 0, `no horizontal body scroll at ${width}px (overflow ${over}px)`);
+  }
+
+  await page.close();
+  failures.push(...problems);
+}
+
 await runPass('served over HTTP', HTTP_BASE);
 await runPass('opened from disk', FILE_BASE, { bundled: true });
 await runCkanPass('explorer over HTTP', `${HTTP_BASE}/datagov.html`);
 await runCkanPass('explorer from disk', new URL('../dist/datagov.html', import.meta.url).href);
+await runAccidentsPass('accidents app over HTTP', `${HTTP_BASE}/accidents.html`);
+await runAccidentsPass('accidents app from disk', new URL('../dist/accidents.html', import.meta.url).href, { bundled: true });
 
 await browser.close();
 
@@ -308,4 +397,4 @@ if (failures.length) {
   console.log(`\n\x1b[31m${failures.length} problem(s)\x1b[0m\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('\n\x1b[32mAll checks passed across all four passes. No console errors.\x1b[0m');
+console.log('\n\x1b[32mAll checks passed across all six passes. No console errors.\x1b[0m');

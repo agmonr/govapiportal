@@ -55,6 +55,17 @@ TARGETS = [
         "sources": ["src/ui.js", "src/theme.js", "src/ckan.js", "src/datagov.js"],
         "data": False,
     },
+    {
+        "html": "accidents.html",
+        "out": "dist/accidents.html",
+        "entry": "src/accidents.js",
+        # Reuses portal.js's openPortal() as-is, so it needs the same base as
+        # map.js minus explorer.js - accidents.html has no per-API request
+        # panel to attach. Needs apis.json inlined: it looks up the
+        # "accidents" app entry the same way map.js looks up portals.
+        "sources": ["src/ui.js", "src/theme.js", "src/portal.js", "src/accidents.js"],
+        "data": True,
+    },
 ]
 
 IMPORT_RE = re.compile(r"^\s*import\s.*?;\s*$", re.M)

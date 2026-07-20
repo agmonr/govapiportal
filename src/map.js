@@ -9,6 +9,7 @@ import { openPortal, hasPreview } from './portal.js';
 import { initThemePicker } from './theme.js';
 
 const portalGrid = el('portals');
+const appsGrid = el('apps');
 const list = el('list');
 const summary = el('summary');
 const stats = el('stats');
@@ -16,7 +17,7 @@ const matrix = el('matrix');
 const drill = el('drill');
 const more = el('more');
 
-let data = { portals: [], apis: [] };
+let data = { portals: [], apis: [], apps: [] };
 const state = { q: '', browserOnly: false, portal: null, verdict: null };
 
 /**
@@ -144,6 +145,29 @@ function renderMatrix() {
   });
 }
 
+/* ---------- apps ----------
+   Not government APIs, and not part of the probe/verdict model below - just
+   things built on top of one (or, for the tree tracker, adjacent to one).
+   Plain links, not filter buttons: there is no in-page state to open for
+   either. */
+
+function appCard(a) {
+  return `
+    <a class="portal app" href="${esc(a.href)}"${a.external ? ' target="_blank" rel="noopener"' : ''} dir="auto">
+      <span class="p-head">
+        <span class="p-name" dir="auto">${esc(a.name_he)}</span>
+      </span>
+      <span class="p-sub" dir="ltr">${esc(a.name)}</span>
+      <span class="p-about" dir="auto">${esc(a.about)}</span>
+      <span class="meta"><span class="tag">${esc(a.kind)}</span></span>
+      <span class="p-open">${a.external ? 'לאתר החיצוני ↗' : 'לעמוד המלא ←'}</span>
+    </a>`;
+}
+
+function renderApps() {
+  appsGrid.innerHTML = data.apps.map(appCard).join('');
+}
+
 /* ---------- portal level ---------- */
 
 function portalCard(p) {
@@ -161,8 +185,27 @@ function portalCard(p) {
         <span class="tag">${esc(p.kind)}</span>
         ${p.domains.map((d) => `<span class="tag">${esc(d)}</span>`).join('')}
       </span>
-      ${hasPreview(p.id) ? '<span class="p-open">צפה בנתונים חיים ←</span>' : ''}
+      ${hasPreview(p.id) ? '<span class="p-open">צפה בנתונים עדכניים ←</span>' : ''}
     </button>`;
+}
+
+/**
+ * Opens a portal's drill-in AND filters the API list below to that one
+ * portal - what a click on a portal card means. Used only by the click
+ * handler; the default-open call in load() wants the first half without
+ * the second (see there for why) and calls openPortal() directly instead.
+ */
+function selectPortal(id) {
+  state.portal = id;
+  renderPortals();
+  renderList();
+  // The drill-in lives past the mobile "continue" cut - a collapsed
+  // <details> hides it regardless of what's written into it, so open it
+  // first or the tap looks like it did nothing.
+  more.open = true;
+  const portal = data.portals.find((p) => p.id === id);
+  openPortal(drill, portal);
+  drill.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
 function renderPortals() {
@@ -171,21 +214,14 @@ function renderPortals() {
     btn.addEventListener('click', () => {
       // Second click on the same portal clears both the filter and the drill-in.
       const same = state.portal === btn.dataset.portal;
-      state.portal = same ? null : btn.dataset.portal;
-      renderPortals();
-      renderList();
-
       if (same) {
+        state.portal = null;
+        renderPortals();
+        renderList();
         drill.innerHTML = '';
         return;
       }
-      // The drill-in lives past the mobile "continue" cut - a collapsed
-      // <details> hides it regardless of what's written into it, so open
-      // it first or the tap looks like it did nothing.
-      more.open = true;
-      const portal = data.portals.find((p) => p.id === state.portal);
-      openPortal(drill, portal);
-      drill.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      selectPortal(btn.dataset.portal, { scroll: true });
     })
   );
 }
@@ -307,10 +343,20 @@ async function load() {
     el('probed').textContent = `נבדק: ${probedAt(data.probed)}`;
     // The exact recorded value, offset and all, stays reachable on hover.
     el('probed').title = data.probed;
+    renderApps();
     renderStats();
     renderMatrix();
     renderPortals();
     renderList();
+    // data.gov.il is the portal the rest of the map treats as central (it
+    // gets its own deeper page, its own explorer) - shown already open
+    // rather than making that the one thing on the page requiring a click.
+    // Deliberately not selectPortal(): that also filters the API list below
+    // to one portal and forces the mobile "continue" cut open, which is
+    // what a *click* should do, not what the page should already look like
+    // before anyone has touched it.
+    const datagov = data.portals.find((p) => p.id === 'datagov');
+    if (datagov) openPortal(drill, datagov);
   } catch (err) {
     list.innerHTML = `<div class="notice error">טעינת apis.json נכשלה: ${esc(err.message)}</div>`;
   }

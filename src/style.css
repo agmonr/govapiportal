@@ -743,6 +743,28 @@ a:focus-visible, button:focus-visible {
 
 [data-theme="fashion"] .lead { font-family: var(--font-display); line-height: 1.7; }
 
+/* ---------- accidents.html: a distinct, sober mood ----------
+   Its own page gets its own design, not a filtered variant of the other
+   two - fatal-accident data doesn't suit calm blue or gold shine either
+   one. A warning amber/red accent, overriding whichever base theme (clouds
+   or fashion) is picked - deliberately higher specificity than
+   [data-theme], so the mood here holds regardless of theme choice. Nearly
+   every component (cards, buttons, badges, the pager) just inherits this
+   through --accent already; nothing else needed rewriting. */
+body.accidents-page {
+  --accent: #b3541c;
+}
+@media (prefers-color-scheme: dark) {
+  body.accidents-page { --accent: #e0913f; }
+}
+body.accidents-page header.site {
+  border-block-end: 3px solid var(--accent);
+  background:
+    repeating-linear-gradient(135deg,
+      color-mix(in srgb, var(--accent) 14%, transparent) 0 14px, transparent 14px 28px),
+    var(--surface);
+}
+
 [data-theme="fashion"] .more summary.more-toggle {
   background: linear-gradient(180deg, var(--accent), color-mix(in srgb, var(--accent) 80%, #000));
   text-transform: uppercase;

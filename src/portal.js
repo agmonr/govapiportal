@@ -468,36 +468,38 @@ async function fetchAllRows(spec, query, primed, onProgress) {
 }
 
 /**
- * `home` sits on every portal in apis.json but nothing ever rendered it - the
- * drill-in is where it belongs, since a portal like the tree-objections
- * tracker has no API entry and no live preview, so this link is the only way
- * to actually reach what the card is about.
+ * `home` sits on every portal/app entry but nothing ever rendered it - the
+ * drill-in is where it belongs, as a source citation. The close button only
+ * makes sense inline on the map, where "close" means "back to browsing
+ * portals" - a dedicated page has nothing to close back to, so `standalone`
+ * omits it.
  */
-function drillHead(portal) {
+function drillHead(portal, standalone) {
   return `
     <div class="drill-head">
       <span class="drill-title">
         <h2 dir="auto">${esc(portal.name_he)}</h2>
-        ${portal.home ? `<a class="drill-home" href="${esc(portal.home)}" target="_blank" rel="noopener">אתר הבית ↗</a>` : ''}
+        ${portal.home ? `<a class="drill-home" href="${esc(portal.home)}" target="_blank" rel="noopener">מקור הנתונים ↗</a>` : ''}
       </span>
-      <button type="button" class="drill-close">סגור ✕</button>
+      ${standalone ? '' : '<button type="button" class="drill-close">סגור ✕</button>'}
     </div>`;
 }
 
 /**
- * Renders into `node` for a portal.
+ * Renders into `node` for a portal (or an app whose data lives on its own
+ * page - see accidents.js).
  *
  * Portals that are not browser-callable get an explanation rather than a failed
  * request - that distinction is the whole point of the map, so the drill-in has
  * to respect it instead of showing a broken panel.
  */
-export async function openPortal(node, portal) {
+export async function openPortal(node, portal, { standalone = false } = {}) {
   const spec = PREVIEWS[portal.id];
 
   if (!spec) {
     node.innerHTML = `
       <div class="drill">
-        ${drillHead(portal)}
+        ${drillHead(portal, standalone)}
         <div class="notice info" dir="auto">
           ${portal.api_count === 0
             ? 'זהו כלי חיצוני ולא API ממשלתי — הדוח עצמו נמצא בקישור לאתר הבית שלמעלה.'
@@ -511,7 +513,7 @@ export async function openPortal(node, portal) {
 
   node.innerHTML = `
     <div class="drill">
-      ${drillHead(portal)}
+      ${drillHead(portal, standalone)}
       <p class="drill-sub" dir="auto">${esc(spec.label)}${spec.more
         ? ` <a class="drill-more" href="${esc(spec.more.href)}">${esc(spec.more.label)} ←</a>` : ''}</p>
       <div class="drill-filter">
