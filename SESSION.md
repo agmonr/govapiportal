@@ -276,6 +276,24 @@ The initial claim in the commit-in-progress was that downloads "just work"
 because CORS does not apply to navigations. Half right: CORS genuinely does not
 apply, but the WAF does, and the two are easy to conflate.
 
+### Explorer: dead badge became the useful control
+
+The method badge was a `<span>` styled like a button and wired to nothing —
+it looked interactive and was not. It is now an `<a target="_blank">` whose href
+tracks the URL input, and the send button reads **בקשה** rather than שלח.
+
+This turned out to matter more than a relabel. A new tab is a plain navigation,
+so **it reaches what `fetch` cannot**: Knesset OData answers `fetch` with an
+opaque CORS `TypeError` and answers a tab with `200 application/json` — verified
+both ways in one run. For the three server-only APIs this is the only way to see
+a response at all, which is exactly the gap the map has been documenting since
+the first probe round.
+
+The badge stays a plain `<span>` for the POST endpoint (Nadlan). A browser tab
+can only issue GET, so offering one there would send a different request than
+the one on screen and label it the same — the same class of quiet mismatch as
+the earlier verdict double-count.
+
 ### Set aside, not deleted
 
 ~~The original CKAN portal lives in the session scratchpad.~~ **Gone.** The

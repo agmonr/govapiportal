@@ -132,9 +132,19 @@ Two things found by probing, both of which shape how this works:
 
 ## Browsing APIs from the page
 
-Each API with a known endpoint has a **נסה בדפדפן** panel: edit the URL, send it,
-and see status, timing, content-type and a formatted JSON response — no server
-involved.
+Each API with a known endpoint has a **נסה בדפדפן** panel with two ways to run it:
+
+- **בקשה** sends it from the page and renders status, timing, content-type and
+  formatted JSON inline.
+- **`GET ↗`** opens the same URL in a new tab. This is not just a shortcut: a
+  tab is a plain navigation, so it reaches APIs the page itself cannot read.
+  Knesset OData returns an opaque `TypeError` to `fetch` and **200 JSON in a
+  tab** — verified. That makes it the only way to see a response from the three
+  server-only sources.
+
+The badge only becomes a link for `GET` endpoints. A browser tab can only issue
+GET, so offering one for the POST endpoint would send a different request than
+the one displayed and present it as the same.
 
 For the server-only APIs the request genuinely fails, and that is the point. A
 cross-origin block reaches JavaScript as an opaque `TypeError` with no status

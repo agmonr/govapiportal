@@ -134,6 +134,26 @@ async function runPass(label, url, { bundled = false } = {}) {
   ok(await page.locator('#drill .drill').count() === 0, 'close button dismisses the drill-in');
   ok(await page.locator('.card.api').count() === n, 'closing the drill-in also clears its filter');
 
+  /* --- explorer: the method badge opens the request, and only when it can ---
+     A new tab can only issue GET, so a POST endpoint must not offer one; sending
+     a different request than the one displayed would be worse than not offering
+     it at all. */
+  await page.locator('.card.api', { hasText: 'OData — ParliamentInfo' }).first()
+    .locator('.toggle-ex').click();
+  await page.waitForSelector('.explorer', { timeout: 10000 });
+  const getBadge = page.locator('.card.api', { hasText: 'OData — ParliamentInfo' }).first()
+    .locator('.ex-method');
+  ok(await getBadge.evaluate((e) => e.tagName) === 'A', 'GET endpoints offer an open-in-tab link');
+  ok(await getBadge.getAttribute('target') === '_blank', 'the link opens in a new tab');
+
+  const postCard = page.locator('.card.api', { hasText: 'Real estate transactions' }).first();
+  await postCard.locator('.toggle-ex').click();
+  await page.waitForTimeout(200);
+  ok(await postCard.locator('.ex-method').evaluate((e) => e.tagName) === 'SPAN',
+    'POST endpoints do not offer a tab a browser could only issue as GET');
+  ok((await page.locator('.ex-run').first().innerText()).trim() === 'בקשה',
+    'the inline-request button reads בקשה');
+
   /* --- RTL body must never scroll sideways, however wide the table gets --- */
   for (const width of [380, 768, 1280]) {
     await page.setViewportSize({ width, height: 900 });

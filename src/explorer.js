@@ -52,10 +52,18 @@ export function attachExplorer(container, api) {
   container.innerHTML = `
     <div class="explorer">
       <div class="ex-bar">
-        <span class="ex-method">${esc(api.method)}</span>
+        ${api.method === 'GET'
+          ? `<a class="ex-method" target="_blank" rel="noopener"
+               href="${esc(api.example || api.endpoint)}"
+               title="פתח את הבקשה בלשונית חדשה">${esc(api.method)} ↗</a>`
+          // A new tab can only issue GET. Offering it for a POST endpoint would
+          // send a different request than the one shown and call it the same.
+          : `<span class="ex-method static"
+               title="לא ניתן לפתוח בלשונית — הדפדפן ישלח GET במקום ${esc(api.method)}"
+               >${esc(api.method)}</span>`}
         <input type="text" class="ex-url" dir="ltr" value="${esc(api.example || api.endpoint)}"
                spellcheck="false" aria-label="כתובת הבקשה">
-        <button class="ex-run" type="button">שלח</button>
+        <button class="ex-run" type="button">בקשה</button>
       </div>
       <div class="ex-out" aria-live="polite"></div>
     </div>`;
@@ -63,6 +71,19 @@ export function attachExplorer(container, api) {
   const urlInput = container.querySelector('.ex-url');
   const btn = container.querySelector('.ex-run');
   const out = container.querySelector('.ex-out');
+  const openLink = container.querySelector('.ex-method');
+
+  // The method badge used to be a dead span that looked clickable. It is now the
+  // "open the raw response in a new tab" affordance, which is the only way to
+  // see a response the page itself cannot read - a server-only API returns an
+  // opaque TypeError to fetch() but renders fine in its own tab.
+  if (openLink?.tagName === 'A') {
+    urlInput.addEventListener('input', () => {
+      const url = urlInput.value.trim();
+      openLink.href = url || '#';
+      openLink.classList.toggle('disabled', !url);
+    });
+  }
 
   async function send() {
     const url = urlInput.value.trim();

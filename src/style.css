@@ -250,8 +250,13 @@ button.stat { cursor: pointer; }
   font-size: .78rem; font-weight: 600;
   padding: .5rem .6rem;
   border: 1px solid var(--border); border-radius: var(--radius);
-  background: var(--bg); color: var(--muted);
+  background: var(--bg); color: var(--accent);
+  text-decoration: none; white-space: nowrap;
+  display: inline-flex; align-items: center;
 }
+.ex-method:hover { border-color: var(--accent); }
+.ex-method.disabled { pointer-events: none; opacity: .5; color: var(--muted); }
+.ex-method.static { color: var(--muted); cursor: default; }
 .ex-url { flex: 1; min-inline-size: 12rem; font-family: ui-monospace, Menlo, monospace; font-size: .8rem; }
 .ex-status { display: flex; gap: .4rem; align-items: center; flex-wrap: wrap; margin-block: .6rem .4rem; }
 
