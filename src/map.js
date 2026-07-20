@@ -13,6 +13,7 @@ const summary = el('summary');
 const stats = el('stats');
 const matrix = el('matrix');
 const drill = el('drill');
+const more = el('more');
 
 let data = { portals: [], apis: [] };
 const state = { q: '', browserOnly: false, portal: null, verdict: null };
@@ -177,6 +178,10 @@ function renderPortals() {
         drill.innerHTML = '';
         return;
       }
+      // The drill-in lives past the mobile "continue" cut - a collapsed
+      // <details> hides it regardless of what's written into it, so open
+      // it first or the tap looks like it did nothing.
+      more.open = true;
       const portal = data.portals.find((p) => p.id === state.portal);
       openPortal(drill, portal);
       drill.scrollIntoView({ behavior: 'smooth', block: 'nearest' });

@@ -41,20 +41,29 @@
     <h2 class="section">פורטלים</h2>
     <div id="portals" class="portal-grid"></div>
 
-    <div id="drill"></div>
+    <!-- Below this point is the long tail: the live drill-in, the full
+         matrix, the searchable list. On a phone that's a lot of scroll
+         before anything new happens, so it starts collapsed there - see
+         the inline script below, which only closes it under the mobile
+         breakpoint. On desktop the `open` attribute below just stays put. -->
+    <details id="more" class="more" open>
+      <summary class="more-toggle">המשך לכל הממשקים ←</summary>
 
-    <h2 class="section">כל הממשקים</h2>
-    <div class="matrix-wrap"><table id="matrix" class="matrix"></table></div>
+      <div id="drill"></div>
 
-    <h2 class="section">ממשקים</h2>
-    <div class="controls">
-      <input type="search" id="q" placeholder="חיפוש לפי גוף, תחום או כתובת…" dir="auto">
-      <label class="check"><input type="checkbox" id="browser-only"> ניתן לקריאה מהדפדפן בלבד</label>
-      <button type="button" id="clear">נקה</button>
-    </div>
+      <h2 class="section">כל הממשקים</h2>
+      <div class="matrix-wrap"><table id="matrix" class="matrix"></table></div>
 
-    <div id="summary" class="meta"></div>
-    <div id="list"></div>
+      <h2 class="section">ממשקים</h2>
+      <div class="controls">
+        <input type="search" id="q" placeholder="חיפוש לפי גוף, תחום או כתובת…" dir="auto">
+        <label class="check"><input type="checkbox" id="browser-only"> ניתן לקריאה מהדפדפן בלבד</label>
+        <button type="button" id="clear">נקה</button>
+      </div>
+
+      <div id="summary" class="meta"></div>
+      <div id="list"></div>
+    </details>
     </div><!-- /#app -->
   </main>
 
@@ -67,6 +76,12 @@
     if (location.protocol === 'file:') {
       document.getElementById('fileproto').hidden = false;
       document.getElementById('app').hidden = true;
+    }
+    /* Starting state only - matchMedia is checked once, on load, not kept
+       in sync on resize. A live listener would fight anyone who taps the
+       toggle open and then rotates their phone. */
+    if (matchMedia('(max-width: 640px)').matches) {
+      document.getElementById('more').removeAttribute('open');
     }
   </script>
   <script type="module" src="./src/map.js"></script>

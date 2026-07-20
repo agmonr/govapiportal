@@ -247,6 +247,23 @@ button.stat { cursor: pointer; }
 .p-sub  { font-size: .78rem; color: var(--muted); }
 .p-about { font-size: .85rem; color: var(--muted); line-height: 1.45; }
 
+/* ---------- "continue" disclosure past the portals ----------
+   Native <details>/<summary>: no JS toggle to write or keep accessible,
+   the browser already handles open/closed and keyboard use. The `open`
+   attribute ships in the markup so desktop (and no-JS/no-CSS clients)
+   just see the full page; only the mobile media query below closes it
+   by default and gives the summary a tap target worth pressing. */
+.more summary.more-toggle {
+  list-style: none;
+  cursor: pointer;
+  color: var(--accent);
+  font-weight: 600;
+  font-size: .9rem;
+  margin-block: .5rem 1.25rem;
+}
+.more summary.more-toggle::-webkit-details-marker { display: none; }
+.more[open] summary.more-toggle { display: none; }
+
 /* ---------- live explorer ---------- */
 
 .toggle-ex { font-size: .85rem; padding: .35rem .7rem; margin-block-start: .5rem; }
@@ -634,4 +651,60 @@ button.stat { cursor: pointer; }
 
   .wrap { padding-block: 1.75rem 4.5rem; }
   .section { margin-block: 2.5rem 1rem; }
+
+  /* The one button on the page meant to be found without scrolling first -
+     full-width, gold-filled rather than outlined, so it reads as the next
+     step rather than one option among the portal cards above it. */
+  .more summary.more-toggle {
+    display: block;
+    text-align: center;
+    background: linear-gradient(180deg, var(--accent), color-mix(in srgb, var(--accent) 80%, #000));
+    color: var(--bg);
+    border: 1px solid var(--accent);
+    border-radius: 999px;
+    padding: .75rem 1rem;
+    margin-block: 1.5rem;
+    text-transform: uppercase;
+    letter-spacing: .1em;
+    font-size: .8rem;
+  }
+}
+
+/* ---------- desktop: legible by default ----------
+   Nothing above this touched desktop - the plain look was it. The ask here
+   is specifically for older readers, and it's the opposite move from the
+   mobile section above: bigger type, stronger contrast, roomier click
+   targets, nothing decorative. "Simple to see" ruled out matching the
+   mobile treatment on purpose - this is legibility, not a style. */
+@media (min-width: 641px) {
+  body { font-size: 1.15rem; line-height: 1.65; }
+
+  :root { --muted: #454a54; }
+}
+@media (min-width: 641px) and (prefers-color-scheme: dark) {
+  :root { --muted: #c3c8cf; }
+}
+
+@media (min-width: 641px) {
+  h1 { font-size: 1.35rem; }
+  .section { font-size: 1.1rem; }
+
+  button, input[type="search"], input[type="text"], select {
+    font-size: 1rem;
+    padding: .75rem 1rem;
+  }
+
+  .card, .portal, .stat { padding: 1.1rem 1.3rem; }
+  .portal-grid, .stat-row { gap: 1rem; }
+  .stat-n { font-size: 1.85rem; }
+  .stat-l { font-size: .9rem; }
+
+  .tag, .badge { font-size: .82rem; padding: .2rem .7rem; }
+
+  .matrix th, .matrix td { padding: .65rem .9rem; font-size: .95rem; }
+
+  a:focus-visible, button:focus-visible {
+    outline: 3px solid var(--accent);
+    outline-offset: 2px;
+  }
 }
