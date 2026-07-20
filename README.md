@@ -112,6 +112,24 @@ broken panel — that distinction is the point of the map, so the drill-in
 respects it. The exact request URL is shown under each table so the result can
 be reproduced with `curl`.
 
+## Downloading files
+
+data.gov.il rows expand into their files — click a dataset to see its CSV, XLSX,
+PDF and ZIP resources with **format and size shown before you click** (one of
+them is a 71 MB CSV). iplan plan rows expand to their מבא"ת documents.
+
+Two things found by probing, both of which shape how this works:
+
+- **PDFs serve directly** (`200 application/pdf`), but **CSV and XLSX return a
+  JavaScript WAF challenge** from data.gov.il — the same WAF that 403s
+  `datastore_search_sql`. A real browser passes it and the download proceeds; an
+  automated client cannot, so this could not be verified end-to-end from here.
+  The note under the file list says so rather than letting a blank interstitial
+  surprise anyone.
+- **The `download` attribute is ignored for cross-origin URLs.** Every file here
+  is cross-origin, so it was doing nothing. Links open in a new tab instead —
+  which is also where the WAF interstitial can run.
+
 ## Browsing APIs from the page
 
 Each API with a known endpoint has a **נסה בדפדפן** panel: edit the URL, send it,

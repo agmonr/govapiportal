@@ -326,3 +326,40 @@ button.stat { cursor: pointer; }
   padding: .15rem .55rem;
   white-space: nowrap;
 }
+
+/* Expandable rows: a dataset opens into its downloadable files. */
+.matrix.preview.expandable tr.has-files { cursor: pointer; }
+.matrix.preview.expandable tr.has-files:hover,
+.matrix.preview.expandable tr.has-files:focus-visible { background: var(--surface); outline: none; }
+.matrix.preview.expandable tr.has-files:focus-visible { box-shadow: inset 0 0 0 2px var(--accent); }
+.matrix.preview .c-x { inline-size: 1.6rem; text-align: center; }
+.x-mark { color: var(--muted); font-size: .8rem; }
+.matrix.preview tr.files-row td { background: var(--surface); padding: .5rem .7rem; }
+
+.files { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .3rem; }
+.files a {
+  display: flex; align-items: center; gap: .6rem;
+  padding: .4rem .6rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  text-decoration: none;
+  color: var(--fg);
+  font-size: .85rem;
+}
+.files a:hover { border-color: var(--accent); }
+/* Format first and size up front: one of these is a 9 MB CSV. */
+.f-fmt {
+  font-size: .7rem; font-weight: 600; color: var(--accent);
+  border: 1px solid var(--accent); border-radius: 4px;
+  padding: .05rem .35rem; min-inline-size: 3rem; text-align: center;
+}
+.f-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.f-size { color: var(--muted); font-size: .78rem; white-space: nowrap; }
+.f-tag {
+  font-size: .68rem; color: var(--muted);
+  border: 1px solid var(--border); border-radius: 999px; padding: .05rem .45rem;
+  white-space: nowrap;
+}
+.f-go { color: var(--accent); }
+.files-note { font-size: .76rem; color: var(--muted); margin-block: .45rem 0; }

@@ -116,6 +116,11 @@ async function runPass(label, url, { bundled = false } = {}) {
 
   // Every portal offering a preview must offer a filter with it, and must say
   // whether that filter runs server-side or over already-fetched rows.
+  // Cross-origin `download` is ignored by browsers; if it reappears the links
+  // are silently not doing what the attribute claims.
+  ok(await page.locator('#drill .files a[download]').count() === 0,
+    'file links do not rely on the cross-origin-ignored download attribute');
+
   await page.locator('.portal[data-portal="cbs"]').click();
   await page.waitForSelector('#drill .drill-q', { timeout: 10000 });
   ok(await page.locator('#drill .drill-scope').count() === 1, 'filter states its scope (server vs local)');

@@ -16,6 +16,15 @@ import { esc, debounce } from './ui.js';
 
 const num = (v) => (v == null ? '—' : Number(v).toLocaleString('he-IL'));
 
+/** Bytes -> a size someone can judge a download by. */
+function bytes(n) {
+  if (n == null || Number.isNaN(Number(n))) return '';
+  const u = ['B', 'KB', 'MB', 'GB'];
+  let v = Number(n), i = 0;
+  while (v >= 1024 && i < u.length - 1) { v /= 1024; i += 1; }
+  return `${v.toFixed(v < 10 && i ? 1 : 0)} ${u[i]}`;
+}
+
 /**
  * One entry per browser-callable portal.
  *   url     - the live request, kept small; this is a preview, not a dump
@@ -40,12 +49,21 @@ const PREVIEWS = {
       + (q ? `&q=${encodeURIComponent(q)}` : ''),
     total: (j) => j.result.count,
     unit: 'מאגרים',
-    columns: [['title', 'מאגר'], ['org', 'גוף מפרסם'], ['formats', 'פורמטים'], ['res', 'משאבים']],
+    columns: [['title', 'מאגר'], ['org', 'גוף מפרסם'], ['formats', 'פורמטים'], ['res', 'קבצים']],
     rows: (j) => j.result.results.map((ds) => ({
       title: ds.title,
       org: ds.organization?.title || '—',
       formats: [...new Set((ds.resources || []).map((r) => (r.format || '?').toUpperCase()))].join(', ') || '—',
       res: (ds.resources || []).length,
+      // Files live one level down. Carried here so the row can expand without
+      // a second round-trip - package_search already returned them.
+      _files: (ds.resources || []).map((r) => ({
+        name: r.name || r.description || '(ללא שם)',
+        format: (r.format || '?').toUpperCase(),
+        size: r.size,
+        url: r.url,
+        rows: r.datastore_active,
+      })),
     })),
   },
 
@@ -115,25 +133,100 @@ const PREVIEWS = {
       area: f.attributes.pl_area_dunam == null ? '—'
         : `${Number(f.attributes.pl_area_dunam).toLocaleString('he-IL', { maximumFractionDigits: 1 })} דונם`,
       juris: f.attributes.jurstiction_area_name || '—',
+      _files: f.attributes.pl_url
+        ? [{ name: 'מסמכי התכנית (תקנון, תשריט)', format: 'מבא״ת', url: f.attributes.pl_url, external: true }]
+        : [],
     })),
   },
 };
 
 export const hasPreview = (portalId) => Boolean(PREVIEWS[portalId]);
 
+/**
+ * The files under one row.
+ *
+ * Plain link navigations, so CORS never applies - these reach hosts a fetch()
+ * could not read. Two things learned by probing rather than assuming:
+ *
+ * 1. The `download` attribute is ignored for cross-origin URLs. Every one of
+ *    these is cross-origin, so it would have done nothing; the link opens in a
+ *    new tab instead, which is also where a WAF interstitial can run.
+ * 2. data.gov.il serves PDFs directly (200 application/pdf) but answers CSV and
+ *    XLSX with a JavaScript WAF challenge page. A real browser passes it; an
+ *    automated client does not, so this could not be verified end-to-end here.
+ *    The note under the list warns rather than letting a blank page surprise.
+ *
+ * Size and format are shown up front - one of these is a 71 MB CSV.
+ */
+const WAF_FORMATS = new Set(['CSV', 'XLSX', 'XLS', 'ZIP']);
+
+function files(list) {
+  const mayChallenge = list.some((f) => WAF_FORMATS.has(f.format));
+  return `
+    <ul class="files">
+      ${list.map((f) => `
+        <li>
+          <a href="${esc(f.url)}" target="_blank" rel="noopener" dir="auto">
+            <span class="f-fmt">${esc(f.format)}</span>
+            <span class="f-name">${esc(f.name)}</span>
+            ${f.size ? `<span class="f-size">${esc(bytes(f.size))}</span>` : ''}
+            ${f.rows ? '<span class="f-tag">ניתן לשאילתה</span>' : ''}
+            <span class="f-go">${f.external ? '↗' : '⭳'}</span>
+          </a>
+        </li>`).join('')}
+    </ul>
+    ${mayChallenge ? `
+      <p class="files-note" dir="auto">
+        קבצי CSV/XLSX מוגשים דרך ה-WAF של data.gov.il. אם נפתח דף ביניים —
+        המתן רגע, ההורדה מתחילה מעצמה. קבצי PDF מוגשים ישירות.
+      </p>` : ''}`;
+}
+
 function table(spec, rows) {
   if (!rows.length) return '<div class="notice info" dir="auto">הבקשה הצליחה אך לא הוחזרו רשומות.</div>';
+  const expandable = rows.some((r) => r._files?.length);
+
   return `
     <div class="matrix-wrap">
-      <table class="matrix preview">
-        <thead><tr>${spec.columns.map(([, label]) => `<th>${esc(label)}</th>`).join('')}</tr></thead>
+      <table class="matrix preview${expandable ? ' expandable' : ''}">
+        <thead><tr>
+          ${expandable ? '<th class="c-x"></th>' : ''}
+          ${spec.columns.map(([, label]) => `<th>${esc(label)}</th>`).join('')}
+        </tr></thead>
         <tbody>
-          ${rows.map((r) => `<tr>${spec.columns
-            .map(([key], i) => `<td dir="auto"${i === 0 ? ' class="ident"' : ''}>${esc(r[key])}</td>`)
-            .join('')}</tr>`).join('')}
+          ${rows.map((r, i) => {
+            const has = r._files?.length;
+            return `
+            <tr class="${has ? 'has-files' : ''}" ${has ? `data-row="${i}" tabindex="0" role="button"` : ''}>
+              ${expandable ? `<td class="c-x">${has ? '<span class="x-mark">▾</span>' : ''}</td>` : ''}
+              ${spec.columns.map(([key], c) =>
+                `<td dir="auto"${c === 0 ? ' class="ident"' : ''}>${esc(r[key])}</td>`).join('')}
+            </tr>
+            ${has ? `
+            <tr class="files-row" data-files="${i}" hidden>
+              <td colspan="${spec.columns.length + 1}">${files(r._files)}</td>
+            </tr>` : ''}`;
+          }).join('')}
         </tbody>
       </table>
     </div>`;
+}
+
+/** Wires row expansion. Called after every render, since the table is replaced. */
+function bindRows(scope) {
+  scope.querySelectorAll('tr.has-files').forEach((tr) => {
+    const toggle = () => {
+      const target = scope.querySelector(`tr[data-files="${tr.dataset.row}"]`);
+      if (!target) return;
+      target.hidden = !target.hidden;
+      const mark = tr.querySelector('.x-mark');
+      if (mark) mark.textContent = target.hidden ? '▾' : '▴';
+    };
+    tr.addEventListener('click', toggle);
+    tr.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
+    });
+  });
 }
 
 /**
@@ -221,6 +314,7 @@ export async function openPortal(node, portal) {
           ? table(spec, rows)
           : `<div class="notice info" dir="auto">אין תוצאות עבור <strong>${esc(query)}</strong>.</div>`}
         <p class="drill-url" dir="ltr"><code>${esc(url)}</code></p>`;
+      bindRows(out);
     } catch (err) {
       // A cross-origin block reaches JS as an opaque TypeError with no status.
       // Say which of the two it might be rather than inventing a cause.

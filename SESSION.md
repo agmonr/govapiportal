@@ -254,6 +254,28 @@ GovMap, "no results" would mean "not among the 15 rows fetched" while looking
 exactly like "not among 1,097,502 parcels". Server-side inputs are debounced at
 450 ms so a keystroke does not become a request to a government host.
 
+### File downloads
+
+Dataset rows expand into their resources, with format and size up front. Two
+findings, both from probing rather than assumption, and both of which changed
+the implementation:
+
+- **The `download` attribute is ignored for cross-origin URLs.** The first
+  version used it on every link; every link here is cross-origin, so it did
+  nothing. Links now open in a new tab, which is also where a WAF interstitial
+  has somewhere to run.
+- **data.gov.il serves PDFs but WAF-challenges CSV/XLSX.** Reproducible across a
+  sample: PDF ×2 → `200 application/pdf`; CSV ×2 and XLSX ×2 → `200 text/html`
+  with 42 KB of obfuscated challenge JS. Same WAF that 403s
+  `datastore_search_sql`. Headless Chromium cannot pass it — the challenge is
+  designed to block exactly that — so **whether a real user's browser completes
+  the CSV download is unverified**. It very likely does; the UI warns instead of
+  claiming either way.
+
+The initial claim in the commit-in-progress was that downloads "just work"
+because CORS does not apply to navigations. Half right: CORS genuinely does not
+apply, but the WAF does, and the two are easy to conflate.
+
 ### Set aside, not deleted
 
 ~~The original CKAN portal lives in the session scratchpad.~~ **Gone.** The
