@@ -17,6 +17,19 @@ const drill = el('drill');
 let data = { portals: [], apis: [] };
 const state = { q: '', browserOnly: false, portal: null, verdict: null };
 
+/**
+ * The probe stamp carries an hour now, so an ISO string with an offset is what
+ * apis.json holds. Render it in local terms; fall back to the raw value rather
+ * than showing "Invalid Date" if the field is ever a bare date again.
+ */
+function probedAt(raw) {
+  const t = new Date(raw);
+  if (Number.isNaN(t.getTime())) return raw;
+  const date = t.toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  const time = t.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+  return `${date} ${time}`;
+}
+
 /** Three states, not two: usable / blocked / unknown. Conflating the last two lies. */
 function verdict(api) {
   if (api.browser) return { cls: 'ok', label: 'דפדפן ✓' };
@@ -285,7 +298,9 @@ async function load() {
     // Identity that survives re-sorting and re-filtering, so a matrix row can
     // still find its card. Endpoints repeat across entries; name does not.
     data.apis.forEach((a, i) => { a._id = `${a.portal}-${i}`; });
-    el('probed').textContent = `נבדק: ${data.probed}`;
+    el('probed').textContent = `נבדק: ${probedAt(data.probed)}`;
+    // The exact recorded value, offset and all, stays reachable on hover.
+    el('probed').title = data.probed;
     renderStats();
     renderMatrix();
     renderPortals();

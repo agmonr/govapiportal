@@ -294,6 +294,33 @@ can only issue GET, so offering one there would send a different request than
 the one on screen and label it the same — the same class of quiet mismatch as
 the earlier verdict double-count.
 
+### Probe stamp gained an hour — and exposed two bugs
+
+`נבדק:` now shows date and time (`20.07.2026 16:46`), from an ISO value with a
+UTC offset in `apis.json`, exact string on hover.
+
+An hour implies freshness a bare date did not, so it needed something to keep it
+true: `probe.py --stamp` refreshes it, **but only on a clean run**. Stamping a
+drifted probe would assert the map was confirmed at the moment it was
+contradicted.
+
+Re-probing to get a real timestamp rather than inventing one surfaced two things:
+
+- **Bank of Israel is back up** and matches its recorded values again. It had
+  gone connection-refused mid-session; the "unreachable, probably wait" reading
+  was right.
+- **GovMap WFS attribute filters are unindexed.** Measured: unfiltered 0.7s,
+  `LOCALITY_N LIKE` 11.6s, `GUSH_NUM AND PARCEL` **39.7s** — past the prober's
+  25s ceiling, so it reported a healthy endpoint as unreachable. Two runs minutes
+  apart disagreed, which is what gave it away. `apis.json` now carries a per-API
+  `timeout` and `probe.py` honours it.
+
+That slowness also revealed a genuine UI bug: **the portal preview's `fetch` had
+no timeout at all**, so a slow host left it spinning indefinitely. It now aborts
+(75s for the slow source, 25s otherwise), says so distinctly from a CORS failure,
+and warns before a filtered GovMap query that the wait is expected rather than
+broken.
+
 ### Set aside, not deleted
 
 ~~The original CKAN portal lives in the session scratchpad.~~ **Gone.** The

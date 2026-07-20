@@ -107,6 +107,10 @@ async function runPass(label, url, { bundled = false } = {}) {
       'file:// notice stays hidden when served over HTTP');
   }
 
+  // The stamp carries an hour now; a bad parse would render "Invalid Date".
+  const stamp = (await page.locator('#probed').innerText()).trim();
+  ok(/^נבדק: \d{2}\.\d{2}\.\d{4} \d{2}:\d{2}$/.test(stamp), `probe stamp shows date and hour (got "${stamp}")`);
+
   /* --- portal drill-in ---
      Only structure and wiring are asserted. Whether the live request succeeds
      depends on five government hosts being up, and this suite deliberately does

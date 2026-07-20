@@ -23,9 +23,15 @@ Usage:
     ./tools/probe.py --check          exit 1 if anything drifted
     ./tools/probe.py --report OUT.md  write a markdown report
     ./tools/probe.py --json OUT.json  write raw results
+    ./tools/probe.py --stamp          on a clean run, refresh the 'probed' time
+
+--stamp is the one thing that writes to apis.json, and only the timestamp: it
+records that the recorded values were re-confirmed, never what they are. The
+verdicts still change by hand for the reasons above.
 """
 
 import argparse
+import datetime
 import json
 import ssl
 import sys
@@ -67,7 +73,12 @@ def probe_url(api: dict) -> str:
 
 
 def probe_once(api: dict) -> dict:
-    """One request. Returns what the server actually did, or how it refused."""
+    """One request. Returns what the server actually did, or how it refused.
+
+    Honours a per-API `timeout`: GovMap's WFS attribute filters are unindexed
+    over 1.1M parcels and measured at 12-40s, so the default would report a
+    healthy endpoint as unreachable every week.
+    """
     req = urllib.request.Request(
         probe_url(api),
         method=api.get("method", "GET"),
@@ -83,7 +94,7 @@ def probe_once(api: dict) -> dict:
         },
     )
     try:
-        with urllib.request.urlopen(req, timeout=TIMEOUT) as res:
+        with urllib.request.urlopen(req, timeout=api.get("timeout", TIMEOUT)) as res:
             body = res.read(4096)
             return {
                 "status": res.status,
@@ -274,6 +285,8 @@ def main() -> int:
     ap.add_argument("--check", action="store_true", help="exit 1 if anything drifted")
     ap.add_argument("--report", metavar="FILE", help="write a markdown report")
     ap.add_argument("--json", metavar="FILE", help="write raw results")
+    ap.add_argument("--stamp", action="store_true",
+                    help="on a clean run, update apis.json's 'probed' timestamp")
     args = ap.parse_args()
 
     print(f"Probing endpoints in apis.json (Origin: {ORIGIN})\n")
@@ -294,6 +307,19 @@ def main() -> int:
     if args.report and drifted:
         Path(args.report).write_text(report(rows, drifted), encoding="utf-8")
         print(f"wrote {args.report}")
+
+    # A timestamp carrying an hour implies freshness a bare date did not, so it
+    # has to be refreshed by something. Only on a clean run: stamping a drifted
+    # probe would assert the map was confirmed when it was contradicted.
+    if args.stamp:
+        if drifted:
+            print("not stamping: drift detected, so the recorded values were not confirmed")
+        else:
+            data = json.loads(APIS.read_text(encoding="utf-8"))
+            data["probed"] = datetime.datetime.now().astimezone().strftime("%Y-%m-%dT%H:%M%z")
+            data["probed"] = data["probed"][:-2] + ":" + data["probed"][-2:]
+            APIS.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+            print(f"stamped apis.json: probed = {data['probed']}")
 
     if args.check and drifted:
         return 1

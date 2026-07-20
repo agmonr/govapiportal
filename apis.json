@@ -1,5 +1,5 @@
 {
-  "probed": "2026-07-20",
+  "probed": "2026-07-20T16:46+03:00",
   "note": "Every status/cors/format field below was probed directly, not recalled. 'unknown' means the probe failed to find a working endpoint - it is not a claim that none exists.",
   "portals": [
     {
@@ -366,9 +366,10 @@
       "format": "JSON / GML",
       "status": 200,
       "domain": "geo",
-      "notes": "GeoServer WFS 2.0 פתוח לגמרי, בניגוד ל-API הראשי של GovMap. 7 שכבות, מהן PARCEL_ALL (חלקות) ו-SUB_GUSH_ALL (גושים). תומך CQL_FILTER, כולל INTERSECTS לאיתור חלקה בנקודה. שים לב: ה-CRS הוא EPSG:3857 — העברת מעלות lon/lat לא מחזירה שגיאה אלא אפס תוצאות.",
+      "notes": "GeoServer WFS 2.0 פתוח לגמרי, בניגוד ל-API הראשי של GovMap. 7 שכבות, מהן PARCEL_ALL (חלקות) ו-SUB_GUSH_ALL (גושים). תומך CQL_FILTER, כולל INTERSECTS לאיתור חלקה בנקודה. שים לב: ה-CRS הוא EPSG:3857 — העברת מעלות lon/lat לא מחזירה שגיאה אלא אפס תוצאות. שים לב לביצועים: שאילתת attribute על הטבלה (1.1M חלקות) אינה מאונדקסת — LIKE על יישוב ~12 שניות, GUSH_NUM+PARCEL נמדד ב-40 שניות. שאילתה ללא פילטר חוזרת ב-0.7 שניות.",
       "example": "https://open.govmap.gov.il/geoserver/opendata/wfs?service=WFS&version=2.0.0&request=GetFeature&typeNames=opendata:PARCEL_ALL&outputFormat=application/json&count=1&CQL_FILTER=GUSH_NUM%3D7657%20AND%20PARCEL%3D164",
-      "portal": "govmap"
+      "portal": "govmap",
+      "timeout": 75
     },
     {
       "source": "iplan / מנהל התכנון",

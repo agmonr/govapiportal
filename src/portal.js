@@ -101,6 +101,10 @@ const PREVIEWS = {
   govmap: {
     label: 'חלקות קדסטר (WFS PARCEL_ALL)',
     placeholder: 'סנן לפי יישוב — למשל רעננה',
+    // Measured: unfiltered 0.7s, LIKE on locality ~12s. The table is not
+    // indexed on attributes, so a filtered query is slow by nature, not broken.
+    slow: true,
+    slowNote: 'סינון על 1.1 מיליון חלקות אינו מאונדקס — התשובה עשויה להימשך 10-40 שניות.',
     url: (q) => 'https://open.govmap.gov.il/geoserver/opendata/wfs?service=WFS&version=2.0.0'
       + '&request=GetFeature&typeNames=opendata:PARCEL_ALL&outputFormat=application/json'
       + '&srsName=EPSG:4326&count=15'
@@ -275,7 +279,8 @@ export async function openPortal(node, portal) {
   let cached = null;   // local-filter portals fetch once and re-filter in place
 
   async function load(query) {
-    out.innerHTML = '<div class="skeleton" dir="auto">שולח בקשה…</div>';
+    out.innerHTML = `<div class="skeleton" dir="auto">שולח בקשה…${
+      spec.slow && query ? ` <span class="slow-note">${esc(spec.slowNote)}</span>` : ''}</div>`;
     const url = spec.url(spec.local ? '' : query);
     const t0 = performance.now();
 
@@ -286,7 +291,13 @@ export async function openPortal(node, portal) {
       let ms = 0;
       let status = 200;
       if (!json) {
-        const res = await fetch(url);
+        // Without a deadline this spins forever on a slow host. GovMap's WFS
+        // attribute filters are unindexed over 1.1M parcels and measured at
+        // 12-40s, so the ceiling has to clear that or it would abort a request
+        // that was going to succeed.
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), spec.slow ? 75000 : 25000);
+        const res = await fetch(url, { signal: ctrl.signal }).finally(() => clearTimeout(timer));
         ms = Math.round(performance.now() - t0);
         status = res.status;
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -321,9 +332,11 @@ export async function openPortal(node, portal) {
       const cors = err instanceof TypeError;
       out.innerHTML = `
         <div class="notice error" dir="auto">
-          ${cors
-            ? 'הבקשה נחסמה על ידי הדפדפן (CORS) או שהרשת נכשלה — הדפדפן אינו חושף את הסיבה המדויקת.'
-            : `הבקשה נכשלה: ${esc(err.message)}`}
+          ${err.name === 'AbortError'
+            ? 'הבקשה חרגה מזמן ההמתנה. השרת איטי כרגע — נסה שוב, או צמצם את הסינון.'
+            : cors
+              ? 'הבקשה נחסמה על ידי הדפדפן (CORS) או שהרשת נכשלה — הדפדפן אינו חושף את הסיבה המדויקת.'
+              : `הבקשה נכשלה: ${esc(err.message)}`}
         </div>
         <p class="drill-url" dir="ltr"><code>${esc(url)}</code></p>`;
     }
