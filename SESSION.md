@@ -183,38 +183,41 @@ Baseline as of this run: **all 13 entries still match** — the map is accurate
 today, re-confirmed rather than assumed. Drift reporting was verified by flipping
 a CORS value in a copy of `apis.json` and watching the report name it.
 
-### Address → building plan
+### Two new sources found, and a lookup page that was then removed
 
-Goal given: find building plans for a set of addresses. `data.gov.il` cannot
-answer it — probed, it has no building permits or plans at all (`q=היתרי בנייה`
-→ 0 hits; the 22 `רישוי` hits are vehicle licensing). The answer lives in two
-government APIs that were **not in the map**, both verified browser-callable:
+A request to find building plans for addresses led to probing well beyond
+`data.gov.il` (which has none — `q=היתרי בנייה` returns 0; the 22 `רישוי` hits
+are vehicle licensing). Two government APIs turned up that were **not in the
+map**, both verified browser-callable:
 
 | Source | CORS |
 |---|---|
 | `open.govmap.gov.il/geoserver/opendata/wfs` — cadastre, 7 layers | `*` |
 | `ags.iplan.gov.il/arcgisiplan/…/Xplan/MapServer/1` — plan boundaries | echoes Origin |
 
-Both were added to `apis.json`, so the weekly prober now watches them. The map
-grew from 13 to 15 entries, 5 to 7 browser-callable.
+**These stay in `apis.json`** — they are exactly what this map exists to
+catalogue, and the weekly prober now watches them. 13 entries → 15,
+5 browser-callable → 7.
 
-Findings worth keeping:
+A `plans.html` lookup page (address → גוש/חלקה → plans) was built on top of them
+and then **deleted at the user's request** — the repo is the API map, nothing
+else. It is recoverable from commit `a022d6a` if ever wanted.
+
+Findings kept because they are about the APIs, not the page:
 
 - **`PARCEL_ALL` is EPSG:3857.** lon/lat degrees in a CQL filter return zero
-  features with no error. Silent wrong-answer, cost a debugging round.
-- **The service root is `/arcgisiplan/`, not `/arcgis/`** — the latter 302s to an
+  features with no error — a silent wrong answer, not a failure.
+- **The service root is `/arcgisiplan/`, not `/arcgis/`**; the latter 302s to an
   error page.
-- **Ranking is the whole feature.** A parcel is covered by ~10 plans; the
-  relevant one is the smallest. Sorting by area ascending put
-  `רע/750 השיזף 10` first for `השיזף 10, רעננה`.
-- **Geocoding is the weak link**, and the only non-government step. It resolves
-  street addresses but returned nothing for a newer neighbourhood name. The UI
-  labels geocoded parcels as provisional and offers an exact גוש/חלקה tab.
-- **מבא"ת was down** during this work (redirects to `maintenance.gov.il`), so
-  document links are rendered but unverified end-to-end.
+- **Xplan echoes the requesting Origin** rather than sending `*`, hence the
+  `cors: "origin"` sentinel in `apis.json` and the normalisation in `probe.py` —
+  without it the prober would report drift every single week.
+- A parcel is typically covered by ~10 plans, most of them national-scale
+  (תמא/70 alone covers 117,696 dunam).
+- **מבא"ת was down** throughout (redirects to `maintenance.gov.il`).
 
 The prober also caught a genuine outage mid-session: Bank of Israel went from 200
-to connection-refused between two runs. The drift report now separates *contract
+to connection-refused between two runs. Drift reports now separate *contract
 changed* (edit the map) from *unreachable* (probably wait) — the remedies differ.
 
 ### Set aside, not deleted

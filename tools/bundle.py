@@ -27,7 +27,6 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "dist" / "map.html"
-SITE = "https://agmonr.github.io/govapiportal"
 
 # Dependency order. These are first-party and each has exactly one import edge,
 # which is what makes flattening them safe.
@@ -80,13 +79,6 @@ def build() -> str:
     html, n = re.subn(r'\s*<div id="fileproto".*?</div>\n\n', "\n", html, flags=re.S)
     if n != 1:
         sys.exit("error: #fileproto notice not found in index.html - bundler is out of date")
-
-    # Relative links leave the repo when this file does. Someone who downloads
-    # map.html has no ./plans.html next to it, so point at the hosted copy.
-    html, n = re.subn(r'href="\./plans\.html"',
-                      lambda _m: f'href="{SITE}/plans.html"', html)
-    if n != 1:
-        sys.exit("error: plans.html link not found in index.html - bundler is out of date")
 
     # Replace the module <script> with data + flattened sources. Inline modules
     # are exempt from the origin-'null' block (verified in headless Chromium),
