@@ -827,21 +827,11 @@ body.accidents-page header.site {
   <main class="wrap">
     <div id="app">
     <!-- The portal the rest of the map treats as central gets shown already
-         open, above everything else on the page - even the headline below -
-         rather than being the one thing on the page requiring a click. See
-         the default-open call in src/map.js. -->
+         open, above everything else on the page, rather than being the one
+         thing on the page requiring a click. See the default-open call in
+         src/map.js. The headline stat itself lives only on accidents.html -
+         this is a map of APIs, not the accidents app's own page. -->
     <div id="drill"></div>
-
-    <!-- The reason a road-accidents app exists on an API map at all: the
-       number itself, before the rest of the explanation. "At least" is not
-       hedging for its own sake - the underlying CBS data counts fatal
-       *accidents*, not victims, and some accidents kill more than one
-       person, so the true toll can only be equal to this or higher. See
-       accidents.html for the full breakdown (by year, by settlement). -->
-    <div class="headline" dir="auto">
-      <p class="headline-num">במדינת ישראל נהרגו <strong>לפחות 1,684</strong> אנשים בתאונות דרכים בין השנים 2020–2024</p>
-      <p class="headline-sub">נתוני הלמ"ס, ברמת התאונה הבודדת, מחושב 21.07.2026</p>
-    </div>
 
     <p class="lead" dir="auto">
       ממשקי API של גופים ממשלתיים בישראל. כל שדה נבדק ישירות מול השרת.
