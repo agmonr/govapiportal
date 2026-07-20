@@ -13,17 +13,73 @@ rather than guessing.
 python3 -m http.server 8000
 ```
 
-Must be served over HTTP — `fetch` and ES modules are blocked on `file://`.
+`index.html` must be served over HTTP. Opened straight from disk it renders
+blank: the browser refuses ES module scripts and `fetch` from origin `null`.
+It now says so instead of failing silently — but see below for the copy that
+needs no server at all.
+
+## Use it offline
+
+**`dist/map.html` is the whole map in one file.** Download it, double-click it,
+done — no server, no clone, no network needed to open it. Email it to someone.
+
+It is not a degraded preview: **the live explorer still works**. `file://` pages
+have origin `null`, and `Access-Control-Allow-Origin: *` accepts `null`, so the
+browser-callable APIs answer a local file exactly as they answer the hosted site
+(probed: data.gov.il, CBS and Open Bus all return 200 from `file://`; Knesset
+still fails on CORS, as it should).
+
+Regenerate it after editing `apis.json` or `src/`:
+
+```bash
+./tools/bundle.py           # rewrite dist/map.html
+./tools/bundle.py --check   # exit non-zero if it is stale
+```
+
+`tools/verify.sh` runs `--check` first, so a stale copy fails the build rather
+than shipping to whoever downloads it.
 
 ## Files
 
 | Path | Purpose |
 |---|---|
 | `apis.json` | The map — `portals` (9) and `apis` (13). Edit this to add sources. |
-| `index.html` / `src/map.js` | Portal grid + API list, filterable |
+| `index.html` / `src/map.js` | Top view + portal grid + API list, filterable |
 | `src/explorer.js` | Live in-browser request panel |
 | `src/style.css` | RTL-first styling |
 | `SESSION.md` | Build log: decisions, corrections, what's unverified |
+| `dist/map.html` | Generated single-file build. Works offline, opened from disk. |
+| `tools/` | Bundler + browser verification. Not part of the published site. |
+
+## Top view
+
+`מבט־על` sits above everything: a count of all 13 APIs, then one tile per
+verdict, over a single table holding every API grouped by portal
+(domain / format / auth / HTTP / CORS / verdict).
+
+- **Tiles filter** the detail list below.
+- **Rows jump** — clicking one clears active filters and scrolls to that API's card.
+
+Tile counts come from the same `verdict()` the cards use, and `tools/smoke.mjs`
+asserts tile == matrix row == card for every state, so the summary cannot drift
+from what it summarises.
+
+## Verifying it
+
+The site needs no build and no dependencies. Verification does — a real browser,
+because "it parses" and "it runs" are different claims:
+
+```bash
+./tools/setup.sh     # Node + Chromium, into $HOME, no root needed
+./tools/verify.sh    # bundle freshness, then two browser passes
+```
+
+`verify.sh` drives the map twice: served over HTTP, and opened from disk as
+`file://dist/map.html`. Both passes assert the same invariants, and any console
+error fails the run. The bundle pass additionally asserts it references no
+external asset — the claim "self-contained" is checked, not stated.
+
+`setup.sh --check` reports what is installed without installing anything.
 
 ## Browsing APIs from the page
 
@@ -42,12 +98,17 @@ error. Try Knesset OData to see it.
 but send no `Access-Control-Allow-Origin` header, so a static page cannot call
 them at all. Of 13 entries, **5 are browser-callable**:
 
-| Verdict | Meaning | Examples |
-|---|---|---|
-| דפדפן ✓ (browser) | 200 + CORS. Usable from a static page. | data.gov.il CKAN, CBS indices, Open Bus Stride |
-| שרת בלבד (server only) | 200 but no CORS. Needs a proxy or build-time fetch. | Knesset OData, Bank of Israel SDMX |
-| חסום (blocked) | Actively refused. | `datastore_search_sql` — 403 from the WAF |
-| לא אותר (not identified) | Probes 404'd. Endpoint unknown, not proven absent. | gov.il content API, Israel Post |
+| Verdict | n | Meaning | Examples |
+|---|---|---|---|
+| דפדפן ✓ (browser) | 5 | 200 + CORS. Usable from a static page. | data.gov.il CKAN, CBS indices, Open Bus Stride |
+| שרת בלבד (server only) | 3 | 200 but no CORS. Needs a proxy or build-time fetch. | Knesset OData ×2, Bank of Israel SDMX |
+| מוגבל (limited) | 2 | Reachable, but the contract is unresolved. | GovMap (undocumented auth), Nadlan (SPA shell) |
+| חסום (blocked) | 1 | Actively refused. | `datastore_search_sql` — 403 from the WAF |
+| לא אותר (not identified) | 2 | Probes 404'd. Endpoint unknown, not proven absent. | gov.il content API, Israel Post |
+
+`מוגבל` is deliberately separate from `שרת בלבד`. Both fail from a static page,
+but for different reasons, and a reader deciding whether to build a proxy needs
+to know which — a proxy fixes the CORS three and does nothing for the other two.
 
 If you need Knesset or BOI data on a static page, the pattern is a scheduled
 GitHub Action that fetches server-side and commits JSON — same shape as any

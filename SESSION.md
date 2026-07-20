@@ -53,11 +53,13 @@ Catalog scale, measured: 1197 datasets, 3775 resources, **55% `datastore_active`
 
 ### Decisions
 
-- **Zero-build**: plain ES modules, no bundler, no npm. No Node in the
-  environment, and GitHub Pages serves the directory as-is.
-- **Three-state verdicts** (usable / server-only / not-identified) rather than a
-  boolean. Collapsing "actively blocked" into "couldn't find it" would misstate
-  what is known.
+- **Zero-build**: plain ES modules, no bundler, no npm. GitHub Pages serves the
+  directory as-is. Node now exists here, but only under `tools/` for verification —
+  the published site still has no build step and no dependencies.
+- **Multi-state verdicts** (usable / server-only / limited / blocked / not-identified)
+  rather than a boolean. Collapsing "actively blocked" into "couldn't find it" would
+  misstate what is known. Grew from three to five when the top view exposed a
+  double-count (below).
 - **Failed probes are recorded, not omitted** — so the dead ends aren't re-derived.
 - Live explorer reports CORS failures precisely: a cross-origin block surfaces as
   an opaque `TypeError` with no status, which is deliberately distinguished from
@@ -73,9 +75,90 @@ Catalog scale, measured: 1197 datasets, 3775 resources, **55% `datastore_active`
 
 ### Not verified
 
-**No JavaScript in this repo has ever been executed.** There is no Node and no
-browser in the environment. `apis.json` parses and file references resolve, but
-`map.js` and `explorer.js` are unrun. Check the console on first load.
+~~**No JavaScript in this repo has ever been executed.**~~ Superseded — see
+"The JS finally ran" below. `map.js` and the top view are now exercised in
+headless Chromium on every `./tools/verify.sh`. `explorer.js` still has no
+coverage beyond opening its panel: no live request is asserted, because the
+assertions would then depend on nine government servers being up.
+
+### Added later that day: top view
+
+A `מבט־על` section above the portal grid — a total plus five verdict tiles over a compact
+matrix of all 13 APIs grouped by portal (domain / format / auth / HTTP / CORS /
+verdict). Tiles filter the detail list; matrix rows clear the filters and scroll
+to the matching card.
+
+- Verdict counts are derived from the same `verdict()` the cards use, so the top
+  view cannot drift from the list below it.
+- Row → card linking uses a `_id` assigned after the sort, because endpoints
+  repeat across entries and the list re-renders on every filter change.
+
+### The JS finally ran
+
+Node 22.17 (prebuilt tarball → `~/.local/node`) and Playwright Chromium
+(`~/.cache/ms-playwright`) installed without root; no sudo password is available
+here, and neither needed one. `tools/setup.sh` reproduces it, `tools/verify.sh`
+serves the site and drives it.
+
+**This retires the standing "no JavaScript in this repo has ever been executed"
+caveat.** `map.js` and the top view load clean — no console errors, no failed
+requests. `explorer.js` is still only exercised as far as its toggle.
+
+Running it caught a bug the static check could not: the `שרת בלבד` tile counted
+**5**, but only 3 entries are genuinely 200-without-CORS. GovMap and Nadlan
+returned the `מוגבל` label while sharing the `warn` class, so the top view
+double-counted them under a cause that wasn't theirs — the same conflation the
+three-state verdict was introduced to avoid. `מוגבל` is now its own state
+(`limited`, violet), and the split is 5 / 3 / 2 / 1 / 2 = 13.
+
+`tools/smoke.mjs` derives its expectations from `apis.json` rather than
+hardcoding counts, and asserts tile == cards == rows for every state, so adding a
+source cannot silently desync the three views. It also asserts no element carries
+two verdicts, and no horizontal body scroll at 380/768/1280 px.
+
+### Filesystem support: the origin-`null` finding
+
+Asked whether the map should work from the filesystem. Probed rather than
+assumed, and the answer split cleanly in two:
+
+- **Loading its own files: blocked.** `index.html` opened from disk renders
+  blank — ES module scripts are refused from origin `null`, and `fetch` of
+  `apis.json` would be refused for the same reason. It was failing *silently*,
+  which was the worse half of the bug.
+- **Calling the government APIs: works.** `Access-Control-Allow-Origin: *`
+  accepts origin `null`. Probed from a real `file://` page: data.gov.il 200,
+  CBS 200, Open Bus 200, Knesset `TypeError` (correctly). The live explorer
+  needs no server.
+
+So the offline copy is not a degraded preview — it is the whole thing. That is
+what made a single-file build worth building rather than just documenting the
+limitation.
+
+`tools/bundle.py` inlines CSS, the three modules and `apis.json` into
+`dist/map.html` (36 KB). Verified by hand from `file://`: a live CKAN call
+returns HTTP 200 with a 31 KB JSON body, and Knesset still reports the CORS
+message.
+
+Design points worth keeping:
+
+- **`index.html`, `apis.json` and `src/` are untouched.** The site still has no
+  build step; only the extra artifact is generated. `apis.json` stays real JSON
+  that `curl`/`jq` can consume — the alternative (a `window.API_MAP = {...}` .js
+  file) would have made the whole site file-openable but ended that.
+- **The bundler never rewrites control flow.** `map.js` checks
+  `globalThis.__API_DATA__` and falls back to fetching; the bundler only
+  prepends data. Regex-rewriting a fetch call would have rotted.
+- Every anchor the bundler matches is asserted to hit exactly once, so an edit
+  to `index.html` breaks the build loudly instead of emitting a half-inlined file.
+- The `file://` notice is stripped from the bundle — that limitation does not
+  apply there, and showing it would be actively wrong.
+- Inline `<script type="module">` on `file://` was the one load-bearing
+  assumption, so it was tested in Chromium before anything was built on it.
+  It runs; the origin-`null` block is on *fetching* module scripts, not inline ones.
+
+Staleness is the real risk of a committed generated file. `bundle.py --check`
+regenerates in memory and diffs; `verify.sh` runs it first. The guard itself was
+tested by tampering with `dist/map.html` and confirming a non-zero exit.
 
 ### Set aside, not deleted
 

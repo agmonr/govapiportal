@@ -23,6 +23,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # dist/map.html is generated and committed, so it can fall behind
+      # apis.json. Refuse to publish a stale offline copy rather than hand one
+      # to whoever downloads it. Regenerate with ./tools/bundle.py.
+      - name: Check the offline bundle is in sync
+        run: ./tools/bundle.py --check
+
       # The map is static: apis.json is hand-maintained, so there is nothing
       # to build and no nightly job. Publish the repo as-is.
       - uses: actions/upload-pages-artifact@v3
