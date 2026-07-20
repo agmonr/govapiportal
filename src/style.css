@@ -417,7 +417,11 @@ button.stat { cursor: pointer; }
 
 /* The request is shown so the result can be reproduced outside the page. */
 /* The preview stops at the catalogue; this points at the page that does not. */
-.drill-more { margin-inline-start: .5rem; font-size: .8rem; white-space: nowrap; }
+/* No color rule here used to mean "whatever the browser's default link
+   color is" - fine on a white desktop background, but the mobile theme's
+   near-black bg turned that default (a dark visited-link purple) almost
+   unreadable. Same accent as every other link on the page. */
+.drill-more { margin-inline-start: .5rem; font-size: .8rem; white-space: nowrap; color: var(--accent); }
 
 .drill-url { margin-block: .6rem 0; overflow-x: auto; }
 .drill-url code { font-size: .74rem; color: var(--muted); white-space: nowrap; }
