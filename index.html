@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>מפת ממשקי API ממשלתיים — ישראל</title>
+  <link rel="stylesheet" href="./src/style.css">
+</head>
+<body>
+  <header class="site">
+    <div class="wrap">
+      <h1>מפת ממשקי API ממשלתיים</h1>
+      <span class="meta" id="probed"></span>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <p class="lead" dir="auto">
+      ממשקי API של גופים ממשלתיים בישראל. כל שדה נבדק ישירות מול השרת.
+      <strong>CORS</strong> הוא השדה הקובע — בלעדיו לא ניתן לקרוא ל-API מדף סטטי בדפדפן.
+    </p>
+
+    <div class="controls">
+      <input type="search" id="q" placeholder="חיפוש לפי גוף, תחום או כתובת…" dir="auto">
+      <label class="check"><input type="checkbox" id="browser-only"> ניתן לקריאה מהדפדפן בלבד</label>
+    </div>
+
+    <div id="summary" class="meta"></div>
+    <div id="list"></div>
+  </main>
+
+  <script type="module" src="./src/map.js"></script>
+</body>
+</html>
