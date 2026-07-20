@@ -15,10 +15,29 @@
   </header>
 
   <main class="wrap">
+    <div id="fileproto" class="notice error" dir="auto" hidden>
+      <strong>הדף נפתח כקובץ מקומי (<code dir="ltr">file://</code>) ולכן אינו יכול לטעון את הנתונים.</strong>
+      <p>
+        הדפדפן חוסם מודולי ES ו-<code dir="ltr">fetch</code> ממקור <code dir="ltr">null</code> — זו הגבלת אבטחה של הדפדפן, לא תקלה באתר.
+        הפעל שרת מקומי מתיקיית הפרויקט:
+      </p>
+      <pre dir="ltr"><code>python3 -m http.server 8000</code></pre>
+      <p>ולאחר מכן פתח <a href="http://localhost:8000" dir="ltr">http://localhost:8000</a>.</p>
+      <p>
+        לחלופין, ללא שרת כלל — <a href="./dist/map.html" dir="ltr">dist/map.html</a>
+        הוא קובץ יחיד ועצמאי שעובד בפתיחה ישירה מהדיסק, כולל הרצת בקשות חיות.
+      </p>
+    </div>
+
+    <div id="app">
     <p class="lead" dir="auto">
       ממשקי API של גופים ממשלתיים בישראל. כל שדה נבדק ישירות מול השרת.
       <strong>CORS</strong> הוא השדה הקובע — בלעדיו לא ניתן לקרוא ל-API מדף סטטי בדפדפן.
     </p>
+
+    <h2 class="section">מבט־על</h2>
+    <div id="stats" class="stat-row"></div>
+    <div class="matrix-wrap"><table id="matrix" class="matrix"></table></div>
 
     <h2 class="section">פורטלים</h2>
     <div id="portals" class="portal-grid"></div>
@@ -32,8 +51,20 @@
 
     <div id="summary" class="meta"></div>
     <div id="list"></div>
+    </div><!-- /#app -->
   </main>
 
+  <!--
+    Opened by double-clicking the file, nothing below the header can load: the
+    browser refuses ES modules and fetch from origin 'null'. This must be a
+    classic inline script, because a module would be the first thing blocked.
+  -->
+  <script>
+    if (location.protocol === 'file:') {
+      document.getElementById('fileproto').hidden = false;
+      document.getElementById('app').hidden = true;
+    }
+  </script>
   <script type="module" src="./src/map.js"></script>
 </body>
 </html>
