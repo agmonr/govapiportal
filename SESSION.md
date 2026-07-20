@@ -220,6 +220,29 @@ The prober also caught a genuine outage mid-session: Bank of Israel went from 20
 to connection-refused between two runs. Drift reports now separate *contract
 changed* (edit the map) from *unreachable* (probably wait) — the remedies differ.
 
+### Portal drill-in
+
+Clicking a portal now fires its API and renders the response as a table. Five
+renderers, one per browser-callable portal, because the shapes have nothing in
+common — CKAN packages, nested CBS chapter objects, flat GTFS rows, GeoJSON
+features, ArcGIS attribute records. A generic renderer was considered and
+rejected: it would produce a technically-correct table that reads as noise for
+four of the five.
+
+Portals with no callable API get an explanation, not a failed request. Conflating
+"nothing to show" with "it broke" would undo the three-state verdict work.
+
+**A silent bug this surfaced, worth keeping in mind:** `bundle.py` flattens a
+hardcoded `SOURCES` list. Adding `portal.js` to `map.js`'s imports without adding
+it to that list still produced a bundle — one that threw `ReferenceError` on load
+because `hasPreview` was imported and never defined. The build reported success.
+`verify_symbols()` now cross-checks every imported name against what the listed
+files export and fails the build instead. Verified by removing `portal.js` from
+`SOURCES` and confirming a non-zero exit.
+
+Scale figures the previews surfaced, both live: data.gov.il **1,197 datasets**,
+GovMap cadastre **1,097,502 parcels**.
+
 ### Set aside, not deleted
 
 ~~The original CKAN portal lives in the session scratchpad.~~ **Gone.** The

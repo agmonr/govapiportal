@@ -45,6 +45,7 @@ than shipping to whoever downloads it.
 |---|---|
 | `apis.json` | The map — `portals` (9) and `apis` (13). Edit this to add sources. |
 | `index.html` / `src/map.js` | Top view + portal grid + API list, filterable |
+| `src/portal.js` | Portal drill-in: live request per portal, rendered as a table |
 | `src/explorer.js` | Live in-browser request panel |
 | `src/style.css` | RTL-first styling |
 | `SESSION.md` | Build log: decisions, corrections, what's unverified |
@@ -80,6 +81,28 @@ error fails the run. The bundle pass additionally asserts it references no
 external asset — the claim "self-contained" is checked, not stated.
 
 `setup.sh --check` reports what is installed without installing anything.
+
+## Diving into a portal
+
+Clicking a portal card fires that portal's own API and renders the result as a
+readable table — not raw JSON:
+
+| Portal | Request | Shows |
+|---|---|---|
+| data.gov.il | `package_search` | datasets, publisher, formats, resource count (1,197 total) |
+| CBS | `index/catalog` | 14 price-index chapters |
+| Open Bus | `gtfs_stops/list` | stops with city and coordinates |
+| GovMap | WFS `PARCEL_ALL` | גוש/חלקה, locality, area, status (1,097,502 total) |
+| iplan | Xplan layer 1 | plan number, name, area in dunam, jurisdiction |
+
+Each returns a completely different shape, so each has its own small renderer in
+`src/portal.js`. A generic "any JSON as a table" would work and would be
+unreadable for most of them.
+
+The five portals with no browser-callable API get an explanation instead of a
+broken panel — that distinction is the point of the map, so the drill-in
+respects it. The exact request URL is shown under each table so the result can
+be reproduced with `curl`.
 
 ## Browsing APIs from the page
 

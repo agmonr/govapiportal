@@ -5,12 +5,14 @@
 
 import { el, esc } from './ui.js';
 import { attachExplorer } from './explorer.js';
+import { openPortal, hasPreview } from './portal.js';
 
 const portalGrid = el('portals');
 const list = el('list');
 const summary = el('summary');
 const stats = el('stats');
 const matrix = el('matrix');
+const drill = el('drill');
 
 let data = { portals: [], apis: [] };
 const state = { q: '', browserOnly: false, portal: null, verdict: null };
@@ -144,6 +146,7 @@ function portalCard(p) {
         <span class="tag">${esc(p.kind)}</span>
         ${p.domains.map((d) => `<span class="tag">${esc(d)}</span>`).join('')}
       </span>
+      ${hasPreview(p.id) ? '<span class="p-open">צפה בנתונים חיים ←</span>' : ''}
     </button>`;
 }
 
@@ -151,10 +154,19 @@ function renderPortals() {
   portalGrid.innerHTML = data.portals.map(portalCard).join('');
   portalGrid.querySelectorAll('.portal').forEach((btn) =>
     btn.addEventListener('click', () => {
-      // Second click on the same portal clears the filter.
-      state.portal = state.portal === btn.dataset.portal ? null : btn.dataset.portal;
+      // Second click on the same portal clears both the filter and the drill-in.
+      const same = state.portal === btn.dataset.portal;
+      state.portal = same ? null : btn.dataset.portal;
       renderPortals();
       renderList();
+
+      if (same) {
+        drill.innerHTML = '';
+        return;
+      }
+      const portal = data.portals.find((p) => p.id === state.portal);
+      openPortal(drill, portal);
+      drill.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     })
   );
 }
@@ -235,8 +247,17 @@ el('q').addEventListener('input', (e) => { state.q = e.target.value.trim(); rend
 el('browser-only').addEventListener('change', (e) => {
   state.browserOnly = e.target.checked; renderList();
 });
+drill.addEventListener('click', (e) => {
+  if (!e.target.closest('.drill-close')) return;
+  drill.innerHTML = '';
+  state.portal = null;
+  renderPortals();
+  renderList();
+});
+
 function reset() {
   state.portal = null; state.q = ''; state.browserOnly = false; state.verdict = null;
+  drill.innerHTML = '';
   el('q').value = ''; el('browser-only').checked = false;
   renderStats(); renderPortals(); renderList();
 }

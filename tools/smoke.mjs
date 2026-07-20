@@ -107,6 +107,21 @@ async function runPass(label, url, { bundled = false } = {}) {
       'file:// notice stays hidden when served over HTTP');
   }
 
+  /* --- portal drill-in ---
+     Only structure and wiring are asserted. Whether the live request succeeds
+     depends on five government hosts being up, and this suite deliberately does
+     not fail because someone else's server is down. */
+  const withPreview = await page.locator('.portal .p-open').count();
+  ok(withPreview === 5, `5 portals advertise a live preview (found ${withPreview})`);
+
+  await page.locator('.portal[data-portal="knesset"]').click();
+  await page.waitForSelector('#drill .drill', { timeout: 10000 });
+  ok(await page.locator('#drill .matrix.preview').count() === 0,
+    'a portal with no browser-callable API shows an explanation, not a table');
+  await page.locator('#drill .drill-close').click();
+  ok(await page.locator('#drill .drill').count() === 0, 'close button dismisses the drill-in');
+  ok(await page.locator('.card.api').count() === n, 'closing the drill-in also clears its filter');
+
   /* --- RTL body must never scroll sideways, however wide the table gets --- */
   for (const width of [380, 768, 1280]) {
     await page.setViewportSize({ width, height: 900 });

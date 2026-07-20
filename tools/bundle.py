@@ -28,9 +28,12 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "dist" / "map.html"
 
-# Dependency order. These are first-party and each has exactly one import edge,
-# which is what makes flattening them safe.
-SOURCES = ["src/ui.js", "src/explorer.js", "src/map.js"]
+# Dependency order: dependencies before dependents, since flattening drops the
+# imports that would otherwise order them. Every module reachable from map.js
+# must be listed - a missing one still produces a bundle, but one that throws on
+# load because the symbol it imported was never defined. verify_symbols() below
+# turns that silent break into a build failure.
+SOURCES = ["src/ui.js", "src/explorer.js", "src/portal.js", "src/map.js"]
 
 IMPORT_RE = re.compile(r"^\s*import\s.*?;\s*$", re.M)
 EXPORT_RE = re.compile(r"^export\s+", re.M)
@@ -53,7 +56,36 @@ def flatten(rel: str) -> str:
     return src
 
 
+def verify_symbols() -> None:
+    """Every symbol imported across SOURCES must be defined by one of them.
+
+    Flattening deletes the import statements, so a module left out of SOURCES
+    does not fail the build - it produces a page that throws ReferenceError on
+    load. That happened once (portal.js), and the bundle looked fine. Catch it
+    here instead of in a browser.
+    """
+    imported: set[str] = set()
+    defined: set[str] = set()
+
+    for rel in SOURCES:
+        src = read(rel)
+        for names, _mod in re.findall(r"import\s*\{([^}]*)\}\s*from\s*['\"]([^'\"]+)['\"]", src):
+            for name in names.split(","):
+                name = name.strip().split(" as ")[-1].strip()
+                if name:
+                    imported.add(name)
+        for kind in ("function", "const", "let", "var", "class"):
+            defined.update(re.findall(rf"^export\s+(?:async\s+)?{kind}\s+([A-Za-z_$][\w$]*)", src, re.M))
+        defined.update(re.findall(r"^export\s+(?:async\s+)?function\s+([A-Za-z_$][\w$]*)", src, re.M))
+
+    missing = imported - defined
+    if missing:
+        sys.exit(f"error: {', '.join(sorted(missing))} imported but not defined by any file in "
+                 f"SOURCES.\n       Add the module that exports it to SOURCES in bundle.py.")
+
+
 def build() -> str:
+    verify_symbols()
     html = read("index.html")
     data = json.loads(read("apis.json"))  # parse to validate, not just to embed
 
