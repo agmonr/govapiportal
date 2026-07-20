@@ -27,7 +27,11 @@ jobs:
       # apis.json. Refuse to publish a stale offline copy rather than hand one
       # to whoever downloads it. Regenerate with ./tools/bundle.py.
       - name: Check the offline bundle is in sync
-        run: ./tools/bundle.py --check
+        run: |
+          if ! ./tools/bundle.py --check; then
+            echo "::error::dist/ has drifted from src/ or apis.json - run ./tools/bundle.py locally, commit dist/map.html and dist/datagov.html, and push again."
+            exit 1
+          fi
 
       # The map is static: apis.json is hand-maintained, so there is nothing
       # to build and no nightly job. Publish the repo as-is.
