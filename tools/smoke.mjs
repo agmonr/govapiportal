@@ -114,6 +114,13 @@ async function runPass(label, url, { bundled = false } = {}) {
   const withPreview = await page.locator('.portal .p-open').count();
   ok(withPreview === 5, `5 portals advertise a live preview (found ${withPreview})`);
 
+  // Every portal offering a preview must offer a filter with it, and must say
+  // whether that filter runs server-side or over already-fetched rows.
+  await page.locator('.portal[data-portal="cbs"]').click();
+  await page.waitForSelector('#drill .drill-q', { timeout: 10000 });
+  ok(await page.locator('#drill .drill-scope').count() === 1, 'filter states its scope (server vs local)');
+  await page.locator('#drill .drill-close').click();
+
   await page.locator('.portal[data-portal="knesset"]').click();
   await page.waitForSelector('#drill .drill', { timeout: 10000 });
   ok(await page.locator('#drill .matrix.preview').count() === 0,

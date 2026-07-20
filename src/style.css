@@ -312,3 +312,17 @@ button.stat { cursor: pointer; }
 .matrix.preview td { white-space: normal; max-inline-size: 22rem; }
 .matrix.preview td.ident { font-weight: 500; }
 .matrix.preview tbody tr:nth-child(even) { background: color-mix(in srgb, var(--fg) 3%, transparent); }
+
+/* Filter box inside a portal drill-in. */
+.drill-filter { display: flex; gap: .5rem; align-items: center; margin-block-end: .7rem; }
+.drill-filter input[type="search"] { flex: 1; font-size: .9rem; padding: .45rem .65rem; }
+/* Server-side vs local is not cosmetic: it says whether you are searching the
+   whole collection or only the rows already fetched. */
+.drill-scope {
+  font-size: .72rem;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: .15rem .55rem;
+  white-space: nowrap;
+}

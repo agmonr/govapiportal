@@ -243,6 +243,17 @@ files export and fails the build instead. Verified by removing `portal.js` from
 Scale figures the previews surfaced, both live: data.gov.il **1,197 datasets**,
 GovMap cadastre **1,097,502 parcels**.
 
+**Filtering**, added after: four of the five filter server-side (`q=`,
+`city=`, CQL `LIKE`, ArcGIS `where`), verified against each API before wiring.
+Only CBS filters locally — 14 chapters arrive in one response, so filtering them
+client-side is the whole collection rather than a subset pretending to be one,
+and re-filtering reuses the cached response instead of re-hitting the server.
+
+The scope badge is load-bearing, not decoration: with a client-side filter over
+GovMap, "no results" would mean "not among the 15 rows fetched" while looking
+exactly like "not among 1,097,502 parcels". Server-side inputs are debounced at
+450 ms so a keystroke does not become a request to a government host.
+
 ### Set aside, not deleted
 
 ~~The original CKAN portal lives in the session scratchpad.~~ **Gone.** The

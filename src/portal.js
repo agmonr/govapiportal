@@ -12,21 +12,32 @@
  * them, so if one changes the map reports it rather than this quietly breaking.
  */
 
-import { esc } from './ui.js';
+import { esc, debounce } from './ui.js';
 
 const num = (v) => (v == null ? '—' : Number(v).toLocaleString('he-IL'));
 
 /**
  * One entry per browser-callable portal.
  *   url     - the live request, kept small; this is a preview, not a dump
+ *   url     - (query) => request URL; the query is applied server-side where the
+ *             API supports it, so filtering searches the whole collection rather
+ *             than the 15 rows already on screen. That distinction matters: a
+ *             client-side filter over GovMap would search 15 of 1,097,502 parcels.
+ *   local   - set instead when the collection is small enough to arrive whole
+ *             (CBS is 14 chapters) and filtering client-side is honest.
  *   total   - how many records exist overall, when the API says so
  *   columns - [key, label]; first column carries the row's identity
  *   rows    - shape-specific extraction
  */
+
+/** Encodes a value for a CQL / SQL LIKE clause. Quotes are the injection risk. */
+const like = (q) => `%${q.replace(/'/g, "''")}%`;
 const PREVIEWS = {
   datagov: {
     label: 'חיפוש מאגרים (package_search)',
-    url: 'https://data.gov.il/api/3/action/package_search?rows=15',
+    placeholder: 'חפש בכל 1,197 המאגרים — נושא, גוף מפרסם…',
+    url: (q) => 'https://data.gov.il/api/3/action/package_search?rows=15'
+      + (q ? `&q=${encodeURIComponent(q)}` : ''),
     total: (j) => j.result.count,
     unit: 'מאגרים',
     columns: [['title', 'מאגר'], ['org', 'גוף מפרסם'], ['formats', 'פורמטים'], ['res', 'משאבים']],
@@ -40,7 +51,11 @@ const PREVIEWS = {
 
   cbs: {
     label: 'קטלוג מדדים (index/catalog)',
-    url: 'https://api.cbs.gov.il/index/catalog/catalog',
+    placeholder: 'סנן פרקים…',
+    // 14 chapters arrive in one response - filtering them client-side is the
+    // whole collection, not a subset pretending to be one.
+    local: true,
+    url: () => 'https://api.cbs.gov.il/index/catalog/catalog',
     unit: 'פרקים',
     columns: [['name', 'פרק'], ['code', 'קוד ראשי'], ['order', 'סדר']],
     rows: (j) => (j.chapters || []).map((c) => ({
@@ -52,7 +67,9 @@ const PREVIEWS = {
 
   openbus: {
     label: 'תחנות GTFS (gtfs_stops/list)',
-    url: 'https://open-bus-stride-api.hasadna.org.il/gtfs_stops/list?limit=15',
+    placeholder: 'סנן לפי עיר — למשל רעננה',
+    url: (q) => 'https://open-bus-stride-api.hasadna.org.il/gtfs_stops/list?limit=15'
+      + (q ? `&city=${encodeURIComponent(q)}` : ''),
     unit: 'תחנות',
     columns: [['name', 'תחנה'], ['city', 'עיר'], ['code', 'קוד'], ['pos', 'קואורדינטות']],
     rows: (j) => j.map((s) => ({
@@ -65,9 +82,11 @@ const PREVIEWS = {
 
   govmap: {
     label: 'חלקות קדסטר (WFS PARCEL_ALL)',
-    url: 'https://open.govmap.gov.il/geoserver/opendata/wfs?service=WFS&version=2.0.0'
-       + '&request=GetFeature&typeNames=opendata:PARCEL_ALL&outputFormat=application/json'
-       + '&srsName=EPSG:4326&count=15',
+    placeholder: 'סנן לפי יישוב — למשל רעננה',
+    url: (q) => 'https://open.govmap.gov.il/geoserver/opendata/wfs?service=WFS&version=2.0.0'
+      + '&request=GetFeature&typeNames=opendata:PARCEL_ALL&outputFormat=application/json'
+      + '&srsName=EPSG:4326&count=15'
+      + (q ? `&CQL_FILTER=${encodeURIComponent(`LOCALITY_N LIKE '${like(q)}'`)}` : ''),
     total: (j) => j.totalFeatures,
     unit: 'חלקות',
     columns: [['gush', 'גוש'], ['parcel', 'חלקה'], ['locality', 'יישוב'], ['area', 'שטח רשום'], ['status', 'סטטוס']],
@@ -82,9 +101,12 @@ const PREVIEWS = {
 
   iplan: {
     label: 'תכניות בנייה (Xplan, קווים כחולים)',
-    url: 'https://ags.iplan.gov.il/arcgisiplan/rest/services/PlanningPublic/Xplan/MapServer/1/query'
-       + '?where=1%3D1&outFields=pl_number,pl_name,pl_area_dunam,jurstiction_area_name,pl_landuse_string'
-       + '&returnGeometry=false&orderByFields=last_update_date%20DESC&resultRecordCount=15&f=json',
+    placeholder: 'סנן לפי שם תכנית או יישוב…',
+    url: (q) => 'https://ags.iplan.gov.il/arcgisiplan/rest/services/PlanningPublic/Xplan/MapServer/1/query'
+      + '?where=' + encodeURIComponent(
+        q ? `pl_name LIKE '${like(q)}' OR jurstiction_area_name LIKE '${like(q)}'` : '1=1')
+      + '&outFields=pl_number,pl_name,pl_area_dunam,jurstiction_area_name,pl_landuse_string'
+      + '&returnGeometry=false&orderByFields=last_update_date%20DESC&resultRecordCount=15&f=json',
     unit: 'תכניות',
     columns: [['number', 'מספר תכנית'], ['name', 'שם'], ['area', 'שטח'], ['juris', 'תחום שיפוט']],
     rows: (j) => (j.features || []).map((f) => ({
@@ -147,38 +169,78 @@ export async function openPortal(node, portal) {
         <button type="button" class="drill-close">סגור ✕</button>
       </div>
       <p class="drill-sub" dir="auto">${esc(spec.label)}</p>
-      <div class="skeleton" dir="auto">שולח בקשה…</div>
+      <div class="drill-filter">
+        <input type="search" class="drill-q" dir="auto" spellcheck="false"
+               placeholder="${esc(spec.placeholder)}" aria-label="סינון">
+        <span class="drill-scope">${spec.local ? 'סינון מקומי' : 'סינון בשרת'}</span>
+      </div>
+      <div class="drill-out"></div>
     </div>`;
-  const body = node.querySelector('.drill');
-  const slot = body.querySelector('.skeleton');
 
-  const t0 = performance.now();
-  try {
-    const res = await fetch(spec.url);
-    const ms = Math.round(performance.now() - t0);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const json = await res.json();
-    const rows = spec.rows(json);
-    const total = spec.total?.(json);
+  const out = node.querySelector('.drill-out');
+  const input = node.querySelector('.drill-q');
+  let cached = null;   // local-filter portals fetch once and re-filter in place
 
-    slot.outerHTML = `
-      <div class="ex-status">
-        <span class="badge ok">HTTP ${res.status}</span>
-        <span class="tag">${ms} ms</span>
-        <span class="tag" dir="auto">${rows.length} מוצגות${total != null ? ` מתוך ${num(total)}` : ''} ${esc(spec.unit)}</span>
-      </div>
-      ${table(spec, rows)}
-      <p class="drill-url" dir="ltr"><code>${esc(spec.url)}</code></p>`;
-  } catch (err) {
-    // A cross-origin block reaches JS as an opaque TypeError with no status.
-    // Say which of the two it might be rather than inventing a cause.
-    const cors = err instanceof TypeError;
-    slot.outerHTML = `
-      <div class="notice error" dir="auto">
-        ${cors
-          ? 'הבקשה נחסמה על ידי הדפדפן (CORS) או שהרשת נכשלה — הדפדפן אינו חושף את הסיבה המדויקת.'
-          : `הבקשה נכשלה: ${esc(err.message)}`}
-      </div>
-      <p class="drill-url" dir="ltr"><code>${esc(spec.url)}</code></p>`;
+  async function load(query) {
+    out.innerHTML = '<div class="skeleton" dir="auto">שולח בקשה…</div>';
+    const url = spec.url(spec.local ? '' : query);
+    const t0 = performance.now();
+
+    try {
+      // A local-filter collection is fetched once; re-filtering must not re-hit
+      // someone else's server for data already in hand.
+      let json = spec.local ? cached : null;
+      let ms = 0;
+      let status = 200;
+      if (!json) {
+        const res = await fetch(url);
+        ms = Math.round(performance.now() - t0);
+        status = res.status;
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        json = await res.json();
+        if (spec.local) cached = json;
+      }
+
+      let rows = spec.rows(json);
+      const total = spec.total?.(json);
+
+      if (spec.local && query) {
+        const q = query.toLowerCase();
+        rows = rows.filter((r) => Object.values(r).join(' ').toLowerCase().includes(q));
+      }
+
+      out.innerHTML = `
+        <div class="ex-status">
+          <span class="badge ok">HTTP ${status}</span>
+          ${ms ? `<span class="tag">${ms} ms</span>` : '<span class="tag">מהמטמון</span>'}
+          <span class="tag" dir="auto">${rows.length} מוצגות${
+            total != null && !query ? ` מתוך ${num(total)}` : ''} ${esc(spec.unit)}</span>
+          ${query ? `<span class="tag" dir="auto">סינון: ${esc(query)}</span>` : ''}
+        </div>
+        ${rows.length
+          ? table(spec, rows)
+          : `<div class="notice info" dir="auto">אין תוצאות עבור <strong>${esc(query)}</strong>.</div>`}
+        <p class="drill-url" dir="ltr"><code>${esc(url)}</code></p>`;
+    } catch (err) {
+      // A cross-origin block reaches JS as an opaque TypeError with no status.
+      // Say which of the two it might be rather than inventing a cause.
+      const cors = err instanceof TypeError;
+      out.innerHTML = `
+        <div class="notice error" dir="auto">
+          ${cors
+            ? 'הבקשה נחסמה על ידי הדפדפן (CORS) או שהרשת נכשלה — הדפדפן אינו חושף את הסיבה המדויקת.'
+            : `הבקשה נכשלה: ${esc(err.message)}`}
+        </div>
+        <p class="drill-url" dir="ltr"><code>${esc(url)}</code></p>`;
+    }
   }
+
+  // Server-side filters hit a government host on every keystroke without this.
+  const rerun = debounce((q) => load(q), spec.local ? 120 : 450);
+  input.addEventListener('input', (e) => rerun(e.target.value.trim()));
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); load(input.value.trim()); }
+  });
+
+  await load('');
 }

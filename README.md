@@ -99,6 +99,14 @@ Each returns a completely different shape, so each has its own small renderer in
 `src/portal.js`. A generic "any JSON as a table" would work and would be
 unreadable for most of them.
 
+**Every preview has a filter, and says where it runs.** Four of the five filter
+**server-side**, so you search the whole collection rather than the 15 rows on
+screen — searching GovMap for `רעננה` queries all 1,097,502 parcels, not the
+handful displayed. CBS is 14 chapters, arrives whole, and filters locally from
+cache without re-hitting the server. The badge next to the box
+(`סינון בשרת` / `סינון מקומי`) says which, because the difference decides whether
+an empty result means "nothing matches" or "nothing matches on this page".
+
 The five portals with no browser-callable API get an explanation instead of a
 broken panel — that distinction is the point of the map, so the drill-in
 respects it. The exact request URL is shown under each table so the result can
