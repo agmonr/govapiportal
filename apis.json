@@ -1,5 +1,5 @@
 {
-  "probed": "2026-07-21T00:42+03:00",
+  "probed": "2026-07-21T02:32+03:00",
   "note": "Every status/cors/format field below was probed directly, not recalled. 'unknown' means the probe failed to find a working endpoint - it is not a claim that none exists.",
   "apps": [
     {
