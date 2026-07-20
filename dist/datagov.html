@@ -259,6 +259,23 @@ button.stat { cursor: pointer; }
 .p-sub  { font-size: .78rem; color: var(--muted); }
 .p-about { font-size: .85rem; color: var(--muted); line-height: 1.45; }
 
+/* ---------- "continue" disclosure past the portals ----------
+   Native <details>/<summary>: no JS toggle to write or keep accessible,
+   the browser already handles open/closed and keyboard use. The `open`
+   attribute ships in the markup so desktop (and no-JS/no-CSS clients)
+   just see the full page; only the mobile media query below closes it
+   by default and gives the summary a tap target worth pressing. */
+.more summary.more-toggle {
+  list-style: none;
+  cursor: pointer;
+  color: var(--accent);
+  font-weight: 600;
+  font-size: .9rem;
+  margin-block: .5rem 1.25rem;
+}
+.more summary.more-toggle::-webkit-details-marker { display: none; }
+.more[open] summary.more-toggle { display: none; }
+
 /* ---------- live explorer ---------- */
 
 .toggle-ex { font-size: .85rem; padding: .35rem .7rem; margin-block-start: .5rem; }
@@ -412,7 +429,11 @@ button.stat { cursor: pointer; }
 
 /* The request is shown so the result can be reproduced outside the page. */
 /* The preview stops at the catalogue; this points at the page that does not. */
-.drill-more { margin-inline-start: .5rem; font-size: .8rem; white-space: nowrap; }
+/* No color rule here used to mean "whatever the browser's default link
+   color is" - fine on a white desktop background, but the mobile theme's
+   near-black bg turned that default (a dark visited-link purple) almost
+   unreadable. Same accent as every other link on the page. */
+.drill-more { margin-inline-start: .5rem; font-size: .8rem; white-space: nowrap; color: var(--accent); }
 
 .drill-url { margin-block: .6rem 0; overflow-x: auto; }
 .drill-url code { font-size: .74rem; color: var(--muted); white-space: nowrap; }
@@ -510,6 +531,199 @@ button.stat { cursor: pointer; }
 .f-go { color: var(--accent); }
 .files-note { font-size: .76rem; color: var(--muted); margin-block: .45rem 0; }
 .slow-note { display: block; font-size: .78rem; color: var(--muted); margin-block-start: .25rem; }
+
+/* ---------- mobile: maison ----------
+   Below 640px the palette variables flip to black/ivory/gold - since almost
+   every rule above already reads color from var(), that swap alone restyles
+   badges, borders and buttons. What's added here is the couture-specific
+   part: a serif for headlines, tracked uppercase for UI chrome, and a gold
+   sheen (an animated gradient on text, a sweep on button hover/tap - :active
+   stands in for hover on touch) so the surface reads premium, not just dark. */
+@media (max-width: 640px) {
+  :root {
+    --bg: #0d0b08;
+    --fg: #f3ecdc;
+    --muted: #b7a67f;
+    --border: #3c3320;
+    --accent: #ddb44f;
+    --surface: #18140d;
+    --danger: #d2685a;
+    --radius: 3px;
+    --font-display: Georgia, "David", "Times New Roman", serif;
+  }
+
+  body { letter-spacing: .01em; }
+
+  /* Section titles and card/portal names carry the "fashion editorial"
+     voice: serif, tracked, quiet weight. Everything that is UI chrome
+     (buttons, tags, labels) stays sans but gains the same tracking instead -
+     that split is what a fashion-house site actually looks like. */
+  header.site h1,
+  .section,
+  .card h3, .card h3 a,
+  .p-name, .ck-title,
+  .drill-head h2,
+  .ck-detail h3 {
+    font-family: var(--font-display);
+    font-weight: 400;
+    letter-spacing: .03em;
+  }
+
+  header.site {
+    background: radial-gradient(120% 140% at 20% 0%, color-mix(in srgb, var(--accent) 10%, var(--surface)), var(--bg) 65%);
+    border-block-end: 1px solid var(--border);
+    box-shadow: 0 1px 0 color-mix(in srgb, var(--accent) 25%, transparent);
+  }
+  header.site h1 {
+    font-size: 1.3rem;
+    text-transform: uppercase;
+    letter-spacing: .16em;
+    background: linear-gradient(100deg, var(--accent) 0%, #fff6dc 22%, var(--accent) 45%, var(--muted) 65%, var(--accent) 85%);
+    background-size: 250% auto;
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+    -webkit-text-fill-color: transparent;
+    animation: fh-shine 7s ease-in-out infinite;
+  }
+  header.site a { text-transform: uppercase; font-size: .72rem; letter-spacing: .08em; }
+
+  .section {
+    display: flex; align-items: center; gap: .7rem;
+    text-transform: uppercase; font-size: .8rem; letter-spacing: .18em; font-weight: 400;
+    color: var(--muted);
+  }
+  .section::after { content: ''; flex: 1; block-size: 1px; background: var(--border); }
+
+  @keyframes fh-shine {
+    0%, 100% { background-position: 220% 0; }
+    50%      { background-position: -60% 0; }
+  }
+
+  /* Hairline borders + a soft gold lift on the surfaces that matter -
+     cards, portals, stat tiles, the explorer panel. Status colour on the
+     leading edge (.card.api, .stat, tr.row) is left alone: it's the one
+     thing on the page carrying meaning, not decoration. */
+  .card, .portal, .stat, .ckan, .explorer, .drill, .matrix-wrap, .ck-card {
+    background: linear-gradient(180deg, var(--surface), var(--bg));
+    border-color: var(--border);
+  }
+  .portal:hover, .ck-card:hover {
+    border-color: var(--accent);
+    box-shadow: 0 6px 20px -12px color-mix(in srgb, var(--accent) 70%, transparent);
+  }
+  .portal.active, .stat.active {
+    box-shadow: inset 0 0 0 1px var(--accent), 0 0 16px -6px color-mix(in srgb, var(--accent) 60%, transparent);
+  }
+
+  .tag, .badge, .drill-scope, .ck-n, .f-tag {
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    font-size: .7rem;
+  }
+  .badge.ok { box-shadow: 0 0 10px -4px color-mix(in srgb, #5fce8f 70%, transparent); }
+
+  /* Buttons: tracked uppercase, thin gold hairline, a sheen that sweeps on
+     hover for a mouse and on :active for a thumb - a touch has no hover. */
+  button, .ex-method, .ck-crumb {
+    position: relative;
+    overflow: hidden;
+    text-transform: uppercase;
+    letter-spacing: .07em;
+    font-size: .78rem;
+  }
+  button::after, .ex-method::after {
+    content: '';
+    position: absolute; inset: 0;
+    background: linear-gradient(115deg, transparent 30%, color-mix(in srgb, var(--accent) 55%, transparent) 50%, transparent 70%);
+    background-size: 250% 100%;
+    background-position: 150% 0;
+    transition: background-position .7s ease;
+    pointer-events: none;
+  }
+  button:hover:not(:disabled)::after, button:active:not(:disabled)::after,
+  .ex-method:hover::after, .ex-method:active::after { background-position: -50% 0; }
+
+  button:hover:not(:disabled), button:focus-visible {
+    border-color: var(--accent);
+    box-shadow: 0 4px 16px -10px color-mix(in srgb, var(--accent) 70%, transparent);
+  }
+
+  .ck-open, .ck-dl, .pager .pg.cur {
+    border-color: var(--accent);
+    box-shadow: 0 4px 14px -8px color-mix(in srgb, var(--accent) 65%, transparent);
+  }
+
+  input[type="search"], input[type="text"], select {
+    background: color-mix(in srgb, var(--surface) 70%, var(--bg));
+  }
+  input[type="search"]:focus, input[type="text"]:focus, select:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px var(--accent);
+  }
+
+  .lead { font-family: var(--font-display); font-size: 1rem; line-height: 1.7; }
+
+  .wrap { padding-block: 1.75rem 4.5rem; }
+  .section { margin-block: 2.5rem 1rem; }
+
+  /* The one button on the page meant to be found without scrolling first -
+     full-width, gold-filled rather than outlined, so it reads as the next
+     step rather than one option among the portal cards above it. */
+  .more summary.more-toggle {
+    display: block;
+    text-align: center;
+    background: linear-gradient(180deg, var(--accent), color-mix(in srgb, var(--accent) 80%, #000));
+    color: var(--bg);
+    border: 1px solid var(--accent);
+    border-radius: 999px;
+    padding: .75rem 1rem;
+    margin-block: 1.5rem;
+    text-transform: uppercase;
+    letter-spacing: .1em;
+    font-size: .8rem;
+  }
+}
+
+/* ---------- desktop: legible by default ----------
+   Nothing above this touched desktop - the plain look was it. The ask here
+   is specifically for older readers, and it's the opposite move from the
+   mobile section above: bigger type, stronger contrast, roomier click
+   targets, nothing decorative. "Simple to see" ruled out matching the
+   mobile treatment on purpose - this is legibility, not a style. */
+@media (min-width: 641px) {
+  body { font-size: 1.15rem; line-height: 1.65; }
+
+  :root { --muted: #454a54; }
+}
+@media (min-width: 641px) and (prefers-color-scheme: dark) {
+  :root { --muted: #c3c8cf; }
+}
+
+@media (min-width: 641px) {
+  h1 { font-size: 1.35rem; }
+  .section { font-size: 1.1rem; }
+
+  button, input[type="search"], input[type="text"], select {
+    font-size: 1rem;
+    padding: .75rem 1rem;
+  }
+
+  .card, .portal, .stat { padding: 1.1rem 1.3rem; }
+  .portal-grid, .stat-row { gap: 1rem; }
+  .stat-n { font-size: 1.85rem; }
+  .stat-l { font-size: .9rem; }
+
+  .tag, .badge { font-size: .82rem; padding: .2rem .7rem; }
+
+  .matrix th, .matrix td { padding: .65rem .9rem; font-size: .95rem; }
+
+  a:focus-visible, button:focus-visible {
+    outline: 3px solid var(--accent);
+    outline-offset: 2px;
+  }
+}
 </style>
 </head>
 <body>
