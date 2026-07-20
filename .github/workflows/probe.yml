@@ -1,0 +1,82 @@
+name: Re-probe APIs for drift
+
+# apis.json is a snapshot of live behaviour. It rots silently - a WAF rule
+# lifts, a CORS header appears, an endpoint moves - and nothing in the repo
+# notices. This notices, and opens an issue rather than editing the map:
+# see the reasoning in tools/probe.py.
+
+on:
+  schedule:
+    - cron: "0 6 * * 1"   # Mondays 06:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: probe
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: probe
+        name: Probe every endpoint in apis.json
+        # Exit 1 means drift, which is a finding, not a broken job - the issue
+        # step below reports it. Any other non-zero is a real failure.
+        run: |
+          set +e
+          ./tools/probe.py --check --report drift.md --json probe-results.json
+          code=$?
+          set -e
+          if [ $code -gt 1 ]; then
+            echo "probe.py failed with exit $code" >&2
+            exit $code
+          fi
+          echo "drift=$code" >> "$GITHUB_OUTPUT"
+
+      - name: Keep the raw results
+        uses: actions/upload-artifact@v4
+        with:
+          name: probe-results
+          path: probe-results.json
+          retention-days: 90
+
+      # One open issue, updated - not a new issue every Monday for the same
+      # unchanged fact.
+      - name: Open or update the drift issue
+        if: steps.probe.outputs.drift == '1'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          existing=$(gh issue list --label api-drift --state open \
+            --json number --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body-file drift.md
+            echo "commented on #$existing"
+          else
+            gh label create api-drift \
+              --description "apis.json no longer matches live server behaviour" \
+              --color D93F0B 2>/dev/null || true
+            gh issue create --title "API drift detected in apis.json" \
+              --label api-drift --body-file drift.md
+          fi
+
+      # If the map matches reality again, say so and close - otherwise the
+      # issue outlives the problem and the next reader distrusts the map.
+      - name: Close the drift issue if everything matches again
+        if: steps.probe.outputs.drift == '0'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          existing=$(gh issue list --label api-drift --state open \
+            --json number --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body \
+              "Re-probed: every endpoint now matches \`apis.json\` again. Closing."
+            gh issue close "$existing"
+          fi

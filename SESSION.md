@@ -160,6 +160,29 @@ Staleness is the real risk of a committed generated file. `bundle.py --check`
 regenerates in memory and diffs; `verify.sh` runs it first. The guard itself was
 tested by tampering with `dist/map.html` and confirming a non-zero exit.
 
+### Drift detection
+
+`apis.json` had no way to notice it had gone stale. `tools/probe.py` + a Monday
+`probe.yml` re-probe all 11 identified endpoints and open (or update, or close)
+a single `api-drift` issue.
+
+Two decisions worth keeping:
+
+- **It never rewrites `apis.json`.** A GitHub runner is a different client than a
+  person's browser — datacentre IPs get WAF-blocked and geo-filtered — so
+  auto-committing would let one bad run overwrite curated verdicts with an
+  artefact of where the probe ran from.
+- **It probes `example`, not `endpoint`.** The first run reported two drifts:
+  `datastore_search` 200→409 and CBS price 200→500. Both were the prober's fault
+  — those endpoints need parameters, and the recorded 200s describe the
+  parameterised call. Probing the bare endpoint asked a different question.
+  Left unfixed it would have opened a false-positive issue every week, and worse,
+  would have "shown" that datastore_search stopped being browser-callable.
+
+Baseline as of this run: **all 13 entries still match** — the map is accurate
+today, re-confirmed rather than assumed. Drift reporting was verified by flipping
+a CORS value in a copy of `apis.json` and watching the report name it.
+
 ### Set aside, not deleted
 
 The original CKAN portal — `ckan.js` (with WAF-aware retry), dataset detail page,

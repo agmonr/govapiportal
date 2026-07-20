@@ -49,7 +49,7 @@ than shipping to whoever downloads it.
 | `src/style.css` | RTL-first styling |
 | `SESSION.md` | Build log: decisions, corrections, what's unverified |
 | `dist/map.html` | Generated single-file build. Works offline, opened from disk. |
-| `tools/` | Bundler + browser verification. Not part of the published site. |
+| `tools/` | Bundler, API re-prober, browser verification. Not part of the site. |
 
 ## Top view
 
@@ -126,6 +126,28 @@ build-time snapshot.
   credentials; the auth flow is undocumented and unverified.
 - **Nadlan** returns the SPA HTML shell for a plain POST — the real contract
   needs headers I could not determine.
+
+## Keeping the map honest
+
+Every field here is a claim about live server behaviour on a particular day, and
+those claims rot — a WAF rule lifts, a CORS header appears, an endpoint moves.
+
+`.github/workflows/probe.yml` re-probes all 11 identified endpoints every Monday
+and **opens an issue when reality and `apis.json` disagree**. Run it yourself:
+
+```bash
+./tools/probe.py            # probe and print a table
+./tools/probe.py --check    # exit 1 if anything drifted
+```
+
+It deliberately does **not** rewrite `apis.json`. A probe from a GitHub runner is
+not the same observation as one from your machine — datacentre IPs get
+WAF-blocked and geo-filtered differently — so one bad run could overwrite curated
+verdicts with an artefact of where the probe ran. It reports; a human confirms.
+
+It probes each entry's `example` rather than the bare `endpoint`, because several
+of these need parameters: `datastore_search` answers 409 without a `resource_id`,
+CBS `index/data/price` answers 500 without an `id`.
 
 ## Adding a source
 
