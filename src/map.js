@@ -6,6 +6,7 @@
 import { el, esc } from './ui.js';
 import { attachExplorer } from './explorer.js';
 import { openPortal, hasPreview } from './portal.js';
+import { initThemePicker } from './theme.js';
 
 const portalGrid = el('portals');
 const list = el('list');
@@ -315,4 +316,5 @@ async function load() {
   }
 }
 
+initThemePicker(el('themePick'));
 load();

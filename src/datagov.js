@@ -8,5 +8,7 @@
 
 import { el } from './ui.js';
 import { mountCkan } from './ckan.js';
+import { initThemePicker } from './theme.js';
 
+initThemePicker(el('themePick'));
 mountCkan(el('ckan'));

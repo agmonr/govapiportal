@@ -9,19 +9,32 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>המאגר הממשלתי הפתוח — חקירה מלאה</title>
+  <!-- Sets data-theme before the stylesheet is applied, so a returning
+       visitor who picked "fashion" never sees a flash of the clouds theme
+       first. See src/theme.js for the picker itself. -->
+  <script>
+    try {
+      var t = localStorage.getItem('theme');
+      if (t && t !== 'clouds') document.documentElement.setAttribute('data-theme', t);
+    } catch (e) {}
+  </script>
   <style>
 /*
  * RTL-first. Layout uses logical properties throughout (margin-inline-start,
  * not margin-left) so the whole sheet works unchanged if dir flips to ltr.
  */
 
+/* Default theme: "Clouds" - calm blue, the same on mobile and desktop. There
+   used to be a second, unrelated look forced onto small screens only; that
+   split is gone; the only other look now is an explicit opt-in, see
+   [data-theme="fashion"] near the end of this file. */
 :root {
-  --bg: #ffffff;
-  --fg: #14161a;
-  --muted: #5c6370;
-  --border: #dfe3e8;
-  --accent: #1c5fd8;
-  --surface: #f6f7f9;
+  --bg: #f5f9fd;
+  --fg: #182634;
+  --muted: #4c6178;
+  --border: #d7e4f0;
+  --accent: #2f7bc4;
+  --surface: #eaf3fb;
   --danger: #b3261e;
   --radius: 8px;
   --maxw: 1100px;
@@ -29,12 +42,14 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #14161a;
-    --fg: #e8eaed;
-    --muted: #9aa0a8;
-    --border: #2c3039;
-    --accent: #7aa5f5;
-    --surface: #1b1e24;
+    /* Night sky, not black - kept dark mode from feeling like an unrelated
+       theme of its own. */
+    --bg: #111927;
+    --fg: #e8eff7;
+    --muted: #a9bccf;
+    --border: #263a4a;
+    --accent: #7fb8ee;
+    --surface: #17212f;
     --danger: #f2766b;
   }
 }
@@ -52,11 +67,32 @@ body {
 
 header.site {
   border-block-end: 1px solid var(--border);
-  background: var(--surface);
+  /* A calm sky, not a flat fill - the one "shine" the default theme gets,
+     quiet enough to still read as calm rather than decorative. */
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 8%, var(--surface)), var(--surface));
 }
-header.site .wrap { padding-block: 1rem; display: flex; align-items: baseline; gap: 1rem; }
+/* wrap, not nowrap: three items (title, byline, meta) plus a long Hebrew
+   h1 in uppercase tracking on a narrow phone would otherwise overflow the
+   header sideways instead of dropping to a second line. */
+header.site .wrap { padding-block: 1rem; display: flex; align-items: baseline; flex-wrap: wrap; gap: .4rem 1rem; }
 header.site h1 { font-size: 1.15rem; margin: 0; }
 header.site a { color: var(--accent); text-decoration: none; font-size: .9rem; }
+/* An attribution line, not a headline - kept quiet on purpose. */
+header.site .site-by { font-size: .78rem; color: var(--muted); }
+
+/* Pushes itself (and the probed-timestamp span after it) to the far end of
+   the header row, away from the title cluster. */
+.theme-pick { display: flex; gap: .3rem; margin-inline-start: auto; }
+.theme-pick button {
+  font-size: .72rem;
+  padding: .3rem .65rem;
+  border-radius: 999px;
+}
+.theme-pick button[aria-pressed="true"] {
+  background: var(--accent);
+  color: var(--bg);
+  border-color: var(--accent);
+}
 
 /* Mixed Hebrew/Latin content reorders incorrectly without per-element dir.
    Anything holding API-sourced text gets dir="auto" in the markup. */
@@ -424,6 +460,9 @@ button.stat { cursor: pointer; }
 }
 .drill-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; }
 .drill-head h2 { font-size: 1.05rem; margin: 0; }
+.drill-title { display: flex; align-items: baseline; gap: .6rem; flex-wrap: wrap; }
+.drill-home { font-size: .78rem; color: var(--accent); text-decoration: none; white-space: nowrap; }
+.drill-home:hover { text-decoration: underline; }
 .drill-close { font-size: .8rem; padding: .25rem .6rem; }
 .drill-sub { font-size: .85rem; color: var(--muted); margin-block: .2rem .6rem; }
 
@@ -446,6 +485,14 @@ button.stat { cursor: pointer; }
 
 /* Filter box inside a portal drill-in. */
 .drill-filter { display: flex; gap: .5rem; align-items: center; margin-block-end: .7rem; }
+/* Same treatment as .ck-dl in the data.gov.il explorer: built here from
+   DataStore records, so it downloads exactly what's filtered on screen. */
+.drill-dl {
+  font: inherit; font-size: .76rem; padding: .2rem .55rem; cursor: pointer; white-space: nowrap;
+  color: var(--accent); background: var(--bg); border: 1px solid var(--accent); border-radius: 999px;
+}
+.drill-dl:hover:not(:disabled) { background: var(--surface); }
+.drill-dl:disabled { opacity: .6; cursor: progress; }
 /* Offset paging. Server-side `start`, so these move through the whole result
    set rather than through what was already fetched. */
 .pager { display: flex; flex-wrap: wrap; gap: .3rem; align-items: center; margin-block-start: .7rem; }
@@ -532,197 +579,196 @@ button.stat { cursor: pointer; }
 .files-note { font-size: .76rem; color: var(--muted); margin-block: .45rem 0; }
 .slow-note { display: block; font-size: .78rem; color: var(--muted); margin-block-start: .25rem; }
 
-/* ---------- mobile: maison ----------
-   Below 640px the palette variables flip to black/ivory/gold - since almost
-   every rule above already reads color from var(), that swap alone restyles
-   badges, borders and buttons. What's added here is the couture-specific
-   part: a serif for headlines, tracked uppercase for UI chrome, and a gold
-   sheen (an animated gradient on text, a sweep on button hover/tap - :active
-   stands in for hover on touch) so the surface reads premium, not just dark. */
+/* ---------- legible by default, mobile and desktop alike ----------
+   One design language everywhere, not a phone-only look and a separate
+   desktop one: bigger type, higher-contrast muted text, roomier click
+   targets, a stronger focus ring. This used to be desktop-only, paired
+   with an unrelated dark/gold theme forced onto small screens; that split
+   is gone; a phone and a laptop should feel like the same site. */
+body { font-size: 1.1rem; line-height: 1.65; }
+
+h1 { font-size: 1.3rem; }
+.section { font-size: 1.05rem; }
+
+button, input[type="search"], input[type="text"], select {
+  font-size: 1rem;
+  padding: .7rem .95rem;
+}
+
+.card, .portal, .stat { padding: 1rem 1.2rem; }
+.portal-grid, .stat-row { gap: .85rem; }
+.stat-n { font-size: 1.75rem; }
+.stat-l { font-size: .88rem; }
+
+.tag, .badge { font-size: .8rem; padding: .2rem .65rem; }
+
+.matrix th, .matrix td { padding: .6rem .85rem; font-size: .92rem; }
+
+a:focus-visible, button:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Small screens still need less padding and a shorter first screen - that's
+   real estate, not a different design language, so it stays viewport-based
+   while reading colour from whichever theme is active. */
 @media (max-width: 640px) {
-  :root {
-    --bg: #0d0b08;
-    --fg: #f3ecdc;
-    --muted: #b7a67f;
-    --border: #3c3320;
-    --accent: #ddb44f;
-    --surface: #18140d;
-    --danger: #d2685a;
-    --radius: 3px;
-    --font-display: Georgia, "David", "Times New Roman", serif;
-  }
-
-  body { letter-spacing: .01em; }
-
-  /* Section titles and card/portal names carry the "fashion editorial"
-     voice: serif, tracked, quiet weight. Everything that is UI chrome
-     (buttons, tags, labels) stays sans but gains the same tracking instead -
-     that split is what a fashion-house site actually looks like. */
-  header.site h1,
-  .section,
-  .card h3, .card h3 a,
-  .p-name, .ck-title,
-  .drill-head h2,
-  .ck-detail h3 {
-    font-family: var(--font-display);
-    font-weight: 400;
-    letter-spacing: .03em;
-  }
-
-  header.site {
-    background: radial-gradient(120% 140% at 20% 0%, color-mix(in srgb, var(--accent) 10%, var(--surface)), var(--bg) 65%);
-    border-block-end: 1px solid var(--border);
-    box-shadow: 0 1px 0 color-mix(in srgb, var(--accent) 25%, transparent);
-  }
-  header.site h1 {
-    font-size: 1.3rem;
-    text-transform: uppercase;
-    letter-spacing: .16em;
-    background: linear-gradient(100deg, var(--accent) 0%, #fff6dc 22%, var(--accent) 45%, var(--muted) 65%, var(--accent) 85%);
-    background-size: 250% auto;
-    background-clip: text;
-    -webkit-background-clip: text;
-    color: transparent;
-    -webkit-text-fill-color: transparent;
-    animation: fh-shine 7s ease-in-out infinite;
-  }
-  header.site a { text-transform: uppercase; font-size: .72rem; letter-spacing: .08em; }
-
-  .section {
-    display: flex; align-items: center; gap: .7rem;
-    text-transform: uppercase; font-size: .8rem; letter-spacing: .18em; font-weight: 400;
-    color: var(--muted);
-  }
-  .section::after { content: ''; flex: 1; block-size: 1px; background: var(--border); }
-
-  @keyframes fh-shine {
-    0%, 100% { background-position: 220% 0; }
-    50%      { background-position: -60% 0; }
-  }
-
-  /* Hairline borders + a soft gold lift on the surfaces that matter -
-     cards, portals, stat tiles, the explorer panel. Status colour on the
-     leading edge (.card.api, .stat, tr.row) is left alone: it's the one
-     thing on the page carrying meaning, not decoration. */
-  .card, .portal, .stat, .ckan, .explorer, .drill, .matrix-wrap, .ck-card {
-    background: linear-gradient(180deg, var(--surface), var(--bg));
-    border-color: var(--border);
-  }
-  .portal:hover, .ck-card:hover {
-    border-color: var(--accent);
-    box-shadow: 0 6px 20px -12px color-mix(in srgb, var(--accent) 70%, transparent);
-  }
-  .portal.active, .stat.active {
-    box-shadow: inset 0 0 0 1px var(--accent), 0 0 16px -6px color-mix(in srgb, var(--accent) 60%, transparent);
-  }
-
-  .tag, .badge, .drill-scope, .ck-n, .f-tag {
-    text-transform: uppercase;
-    letter-spacing: .05em;
-    font-size: .7rem;
-  }
-  .badge.ok { box-shadow: 0 0 10px -4px color-mix(in srgb, #5fce8f 70%, transparent); }
-
-  /* Buttons: tracked uppercase, thin gold hairline, a sheen that sweeps on
-     hover for a mouse and on :active for a thumb - a touch has no hover. */
-  button, .ex-method, .ck-crumb {
-    position: relative;
-    overflow: hidden;
-    text-transform: uppercase;
-    letter-spacing: .07em;
-    font-size: .78rem;
-  }
-  button::after, .ex-method::after {
-    content: '';
-    position: absolute; inset: 0;
-    background: linear-gradient(115deg, transparent 30%, color-mix(in srgb, var(--accent) 55%, transparent) 50%, transparent 70%);
-    background-size: 250% 100%;
-    background-position: 150% 0;
-    transition: background-position .7s ease;
-    pointer-events: none;
-  }
-  button:hover:not(:disabled)::after, button:active:not(:disabled)::after,
-  .ex-method:hover::after, .ex-method:active::after { background-position: -50% 0; }
-
-  button:hover:not(:disabled), button:focus-visible {
-    border-color: var(--accent);
-    box-shadow: 0 4px 16px -10px color-mix(in srgb, var(--accent) 70%, transparent);
-  }
-
-  .ck-open, .ck-dl, .pager .pg.cur {
-    border-color: var(--accent);
-    box-shadow: 0 4px 14px -8px color-mix(in srgb, var(--accent) 65%, transparent);
-  }
-
-  input[type="search"], input[type="text"], select {
-    background: color-mix(in srgb, var(--surface) 70%, var(--bg));
-  }
-  input[type="search"]:focus, input[type="text"]:focus, select:focus {
-    outline: none;
-    border-color: var(--accent);
-    box-shadow: 0 0 0 1px var(--accent);
-  }
-
-  .lead { font-family: var(--font-display); font-size: 1rem; line-height: 1.7; }
-
-  .wrap { padding-block: 1.75rem 4.5rem; }
-  .section { margin-block: 2.5rem 1rem; }
+  .card, .portal, .stat { padding: .85rem 1rem; }
+  .wrap { padding-block: 1.5rem 4.5rem; }
 
   /* The one button on the page meant to be found without scrolling first -
-     full-width, gold-filled rather than outlined, so it reads as the next
-     step rather than one option among the portal cards above it. */
+     filled rather than outlined, so it reads as the next step rather than
+     one option among the portal cards above it. */
   .more summary.more-toggle {
     display: block;
     text-align: center;
-    background: linear-gradient(180deg, var(--accent), color-mix(in srgb, var(--accent) 80%, #000));
+    background: var(--accent);
     color: var(--bg);
     border: 1px solid var(--accent);
     border-radius: 999px;
     padding: .75rem 1rem;
     margin-block: 1.5rem;
-    text-transform: uppercase;
-    letter-spacing: .1em;
-    font-size: .8rem;
+    font-weight: 600;
   }
 }
 
-/* ---------- desktop: legible by default ----------
-   Nothing above this touched desktop - the plain look was it. The ask here
-   is specifically for older readers, and it's the opposite move from the
-   mobile section above: bigger type, stronger contrast, roomier click
-   targets, nothing decorative. "Simple to see" ruled out matching the
-   mobile treatment on purpose - this is legibility, not a style. */
-@media (min-width: 641px) {
-  body { font-size: 1.15rem; line-height: 1.65; }
-
-  :root { --muted: #454a54; }
+/* ---------- theme: fashion (opt-in) ----------
+   The alternate look from the theme picker in the header - black, gold and
+   serif, with a gold sheen on the title and on button hover/tap. Available
+   at any screen size now, not forced onto phones: see src/theme.js for how
+   [data-theme] gets set. */
+[data-theme="fashion"] {
+  --bg: #0d0b08;
+  --fg: #f3ecdc;
+  --muted: #b7a67f;
+  --border: #3c3320;
+  --accent: #ddb44f;
+  --surface: #18140d;
+  --danger: #d2685a;
+  --radius: 3px;
+  --font-display: Georgia, "David", "Times New Roman", serif;
 }
-@media (min-width: 641px) and (prefers-color-scheme: dark) {
-  :root { --muted: #c3c8cf; }
+
+[data-theme="fashion"] body { letter-spacing: .01em; }
+
+/* Section titles and card/portal names carry the "fashion editorial" voice:
+   serif, tracked, quiet weight. Everything that is UI chrome (buttons,
+   tags, labels) stays sans but gains the same tracking instead - that
+   split is what a fashion-house site actually looks like. */
+[data-theme="fashion"] header.site h1,
+[data-theme="fashion"] .section,
+[data-theme="fashion"] .card h3, [data-theme="fashion"] .card h3 a,
+[data-theme="fashion"] .p-name, [data-theme="fashion"] .ck-title,
+[data-theme="fashion"] .drill-head h2,
+[data-theme="fashion"] .ck-detail h3 {
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: .03em;
 }
 
-@media (min-width: 641px) {
-  h1 { font-size: 1.35rem; }
-  .section { font-size: 1.1rem; }
+[data-theme="fashion"] header.site {
+  background: radial-gradient(120% 140% at 20% 0%, color-mix(in srgb, var(--accent) 10%, var(--surface)), var(--bg) 65%);
+  border-block-end: 1px solid var(--border);
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--accent) 25%, transparent);
+}
+[data-theme="fashion"] header.site h1 {
+  text-transform: uppercase;
+  letter-spacing: .16em;
+  background: linear-gradient(100deg, var(--accent) 0%, #fff6dc 22%, var(--accent) 45%, var(--muted) 65%, var(--accent) 85%);
+  background-size: 250% auto;
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  animation: fh-shine 7s ease-in-out infinite;
+}
+[data-theme="fashion"] header.site a { text-transform: uppercase; font-size: .72rem; letter-spacing: .08em; }
 
-  button, input[type="search"], input[type="text"], select {
-    font-size: 1rem;
-    padding: .75rem 1rem;
-  }
+[data-theme="fashion"] .section {
+  display: flex; align-items: center; gap: .7rem;
+  text-transform: uppercase; letter-spacing: .18em; font-weight: 400;
+  color: var(--muted);
+}
+[data-theme="fashion"] .section::after { content: ''; flex: 1; block-size: 1px; background: var(--border); }
 
-  .card, .portal, .stat { padding: 1.1rem 1.3rem; }
-  .portal-grid, .stat-row { gap: 1rem; }
-  .stat-n { font-size: 1.85rem; }
-  .stat-l { font-size: .9rem; }
+@keyframes fh-shine {
+  0%, 100% { background-position: 220% 0; }
+  50%      { background-position: -60% 0; }
+}
 
-  .tag, .badge { font-size: .82rem; padding: .2rem .7rem; }
+/* Hairline borders + a soft gold lift on the surfaces that matter - cards,
+   portals, stat tiles, the explorer panel. Status colour on the leading
+   edge (.card.api, .stat, tr.row) is left alone: it's the one thing on the
+   page carrying meaning, not decoration. */
+[data-theme="fashion"] .card, [data-theme="fashion"] .portal, [data-theme="fashion"] .stat,
+[data-theme="fashion"] .ckan, [data-theme="fashion"] .explorer, [data-theme="fashion"] .drill,
+[data-theme="fashion"] .matrix-wrap, [data-theme="fashion"] .ck-card {
+  background: linear-gradient(180deg, var(--surface), var(--bg));
+  border-color: var(--border);
+}
+[data-theme="fashion"] .portal:hover, [data-theme="fashion"] .ck-card:hover {
+  border-color: var(--accent);
+  box-shadow: 0 6px 20px -12px color-mix(in srgb, var(--accent) 70%, transparent);
+}
+[data-theme="fashion"] .portal.active, [data-theme="fashion"] .stat.active {
+  box-shadow: inset 0 0 0 1px var(--accent), 0 0 16px -6px color-mix(in srgb, var(--accent) 60%, transparent);
+}
 
-  .matrix th, .matrix td { padding: .65rem .9rem; font-size: .95rem; }
+[data-theme="fashion"] .tag, [data-theme="fashion"] .badge, [data-theme="fashion"] .drill-scope,
+[data-theme="fashion"] .ck-n, [data-theme="fashion"] .f-tag {
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+[data-theme="fashion"] .badge.ok { box-shadow: 0 0 10px -4px color-mix(in srgb, #5fce8f 70%, transparent); }
 
-  a:focus-visible, button:focus-visible {
-    outline: 3px solid var(--accent);
-    outline-offset: 2px;
-  }
+/* Buttons: tracked uppercase, thin gold hairline, a sheen that sweeps on
+   hover for a mouse and on :active for a thumb - a touch has no hover. */
+[data-theme="fashion"] button, [data-theme="fashion"] .ex-method, [data-theme="fashion"] .ck-crumb {
+  position: relative;
+  overflow: hidden;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+}
+[data-theme="fashion"] button::after, [data-theme="fashion"] .ex-method::after {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(115deg, transparent 30%, color-mix(in srgb, var(--accent) 55%, transparent) 50%, transparent 70%);
+  background-size: 250% 100%;
+  background-position: 150% 0;
+  transition: background-position .7s ease;
+  pointer-events: none;
+}
+[data-theme="fashion"] button:hover:not(:disabled)::after, [data-theme="fashion"] button:active:not(:disabled)::after,
+[data-theme="fashion"] .ex-method:hover::after, [data-theme="fashion"] .ex-method:active::after { background-position: -50% 0; }
+
+[data-theme="fashion"] button:hover:not(:disabled), [data-theme="fashion"] button:focus-visible {
+  border-color: var(--accent);
+  box-shadow: 0 4px 16px -10px color-mix(in srgb, var(--accent) 70%, transparent);
+}
+
+[data-theme="fashion"] .ck-open, [data-theme="fashion"] .ck-dl, [data-theme="fashion"] .drill-dl,
+[data-theme="fashion"] .pager .pg.cur {
+  border-color: var(--accent);
+  box-shadow: 0 4px 14px -8px color-mix(in srgb, var(--accent) 65%, transparent);
+}
+
+[data-theme="fashion"] input[type="search"], [data-theme="fashion"] input[type="text"], [data-theme="fashion"] select {
+  background: color-mix(in srgb, var(--surface) 70%, var(--bg));
+}
+[data-theme="fashion"] input[type="search"]:focus, [data-theme="fashion"] input[type="text"]:focus,
+[data-theme="fashion"] select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+[data-theme="fashion"] .lead { font-family: var(--font-display); line-height: 1.7; }
+
+[data-theme="fashion"] .more summary.more-toggle {
+  background: linear-gradient(180deg, var(--accent), color-mix(in srgb, var(--accent) 80%, #000));
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  font-weight: 400;
 }
 </style>
 </head>
@@ -730,6 +776,11 @@ button.stat { cursor: pointer; }
   <header class="site">
     <div class="wrap">
       <h1>המאגר הממשלתי הפתוח</h1>
+      <span class="site-by">פרויקט של רם אגמון</span>
+      <div class="theme-pick" id="themePick" role="group" aria-label="ערכת נושא">
+        <button type="button" data-theme="clouds">עננים</button>
+        <button type="button" data-theme="fashion">אופנה</button>
+      </div>
       <span class="meta"><a href="./index.html">← חזרה למפת ה-API</a></span>
     </div>
   </header>
@@ -803,6 +854,77 @@ function debounce(fn, ms = 300) {
     clearTimeout(t);
     t = setTimeout(() => fn(...args), ms);
   };
+}
+
+/* ---------- CSV, built here rather than trusting an advertised download ----------
+ * Shared by the data.gov.il explorer and any live-preview download button:
+ * some CKAN resource downloads are WAF-challenged (see ckan.js), and some
+ * data (e.g. accidents) never had a direct file link to begin with - either
+ * way, datastore_search is the call already in use to show the rows, so the
+ * CSV is assembled here from data actually in hand.
+ */
+
+/** RFC 4180 quoting, and a BOM so Excel reads Hebrew as UTF-8 rather than mojibake. */
+function buildCsv(fields, records) {
+  const cell = (v) => {
+    const s = v == null ? '' : String(v);
+    return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const rows = records.map((r) => fields.map((f) => cell(r[f])).join(','));
+  return `﻿${fields.map(cell).join(',')}\r\n${rows.join('\r\n')}\r\n`;
+}
+
+/**
+ * `download` is ignored for cross-origin URLs, which is why file links open
+ * in a tab elsewhere on this site. A blob: URL is same-origin, so here the
+ * attribute does work and the browser saves rather than navigates.
+ */
+function saveCsv(text, name) {
+  const href = URL.createObjectURL(new Blob([text], { type: 'text/csv;charset=utf-8' }));
+  const a = document.createElement('a');
+  a.href = href;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(href), 10000);
+}
+
+/**
+ * The theme picker. Two looks: "clouds" (default, calm blue, unset
+ * data-theme) and "fashion" (opt-in, black/gold - see [data-theme="fashion"]
+ * in style.css). The choice is applied to <html> before first paint by an
+ * inline script in <head> - see index.html/datagov.html - so switching pages
+ * or reloading never flashes the other theme first.
+ */
+const KEY = 'theme';
+const DEFAULT = 'clouds';
+
+function currentTheme() {
+  return document.documentElement.getAttribute('data-theme') || DEFAULT;
+}
+
+function initThemePicker(root) {
+  if (!root) return;
+
+  const sync = () => {
+    const active = currentTheme();
+    root.querySelectorAll('button[data-theme]').forEach((b) => {
+      b.setAttribute('aria-pressed', String(b.dataset.theme === active));
+    });
+  };
+
+  root.querySelectorAll('button[data-theme]').forEach((b) => {
+    b.addEventListener('click', () => {
+      const choice = b.dataset.theme;
+      if (choice === DEFAULT) document.documentElement.removeAttribute('data-theme');
+      else document.documentElement.setAttribute('data-theme', choice);
+      try { localStorage.setItem(KEY, choice); } catch { /* private mode, etc. - theme just won't persist */ }
+      sync();
+    });
+  });
+
+  sync();
 }
 
 /**
@@ -905,32 +1027,6 @@ async function ckGet(url) {
 
 const CK_DUMP_PAGE = 32000;
 
-/** RFC 4180 quoting, and a BOM so Excel reads Hebrew as UTF-8 rather than mojibake. */
-function ckCsv(fields, records) {
-  const cell = (v) => {
-    const s = v == null ? '' : String(v);
-    return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-  };
-  const rows = records.map((r) => fields.map((f) => cell(r[f])).join(','));
-  return `﻿${fields.map(cell).join(',')}\r\n${rows.join('\r\n')}\r\n`;
-}
-
-/**
- * `download` is ignored for cross-origin URLs - that is why the file links open
- * in a tab. A blob: URL is same-origin, so here the attribute does work and the
- * browser saves rather than navigates.
- */
-function ckSave(text, name) {
-  const href = URL.createObjectURL(new Blob([text], { type: 'text/csv;charset=utf-8' }));
-  const a = document.createElement('a');
-  a.href = href;
-  a.download = name;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(href), 10000);
-}
-
 /** Pages through the whole result set, reporting progress as it goes. */
 async function ckFetchAll(resourceId, extra, onProgress) {
   const records = [];
@@ -967,7 +1063,7 @@ function ckBindDownload(btn, resourceId, extra, base) {
         btn.textContent = `מוריד… ${num(n)} / ${num(total)}`;
       });
       if (!records.length) { btn.textContent = 'אין רשומות'; return; }
-      ckSave(ckCsv(fields, records), `${base.replace(/[\\/:*?"<>|]/g, '_').slice(0, 80)}.csv`);
+      saveCsv(buildCsv(fields, records), `${base.replace(/[\\/:*?"<>|]/g, '_').slice(0, 80)}.csv`);
       btn.textContent = `✓ ${num(records.length)} שורות`;
     } catch (err) {
       btn.textContent = err.name === 'AbortError' ? 'תם הזמן — נסה שוב' : 'ההורדה נכשלה';
@@ -1329,6 +1425,8 @@ function mountCkan(node) {
  */
 
 
+
+initThemePicker(el('themePick'));
 mountCkan(el('ckan'));
 
 </script>

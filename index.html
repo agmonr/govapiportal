@@ -4,12 +4,26 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>מפת ממשקי API ממשלתיים — ישראל</title>
+  <!-- Sets data-theme before the stylesheet is applied, so a returning
+       visitor who picked "fashion" never sees a flash of the clouds theme
+       first. See src/theme.js for the picker itself. -->
+  <script>
+    try {
+      var t = localStorage.getItem('theme');
+      if (t && t !== 'clouds') document.documentElement.setAttribute('data-theme', t);
+    } catch (e) {}
+  </script>
   <link rel="stylesheet" href="./src/style.css">
 </head>
 <body>
   <header class="site">
     <div class="wrap">
       <h1>מפת ממשקי API ממשלתיים</h1>
+      <span class="site-by">פרויקט של רם אגמון</span>
+      <div class="theme-pick" id="themePick" role="group" aria-label="ערכת נושא">
+        <button type="button" data-theme="clouds">עננים</button>
+        <button type="button" data-theme="fashion">אופנה</button>
+      </div>
       <span class="meta" id="probed"></span>
     </div>
   </header>

@@ -45,14 +45,14 @@ TARGETS = [
         "html": "index.html",
         "out": "dist/map.html",
         "entry": "src/map.js",
-        "sources": ["src/ui.js", "src/explorer.js", "src/portal.js", "src/map.js"],
+        "sources": ["src/ui.js", "src/theme.js", "src/explorer.js", "src/portal.js", "src/map.js"],
         "data": True,
     },
     {
         "html": "datagov.html",
         "out": "dist/datagov.html",
         "entry": "src/datagov.js",
-        "sources": ["src/ui.js", "src/ckan.js", "src/datagov.js"],
+        "sources": ["src/ui.js", "src/theme.js", "src/ckan.js", "src/datagov.js"],
         "data": False,
     },
 ]
