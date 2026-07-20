@@ -435,6 +435,28 @@ and flips direction, the active column is marked, the dropdown fills with 62
 options, and **sort survives a filter change** — they compose into one request
 rather than resetting each other.
 
+### Paging the CKAN preview
+
+Asked for page links over the large collections. CKAN takes `start` as a plain
+offset; probed at 0 / 100 / 1150 / 1190 / 5000 before building on it, and it
+behaves: a short final page (47 of 1,197) and an empty list past the end rather
+than an error.
+
+Rendered as first / last / current's neighbours rather than 24 buttons, and the
+status line became a range (`51–100 מתוך 1,197`) instead of a bare count.
+
+**The load-bearing part is the reset.** Search, column filter and sort all send
+you back to page 1, because `start` is an offset into a result set those controls
+redefine: filtering while on page 20 would request offset 950 of an 84-row result
+and render an empty table that looks exactly like "nothing matches". Paging
+itself preserves query, filters and sort, so the four compose rather than
+clobbering each other — asserted in the browser both ways, including that a
+filter applied from the last page lands on a populated page 1.
+
+Only data.gov.il is paged (`paged: true`), for the same reason only it is sorted:
+the other four previews either arrive whole or have no offset contract worth
+claiming.
+
 ### Set aside, not deleted
 
 ~~The original CKAN portal lives in the session scratchpad.~~ **Gone.** The

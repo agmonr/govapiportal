@@ -133,7 +133,14 @@ Sort, column filters and the search box all compose into one request.
 
 The page is 50 rows rather than 15 (445 KB / 0.35s against 169 KB / 0.18s,
 measured) and scrolls inside its own box with the header pinned, so a longer page
-costs no page height.
+costs no page height. Below it a pager walks the remaining 24 pages by server
+offset (`start=`), showing first, last and the current page's neighbours rather
+than 24 numbers, with the range stated as `51–100 מתוך 1,197`.
+
+**Searching, filtering or sorting resets you to page 1.** Without that, changing
+a filter while on page 20 would ask for offset 950 of an 84-row result and render
+an empty table indistinguishable from "nothing matches". Paging itself preserves
+the query, the column filters and the sort — all four compose into one request.
 
 The five portals with no browser-callable API get an explanation instead of a
 broken panel — that distinction is the point of the map, so the drill-in

@@ -151,6 +151,15 @@ async function runPass(label, url, { bundled = false } = {}) {
     // are silently not doing what the attribute claims.
     ok(await page.locator('#drill .files a[download]').count() === 0,
       'file links do not rely on the cross-origin-ignored download attribute');
+
+    /* Paging is a server offset, so the first page must not send one and the
+       range must describe the collection rather than the fetched rows. */
+    ok(await page.locator('#drill .pager .pg[data-start]').count() > 0, 'pager rendered');
+    ok(await page.locator('#drill .pager .pg.cur').innerText() === '1', 'opens on page 1');
+    ok(await page.locator('#drill .pager .pg:disabled').count() === 1,
+      'prev is disabled on the first page');
+    ok(!(await page.locator('#drill .drill-url code').innerText()).includes('start='),
+      'page 1 sends no start offset');
   }
   await page.locator('#drill .drill-close').click();
 

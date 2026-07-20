@@ -49,6 +49,10 @@ const PREVIEWS = {
     // costs no page height. Measured 445 KB / 0.35s against 169 KB / 0.18s.
     pageSize: 50,
     scroll: true,
+    // 1,197 datasets is 24 pages. CKAN takes `start` as a plain offset, returns
+    // a short last page and an empty list past the end rather than erroring
+    // (probed at start=0/100/1150/1190/5000).
+    paged: true,
     // Column sort, done by Solr over all 1,197 - not over the rows on screen.
     // Only these two columns get a control. 'formats' is multivalued and 'res'
     // is not an indexed field at all, so neither can be sorted server-side, and
@@ -71,6 +75,7 @@ const PREVIEWS = {
       if (o.formats) fq.push(`res_format:${o.formats}`);
       if (fq.length) p.set('fq', fq.join(' '));
       if (o.sort) p.set('sort', `${o.sort} ${o.dir}`);
+      if (o.start) p.set('start', String(o.start));
       p.set('facet.field', '["organization","res_format"]');
       p.set('facet.limit', '100');
       return `https://data.gov.il/api/3/action/package_search?${p}`;
@@ -265,6 +270,55 @@ function table(spec, rows, state) {
     </div>`;
 }
 
+/**
+ * Page numbers to actually render: first, last, and the current one's immediate
+ * neighbours. 1,197 datasets is 24 pages and 626 filtered is 13 - listing them
+ * all would be a wall of numbers nobody aims at.
+ */
+function pageWindow(cur, last) {
+  const want = [...new Set([0, cur - 1, cur, cur + 1, last])];
+  return want.filter((p) => p >= 0 && p <= last).sort((a, b) => a - b);
+}
+
+/**
+ * Offset paging over the whole result set - not over what was fetched. `start`
+ * is a server offset, so page 5 of a filtered search is the server's page 5 of
+ * that filter, which is why every control that changes the result set resets it
+ * to 0: page 20 of 1,197 does not exist once a filter cuts it to 626.
+ */
+function pager(spec, state, total, shown) {
+  if (!spec.paged || total == null || !shown) return '';
+  const last = Math.ceil(total / spec.pageSize) - 1;
+  if (last < 1) return '';
+  const cur = Math.floor(state.start / spec.pageSize);
+
+  const btn = (p, label) =>
+    `<button type="button" class="pg${p === cur ? ' cur' : ''}" data-start="${p * spec.pageSize}"${
+      p === cur ? ' aria-current="page"' : ''}>${esc(label)}</button>`;
+  const dead = (label) => `<button type="button" class="pg" disabled>${esc(label)}</button>`;
+
+  const nums = [];
+  let prev = -1;
+  for (const p of pageWindow(cur, last)) {
+    if (prev >= 0 && p > prev + 1) nums.push('<span class="pg-gap">…</span>');
+    nums.push(btn(p, String(p + 1)));
+    prev = p;
+  }
+
+  return `
+    <nav class="pager" aria-label="ניווט בין עמודים" dir="rtl">
+      ${cur > 0 ? btn(cur - 1, 'הקודם') : dead('הקודם')}
+      ${nums.join('')}
+      ${cur < last ? btn(cur + 1, 'הבא') : dead('הבא')}
+    </nav>`;
+}
+
+function bindPager(scope, state, reload) {
+  scope.querySelectorAll('.pager .pg[data-start]').forEach((b) => {
+    b.addEventListener('click', () => { state.start = Number(b.dataset.start); reload(); });
+  });
+}
+
 /** The Hebrew column label behind an active sort field, for the status line. */
 function sortLabel(spec, state) {
   const key = Object.keys(spec.sortable || {}).find((k) => spec.sortable[k] === state.sort);
@@ -357,8 +411,15 @@ export async function openPortal(node, portal) {
 
   // Column sort + column filters. Sort starts unset so the first view keeps
   // CKAN's own relevance order rather than imposing one.
-  const state = { sort: null, dir: 'asc' };
+  const state = { sort: null, dir: 'asc', start: 0 };
   spec.facets?.forEach((f) => { state[f.key] = ''; });
+
+  /**
+   * Anything that changes *which* records match sends you back to page 1.
+   * Without this, filtering while on page 20 asks the server for offset 950 of a
+   * 626-row result and renders an empty table that looks like "no matches".
+   */
+  const fromStart = (fn) => (...args) => { state.start = 0; return fn(...args); };
 
   /**
    * Dropdown options are populated once, from the first unfiltered response.
@@ -387,7 +448,7 @@ export async function openPortal(node, portal) {
     cols.querySelectorAll('.col-f').forEach((sel) => {
       sel.addEventListener('change', () => {
         state[sel.dataset.key] = sel.value;
-        load(input.value.trim());
+        fromStart(load)(input.value.trim());
       });
     });
   }
@@ -436,17 +497,21 @@ export async function openPortal(node, portal) {
         <div class="ex-status">
           <span class="badge ok">HTTP ${status}</span>
           ${ms ? `<span class="tag">${ms} ms</span>` : '<span class="tag">מהמטמון</span>'}
-          <span class="tag" dir="auto">${rows.length} מוצגות${
-            total != null ? ` מתוך ${num(total)}` : ''} ${esc(spec.unit)}</span>
+          ${spec.paged && total != null && rows.length
+            ? `<span class="tag" dir="auto">${num(state.start + 1)}–${num(state.start + rows.length)} מתוך ${num(total)} ${esc(spec.unit)}</span>`
+            : `<span class="tag" dir="auto">${rows.length} מוצגות${
+                total != null ? ` מתוך ${num(total)}` : ''} ${esc(spec.unit)}</span>`}
           ${query ? `<span class="tag" dir="auto">סינון: ${esc(query)}</span>` : ''}
           ${state.sort ? `<span class="tag" dir="auto">ממוין: ${esc(sortLabel(spec, state))}</span>` : ''}
         </div>
         ${rows.length
           ? table(spec, rows, state)
           : `<div class="notice info" dir="auto">אין תוצאות${query ? ` עבור <strong>${esc(query)}</strong>` : ' עבור הסינון שנבחר'}.</div>`}
+        ${pager(spec, state, total, rows.length)}
         <p class="drill-url" dir="ltr"><code>${esc(url)}</code></p>`;
       bindRows(out);
-      bindSort(out, state, () => load(input.value.trim()));
+      bindSort(out, state, fromStart(() => load(input.value.trim())));
+      bindPager(out, state, () => load(input.value.trim()));
     } catch (err) {
       // A cross-origin block reaches JS as an opaque TypeError with no status.
       // Say which of the two it might be rather than inventing a cause.
@@ -464,10 +529,10 @@ export async function openPortal(node, portal) {
   }
 
   // Server-side filters hit a government host on every keystroke without this.
-  const rerun = debounce((q) => load(q), spec.local ? 120 : 450);
+  const rerun = debounce(fromStart((q) => load(q)), spec.local ? 120 : 450);
   input.addEventListener('input', (e) => rerun(e.target.value.trim()));
   input.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') { e.preventDefault(); load(input.value.trim()); }
+    if (e.key === 'Enter') { e.preventDefault(); fromStart(load)(input.value.trim()); }
   });
 
   await load('');

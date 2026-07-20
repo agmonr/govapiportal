@@ -333,6 +333,30 @@ button.stat { cursor: pointer; }
 
 /* Filter box inside a portal drill-in. */
 .drill-filter { display: flex; gap: .5rem; align-items: center; margin-block-end: .7rem; }
+/* Offset paging. Server-side `start`, so these move through the whole result
+   set rather than through what was already fetched. */
+.pager { display: flex; flex-wrap: wrap; gap: .3rem; align-items: center; margin-block-start: .7rem; }
+.pager .pg {
+  font: inherit;
+  font-size: .82rem;
+  padding: .25rem .6rem;
+  min-inline-size: 2.2rem;
+  color: var(--fg);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+.pager .pg:hover:not(:disabled) { background: var(--surface); }
+.pager .pg:disabled { color: var(--muted); cursor: default; opacity: .55; }
+.pager .pg.cur {
+  color: var(--bg);
+  background: var(--accent);
+  border-color: var(--accent);
+  font-weight: 600;
+}
+.pg-gap { color: var(--muted); padding-inline: .1rem; }
+
 /* Column filters. Each is one fq clause, so they compose with the search box. */
 .drill-cols { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin-block-end: .7rem; }
 .drill-cols select {
