@@ -44,6 +44,23 @@
     </div>
 
     <div id="app">
+    <!-- The portal the rest of the map treats as central gets shown already
+         open, above everything else on the page - even the headline below -
+         rather than being the one thing on the page requiring a click. See
+         the default-open call in src/map.js. -->
+    <div id="drill"></div>
+
+    <!-- The reason a road-accidents app exists on an API map at all: the
+       number itself, before the rest of the explanation. "At least" is not
+       hedging for its own sake - the underlying CBS data counts fatal
+       *accidents*, not victims, and some accidents kill more than one
+       person, so the true toll can only be equal to this or higher. See
+       accidents.html for the full breakdown (by year, by settlement). -->
+    <a class="headline" href="./accidents.html" dir="auto">
+      <p class="headline-num">במדינת ישראל נהרגו <strong>לפחות 1,684</strong> אנשים בתאונות דרכים בין השנים 2020–2024</p>
+      <p class="headline-sub">נתוני הלמ"ס, ברמת התאונה הבודדת — לפירוט המלא, לפי שנה וישוב ←</p>
+    </a>
+
     <p class="lead" dir="auto">
       ממשקי API של גופים ממשלתיים בישראל. כל שדה נבדק ישירות מול השרת.
       <strong>CORS</strong> הוא השדה הקובע — בלעדיו לא ניתן לקרוא ל-API מדף סטטי בדפדפן.
@@ -62,15 +79,13 @@
     <h2 class="section">פורטלים</h2>
     <div id="portals" class="portal-grid"></div>
 
-    <!-- Below this point is the long tail: the live drill-in, the full
-         matrix, the searchable list. On a phone that's a lot of scroll
-         before anything new happens, so it starts collapsed there - see
-         the inline script below, which only closes it under the mobile
-         breakpoint. On desktop the `open` attribute below just stays put. -->
+    <!-- Below this point is the long tail: the full matrix, the searchable
+         list. On a phone that's a lot of scroll before anything new
+         happens, so it starts collapsed there - see the inline script
+         below, which only closes it under the mobile breakpoint. On
+         desktop the `open` attribute below just stays put. -->
     <details id="more" class="more" open>
       <summary class="more-toggle">המשך לכל הממשקים ←</summary>
-
-      <div id="drill"></div>
 
       <h2 class="section">כל הממשקים</h2>
       <div class="matrix-wrap"><table id="matrix" class="matrix"></table></div>

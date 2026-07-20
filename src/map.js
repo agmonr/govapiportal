@@ -199,10 +199,9 @@ function selectPortal(id) {
   state.portal = id;
   renderPortals();
   renderList();
-  // The drill-in lives past the mobile "continue" cut - a collapsed
-  // <details> hides it regardless of what's written into it, so open it
-  // first or the tap looks like it did nothing.
-  more.open = true;
+  // #drill now sits above the mobile "continue" cut (see index.html), not
+  // inside it, so unlike before there's no need to force that open just to
+  // reveal this - only the matrix/list past the cut still needs a tap.
   const portal = data.portals.find((p) => p.id === id);
   openPortal(drill, portal);
   drill.scrollIntoView({ behavior: 'smooth', block: 'nearest' });

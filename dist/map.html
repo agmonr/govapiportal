@@ -151,6 +151,25 @@ button:disabled { opacity: .5; cursor: default; }
 
 .lead { color: var(--muted); max-inline-size: 62ch; margin-block-end: 1.5rem; }
 
+/* The first thing on the page, on purpose - a warning tone regardless of
+   which of the two site themes is active, same reasoning as
+   body.accidents-page: this number doesn't suit calm blue or gold shine. */
+.headline {
+  display: block;
+  text-decoration: none;
+  color: var(--fg);
+  border: 1px solid var(--danger);
+  border-inline-start-width: 4px;
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--danger) 8%, var(--bg));
+  padding: 1rem 1.25rem;
+  margin-block-end: 1.25rem;
+}
+.headline:hover { background: color-mix(in srgb, var(--danger) 14%, var(--bg)); }
+.headline-num { margin: 0; font-size: 1.3rem; font-weight: 600; line-height: 1.4; }
+.headline-num strong { color: var(--danger); }
+.headline-sub { margin: .4rem 0 0; font-size: .85rem; color: var(--muted); }
+
 .controls { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; margin-block-end: .75rem; }
 .controls input[type="search"] { flex: 1; min-inline-size: 15rem; }
 .check { display: flex; align-items: center; gap: .4rem; font-size: .9rem; color: var(--muted); white-space: nowrap; }
@@ -809,6 +828,23 @@ body.accidents-page header.site {
 
   <main class="wrap">
     <div id="app">
+    <!-- The portal the rest of the map treats as central gets shown already
+         open, above everything else on the page - even the headline below -
+         rather than being the one thing on the page requiring a click. See
+         the default-open call in src/map.js. -->
+    <div id="drill"></div>
+
+    <!-- The reason a road-accidents app exists on an API map at all: the
+       number itself, before the rest of the explanation. "At least" is not
+       hedging for its own sake - the underlying CBS data counts fatal
+       *accidents*, not victims, and some accidents kill more than one
+       person, so the true toll can only be equal to this or higher. See
+       accidents.html for the full breakdown (by year, by settlement). -->
+    <a class="headline" href="./accidents.html" dir="auto">
+      <p class="headline-num">במדינת ישראל נהרגו <strong>לפחות 1,684</strong> אנשים בתאונות דרכים בין השנים 2020–2024</p>
+      <p class="headline-sub">נתוני הלמ"ס, ברמת התאונה הבודדת — לפירוט המלא, לפי שנה וישוב ←</p>
+    </a>
+
     <p class="lead" dir="auto">
       ממשקי API של גופים ממשלתיים בישראל. כל שדה נבדק ישירות מול השרת.
       <strong>CORS</strong> הוא השדה הקובע — בלעדיו לא ניתן לקרוא ל-API מדף סטטי בדפדפן.
@@ -827,15 +863,13 @@ body.accidents-page header.site {
     <h2 class="section">פורטלים</h2>
     <div id="portals" class="portal-grid"></div>
 
-    <!-- Below this point is the long tail: the live drill-in, the full
-         matrix, the searchable list. On a phone that's a lot of scroll
-         before anything new happens, so it starts collapsed there - see
-         the inline script below, which only closes it under the mobile
-         breakpoint. On desktop the `open` attribute below just stays put. -->
+    <!-- Below this point is the long tail: the full matrix, the searchable
+         list. On a phone that's a lot of scroll before anything new
+         happens, so it starts collapsed there - see the inline script
+         below, which only closes it under the mobile breakpoint. On
+         desktop the `open` attribute below just stays put. -->
     <details id="more" class="more" open>
       <summary class="more-toggle">המשך לכל הממשקים ←</summary>
-
-      <div id="drill"></div>
 
       <h2 class="section">כל הממשקים</h2>
       <div class="matrix-wrap"><table id="matrix" class="matrix"></table></div>
@@ -2001,10 +2035,9 @@ function selectPortal(id) {
   state.portal = id;
   renderPortals();
   renderList();
-  // The drill-in lives past the mobile "continue" cut - a collapsed
-  // <details> hides it regardless of what's written into it, so open it
-  // first or the tap looks like it did nothing.
-  more.open = true;
+  // #drill now sits above the mobile "continue" cut (see index.html), not
+  // inside it, so unlike before there's no need to force that open just to
+  // reveal this - only the matrix/list past the cut still needs a tap.
   const portal = data.portals.find((p) => p.id === id);
   openPortal(drill, portal);
   drill.scrollIntoView({ behavior: 'smooth', block: 'nearest' });

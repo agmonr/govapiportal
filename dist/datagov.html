@@ -151,6 +151,25 @@ button:disabled { opacity: .5; cursor: default; }
 
 .lead { color: var(--muted); max-inline-size: 62ch; margin-block-end: 1.5rem; }
 
+/* The first thing on the page, on purpose - a warning tone regardless of
+   which of the two site themes is active, same reasoning as
+   body.accidents-page: this number doesn't suit calm blue or gold shine. */
+.headline {
+  display: block;
+  text-decoration: none;
+  color: var(--fg);
+  border: 1px solid var(--danger);
+  border-inline-start-width: 4px;
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--danger) 8%, var(--bg));
+  padding: 1rem 1.25rem;
+  margin-block-end: 1.25rem;
+}
+.headline:hover { background: color-mix(in srgb, var(--danger) 14%, var(--bg)); }
+.headline-num { margin: 0; font-size: 1.3rem; font-weight: 600; line-height: 1.4; }
+.headline-num strong { color: var(--danger); }
+.headline-sub { margin: .4rem 0 0; font-size: .85rem; color: var(--muted); }
+
 .controls { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; margin-block-end: .75rem; }
 .controls input[type="search"] { flex: 1; min-inline-size: 15rem; }
 .check { display: flex; align-items: center; gap: .4rem; font-size: .9rem; color: var(--muted); white-space: nowrap; }
