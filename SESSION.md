@@ -321,6 +321,18 @@ no timeout at all**, so a slow host left it spinning indefinitely. It now aborts
 and warns before a filtered GovMap query that the wait is expected rather than
 broken.
 
+### Layout: portals moved above the matrix
+
+`מבט־על` had grown to a 15-row table sitting between the verdict tiles and the
+portal grid, so the portals — the thing you actually click — were below the fold.
+The grid now follows the tiles directly and the matrix moved down under its own
+`כל הממשקים` heading. `#drill` stays adjacent to the grid rather than following
+the matrix: it renders in response to a portal click, and a section between the
+card and its result would read as unrelated.
+
+Safe to reorder because every bundler anchor and smoke selector is ID-based,
+not positional — confirmed before touching it, not after.
+
 ### Set aside, not deleted
 
 ~~The original CKAN portal lives in the session scratchpad.~~ **Gone.** The

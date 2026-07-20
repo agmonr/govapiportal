@@ -55,7 +55,9 @@ than shipping to whoever downloads it.
 ## Top view
 
 `מבט־על` sits above everything: a count of all 13 APIs, then one tile per
-verdict, over a single table holding every API grouped by portal
+verdict. The portal grid follows directly, so the portals are reachable without
+scrolling past the full matrix — that table now sits below them under
+`כל הממשקים`, holding every API grouped by portal
 (domain / format / auth / HTTP / CORS / verdict).
 
 - **Tiles filter** the detail list below.
