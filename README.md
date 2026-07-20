@@ -45,6 +45,8 @@ than shipping to whoever downloads it.
 |---|---|
 | `apis.json` | The map — `portals` (9) and `apis` (13). Edit this to add sources. |
 | `index.html` / `src/map.js` | Top view + portal grid + API list, filterable |
+| `plans.html` / `src/plans.js` | Address → גוש/חלקה → building plans |
+| `src/geo.js` | Cadastre (WFS), planning (ArcGIS) and geocoding clients |
 | `src/explorer.js` | Live in-browser request panel |
 | `src/style.css` | RTL-first styling |
 | `SESSION.md` | Build log: decisions, corrections, what's unverified |
@@ -126,6 +128,32 @@ build-time snapshot.
   credentials; the auth flow is undocumented and unverified.
 - **Nadlan** returns the SPA HTML shell for a plain POST — the real contract
   needs headers I could not determine.
+
+## From an address to a building plan
+
+`plans.html` answers a question the map itself cannot: **what is planned at this
+address?** It walks a three-step chain, entirely in the browser:
+
+```
+כתובת  ──geocode──▶  נקודה  ──GovMap WFS──▶  גוש/חלקה  ──iplan Xplan──▶  תכניות
+```
+
+Worked example, verified live: `השיזף 10, רעננה` → **גוש 7657 חלקה 164**
+(14,252 m², מוסדר) → 10 plans, of which the first is `416-1288216 — רע/750 השיזף 10`.
+
+Two things make it usable:
+
+- **Smallest plan first.** A real parcel is covered by ~10 plans. The useful one
+  is the most specific; תמא/70 covers 117,696 dunam and matches just as truly.
+  National plans (תמא/תתל/תממ) are separated out entirely.
+- **Geocoded results are labelled as approximate.** OpenStreetMap is the only
+  non-government link in the chain and the only step that can be quietly wrong —
+  it resolves street addresses well but fails on newer neighbourhood names. The
+  parcel is shown with an explicit "verify this" warning, and there is an exact
+  גוש/חלקה tab that skips the geocoder entirely.
+
+`PARCEL_ALL` is **EPSG:3857**. Passing lon/lat degrees to its CQL filter does not
+error — it silently returns nothing, which cost a debugging round.
 
 ## Keeping the map honest
 

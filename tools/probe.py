@@ -134,6 +134,12 @@ def compare(api: dict, got: dict) -> list[str]:
         drift.append(f"HTTP {api['status']} → {got['status']}")
 
     was, now = api.get("cors"), got["cors"]
+    # Some servers echo the requesting Origin instead of sending '*'. That value
+    # is by definition different on every probe, so it is recorded as the
+    # sentinel 'origin' and normalised here - otherwise iplan would report drift
+    # every single week for behaving exactly as recorded.
+    if now and now == ORIGIN:
+        now = "origin"
     if bool(was) != bool(now):
         drift.append(f"CORS {was or 'absent'} → {now or 'absent'}"
                      + ("  ← now browser-callable" if now else "  ← no longer browser-callable"))
@@ -190,21 +196,47 @@ def table(rows: list) -> str:
 
 def report(rows: list, drifted: list) -> str:
     probed = [r for r in rows if not r["skipped"]]
+    # An outage and a changed contract both count as drift, but they call for
+    # different actions - wait, versus edit the map. Reporting them in one
+    # undifferentiated list would put that judgement on the reader every time.
+    down = [r for r in drifted if r["got"] and r["got"]["error"]]
+    changed = [r for r in drifted if r not in down]
+
     lines = [
         "## API drift detected",
         "",
         f"Re-probed {len(probed)} of {len(rows)} endpoints in `apis.json`. "
-        f"**{len(drifted)} changed** since the values recorded in the map.",
+        f"**{len(changed)} changed**, **{len(down)} unreachable**.",
         "",
-        "| API | Change |",
-        "|---|---|",
     ]
-    for r in drifted:
-        api = r["api"]
-        lines.append(f"| `{api['source']}` — {api['name']} | " + "<br>".join(r["drift"]) + " |")
-    lines += ["", "Probed:", ""]
-    for r in drifted:
-        lines.append(f"- `{probe_url(r['api'])}`")
+
+    if changed:
+        lines += [
+            "### Contract changed — the map may now be wrong",
+            "",
+            "| API | Change | Probed |",
+            "|---|---|---|",
+        ]
+        for r in changed:
+            api = r["api"]
+            lines.append(f"| `{api['source']}` — {api['name']} | " + "<br>".join(r["drift"])
+                         + f" | `{probe_url(api)}` |")
+        lines.append("")
+
+    if down:
+        lines += [
+            "### Unreachable — probably an outage, not a change",
+            "",
+            "No answer at all after retries. Usually the host is down and the recorded",
+            "values are still correct; only edit the map if this persists for weeks.",
+            "",
+            "| API | Error | Probed |",
+            "|---|---|---|",
+        ]
+        for r in down:
+            api = r["api"]
+            lines.append(f"| `{api['source']}` — {api['name']} | {r['got']['error']} | `{probe_url(api)}` |")
+        lines.append("")
 
     lines += [
         "",

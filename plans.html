@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>מכתובת לתכנית בנייה</title>
+  <link rel="stylesheet" href="./src/style.css">
+</head>
+<body>
+  <header class="site">
+    <div class="wrap">
+      <h1>מכתובת לתכנית בנייה</h1>
+      <a href="./index.html">← מפת ה-API</a>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <p class="lead" dir="auto">
+      איתור <strong>הגוש והחלקה</strong> של כתובת, ומשם <strong>תכניות הבנייה</strong> החלות עליה —
+      מספר תכנית, ייעודי קרקע, ועדה, תאריכים וקישור למסמכים במבא"ת.
+      הנתונים מגיעים מ-GovMap (קדסטר) וממנהל התכנון, ישירות מהדפדפן.
+    </p>
+
+    <div class="tabs" role="tablist">
+      <button class="tab active" role="tab" data-mode="address">כתובת</button>
+      <button class="tab" role="tab" data-mode="gush">גוש / חלקה</button>
+    </div>
+
+    <section class="panel" data-panel="address">
+      <label class="fld" for="addr-in" dir="auto">כתובת (רחוב ומספר, יישוב)</label>
+      <input type="text" id="addr-in" dir="auto" placeholder="השיזף 10, רעננה">
+      <button type="button" id="addr-go" class="primary">חפש תכניות</button>
+    </section>
+
+    <section class="panel" data-panel="gush" hidden>
+      <p class="hint" dir="auto">החיפוש המדויק ביותר — ללא גיאוקודינג וללא מקור חיצוני.</p>
+      <div class="gush-row">
+        <label class="fld" for="gush-in">גוש</label>
+        <input type="number" id="gush-in" inputmode="numeric" placeholder="7657">
+        <label class="fld" for="parcel-in">חלקה</label>
+        <input type="number" id="parcel-in" inputmode="numeric" placeholder="164">
+        <button type="button" id="gush-go" class="primary">חפש תכניות</button>
+      </div>
+    </section>
+
+    <div id="parcel-card"></div>
+    <div id="out"></div>
+  </main>
+
+  <script type="module" src="./src/plans.js"></script>
+</body>
+</html>
