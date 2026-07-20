@@ -34,6 +34,10 @@ const PREVIEWS = {
   datagov: {
     label: 'חיפוש מאגרים (package_search)',
     placeholder: 'חפש בכל 1,197 המאגרים — נושא, גוף מפרסם…',
+    // This preview stops at the catalogue. The records themselves live on their
+    // own page - relative, so it resolves to dist/datagov.html from the offline
+    // bundle and to /datagov.html from the served site.
+    more: { href: './datagov.html', label: 'חקירה מלאה: קטלוג ← מאגר ← טבלת הנתונים' },
     // 50 rows rather than 15: the table scrolls in its own box, so a longer page
     // costs no page height. Measured 445 KB / 0.35s against 169 KB / 0.18s.
     pageSize: 50,
@@ -383,7 +387,8 @@ export async function openPortal(node, portal) {
         <h2 dir="auto">${esc(portal.name_he)}</h2>
         <button type="button" class="drill-close">סגור ✕</button>
       </div>
-      <p class="drill-sub" dir="auto">${esc(spec.label)}</p>
+      <p class="drill-sub" dir="auto">${esc(spec.label)}${spec.more
+        ? ` <a class="drill-more" href="${esc(spec.more.href)}">${esc(spec.more.label)} ←</a>` : ''}</p>
       <div class="drill-filter">
         <input type="search" class="drill-q" dir="auto" spellcheck="false"
                placeholder="${esc(spec.placeholder)}" aria-label="סינון">

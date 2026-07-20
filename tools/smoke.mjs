@@ -160,6 +160,11 @@ async function runPass(label, url, { bundled = false } = {}) {
       'prev is disabled on the first page');
     ok(!(await page.locator('#drill .drill-url code').innerText()).includes('start='),
       'page 1 sends no start offset');
+    // The explorer moved to its own page; the preview must point at it.
+    const more = page.locator('#drill .drill-more');
+    ok(await more.count() === 1, 'the preview links on to the full explorer');
+    ok(await more.getAttribute('href') === './datagov.html',
+      'and links relatively, so the offline copies reach each other');
   }
   await page.locator('#drill .drill-close').click();
 
@@ -177,28 +182,6 @@ async function runPass(label, url, { bundled = false } = {}) {
   await page.locator('#drill .drill-close').click();
   ok(await page.locator('#drill .drill').count() === 0, 'close button dismisses the drill-in');
   ok(await page.locator('.card.api').count() === n, 'closing the drill-in also clears its filter');
-
-  /* --- the data.gov.il section ---
-     Its own section rather than a portal drill-in, because CKAN is the only API
-     here that exposes records and not just a catalogue. Soft-skipped like the
-     drill-in above when data.gov.il does not answer. */
-  const ckLive = await page.locator('#ckan .ck-card').first()
-    .waitFor({ timeout: 30000 }).then(() => true, () => false);
-
-  if (!ckLive) {
-    console.log('\x1b[33m  SKIP\x1b[0m  data.gov.il did not answer - explorer section not asserted');
-  } else {
-    ok(await page.locator('#ckan .ck-card').count() === 20, 'catalogue shows a page of datasets');
-    ok((await page.locator('#ckan .ck-count').innerText()).includes('1,197'),
-      'catalogue states the full total, not the fetched count');
-    ok(await page.locator('#ckan .ck-controls select').count() === 3,
-      'org / format / sort controls present');
-    ok((await page.locator('#ckan .drill-url code').innerText()).includes('package_search'),
-      'the exact request is shown');
-    // Every control here is server-side; a local filter would be the one thing
-    // this section must not do.
-    ok(await page.locator('#ckan .drill-scope').count() === 1, 'section states its filtering scope');
-  }
 
   /* --- explorer: the method badge opens the request, and only when it can ---
      A new tab can only issue GET, so a POST endpoint must not offer one; sending
@@ -233,8 +216,61 @@ async function runPass(label, url, { bundled = false } = {}) {
   failures.push(...problems);
 }
 
+/**
+ * The explorer is its own page now, so it gets its own pass - over HTTP and
+ * from disk, exactly like the map. Soft-skipped when data.gov.il does not
+ * answer: this suite never fails because someone else's server is down.
+ */
+async function runCkanPass(label, url) {
+  console.log(`\n\x1b[1m${label}\x1b[0m  ${url}`);
+  const problems = [];
+  const ok = (cond, msg) => {
+    console.log(`${cond ? '\x1b[32m  PASS\x1b[0m' : '\x1b[31m  FAIL\x1b[0m'}  ${msg}`);
+    if (!cond) problems.push(`${label}: ${msg}`);
+  };
+
+  const page = await browser.newPage({ viewport: { width: 1280, height: 1000 } });
+  page.on('console', (m) => { if (m.type() === 'error') problems.push(`${label} console: ${m.text()}`); });
+  page.on('pageerror', (e) => problems.push(`${label} pageerror: ${e.message}`));
+
+  await page.goto(url, { waitUntil: 'load' });
+  const live = await page.locator('#ckan .ck-card').first()
+    .waitFor({ timeout: 30000 }).then(() => true, () => false);
+
+  if (!live) {
+    console.log('\x1b[33m  SKIP\x1b[0m  data.gov.il did not answer - explorer not asserted');
+  } else {
+    ok(await page.locator('#ckan .ck-card').count() === 20, 'catalogue shows a page of datasets');
+    ok((await page.locator('#ckan .ck-count').innerText()).includes('1,197'),
+      'catalogue states the full total, not the fetched count');
+    ok(await page.locator('#ckan .ck-controls select').count() === 3,
+      'org / format / sort controls present');
+    ok((await page.locator('#ckan .drill-url code').innerText()).includes('package_search'),
+      'the exact request is shown');
+    ok(await page.locator('#ckan .drill-scope').count() === 1, 'the page states its filtering scope');
+    ok(await page.locator('#ckan .pager .pg[data-page]').count() > 0, 'catalogue is paged');
+    // It holds no snapshot - every row is fetched live, so a stale bundle
+    // cannot serve stale data here the way it could on the map.
+    ok(!(await page.content()).includes('__API_DATA__'),
+      'the explorer embeds no data snapshot');
+  }
+
+  for (const width of [380, 768, 1280]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.waitForTimeout(150);
+    const over = await page.evaluate(() =>
+      document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    ok(over <= 0, `no horizontal body scroll at ${width}px (overflow ${over}px)`);
+  }
+
+  await page.close();
+  failures.push(...problems);
+}
+
 await runPass('served over HTTP', HTTP_BASE);
 await runPass('opened from disk', FILE_BASE, { bundled: true });
+await runCkanPass('explorer over HTTP', `${HTTP_BASE}/datagov.html`);
+await runCkanPass('explorer from disk', new URL('../dist/datagov.html', import.meta.url).href);
 
 await browser.close();
 
@@ -242,4 +278,4 @@ if (failures.length) {
   console.log(`\n\x1b[31m${failures.length} problem(s)\x1b[0m\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('\n\x1b[32mAll checks passed in both passes. No console errors.\x1b[0m');
+console.log('\n\x1b[32mAll checks passed across all four passes. No console errors.\x1b[0m');

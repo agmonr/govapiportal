@@ -501,6 +501,38 @@ track past the viewport. Fixed with `minmax(min(17rem, 100%), 1fr)` plus
 by resizing *down* from a wide viewport, which is exactly what smoke.mjs does and
 what a hand check at 380px did not.
 
+### The explorer became its own page
+
+Moved out of `index.html` into `datagov.html`, with `src/datagov.js` as a
+three-line entry point. The reasoning: the map answers "what exists and can I
+call it", the explorer answers "what is actually in there" - two questions, and
+the second one deserves a URL that can be linked to rather than a section
+someone has to scroll past. The map page dropped from 93 KB to 77 KB as a result.
+
+`bundle.py` grew a `TARGETS` list instead of a single `SOURCES`, so both pages
+get a self-contained offline copy. `verify_symbols()` and
+`verify_no_collisions()` now run per target - which also means `ckan.js` and
+`map.js` no longer share a scope, though the `ck`-prefixed names stay: relying
+on the split would make the collision guard's job depend on how the pages
+happen to be divided today.
+
+Two things the split made worth asserting rather than assuming:
+
+- **The map links to `./datagov.html` relatively**, which resolves to
+  `/datagov.html` served and to `dist/datagov.html` from the offline bundle -
+  correct in both, but only because both bundles land in `dist/` under matching
+  names. `bundle.py` now fails the build if a page links to `./datagov.html`
+  and no target emits that filename.
+- **The explorer embeds no snapshot.** Only the map target inlines `apis.json`;
+  every row on the explorer is fetched live, so a stale bundle cannot serve
+  stale data there the way it could on the map. Asserted by checking the page
+  contains no `__API_DATA__`.
+
+`smoke.mjs` went from two passes to four - map and explorer, each over HTTP and
+from disk. The explorer's `file://` pass is the one worth having: it makes live
+CKAN calls from origin `null` and they answer, which is the whole premise of
+shipping offline copies at all.
+
 ### Set aside, not deleted
 
 ~~The original CKAN portal lives in the session scratchpad.~~ **Gone.** The

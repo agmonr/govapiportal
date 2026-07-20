@@ -32,9 +32,13 @@ still fails on CORS, as it should).
 Regenerate it after editing `apis.json` or `src/`:
 
 ```bash
-./tools/bundle.py           # rewrite dist/map.html
-./tools/bundle.py --check   # exit non-zero if it is stale
+./tools/bundle.py           # rewrite dist/map.html and dist/datagov.html
+./tools/bundle.py --check   # exit non-zero if either is stale
 ```
+
+Both offline copies land in `dist/`, so the map's link to `./datagov.html` keeps
+working between them. The bundler asserts that rather than assuming it: a page
+that links to `./datagov.html` fails the build if no target emits that filename.
 
 `tools/verify.sh` runs `--check` first, so a stale copy fails the build rather
 than shipping to whoever downloads it.
@@ -45,11 +49,13 @@ than shipping to whoever downloads it.
 |---|---|
 | `apis.json` | The map — `portals` (10) and `apis` (16). Edit this to add sources. |
 | `index.html` / `src/map.js` | Top view + portal grid + API list, filterable |
+| `datagov.html` / `src/ckan.js` | The data.gov.il explorer: catalogue → dataset → records |
 | `src/portal.js` | Portal drill-in: live request per portal, rendered as a table |
 | `src/explorer.js` | Live in-browser request panel |
 | `src/style.css` | RTL-first styling |
 | `SESSION.md` | Build log: decisions, corrections, what's unverified |
-| `dist/map.html` | Generated single-file build. Works offline, opened from disk. |
+| `dist/map.html` | Generated single-file build of the map. Works offline, from disk. |
+| `dist/datagov.html` | Same, for the explorer. Holds no snapshot — every row is live. |
 | `tools/` | Bundler, API re-prober, browser verification. Not part of the site. |
 
 ## Top view
@@ -77,9 +83,11 @@ because "it parses" and "it runs" are different claims:
 ./tools/verify.sh    # bundle freshness, then two browser passes
 ```
 
-`verify.sh` drives the map twice: served over HTTP, and opened from disk as
-`file://dist/map.html`. Both passes assert the same invariants, and any console
-error fails the run. The bundle pass additionally asserts it references no
+`verify.sh` drives **four passes**: the map and the explorer, each served over
+HTTP and opened from disk. All assert the same invariants, and any console error
+fails the run. The explorer's `file://` pass is the interesting one — it makes
+live CKAN calls from origin `null` and they succeed, which is the whole reason
+the offline copies are worth shipping. The bundle pass additionally asserts it references no
 external asset — the claim "self-contained" is checked, not stated.
 
 `setup.sh --check` reports what is installed without installing anything.
@@ -149,9 +157,10 @@ be reproduced with `curl`.
 
 ## Going all the way into data.gov.il
 
-`המאגר הממשלתי הפתוח — חקירה מלאה` is its own section, not a portal preview,
-because CKAN is the only API here that exposes **the records themselves** rather
-than a catalogue of files. Three levels:
+**`datagov.html` is a page of its own**, because CKAN is the only API here that
+exposes **the records themselves** rather than a catalogue of files — and because
+that deserves a URL you can link to rather than a section to scroll past. The map
+stays a map; its data.gov.il preview links on to this page. Three levels:
 
 | Level | Request | What you get |
 |---|---|---|

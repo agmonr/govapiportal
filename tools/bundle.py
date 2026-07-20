@@ -15,9 +15,13 @@ whole thing, not a degraded preview.
 The site itself is untouched and still has no build step. Only this extra
 artifact is generated.
 
+Two pages are built, each self-contained:
+    index.html   -> dist/map.html       the map
+    datagov.html -> dist/datagov.html   the data.gov.il explorer
+
 Usage:
-    ./tools/bundle.py           write dist/map.html
-    ./tools/bundle.py --check   exit non-zero if dist/map.html is stale
+    ./tools/bundle.py           write both
+    ./tools/bundle.py --check   exit non-zero if either is stale
 """
 
 import json
@@ -26,14 +30,32 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-OUT = ROOT / "dist" / "map.html"
 
-# Dependency order: dependencies before dependents, since flattening drops the
-# imports that would otherwise order them. Every module reachable from map.js
-# must be listed - a missing one still produces a bundle, but one that throws on
-# load because the symbol it imported was never defined. verify_symbols() below
-# turns that silent break into a build failure.
-SOURCES = ["src/ui.js", "src/explorer.js", "src/portal.js", "src/ckan.js", "src/map.js"]
+# One entry per page. Dependency order matters: flattening drops the imports
+# that would otherwise order them. Every module reachable from the entry must be
+# listed - a missing one still produces a bundle, but one that throws on load
+# because the symbol it imported was never defined. verify_symbols() turns that
+# silent break into a build failure, and verify_no_collisions() catches the
+# opposite case of two files defining the same top-level name.
+#
+# `data` marks the page that needs apis.json inlined. The explorer fetches
+# everything live from CKAN, so it needs none.
+TARGETS = [
+    {
+        "html": "index.html",
+        "out": "dist/map.html",
+        "entry": "src/map.js",
+        "sources": ["src/ui.js", "src/explorer.js", "src/portal.js", "src/map.js"],
+        "data": True,
+    },
+    {
+        "html": "datagov.html",
+        "out": "dist/datagov.html",
+        "entry": "src/datagov.js",
+        "sources": ["src/ui.js", "src/ckan.js", "src/datagov.js"],
+        "data": False,
+    },
+]
 
 IMPORT_RE = re.compile(r"^\s*import\s.*?;\s*$", re.M)
 EXPORT_RE = re.compile(r"^export\s+", re.M)
@@ -56,8 +78,8 @@ def flatten(rel: str) -> str:
     return src
 
 
-def verify_symbols() -> None:
-    """Every symbol imported across SOURCES must be defined by one of them.
+def verify_symbols(sources: list[str]) -> None:
+    """Every symbol imported across a target's sources must be defined by one.
 
     Flattening deletes the import statements, so a module left out of SOURCES
     does not fail the build - it produces a page that throws ReferenceError on
@@ -67,7 +89,7 @@ def verify_symbols() -> None:
     imported: set[str] = set()
     defined: set[str] = set()
 
-    for rel in SOURCES:
+    for rel in sources:
         src = read(rel)
         for names, _mod in re.findall(r"import\s*\{([^}]*)\}\s*from\s*['\"]([^'\"]+)['\"]", src):
             for name in names.split(","):
@@ -81,10 +103,10 @@ def verify_symbols() -> None:
     missing = imported - defined
     if missing:
         sys.exit(f"error: {', '.join(sorted(missing))} imported but not defined by any file in "
-                 f"SOURCES.\n       Add the module that exports it to SOURCES in bundle.py.")
+                 f"{sources}.\n       Add the module that exports it to that target in bundle.py.")
 
 
-def verify_no_collisions() -> None:
+def verify_no_collisions(sources: list[str]) -> None:
     """No two sources may define the same top-level name.
 
     Flattening puts every file in one scope, so two modules that each declare
@@ -98,7 +120,7 @@ def verify_no_collisions() -> None:
     dist/map.html, and the build reported success.
     """
     owners: dict[str, list[str]] = {}
-    for rel in SOURCES:
+    for rel in sources:
         src = read(rel)
         names = set(re.findall(r"^(?:export\s+)?(?:async\s+)?function\s+([A-Za-z_$][\w$]*)", src, re.M))
         names |= set(re.findall(r"^(?:export\s+)?(?:const|let|var)\s+([A-Za-z_$][\w$]*)", src, re.M))
@@ -114,77 +136,98 @@ def verify_no_collisions() -> None:
                  "       Rename them, or move the shared one into src/ui.js and import it.")
 
 
-def build() -> str:
-    verify_symbols()
-    verify_no_collisions()
-    html = read("index.html")
-    data = json.loads(read("apis.json"))  # parse to validate, not just to embed
-
-    # </script> inside the data would close the tag early. JSON has no business
-    # containing one, but the cost of being wrong here is a silently broken file.
-    payload = json.dumps(data, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
+def build(t: dict) -> str:
+    """One self-contained page for one target."""
+    verify_symbols(t["sources"])
+    verify_no_collisions(t["sources"])
+    html = read(t["html"])
 
     # Inline the stylesheet.
     css = "<style>\n" + read("src/style.css").strip() + "\n</style>"
-    html, n = re.subn(
-        r'<link rel="stylesheet" href="\./src/style\.css">',
-        lambda _m: css,
-        html,
-    )
+    html, n = re.subn(r'<link rel="stylesheet" href="\./src/style\.css">', lambda _m: css, html)
     if n != 1:
-        sys.exit("error: stylesheet <link> not found in index.html - bundler is out of date")
+        sys.exit(f"error: stylesheet <link> not found in {t['html']} - bundler is out of date")
 
     # The file:// notice and its guard are about *this* limitation. In the
     # bundle the limitation does not exist, so showing either would be a lie.
-    html, n = re.subn(r"\n\s*<!--\n\s*Opened by double-clicking.*?</script>\n", "\n", html, flags=re.S)
+    html, n = re.subn(r"\n\s*<!--\n\s*(?:Opened by double-clicking|Same guard as index\.html).*?</script>\n",
+                      "\n", html, flags=re.S)
     if n != 1:
-        sys.exit("error: file:// guard block not found in index.html - bundler is out of date")
+        sys.exit(f"error: file:// guard block not found in {t['html']} - bundler is out of date")
     html, n = re.subn(r'\s*<div id="fileproto".*?</div>\n\n', "\n", html, flags=re.S)
     if n != 1:
-        sys.exit("error: #fileproto notice not found in index.html - bundler is out of date")
+        sys.exit(f"error: #fileproto notice not found in {t['html']} - bundler is out of date")
+
+    # The map links to the explorer as ./datagov.html. Both bundles land in
+    # dist/, so that relative link keeps working between the offline copies -
+    # but only because the generated names match. Assert rather than assume.
+    if "datagov.html" in html:
+        sibling = [x["out"] for x in TARGETS if x["html"] == "datagov.html"]
+        if not sibling or Path(sibling[0]).name != "datagov.html":
+            sys.exit("error: a page links to ./datagov.html but no target emits that filename "
+                     "into dist/ - the offline copies would link to nothing.")
+
+    data = None
+    payload = ""
+    if t["data"]:
+        data = json.loads(read("apis.json"))  # parse to validate, not just to embed
+        # </script> inside the data would close the tag early. JSON has no
+        # business containing one, but the cost of being wrong is a silently
+        # broken file.
+        blob = json.dumps(data, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
+        payload = f"globalThis.__API_DATA__ = {blob};\n\n"
 
     # Replace the module <script> with data + flattened sources. Inline modules
     # are exempt from the origin-'null' block (verified in headless Chromium),
     # so type="module" is kept and the sources need no further rewriting.
-    bundled = "\n".join(flatten(s) for s in SOURCES)
-    script = (
-        '<script type="module">\n'
-        "// Generated by tools/bundle.py - edit src/ and apis.json, then regenerate.\n"
-        f"globalThis.__API_DATA__ = {payload};\n\n"
-        f"{bundled}\n"
-        "</script>"
-    )
-    html, n = re.subn(r'<script type="module" src="\./src/map\.js"></script>',
-                      lambda _m: script, html)
+    bundled = "\n".join(flatten(s) for s in t["sources"])
+    script = ('<script type="module">\n'
+              "// Generated by tools/bundle.py - edit src/ and apis.json, then regenerate.\n"
+              f"{payload}{bundled}\n"
+              "</script>")
+    entry = re.escape(f'<script type="module" src="./{t["entry"]}"></script>')
+    html, n = re.subn(entry, lambda _m: script, html)
     if n != 1:
-        sys.exit("error: module <script> not found in index.html - bundler is out of date")
+        sys.exit(f"error: module <script src=./{t['entry']}> not found in {t['html']} - "
+                 "bundler is out of date")
 
-    note = ("<!--\n  Self-contained build of the Israeli government API map.\n"
-            "  Generated by tools/bundle.py from apis.json + src/ - do not edit by hand.\n"
-            f"  Data probed: {data['probed']} | {len(data['apis'])} APIs across "
-            f"{len(data['portals'])} portals.\n-->\n")
+    if data:
+        note = ("<!--\n  Self-contained build of the Israeli government API map.\n"
+                "  Generated by tools/bundle.py from apis.json + src/ - do not edit by hand.\n"
+                f"  Data probed: {data['probed']} | {len(data['apis'])} APIs across "
+                f"{len(data['portals'])} portals.\n-->\n")
+    else:
+        note = ("<!--\n  Self-contained build of the data.gov.il explorer.\n"
+                "  Generated by tools/bundle.py from src/ - do not edit by hand.\n"
+                "  Holds no snapshot: every record is fetched live from CKAN.\n-->\n")
     return note + html
 
 
 def main() -> int:
-    html = build()
     check = "--check" in sys.argv[1:]
+    stale = 0
 
-    if check:
-        if not OUT.exists():
-            print(f"STALE: {OUT.relative_to(ROOT)} does not exist. Run ./tools/bundle.py")
-            return 1
-        if OUT.read_text(encoding="utf-8") != html:
-            print(f"STALE: {OUT.relative_to(ROOT)} does not match apis.json + src/. "
-                  "Run ./tools/bundle.py")
-            return 1
-        print(f"ok: {OUT.relative_to(ROOT)} is in sync with apis.json + src/")
-        return 0
+    for t in TARGETS:
+        html = build(t)
+        out = ROOT / t["out"]
+        rel = out.relative_to(ROOT)
 
-    OUT.parent.mkdir(parents=True, exist_ok=True)
-    OUT.write_text(html, encoding="utf-8")
-    print(f"wrote {OUT.relative_to(ROOT)} ({len(html.encode('utf-8')) / 1024:.1f} KB)")
-    return 0
+        if check:
+            if not out.exists():
+                print(f"STALE: {rel} does not exist. Run ./tools/bundle.py")
+                stale += 1
+            elif out.read_text(encoding="utf-8") != html:
+                print(f"STALE: {rel} does not match src/ - run ./tools/bundle.py")
+                stale += 1
+            else:
+                print(f"ok: {rel} is in sync")
+            continue
+
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(html, encoding="utf-8")
+        print(f"wrote {rel} ({len(html.encode('utf-8')) / 1024:.1f} KB)")
+
+    return 1 if stale else 0
 
 
 if __name__ == "__main__":

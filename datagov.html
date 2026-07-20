@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>המאגר הממשלתי הפתוח — חקירה מלאה</title>
+  <link rel="stylesheet" href="./src/style.css">
+</head>
+<body>
+  <header class="site">
+    <div class="wrap">
+      <h1>המאגר הממשלתי הפתוח</h1>
+      <span class="meta"><a href="./index.html">← חזרה למפת ה-API</a></span>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <div id="fileproto" class="notice error" dir="auto" hidden>
+      <strong>הדף נפתח כקובץ מקומי (<code dir="ltr">file://</code>) ולכן אינו יכול לטעון את הנתונים.</strong>
+      <p>
+        הדפדפן חוסם מודולי ES ממקור <code dir="ltr">null</code> — זו הגבלת אבטחה של הדפדפן, לא תקלה באתר.
+        הפעל שרת מקומי מתיקיית הפרויקט:
+      </p>
+      <pre dir="ltr"><code>python3 -m http.server 8000</code></pre>
+      <p>ולאחר מכן פתח <a href="http://localhost:8000/datagov.html" dir="ltr">http://localhost:8000/datagov.html</a>.</p>
+      <p>
+        לחלופין, ללא שרת כלל — <a href="./dist/datagov.html" dir="ltr">dist/datagov.html</a>
+        הוא קובץ יחיד ועצמאי שעובד בפתיחה ישירה מהדיסק, כולל הרצת בקשות חיות.
+      </p>
+    </div>
+
+    <div id="app">
+      <p class="lead" dir="auto">
+        <strong>data.gov.il</strong> הוא הפורטל היחיד במפה שחושף את הרשומות עצמן ולא רק קטלוג של קבצים.
+        הדף הזה יורד עד אליהן: קטלוג של 1,197 מאגרים ← מאגר בודד ← טבלת הנתונים,
+        עם חיפוש, סינון לפי עמודה, מיון ודפדוף — הכל מתבצע בשרת, על כלל הרשומות.
+      </p>
+      <div id="ckan"></div>
+    </div>
+  </main>
+
+  <!--
+    Same guard as index.html: opened from disk nothing below can load, because
+    ES module scripts are refused from origin 'null'. Must be a classic inline
+    script - a module would be the first thing blocked.
+  -->
+  <script>
+    if (location.protocol === 'file:') {
+      document.getElementById('fileproto').hidden = false;
+      document.getElementById('app').hidden = true;
+    }
+  </script>
+  <script type="module" src="./src/datagov.js"></script>
+</body>
+</html>

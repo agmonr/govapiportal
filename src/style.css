@@ -391,6 +391,9 @@ button.stat { cursor: pointer; }
 .drill-sub { font-size: .85rem; color: var(--muted); margin-block: .2rem .6rem; }
 
 /* The request is shown so the result can be reproduced outside the page. */
+/* The preview stops at the catalogue; this points at the page that does not. */
+.drill-more { margin-inline-start: .5rem; font-size: .8rem; white-space: nowrap; }
+
 .drill-url { margin-block: .6rem 0; overflow-x: auto; }
 .drill-url code { font-size: .74rem; color: var(--muted); white-space: nowrap; }
 
