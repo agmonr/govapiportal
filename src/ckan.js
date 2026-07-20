@@ -85,6 +85,95 @@ async function ckGet(url) {
   return json.result;
 }
 
+/* ---------- CSV, built here because the file link cannot be trusted ----------
+ *
+ * The resource's own `url` is served through the site WAF: probed on a 1.4 MB
+ * CSV, it answers `200 text/html` with 42 KB of obfuscated challenge script
+ * rather than the file. `datastore/dump` is challenged identically. So the
+ * download that data.gov.il advertises frequently does not produce a file.
+ *
+ * `datastore_search` is not challenged - it is the same call this page already
+ * uses to show the rows - so for anything in the DataStore the CSV can be
+ * assembled here from data we can actually get. Measured: limit=100000 returns
+ * 100,000 records in 0.71s, so this is a handful of requests, not thousands.
+ */
+
+const CK_DUMP_PAGE = 32000;
+
+/** RFC 4180 quoting, and a BOM so Excel reads Hebrew as UTF-8 rather than mojibake. */
+function ckCsv(fields, records) {
+  const cell = (v) => {
+    const s = v == null ? '' : String(v);
+    return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const rows = records.map((r) => fields.map((f) => cell(r[f])).join(','));
+  return `﻿${fields.map(cell).join(',')}\r\n${rows.join('\r\n')}\r\n`;
+}
+
+/**
+ * `download` is ignored for cross-origin URLs - that is why the file links open
+ * in a tab. A blob: URL is same-origin, so here the attribute does work and the
+ * browser saves rather than navigates.
+ */
+function ckSave(text, name) {
+  const href = URL.createObjectURL(new Blob([text], { type: 'text/csv;charset=utf-8' }));
+  const a = document.createElement('a');
+  a.href = href;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(href), 10000);
+}
+
+/** Pages through the whole result set, reporting progress as it goes. */
+async function ckFetchAll(resourceId, extra, onProgress) {
+  const records = [];
+  let fields = null;
+  let offset = 0;
+
+  // A ceiling rather than `while (true)`: if `total` ever disagreed with what
+  // the server actually returns, this would otherwise loop forever.
+  for (let guard = 0; guard < 500; guard += 1) {
+    const p = new URLSearchParams({
+      resource_id: resourceId, limit: String(CK_DUMP_PAGE), offset: String(offset), ...extra,
+    });
+    const r = await ckGet(`${CK_API}/datastore_search?${p}`);
+    if (!fields) fields = r.fields.filter((f) => f.id !== '_id').map((f) => f.id);
+    records.push(...r.records);
+    offset += r.records.length;
+    onProgress(records.length, r.total);
+    if (!r.records.length || records.length >= r.total) break;
+  }
+  return { fields, records };
+}
+
+/**
+ * Wires a "download CSV" button. `extra` carries the active query, so the
+ * records view downloads exactly what is on screen rather than the whole table.
+ */
+function ckBindDownload(btn, resourceId, extra, base) {
+  const label = btn.textContent;
+  btn.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    btn.disabled = true;
+    try {
+      const { fields, records } = await ckFetchAll(resourceId, extra, (n, total) => {
+        btn.textContent = `מוריד… ${num(n)} / ${num(total)}`;
+      });
+      if (!records.length) { btn.textContent = 'אין רשומות'; return; }
+      ckSave(ckCsv(fields, records), `${base.replace(/[\\/:*?"<>|]/g, '_').slice(0, 80)}.csv`);
+      btn.textContent = `✓ ${num(records.length)} שורות`;
+    } catch (err) {
+      btn.textContent = err.name === 'AbortError' ? 'תם הזמן — נסה שוב' : 'ההורדה נכשלה';
+      console.error(err);
+    } finally {
+      btn.disabled = false;
+      setTimeout(() => { btn.textContent = label; }, 6000);
+    }
+  });
+}
+
 /* ---------- shared bits ---------- */
 
 const ckLoading = (t = 'טוען…') => `<div class="skeleton" dir="auto">${esc(t)}</div>`;
@@ -240,18 +329,29 @@ function ckRenderDataset() {
             <span class="f-name">${esc(x.name || x.description || '(ללא שם)')}</span>
             ${x.size ? `<span class="f-size">${esc(bytes(x.size))}</span>` : ''}
             ${ckQueryable(x)
-              ? `<button type="button" class="ck-open" data-res="${i}">עיין בנתונים ←</button>`
+              ? `<button type="button" class="ck-open" data-res="${i}">עיין בנתונים ←</button>
+                 <button type="button" class="ck-dl" data-dl="${i}"
+                         title="נבנה כאן מתוך ה-DataStore, ולכן אינו עובר דרך ה-WAF">הורד CSV</button>`
               : '<span class="ck-nodata" title="המשאב אינו טעון ל-DataStore">קובץ להורדה בלבד</span>'}
-            <a class="f-go" href="${esc(x.url)}" target="_blank" rel="noopener" title="הורדה">⭳</a>
+            <a class="f-go" href="${esc(x.url)}" target="_blank" rel="noopener"
+               title="הקובץ המקורי מהשרת — עלול להיחסם על ידי ה-WAF">⭳ מקור</a>
           </li>`).join('')}
       </ul>
       <p class="files-note" dir="auto">
-        רק חלק מהמשאבים טעונים ל-DataStore וניתנים לשאילתה — השאר הם קבצים להורדה בלבד.
-        קבצי CSV/XLSX מוגשים דרך ה-WAF של data.gov.il; אם נפתח דף ביניים, המתן רגע.
+        <strong>הקישור ⭳ מקור מוביל לקובץ שעל השרת, והוא לעיתים קרובות נחסם:</strong>
+        data.gov.il מגיש קבצי CSV/XLSX דרך WAF שמחזיר דף אתגר JavaScript במקום הקובץ
+        (נמדד: <code dir="ltr">200 text/html</code>, 42KB, על קובץ CSV בגודל 1.4MB).
+        לכן עבור משאבים הטעונים ל-DataStore הכפתור <strong>הורד CSV</strong> בונה את הקובץ
+        כאן בדפדפן מתוך אותה שאילתה שמציגה את הנתונים — נתיב שאינו עובר דרך ה-WAF כלל.
+        השאר הם קבצים להורדה בלבד, ועבורם הקישור המקורי הוא האפשרות היחידה.
       </p>
     </article>`;
 
   const b = ckRoot.querySelector('.ck-body');
+  b.querySelectorAll('[data-dl]').forEach((btn) => {
+    const x = res[Number(btn.dataset.dl)];
+    ckBindDownload(btn, x.id, {}, x.name || ds.title || 'data');
+  });
   b.querySelectorAll('[data-res]').forEach((btn) => btn.addEventListener('click', () => {
     ckState.resource = res[Number(btn.dataset.res)];
     ckState.rq = ''; ckState.rfilters = {}; ckState.rsort = ''; ckState.rstart = 0;
@@ -286,6 +386,8 @@ async function ckRenderRecords() {
       <input type="search" class="ck-rq" dir="auto" spellcheck="false" value="${esc(ckState.rq)}"
              placeholder="חיפוש חופשי בכל השדות…" aria-label="חיפוש ברשומות"
              ${filtered ? 'disabled title="בטל את סינון העמודות כדי לחפש בכל השדות"' : ''}>
+      <button type="button" class="ck-dl" id="ck-dl-view"
+              title="מוריד את כל השורות התואמות לשאילתה הנוכחית, לא רק את העמוד המוצג">הורד CSV</button>
       <span class="drill-scope">חיפוש בשרת, על כל ${num(r.total)} הרשומות</span>
     </div>
 
@@ -328,6 +430,18 @@ async function ckRenderRecords() {
 
 function ckBindRecords() {
   const b = ckRoot.querySelector('.ck-body');
+
+  // The same query the table is showing, minus paging - so what downloads is
+  // what the filters match, not the 25 rows on screen.
+  const dl = b.querySelector('#ck-dl-view');
+  if (dl) {
+    const extra = {};
+    const per = Object.entries(ckState.rfilters).filter(([, v]) => v.trim());
+    if (per.length) extra.q = JSON.stringify(Object.fromEntries(per));
+    else if (ckState.rq) extra.q = ckState.rq;
+    if (ckState.rsort) extra.sort = `${ckState.rsort} ${ckState.rdir}`;
+    ckBindDownload(dl, ckState.resource.id, extra, ckState.resource.name || 'data');
+  }
 
   const rq = b.querySelector('.ck-rq');
   const runQ = debounce(() => { ckState.rstart = 0; ckState.rq = rq.value.trim(); ckRenderRecords(); }, 450);

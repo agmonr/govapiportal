@@ -253,6 +253,27 @@ async function runCkanPass(label, url) {
     // cannot serve stale data here the way it could on the map.
     ok(!(await page.content()).includes('__API_DATA__'),
       'the explorer embeds no data snapshot');
+
+    /* The resource URL data.gov.il advertises is WAF-challenged for CSV/XLSX -
+       measured 200 text/html with 42 KB of challenge script instead of a 1.4 MB
+       file. DataStore resources therefore get a CSV built in the browser from
+       datastore_search, which is not challenged. The full download is exercised
+       by hand (116,673 rows verified); asserted here is that the control exists
+       and that the raw link no longer poses as a working download. */
+    const card = page.locator('#ckan .ck-card', { has: page.locator('.f-tag') }).first();
+    if (await card.count()) {
+      await card.click();
+      await page.waitForSelector('#ckan .ck-detail', { timeout: 20000 });
+      ok(await page.locator('#ckan .ck-dl').count() > 0,
+        'DataStore resources offer a CSV built here, not just the WAF-blocked link');
+      const raw = page.locator('#ckan .files a.f-go').first();
+      ok((await raw.innerText()).includes('מקור'),
+        'the origin-file link is labelled as such rather than as the download');
+      ok(await page.locator('#ckan .files-note').count() === 1,
+        'the WAF caveat is stated next to the files');
+      await page.locator('#ckan .ck-crumb').first().click();
+      await page.waitForSelector('#ckan .ck-card', { timeout: 20000 });
+    }
   }
 
   for (const width of [380, 768, 1280]) {

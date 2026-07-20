@@ -188,6 +188,29 @@ Three details that are deliberate:
 Only ~55% of resources are `datastore_active`. The rest say `קובץ להורדה בלבד`
 instead of offering a data view that would fail.
 
+### Downloads that actually produce a file
+
+**The download link data.gov.il advertises frequently does not work.** Probed on
+the 1.4 MB CSV behind `שמות פרטיים בישראל`: the resource URL answers
+`200 text/html` with 42 KB of obfuscated WAF challenge script instead of the
+file. `datastore/dump` is challenged identically. Nothing about the response
+says "blocked" — it is a 200, so a naive client saves the challenge page and
+calls it a CSV.
+
+`datastore_search` is *not* challenged — it is the same call that renders the
+table — so for DataStore resources the CSV is **built in the browser** from data
+we can actually get, and offered as a blob. Verified end to end: 116,673 rows,
+1.44 MB, against an original of 1,505,120 bytes.
+
+- The `download` attribute works here, unlike on the resource links, because a
+  `blob:` URL is same-origin.
+- A UTF-8 BOM is prepended so Excel reads Hebrew rather than mojibake.
+- CKAN's internal `_id` column is dropped, so the file matches the source.
+- On the records view the button downloads **what the query matches**, not the
+  25 rows on screen — filters and sort are carried into the export.
+- The origin file is still linked, labelled `⭳ מקור` and described as what it is.
+  For non-DataStore resources it remains the only option.
+
 ## Downloading files
 
 data.gov.il rows expand into their files — click a dataset to see its CSV, XLSX,

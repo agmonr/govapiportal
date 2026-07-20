@@ -375,6 +375,14 @@ button.stat { cursor: pointer; }
 }
 .ck-open:hover { filter: brightness(1.1); }
 .ck-nodata { font-size: .72rem; color: var(--muted); }
+/* Built in the browser from the DataStore, so it actually produces a file -
+   unlike the resource's own URL, which the WAF answers with a challenge page. */
+.ck-dl {
+  font: inherit; font-size: .76rem; padding: .2rem .55rem; cursor: pointer; white-space: nowrap;
+  color: var(--accent); background: var(--bg); border: 1px solid var(--accent); border-radius: 999px;
+}
+.ck-dl:hover:not(:disabled) { background: var(--surface); }
+.ck-dl:disabled { opacity: .6; cursor: progress; }
 
 /* The record table: one column per field, so it is wide by nature. */
 .ck-rec th { vertical-align: top; }

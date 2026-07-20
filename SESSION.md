@@ -533,6 +533,41 @@ from disk. The explorer's `file://` pass is the one worth having: it makes live
 CKAN calls from origin `null` and they answer, which is the whole premise of
 shipping offline copies at all.
 
+### The advertised download does not download
+
+Reported: the CSV shown for a dataset cannot be downloaded. Probed the exact
+resource from the report (שמות פרטיים בישראל, 1.4 MB CSV) and the complaint was
+exactly right - the resource URL returns `200 text/html` with 42 KB of
+obfuscated WAF challenge script instead of the file. `datastore/dump` behaves
+identically. The failure mode is the nastiest kind: HTTP 200, so anything
+automated saves a challenge page under a `.csv` name.
+
+The earlier note hedged that "a real browser probably passes it". That was too
+generous - it does not reliably, which is what the report demonstrates.
+
+`datastore_search` is not challenged, being the same call that renders the
+table, so for DataStore resources the CSV is now assembled in the browser and
+handed over as a blob. Measured before committing to the approach: `limit=100000`
+returns 100,000 records in 0.71s, so a full export is a handful of requests.
+
+Details that matter:
+
+- **`download` works here** because a `blob:` URL is same-origin - the exact
+  opposite of the earlier finding that the attribute is ignored cross-origin.
+  Same attribute, opposite outcome, for a reason worth remembering.
+- **UTF-8 BOM**, or Excel renders Hebrew as mojibake.
+- **`_id` dropped**, so the file matches the source rather than CKAN's internals.
+- **The records view exports the query, not the page** - filters and sort are
+  carried through, so what downloads is what the filter matched.
+- **The origin link stays**, relabelled `⭳ מקור` and described honestly. For the
+  ~45% of resources not in the DataStore it is still the only route.
+
+Verified end to end in Chromium: 116,673 rows, 1.44 MB, header `שם פרטי`, no
+`<html` anywhere in it, against an original file of 1,505,120 bytes. smoke.mjs
+asserts the control exists and that the raw link no longer poses as a working
+download; the multi-megabyte download itself stays a manual check rather than
+something every verify run pulls from a government server.
+
 ### Set aside, not deleted
 
 ~~The original CKAN portal lives in the session scratchpad.~~ **Gone.** The
