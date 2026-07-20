@@ -45,8 +45,36 @@ const PREVIEWS = {
   datagov: {
     label: 'חיפוש מאגרים (package_search)',
     placeholder: 'חפש בכל 1,197 המאגרים — נושא, גוף מפרסם…',
-    url: (q) => 'https://data.gov.il/api/3/action/package_search?rows=15'
-      + (q ? `&q=${encodeURIComponent(q)}` : ''),
+    // 50 rows rather than 15: the table scrolls in its own box, so a longer page
+    // costs no page height. Measured 445 KB / 0.35s against 169 KB / 0.18s.
+    pageSize: 50,
+    scroll: true,
+    // Column sort, done by Solr over all 1,197 - not over the rows on screen.
+    // Only these two columns get a control. 'formats' is multivalued and 'res'
+    // is not an indexed field at all, so neither can be sorted server-side, and
+    // sorting them client-side would reorder 50 rows while looking exactly like
+    // it had reordered the collection. Same reason the POST endpoint gets no
+    // open-in-tab badge: a control that does something other than what it says.
+    sortable: { title: 'title_string', org: 'organization' },
+    // Column filters, as fq clauses. The options come out of search_facets on
+    // the very same response, so the dropdowns cost no extra request.
+    facets: [
+      { key: 'org', field: 'organization', all: 'כל הגופים' },
+      { key: 'formats', field: 'res_format', all: 'כל הפורמטים' },
+    ],
+    facetsOf: (j) => j.result.search_facets || {},
+    url: (q, o = {}) => {
+      const p = new URLSearchParams({ rows: '50' });
+      if (q) p.set('q', q);
+      const fq = [];
+      if (o.org) fq.push(`organization:${o.org}`);
+      if (o.formats) fq.push(`res_format:${o.formats}`);
+      if (fq.length) p.set('fq', fq.join(' '));
+      if (o.sort) p.set('sort', `${o.sort} ${o.dir}`);
+      p.set('facet.field', '["organization","res_format"]');
+      p.set('facet.limit', '100');
+      return `https://data.gov.il/api/3/action/package_search?${p}`;
+    },
     total: (j) => j.result.count,
     unit: 'מאגרים',
     columns: [['title', 'מאגר'], ['org', 'גוף מפרסם'], ['formats', 'פורמטים'], ['res', 'קבצים']],
@@ -186,16 +214,37 @@ function files(list) {
       </p>` : ''}`;
 }
 
-function table(spec, rows) {
+/**
+ * A column header, interactive only where the server can actually sort by it.
+ *
+ * A plain <th> for the rest is deliberate. The alternative - sorting the fetched
+ * page client-side - produces a header that behaves identically to its
+ * neighbours while answering a different question ("first of these 50" rather
+ * than "first of 1,197").
+ */
+function headCell(spec, key, label, state) {
+  const field = spec.sortable?.[key];
+  if (!field) return `<th>${esc(label)}</th>`;
+
+  const active = state.sort === field;
+  const next = active && state.dir === 'asc' ? 'desc' : 'asc';
+  const mark = active ? (state.dir === 'asc' ? '▲' : '▼') : '↕';
+  return `
+    <th class="sortable${active ? ' sorted' : ''}" data-sort="${esc(field)}" data-dir="${next}"
+        tabindex="0" role="button" aria-sort="${active ? (state.dir === 'asc' ? 'ascending' : 'descending') : 'none'}"
+        title="מיון בשרת, על כל התוצאות ולא על העמוד המוצג">${esc(label)}<span class="s-mark">${mark}</span></th>`;
+}
+
+function table(spec, rows, state) {
   if (!rows.length) return '<div class="notice info" dir="auto">הבקשה הצליחה אך לא הוחזרו רשומות.</div>';
   const expandable = rows.some((r) => r._files?.length);
 
   return `
-    <div class="matrix-wrap">
+    <div class="matrix-wrap${spec.scroll ? ' scroll' : ''}">
       <table class="matrix preview${expandable ? ' expandable' : ''}">
         <thead><tr>
           ${expandable ? '<th class="c-x"></th>' : ''}
-          ${spec.columns.map(([, label]) => `<th>${esc(label)}</th>`).join('')}
+          ${spec.columns.map(([key, label]) => headCell(spec, key, label, state)).join('')}
         </tr></thead>
         <tbody>
           ${rows.map((r, i) => {
@@ -214,6 +263,32 @@ function table(spec, rows) {
         </tbody>
       </table>
     </div>`;
+}
+
+/** The Hebrew column label behind an active sort field, for the status line. */
+function sortLabel(spec, state) {
+  const key = Object.keys(spec.sortable || {}).find((k) => spec.sortable[k] === state.sort);
+  const col = spec.columns.find(([k]) => k === key);
+  return `${col ? col[1] : state.sort} ${state.dir === 'asc' ? '↑' : '↓'}`;
+}
+
+/**
+ * Wires the sortable headers. Each click re-requests with a new `sort=` rather
+ * than reordering what is on screen - the whole point is that it sorts the
+ * collection, not the page.
+ */
+function bindSort(scope, state, reload) {
+  scope.querySelectorAll('th.sortable').forEach((th) => {
+    const apply = () => {
+      state.sort = th.dataset.sort;
+      state.dir = th.dataset.dir;
+      reload();
+    };
+    th.addEventListener('click', apply);
+    th.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); apply(); }
+    });
+  });
 }
 
 /** Wires row expansion. Called after every render, since the table is replaced. */
@@ -271,17 +346,56 @@ export async function openPortal(node, portal) {
                placeholder="${esc(spec.placeholder)}" aria-label="סינון">
         <span class="drill-scope">${spec.local ? 'סינון מקומי' : 'סינון בשרת'}</span>
       </div>
+      ${spec.facets ? '<div class="drill-cols"></div>' : ''}
       <div class="drill-out"></div>
     </div>`;
 
   const out = node.querySelector('.drill-out');
   const input = node.querySelector('.drill-q');
+  const cols = node.querySelector('.drill-cols');
   let cached = null;   // local-filter portals fetch once and re-filter in place
+
+  // Column sort + column filters. Sort starts unset so the first view keeps
+  // CKAN's own relevance order rather than imposing one.
+  const state = { sort: null, dir: 'asc' };
+  spec.facets?.forEach((f) => { state[f.key] = ''; });
+
+  /**
+   * Dropdown options are populated once, from the first unfiltered response.
+   *
+   * They are deliberately not refreshed afterwards: CKAN narrows search_facets
+   * to match the active fq, so re-reading them after a pick would leave the
+   * chosen organisation as the only option and strand the user there.
+   */
+  let facetOpts = null;
+
+  function renderCols() {
+    if (!cols || !facetOpts) return;
+    cols.innerHTML = spec.facets.map((f) => {
+      const items = facetOpts[f.field]?.items || [];
+      const opts = items
+        .slice()
+        .sort((a, b) => b.count - a.count)
+        .map((it) => `<option value="${esc(it.name)}"${state[f.key] === it.name ? ' selected' : ''}>`
+          + `${esc(it.display_name || it.name)} (${num(it.count)})</option>`)
+        .join('');
+      return `<select class="col-f" data-key="${esc(f.key)}" aria-label="${esc(f.all)}" dir="auto">
+          <option value="">${esc(f.all)}</option>${opts}
+        </select>`;
+    }).join('');   // No scope badge here: the one above already covers the panel.
+
+    cols.querySelectorAll('.col-f').forEach((sel) => {
+      sel.addEventListener('change', () => {
+        state[sel.dataset.key] = sel.value;
+        load(input.value.trim());
+      });
+    });
+  }
 
   async function load(query) {
     out.innerHTML = `<div class="skeleton" dir="auto">שולח בקשה…${
       spec.slow && query ? ` <span class="slow-note">${esc(spec.slowNote)}</span>` : ''}</div>`;
-    const url = spec.url(spec.local ? '' : query);
+    const url = spec.url(spec.local ? '' : query, state);
     const t0 = performance.now();
 
     try {
@@ -308,6 +422,11 @@ export async function openPortal(node, portal) {
       let rows = spec.rows(json);
       const total = spec.total?.(json);
 
+      if (spec.facetsOf && !facetOpts) {
+        facetOpts = spec.facetsOf(json);
+        renderCols();
+      }
+
       if (spec.local && query) {
         const q = query.toLowerCase();
         rows = rows.filter((r) => Object.values(r).join(' ').toLowerCase().includes(q));
@@ -318,14 +437,16 @@ export async function openPortal(node, portal) {
           <span class="badge ok">HTTP ${status}</span>
           ${ms ? `<span class="tag">${ms} ms</span>` : '<span class="tag">מהמטמון</span>'}
           <span class="tag" dir="auto">${rows.length} מוצגות${
-            total != null && !query ? ` מתוך ${num(total)}` : ''} ${esc(spec.unit)}</span>
+            total != null ? ` מתוך ${num(total)}` : ''} ${esc(spec.unit)}</span>
           ${query ? `<span class="tag" dir="auto">סינון: ${esc(query)}</span>` : ''}
+          ${state.sort ? `<span class="tag" dir="auto">ממוין: ${esc(sortLabel(spec, state))}</span>` : ''}
         </div>
         ${rows.length
-          ? table(spec, rows)
-          : `<div class="notice info" dir="auto">אין תוצאות עבור <strong>${esc(query)}</strong>.</div>`}
+          ? table(spec, rows, state)
+          : `<div class="notice info" dir="auto">אין תוצאות${query ? ` עבור <strong>${esc(query)}</strong>` : ' עבור הסינון שנבחר'}.</div>`}
         <p class="drill-url" dir="ltr"><code>${esc(url)}</code></p>`;
       bindRows(out);
+      bindSort(out, state, () => load(input.value.trim()));
     } catch (err) {
       // A cross-origin block reaches JS as an opaque TypeError with no status.
       // Say which of the two it might be rather than inventing a cause.

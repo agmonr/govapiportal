@@ -109,6 +109,32 @@ cache without re-hitting the server. The badge next to the box
 (`סינון בשרת` / `סינון מקומי`) says which, because the difference decides whether
 an empty result means "nothing matches" or "nothing matches on this page".
 
+**data.gov.il additionally sorts and filters by column**, and all of it happens
+in Solr rather than in the browser:
+
+| Column | Sort | Filter |
+|---|---|---|
+| מאגר | `sort=title_string` | the search box (`q=`) |
+| גוף מפרסם | `sort=organization` | dropdown → `fq=organization:<slug>` |
+| פורמטים | — | dropdown → `fq=res_format:<FMT>` |
+| קבצים | — | — |
+
+The two dashes are the point. `res_format` is multivalued and the resource count
+is not an indexed field, so neither can be ordered server-side — and a
+client-side sort would reorder the 50 rows on screen while looking identical to
+the two controls that reorder all 1,197. Those headers stay inert instead, the
+same call as not offering an open-in-tab badge for the POST endpoint.
+
+Dropdown options come from `search_facets` on the same response, so the controls
+cost no extra request, and they are populated once from the unfiltered load —
+CKAN narrows the facets to match an active `fq`, so refreshing them after a pick
+would leave the chosen organisation as the only option and strand you there.
+Sort, column filters and the search box all compose into one request.
+
+The page is 50 rows rather than 15 (445 KB / 0.35s against 169 KB / 0.18s,
+measured) and scrolls inside its own box with the header pinned, so a longer page
+costs no page height.
+
 The five portals with no browser-callable API get an explanation instead of a
 broken panel — that distinction is the point of the map, so the drill-in
 respects it. The exact request URL is shown under each table so the result can

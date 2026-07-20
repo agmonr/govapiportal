@@ -184,6 +184,19 @@ button.stat { cursor: pointer; }
   position: sticky;
   inset-block-start: 0;
 }
+/* A 50-row preview must not push the rest of the page down: it gets its own
+   viewport and scrolls inside it. The sticky thead above keeps the headers -
+   and therefore the sort controls - reachable while scrolled. */
+.matrix-wrap.scroll { max-block-size: 26rem; overflow-y: auto; }
+
+/* Only columns the server can sort by are interactive - see headCell(). */
+.matrix th.sortable { cursor: pointer; user-select: none; }
+.matrix th.sortable:hover { color: var(--fg); }
+.matrix th.sortable:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--accent); }
+.matrix th.sorted { color: var(--accent); }
+.s-mark { font-size: .7em; margin-inline-start: .3rem; opacity: .45; }
+.matrix th.sorted .s-mark { opacity: 1; }
+
 .matrix tr.grp th {
   font-size: .8rem;
   background: var(--surface);
@@ -320,6 +333,18 @@ button.stat { cursor: pointer; }
 
 /* Filter box inside a portal drill-in. */
 .drill-filter { display: flex; gap: .5rem; align-items: center; margin-block-end: .7rem; }
+/* Column filters. Each is one fq clause, so they compose with the search box. */
+.drill-cols { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin-block-end: .7rem; }
+.drill-cols select {
+  font: inherit;
+  font-size: .82rem;
+  padding: .3rem .5rem;
+  max-inline-size: 100%;
+  color: var(--fg);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
 .drill-filter input[type="search"] { flex: 1; font-size: .9rem; padding: .45rem .65rem; }
 /* Server-side vs local is not cosmetic: it says whether you are searching the
    whole collection or only the rows already fetched. */

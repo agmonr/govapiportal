@@ -118,13 +118,44 @@ async function runPass(label, url, { bundled = false } = {}) {
   const withPreview = await page.locator('.portal .p-open').count();
   ok(withPreview === 5, `5 portals advertise a live preview (found ${withPreview})`);
 
+  /* data.gov.il carries the column sort and column filters, and is the only
+     portal whose rows expand into files.
+
+     It is opened before the `download` assertion below on purpose: that check
+     used to run against an empty #drill and passed vacuously - there were no
+     links for it to look at, so it would have stayed green if the attribute
+     came back. Everything here is skipped rather than failed when data.gov.il
+     does not answer, per the note above. */
+  await page.locator('.portal[data-portal="datagov"]').click();
+  const answered = await page.locator('#drill .matrix.preview tbody tr').first()
+    .waitFor({ timeout: 30000 }).then(() => true, () => false);
+
+  if (!answered) {
+    console.log('\x1b[33m  SKIP\x1b[0m  data.gov.il did not answer - column controls not asserted');
+  } else {
+    ok(await page.locator('#drill .matrix-wrap.scroll').count() === 1,
+      'the long preview scrolls inside its own box, not the page');
+    ok(await page.locator('#drill .matrix-wrap.scroll')
+      .evaluate((e) => e.scrollHeight > e.clientHeight),
+      'the scroll box actually has something to scroll');
+    // Only title_string and organization are single-valued indexed Solr fields.
+    // A third control would mean a column being sorted client-side while looking
+    // exactly like the two that sort all 1,197.
+    ok(await page.locator('#drill th.sortable').count() === 2,
+      'exactly the 2 server-sortable columns are interactive');
+    ok(await page.locator('#drill .col-f').count() === 2,
+      'both column filters rendered from the response facets');
+    ok(await page.locator('#drill .col-f').first().locator('option').count() > 1,
+      'the column filter is populated, not an empty dropdown');
+    // Cross-origin `download` is ignored by browsers; if it reappears the links
+    // are silently not doing what the attribute claims.
+    ok(await page.locator('#drill .files a[download]').count() === 0,
+      'file links do not rely on the cross-origin-ignored download attribute');
+  }
+  await page.locator('#drill .drill-close').click();
+
   // Every portal offering a preview must offer a filter with it, and must say
   // whether that filter runs server-side or over already-fetched rows.
-  // Cross-origin `download` is ignored by browsers; if it reappears the links
-  // are silently not doing what the attribute claims.
-  ok(await page.locator('#drill .files a[download]').count() === 0,
-    'file links do not rely on the cross-origin-ignored download attribute');
-
   await page.locator('.portal[data-portal="cbs"]').click();
   await page.waitForSelector('#drill .drill-q', { timeout: 10000 });
   ok(await page.locator('#drill .drill-scope').count() === 1, 'filter states its scope (server vs local)');

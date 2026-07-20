@@ -389,6 +389,52 @@ portal badge is the one number nothing cross-checks.
 
 Re-probed clean (14 probed, 2 skipped, 0 drifted) and stamped.
 
+### data.gov.il: column sort, column filters, scrolling
+
+Asked for sort and filter by column on the CKAN preview, plus scrolling. The
+whole question was whether CKAN could do it *server-side* — a client-side sort
+over the fetched page is precisely the dishonesty the `drill-scope` badge exists
+to prevent. Probed before writing anything:
+
+| Capability | Result |
+|---|---|
+| `sort=title_string asc\|desc` | works |
+| `sort=organization asc\|desc` | works, verified it actually orders |
+| `fq=organization:<slug>` | works — 61 orgs |
+| `fq=res_format:CSV` | works — 626 of 1,197 |
+| `facet.field=[...]` | returns options **in the same response** |
+| sort by format / by file count | **not possible** — multivalued, and unindexed |
+
+So two of the four columns get sort controls and two do not. The two dashes are
+the design, not an omission: sorting those client-side would reorder 50 rows
+while being visually identical to the controls that reorder all 1,197 — the same
+mismatch as offering a GET tab for a POST endpoint, which this log already
+argued once.
+
+Facet options come from `search_facets` on the response already being made, so
+the dropdowns cost zero extra requests. They are captured **once**, from the
+unfiltered load: CKAN narrows facets to match the active `fq`, so refreshing them
+after a pick would leave the chosen org as the only option and trap the user
+there. Found by reasoning about the contract, then confirmed in the browser.
+
+Page size 15 → 50 (measured 169 KB/0.18s → 445 KB/0.35s) with the table in a
+`max-block-size` scroll box. The existing sticky `thead` meant the sort controls
+stay reachable while scrolled, for free.
+
+**A vacuous assertion, found while adding coverage.** `smoke.mjs` checked that no
+file link carries a cross-origin `download` attribute — but it never opened
+data.gov.il, the only portal with file links, so it ran against an empty `#drill`
+and passed against nothing. It would have stayed green if the attribute came
+back. The datagov drill-in is now opened first, which gives that check something
+to look at and covers the new controls at the same time. All of it soft-skips if
+data.gov.il does not answer, so the suite still never fails over someone else's
+downtime.
+
+Verified in Chromium beyond the committed suite: sort round-trips to the server
+and flips direction, the active column is marked, the dropdown fills with 62
+options, and **sort survives a filter change** — they compose into one request
+rather than resetting each other.
+
 ### Set aside, not deleted
 
 ~~The original CKAN portal lives in the session scratchpad.~~ **Gone.** The
