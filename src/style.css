@@ -498,3 +498,140 @@ button.stat { cursor: pointer; }
 .f-go { color: var(--accent); }
 .files-note { font-size: .76rem; color: var(--muted); margin-block: .45rem 0; }
 .slow-note { display: block; font-size: .78rem; color: var(--muted); margin-block-start: .25rem; }
+
+/* ---------- mobile: maison ----------
+   Below 640px the palette variables flip to black/ivory/gold - since almost
+   every rule above already reads color from var(), that swap alone restyles
+   badges, borders and buttons. What's added here is the couture-specific
+   part: a serif for headlines, tracked uppercase for UI chrome, and a gold
+   sheen (an animated gradient on text, a sweep on button hover/tap - :active
+   stands in for hover on touch) so the surface reads premium, not just dark. */
+@media (max-width: 640px) {
+  :root {
+    --bg: #0d0b08;
+    --fg: #f3ecdc;
+    --muted: #b7a67f;
+    --border: #3c3320;
+    --accent: #ddb44f;
+    --surface: #18140d;
+    --danger: #d2685a;
+    --radius: 3px;
+    --font-display: Georgia, "David", "Times New Roman", serif;
+  }
+
+  body { letter-spacing: .01em; }
+
+  /* Section titles and card/portal names carry the "fashion editorial"
+     voice: serif, tracked, quiet weight. Everything that is UI chrome
+     (buttons, tags, labels) stays sans but gains the same tracking instead -
+     that split is what a fashion-house site actually looks like. */
+  header.site h1,
+  .section,
+  .card h3, .card h3 a,
+  .p-name, .ck-title,
+  .drill-head h2,
+  .ck-detail h3 {
+    font-family: var(--font-display);
+    font-weight: 400;
+    letter-spacing: .03em;
+  }
+
+  header.site {
+    background: radial-gradient(120% 140% at 20% 0%, color-mix(in srgb, var(--accent) 10%, var(--surface)), var(--bg) 65%);
+    border-block-end: 1px solid var(--border);
+    box-shadow: 0 1px 0 color-mix(in srgb, var(--accent) 25%, transparent);
+  }
+  header.site h1 {
+    font-size: 1.3rem;
+    text-transform: uppercase;
+    letter-spacing: .16em;
+    background: linear-gradient(100deg, var(--accent) 0%, #fff6dc 22%, var(--accent) 45%, var(--muted) 65%, var(--accent) 85%);
+    background-size: 250% auto;
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+    -webkit-text-fill-color: transparent;
+    animation: fh-shine 7s ease-in-out infinite;
+  }
+  header.site a { text-transform: uppercase; font-size: .72rem; letter-spacing: .08em; }
+
+  .section {
+    display: flex; align-items: center; gap: .7rem;
+    text-transform: uppercase; font-size: .8rem; letter-spacing: .18em; font-weight: 400;
+    color: var(--muted);
+  }
+  .section::after { content: ''; flex: 1; block-size: 1px; background: var(--border); }
+
+  @keyframes fh-shine {
+    0%, 100% { background-position: 220% 0; }
+    50%      { background-position: -60% 0; }
+  }
+
+  /* Hairline borders + a soft gold lift on the surfaces that matter -
+     cards, portals, stat tiles, the explorer panel. Status colour on the
+     leading edge (.card.api, .stat, tr.row) is left alone: it's the one
+     thing on the page carrying meaning, not decoration. */
+  .card, .portal, .stat, .ckan, .explorer, .drill, .matrix-wrap, .ck-card {
+    background: linear-gradient(180deg, var(--surface), var(--bg));
+    border-color: var(--border);
+  }
+  .portal:hover, .ck-card:hover {
+    border-color: var(--accent);
+    box-shadow: 0 6px 20px -12px color-mix(in srgb, var(--accent) 70%, transparent);
+  }
+  .portal.active, .stat.active {
+    box-shadow: inset 0 0 0 1px var(--accent), 0 0 16px -6px color-mix(in srgb, var(--accent) 60%, transparent);
+  }
+
+  .tag, .badge, .drill-scope, .ck-n, .f-tag {
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    font-size: .7rem;
+  }
+  .badge.ok { box-shadow: 0 0 10px -4px color-mix(in srgb, #5fce8f 70%, transparent); }
+
+  /* Buttons: tracked uppercase, thin gold hairline, a sheen that sweeps on
+     hover for a mouse and on :active for a thumb - a touch has no hover. */
+  button, .ex-method, .ck-crumb {
+    position: relative;
+    overflow: hidden;
+    text-transform: uppercase;
+    letter-spacing: .07em;
+    font-size: .78rem;
+  }
+  button::after, .ex-method::after {
+    content: '';
+    position: absolute; inset: 0;
+    background: linear-gradient(115deg, transparent 30%, color-mix(in srgb, var(--accent) 55%, transparent) 50%, transparent 70%);
+    background-size: 250% 100%;
+    background-position: 150% 0;
+    transition: background-position .7s ease;
+    pointer-events: none;
+  }
+  button:hover:not(:disabled)::after, button:active:not(:disabled)::after,
+  .ex-method:hover::after, .ex-method:active::after { background-position: -50% 0; }
+
+  button:hover:not(:disabled), button:focus-visible {
+    border-color: var(--accent);
+    box-shadow: 0 4px 16px -10px color-mix(in srgb, var(--accent) 70%, transparent);
+  }
+
+  .ck-open, .ck-dl, .pager .pg.cur {
+    border-color: var(--accent);
+    box-shadow: 0 4px 14px -8px color-mix(in srgb, var(--accent) 65%, transparent);
+  }
+
+  input[type="search"], input[type="text"], select {
+    background: color-mix(in srgb, var(--surface) 70%, var(--bg));
+  }
+  input[type="search"]:focus, input[type="text"]:focus, select:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px var(--accent);
+  }
+
+  .lead { font-family: var(--font-display); font-size: 1rem; line-height: 1.7; }
+
+  .wrap { padding-block: 1.75rem 4.5rem; }
+  .section { margin-block: 2.5rem 1rem; }
+}
