@@ -333,6 +333,24 @@ card and its result would read as unrelated.
 Safe to reorder because every bundler anchor and smoke selector is ID-based,
 not positional — confirmed before touching it, not after.
 
+### README reconciled with apis.json
+
+The README still described the pre-expansion map: 9 portals / 13 APIs /
+5 browser-callable, and "11 identified endpoints" for the prober. `apis.json` had
+been at 10 / 15 / 7 since GovMap WFS and iplan Xplan landed in `a022d6a`;
+SESSION.md recorded the change and the README never got it.
+
+Corrected against a live re-probe rather than by copying numbers across — 13
+probed, 0 drifted, so the counts describe confirmed behaviour. Two things needed
+more than arithmetic:
+
+- **GovMap now spans two verdict rows** (WFS cadastre `ok`, layers catalog
+  `limited`). The "Notable specifics" bullet said only that GovMap returns
+  `access denied`, which directly contradicted the table above it. Both entries
+  are named now, with a note that the entry is the API, not the organisation.
+- The EPSG:3857 trap, the unindexed-filter timings and the Xplan Origin echo were
+  all in this log but never in the README, where a caller would look.
+
 ### Set aside, not deleted
 
 ~~The original CKAN portal lives in the session scratchpad.~~ **Gone.** The

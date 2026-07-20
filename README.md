@@ -43,7 +43,7 @@ than shipping to whoever downloads it.
 
 | Path | Purpose |
 |---|---|
-| `apis.json` | The map — `portals` (9) and `apis` (13). Edit this to add sources. |
+| `apis.json` | The map — `portals` (10) and `apis` (15). Edit this to add sources. |
 | `index.html` / `src/map.js` | Top view + portal grid + API list, filterable |
 | `src/portal.js` | Portal drill-in: live request per portal, rendered as a table |
 | `src/explorer.js` | Live in-browser request panel |
@@ -54,7 +54,7 @@ than shipping to whoever downloads it.
 
 ## Top view
 
-`מבט־על` sits above everything: a count of all 13 APIs, then one tile per
+`מבט־על` sits above everything: a count of all 15 APIs, then one tile per
 verdict. The portal grid follows directly, so the portals are reachable without
 scrolling past the full matrix — that table now sits below them under
 `כל הממשקים`, holding every API grouped by portal
@@ -157,15 +157,20 @@ error. Try Knesset OData to see it.
 
 **CORS is the deciding field.** Several of these APIs are live and unauthenticated
 but send no `Access-Control-Allow-Origin` header, so a static page cannot call
-them at all. Of 13 entries, **5 are browser-callable**:
+them at all. Of 15 entries, **7 are browser-callable**:
 
 | Verdict | n | Meaning | Examples |
 |---|---|---|---|
-| דפדפן ✓ (browser) | 5 | 200 + CORS. Usable from a static page. | data.gov.il CKAN, CBS indices, Open Bus Stride |
+| דפדפן ✓ (browser) | 7 | 200 + CORS. Usable from a static page. | data.gov.il CKAN ×2, CBS ×2, Open Bus Stride, GovMap WFS cadastre, iplan Xplan |
 | שרת בלבד (server only) | 3 | 200 but no CORS. Needs a proxy or build-time fetch. | Knesset OData ×2, Bank of Israel SDMX |
-| מוגבל (limited) | 2 | Reachable, but the contract is unresolved. | GovMap (undocumented auth), Nadlan (SPA shell) |
+| מוגבל (limited) | 2 | Reachable, but the contract is unresolved. | GovMap layers catalog (undocumented auth), Nadlan (SPA shell) |
 | חסום (blocked) | 1 | Actively refused. | `datastore_search_sql` — 403 from the WAF |
 | לא אותר (not identified) | 2 | Probes 404'd. Endpoint unknown, not proven absent. | gov.il content API, Israel Post |
+
+GovMap appears in two rows because it is two different APIs: the open WFS
+cadastre answers cleanly, while the layers catalog needs an auth flow nobody
+documented. The portal is neither usable nor unusable — the entry is the API,
+not the organisation.
 
 `מוגבל` is deliberately separate from `שרת בלבד`. Both fail from a static page,
 but for different reasons, and a reader deciding whether to build a proxy needs
@@ -183,8 +188,17 @@ build-time snapshot.
   `limit`/`offset`.
 - **Open Bus Stride** is NGO-run (Hasadna), not government, and is the
   best-documented API here — full OpenAPI spec at `/openapi.json`.
-- **GovMap** returns CORS `*` but `{"error":"access denied"}` without
-  credentials; the auth flow is undocumented and unverified.
+- **GovMap's layers catalog** returns CORS `*` but `{"error":"access denied"}`
+  without credentials; the auth flow is undocumented and unverified. Its **WFS
+  cadastre** needs no auth at all and answers fine — see the two-row note above.
+- **GovMap `PARCEL_ALL` is EPSG:3857.** lon/lat degrees in a CQL filter return
+  zero features with no error — a silent wrong answer, not a failure. Its
+  attribute filters are also unindexed: unfiltered 0.7s, `LOCALITY_N LIKE`
+  11.6s, `GUSH_NUM AND PARCEL` 39.7s, hence the per-API `timeout` in `apis.json`.
+- **iplan Xplan echoes the requesting Origin** rather than sending `*`, which is
+  what the `cors: "origin"` sentinel records; `probe.py` normalises it, or the
+  prober would report drift every week. Its service root is `/arcgisiplan/`,
+  not `/arcgis/` — the latter 302s to an error page.
 - **Nadlan** returns the SPA HTML shell for a plain POST — the real contract
   needs headers I could not determine.
 
@@ -193,7 +207,7 @@ build-time snapshot.
 Every field here is a claim about live server behaviour on a particular day, and
 those claims rot — a WAF rule lifts, a CORS header appears, an endpoint moves.
 
-`.github/workflows/probe.yml` re-probes all 11 identified endpoints every Monday
+`.github/workflows/probe.yml` re-probes all 13 identified endpoints every Monday
 and **opens an issue when reality and `apis.json` disagree**. Run it yourself:
 
 ```bash
