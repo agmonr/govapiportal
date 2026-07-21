@@ -121,6 +121,21 @@
       ]
     },
     {
+      "id": "moag",
+      "name": "Ministry of Agriculture — Open Data (ArcGIS Hub)",
+      "name_he": "משרד החקלאות — נתונים פתוחים",
+      "home": "https://data1-moag.opendata.arcgis.com",
+      "docs": "https://data1-moag.opendata.arcgis.com/api/feed/dcat-us/1.1.json",
+      "kind": "ממשלתי",
+      "about": "פורטל ArcGIS Hub של משרד החקלאות - 93 מאגרים גאוגרפיים, ברובם שכבות תכנון וסביבה חקלאית: פשטי הצפה, אזורי חיץ מפני שריפות, סחיפת קרקע, תקני קרקע בישובים מתוכננים ועוד. כל מאגר חשוף כשירות ArcGIS FeatureServer נפרד, ניתן לשאילתה ישירות מהדפדפן.",
+      "api_count": 2,
+      "browser_count": 2,
+      "domains": [
+        "agriculture",
+        "geo"
+      ]
+    },
+    {
       "id": "nadlan",
       "name": "Nadlan",
       "name_he": "רשות המסים — נדל\"ן",
@@ -435,6 +450,38 @@
       "notes": "גבולות תכניות בנייה. מחזיר מספר תכנית, שם, שטח בדונם, ייעודי קרקע, ועדה, תאריכי הפקדה/פרסום, ו-pl_url למסמכים במבא\"ת. תומך שאילתת נקודה (esriGeometryPoint) ושאילתות attribute. מחזיר את ה-Origin המבקש בכותרת CORS ולא '*'.",
       "example": "https://ags.iplan.gov.il/arcgisiplan/rest/services/PlanningPublic/Xplan/MapServer/1/query?where=jurstiction_area_name%3D%27%D7%A8%D7%A2%D7%A0%D7%A0%D7%94%27&outFields=pl_number%2Cpl_name&returnGeometry=false&resultRecordCount=3&f=json",
       "portal": "iplan"
+    },
+    {
+      "source": "משרד החקלאות",
+      "source_he": "משרד החקלאות",
+      "name": "DCAT — קטלוג מאגרים",
+      "endpoint": "https://data1-moag.opendata.arcgis.com/api/feed/dcat-us/1.1.json",
+      "method": "GET",
+      "auth": "none",
+      "cors": "*",
+      "browser": true,
+      "format": "JSON (DCAT-US 1.1)",
+      "status": 200,
+      "domain": "agriculture",
+      "notes": "קטלוג מלא של 93 המאגרים בפורטל, בתקן DCAT-US 1.1 - שם, תיאור, ותחת distribution[] קישור לעמוד המאגר. הקישור המסומן 'ArcGIS GeoServices REST API' הוא לרוב עמוד Experience/אפליקציה, לא כתובת FeatureServer ישירה - כדי להגיע לשירות עצמו יש למצוא את מזהה הפריט (item id, מופיע בעמוד המאגר) ולפנות ל-sharing REST API (ראו הרשומה הבאה).",
+      "example": "https://data1-moag.opendata.arcgis.com/api/feed/dcat-us/1.1.json",
+      "portal": "moag"
+    },
+    {
+      "source": "משרד החקלאות",
+      "source_he": "משרד החקלאות",
+      "name": "ArcGIS FeatureServer — שאילתת שכבה (נבדק על: פשטי הצפה תמ\"א 1/7)",
+      "endpoint": "https://services3.arcgis.com/Fqk0gVrfcnumlR5m/arcgis/rest/services/Flood_Plains/FeatureServer/0/query",
+      "method": "GET",
+      "auth": "none",
+      "cors": "*",
+      "browser": true,
+      "format": "JSON (Esri GeoServices)",
+      "status": 200,
+      "domain": "agriculture",
+      "notes": "כל אחד מ-93 המאגרים חשוף כשירות ArcGIS FeatureServer נפרד משלו (כתובות services*.arcgis.com/Fqk0gVrfcnumlR5m/... שונות לכל מאגר). זה שנבדק מחזיר אתרי ויסות נגר/תכניות עם שדות כמו PLAN_NAME, MAVAT_NAME, LEGAL_AREA. exceededTransferLimit=true על שאילתה פתוחה (1=1) - יש לדפדף עם resultOffset כמו בכל שירות Esri. כתובת השירות של מאגר ספציפי לא מופיעה ישירות בקטלוג ה-DCAT - יש למצוא את מזהה הפריט (item id, מופיע בעמוד המאגר בפורטל) ולשלוף אותה דרך https://www.arcgis.com/sharing/rest/content/items/<id>?f=json (שדה url).",
+      "example": "https://services3.arcgis.com/Fqk0gVrfcnumlR5m/arcgis/rest/services/Flood_Plains/FeatureServer/0/query?where=1%3D1&outFields=*&resultRecordCount=2&f=json",
+      "portal": "moag"
     },
     {
       "source": "CBS — תאונות דרכים",
