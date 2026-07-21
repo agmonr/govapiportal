@@ -14,6 +14,16 @@
       "computed_at": "2026-07-21T02:24+03:00"
     },
     {
+      "id": "committees",
+      "name": "Planning Committee Meetings (Complot)",
+      "name_he": "ישיבות ועדות תכנון ובנייה",
+      "kind": "אפליקציה",
+      "about": "רשימת ישיבות וקישורים לפרוטוקולים של כ-68 ועדות תכנון מקומיות ומרחביות, נשלפת חי מהדפדפן ממנוע Complot (handasi.complot.co.il) - לא ממנהל התכנון עצמו. אין כאן ניתוח תוכן פרוטוקולים (יח\"ד, מ\"ר, החלטות, ייעודי קרקע) - זה דורש פענוח PDF שלא בוצע. ועדות מחוזיות/ארציות אינן זמינות במקור נתונים זה - הפרוטוקולים שלהן יושבים במערכת מבא\"ת של מינהל התכנון, חסומה מאחורי reCAPTCHA.",
+      "href": "./committees.html",
+      "external": false,
+      "home": "https://hodhasharon.complot.co.il/newengine/Pages/meetings2.aspx"
+    },
+    {
       "id": "trees",
       "name": "Tree Objections Tracker",
       "name_he": "עצים והשגות",

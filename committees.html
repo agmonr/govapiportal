@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ישיבות ועדות תכנון ובנייה — מקומיות ומרחביות</title>
+  <!-- Sets data-theme before the stylesheet is applied, so a returning
+       visitor who picked "fashion" never sees a flash of the clouds theme
+       first. See src/theme.js for the picker itself. -->
+  <script>
+    try {
+      var t = localStorage.getItem('theme');
+      if (t && t !== 'clouds') document.documentElement.setAttribute('data-theme', t);
+    } catch (e) {}
+  </script>
+  <link rel="stylesheet" href="./src/style.css">
+</head>
+<body class="accidents-page">
+  <header class="site">
+    <div class="wrap">
+      <h1>ישיבות ועדות תכנון ובנייה</h1>
+      <span class="site-by">פרויקט של רם אגמון<span class="site-disclaimer">המידע באתר עלול להיות שגוי</span></span>
+      <div class="theme-pick" id="themePick" role="group" aria-label="ערכת נושא">
+        <button type="button" data-theme="clouds">עננים</button>
+        <button type="button" data-theme="fashion">אופנה</button>
+      </div>
+      <span class="meta" id="created"></span>
+      <span class="meta"><a href="./index.html">← חזרה למפת ה-API</a></span>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <div id="fileproto" class="notice error" dir="auto" hidden>
+      <strong>הדף נפתח כקובץ מקומי (<code dir="ltr">file://</code>) ולכן אינו יכול לטעון את הנתונים.</strong>
+      <p>
+        הדפדפן חוסם מודולי ES ממקור <code dir="ltr">null</code> — זו הגבלת אבטחה של הדפדפן, לא תקלה באתר.
+        הפעל שרת מקומי מתיקיית הפרויקט:
+      </p>
+      <pre dir="ltr"><code>python3 -m http.server 8000</code></pre>
+      <p>ולאחר מכן פתח <a href="http://localhost:8000/committees.html" dir="ltr">http://localhost:8000/committees.html</a>.</p>
+      <p>
+        לחלופין, ללא שרת כלל — <a href="./dist/committees.html" dir="ltr">dist/committees.html</a>
+        הוא קובץ יחיד ועצמאי שעובד בפתיחה ישירה מהדיסק, כולל הרצת בקשות חיות.
+      </p>
+    </div>
+
+    <div id="app">
+      <div class="notice info" dir="auto">
+        <strong>מה יש כאן, ומה עדיין לא:</strong>
+        <p>
+          כל מספר בעמוד הזה נשלף <strong>חי</strong>, בזמן אמת, ישירות מהדפדפן מול
+          <code dir="ltr">handasi.complot.co.il</code> — מנוע ציבורי, ללא הרשאה, המפעיל את
+          אתרי "איתור ישיבות" של כ-68 ועדות מקומיות ומרחביות. ישיבות, סוגי דיון,
+          תאריכים וקישורים לפרוטוקולים עצמם — אמיתיים ועדכניים.
+        </p>
+        <p>
+          <strong>לא קיים כאן</strong> (ודורש פענוח טקסטואלי של קובצי הפרוטוקול עצמם, שלא בוצע):
+          מספר תכנית, סטטוס תכנית, ייעודי קרקע, יח"ד, מ"ר, אחוזי אישורים, זמן טיפול ממוצע,
+          פילוח החלטות, וענן מילים. ועדות מחוזיות/ארציות אינן זמינות דרך מקור הנתונים הזה —
+          הפרוטוקולים שלהן יושבים במערכת מבא"ת של מינהל התכנון, החסומה מאחורי reCAPTCHA.
+        </p>
+      </div>
+
+      <section class="acc-section" aria-labelledby="filtersH">
+        <h2 id="filtersH">סינון</h2>
+        <div class="cm-filters">
+          <div class="acc-year-pick">
+            <label for="cmSite">ועדה:</label>
+            <select id="cmSite"></select>
+          </div>
+          <div class="acc-year-pick">
+            <label for="cmType">סוג ישיבה:</label>
+            <select id="cmType"></select>
+          </div>
+          <div class="acc-year-pick">
+            <label for="cmFrom">מתאריך:</label>
+            <input id="cmFrom" type="date">
+          </div>
+          <div class="acc-year-pick">
+            <label for="cmTo">עד תאריך:</label>
+            <input id="cmTo" type="date">
+          </div>
+          <div class="acc-year-pick">
+            <label for="cmSearch">סינון חופשי:</label>
+            <input id="cmSearch" type="text" autocomplete="off" spellcheck="false"
+                   placeholder="לפי מספר ישיבה / סוג / תאריך…">
+          </div>
+        </div>
+        <p class="acc-hint">
+          הסינון החופשי בודק רק את מספר הישיבה, סוג הישיבה והתאריך — לא את תוכן הפרוטוקול.
+        </p>
+      </section>
+
+      <section class="acc-section" aria-labelledby="kpiH">
+        <h2 id="kpiH">מדדים</h2>
+        <div id="cmKpis" class="stat-row"></div>
+      </section>
+
+      <section class="acc-section" aria-labelledby="chartsH">
+        <h2 id="chartsH">ויזואליזציה</h2>
+        <div class="acc-charts">
+          <figure id="cmChartByYear" class="acc-chart" role="img"></figure>
+          <figure id="cmChartByType" class="acc-chart" role="img"></figure>
+        </div>
+      </section>
+
+      <section class="acc-section" aria-labelledby="tableH">
+        <h2 id="tableH">ריכוז ישיבות ופרוטוקולים</h2>
+        <button type="button" id="cmCsv" class="drill-dl">הורדת CSV של הרשימה המסוננת ⭳</button>
+        <div id="cmTableWrap"></div>
+      </section>
+    </div>
+  </main>
+
+  <!--
+    Same guard as index.html/accidents.html: opened from disk nothing below can
+    load, because ES module scripts are refused from origin 'null'. Must be a
+    classic inline script - a module would be the first thing blocked.
+  -->
+  <script>
+    if (location.protocol === 'file:') {
+      document.getElementById('fileproto').hidden = false;
+      document.getElementById('app').hidden = true;
+    }
+  </script>
+  <script type="module" src="./src/committees.js"></script>
+</body>
+</html>

@@ -1,0 +1,351 @@
+/**
+ * Entry point for committees.html - ישיבות ועדות תכנון ובנייה (מקומיות/מרחביות).
+ *
+ * Everything here is a LIVE browser fetch against handasi.complot.co.il, the
+ * same public, no-auth, CORS-open engine ~68 municipal/regional planning
+ * committees run their "meeting locator" pages on (verified by sweeping
+ * siteid 1-120 - see /home/ram/Documents/scrapers/FINDINGS.md). It returns
+ * HTML fragments, not JSON, so the two parse* functions below are a straight
+ * port of that scraper's regexes - re-verified against live responses before
+ * porting, not just translated blind.
+ *
+ * Deliberately NOT included, and NOT faked: plan number, decision outcome,
+ * יח"ד, מ"ר, land-use, or any text pulled from inside a protocol. All of that
+ * lives only inside the protocol PDFs themselves, which nothing here parses -
+ * doing that honestly needs OCR/NLP over each PDF, not a page like this one.
+ * See the notice at the top of committees.html for the full list of what the
+ * original request asked for that isn't here yet.
+ *
+ * District/national committees (הועדה המחוזית) are asked for by meeting-type
+ * code 3 the same as any other - the engine simply returns zero rows for it
+ * on every site checked, because district-level protocols live on a
+ * different system (mavat.iplan.gov.il) that gates its search behind
+ * reCAPTCHA v3. Not circumvented; also not silently hidden - the filter stays
+ * choosable and empty results say so.
+ */
+
+import { el, esc, num, debounce, buildCsv, saveCsv, showError, showLoading } from './ui.js';
+import { initThemePicker } from './theme.js';
+import { COMMITTEE_SITES, MEETING_TYPES } from './committee-sites.js';
+
+initThemePicker(el('themePick'));
+
+const created = new Date(document.lastModified);
+if (!Number.isNaN(created.getTime())) {
+  el('created').textContent = `נוצר: ${created.toLocaleDateString('he-IL')} ${created.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}`;
+  el('created').title = created.toISOString();
+}
+
+const ENGINE = 'https://handasi.complot.co.il/magicscripts/mgrqispi.dll';
+
+/* ---------- date helpers: native <input type=date> (YYYY-MM-DD) <-> the
+   engine's DD/MM/YYYY ---------- */
+const isoToApi = (iso) => { const [y, m, d] = iso.split('-'); return `${d}/${m}/${y}`; };
+const apiToIso = (api) => { const [d, m, y] = api.split('/'); return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`; };
+const todayIso = (offsetDays = 0) => {
+  const t = new Date(); t.setDate(t.getDate() + offsetDays);
+  return t.toISOString().slice(0, 10);
+};
+
+/* ---------- HTML-fragment parsing: ported 1:1 from
+   scrape_hodhasharon_meetings.py, re-verified against live responses. ---------- */
+
+function parseMeetingList(html) {
+  const rowRe = /<tr>\s*<td class="hidden-on-mobile">[\s\S]*?<\/tr>/g;
+  const numRe = /showMeetingDocs\((\d+),\s*(\d+)/;
+  const cellRe = /<td[^>]*>\s*(?:<a[^>]*>)?([^<]*)(?:<\/a>)?\s*<\/td>/g;
+  const meetings = [];
+  for (const row of html.match(rowRe) || []) {
+    const m = numRe.exec(row);
+    if (!m) continue; // no document archive button -> nothing to show
+    // The icon cell (leading <td class="hidden-on-mobile"><a><span/></a></td>)
+    // and the trailing archive-button cell both fail cellRe outright (their
+    // content isn't plain text or a single wrapped <a>text</a>), so matchAll
+    // skips both silently - cells[0] here really is the meeting number, not a
+    // placeholder for the icon.
+    const cells = [...row.matchAll(cellRe)].map((c) => c[1].trim());
+    meetings.push({
+      vaadaId: m[1],
+      meetingNumber: m[2],
+      committee: cells[1] || MEETING_TYPES[m[1]] || '—',
+      date: cells[2] || '',
+      day: cells[3] || '',
+    });
+  }
+  return meetings;
+}
+
+function parseMeetingDocs(html) {
+  const rows = html.match(/<tr>\s*<td>[\s\S]*?<\/tr>/g) || [];
+  const docs = [];
+  for (const row of rows) {
+    const href = /<a href="([^"]+)"/.exec(row);
+    if (!href) continue;
+    const titleM = /<a href="[^"]+"[^>]*>(?:<span[^>]*><\/span>)?\s*([^<]*)<\/a>/.exec(row);
+    const cells = [...row.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)].map((c) => c[1].replace(/<[^>]+>/g, '').trim());
+    docs.push({
+      url: href[1],
+      title: (titleM ? titleM[1] : '').trim(),
+      subject: cells[1] || '',
+      date: cells[2] || '',
+    });
+  }
+  return docs;
+}
+
+/* ---------- state ---------- */
+
+const state = {
+  meetings: [],   // last fetch, unfiltered
+  filtered: [],   // after the free-text quick filter
+  docsCache: new Map(), // `${vaadaId}_${meetingNumber}` -> docs[] | 'error'
+  docsLoaded: 0,  // running count, across this session, of doc-lists fetched
+};
+
+/* ---------- filter bar ---------- */
+
+const siteSelect = el('cmSite');
+siteSelect.innerHTML = [...COMMITTEE_SITES]
+  .sort((a, b) => (a.name_he || a.slug).localeCompare(b.name_he || b.slug, 'he'))
+  .map((s) => {
+    const label = s.name_he ? `${s.name_he} (${s.kind === 'regional' ? 'מרחבית' : 'מקומית'})` : `${s.slug} (שם לא מזוהה)`;
+    return `<option value="${s.siteid}">${esc(label)}</option>`;
+  }).join('');
+siteSelect.value = '33'; // הוד השרון - the one this data source was verified against end-to-end
+
+const typeSelect = el('cmType');
+typeSelect.innerHTML = Object.entries(MEETING_TYPES)
+  .map(([code, label]) => `<option value="${code}">${esc(label)}</option>`).join('');
+typeSelect.value = '0';
+
+el('cmFrom').value = todayIso(-365 * 3);
+el('cmTo').value = todayIso(60);
+
+/* ---------- fetch + render ---------- */
+
+async function loadMeetings() {
+  const siteid = siteSelect.value;
+  const v = typeSelect.value;
+  const fd = isoToApi(el('cmFrom').value);
+  const td = isoToApi(el('cmTo').value);
+
+  showLoading(el('cmTableWrap'), 'טוען ישיבות…');
+  el('cmKpis').innerHTML = '';
+  el('cmChartByYear').innerHTML = '';
+  el('cmChartByType').innerHTML = '';
+
+  const p = new URLSearchParams({
+    appname: 'cixpa', prgname: 'GetMeetingByDate', siteid, v, fd, td, l: 'false',
+    arguments: 'siteid,v,fd,td,l',
+  });
+  try {
+    const res = await fetch(`${ENGINE}?${p}`);
+    if (!res.ok) throw Object.assign(new Error(`HTTP ${res.status}`), { kind: 'network' });
+    const html = await res.text();
+    state.meetings = parseMeetingList(html);
+    applyQuickFilter();
+  } catch (err) {
+    showError(el('cmTableWrap'), err);
+    state.meetings = [];
+    applyQuickFilter();
+  }
+}
+
+function applyQuickFilter() {
+  const q = el('cmSearch').value.trim();
+  state.filtered = q
+    ? state.meetings.filter((m) => `${m.meetingNumber} ${m.committee} ${m.date}`.includes(q))
+    : state.meetings;
+  renderKpis();
+  renderCharts();
+  renderTable();
+}
+
+/* ---------- KPI tiles - same visual vocabulary as accidents.html's .stat-row ---------- */
+
+function renderKpis() {
+  const list = state.filtered;
+  const dates = list.map((m) => m.date).filter(Boolean).sort((a, b) => {
+    const [da, ma, ya] = a.split('/'); const [db, mb, yb] = b.split('/');
+    return `${ya}${ma}${da}`.localeCompare(`${yb}${mb}${db}`);
+  });
+  const types = new Set(list.map((m) => m.committee));
+  const span = dates.length ? `${dates[0]} — ${dates[dates.length - 1]}` : '—';
+
+  el('cmKpis').innerHTML = `
+    <div class="stat">
+      <span class="stat-n">${num(list.length)}</span>
+      <span class="stat-l">סה"כ ישיבות (בסינון הנוכחי)</span>
+    </div>
+    <div class="stat ok">
+      <span class="stat-n">${num(types.size)}</span>
+      <span class="stat-l">סוגי ישיבה שונים</span>
+    </div>
+    <div class="stat">
+      <span class="stat-n" style="font-size:1.05rem">${esc(span)}</span>
+      <span class="stat-l">טווח תאריכים בפועל</span>
+    </div>
+    <div class="stat warn">
+      <span class="stat-n">${num(state.docsLoaded)}</span>
+      <span class="stat-l">רשימות מסמכים שנטענו (הפעלה זו)</span>
+    </div>`;
+}
+
+/* ---------- charts - reuses accidents.html's .acc-chart/.acc-bars bar look ---------- */
+
+function renderBarChart(figId, caption, entries, colorClass) {
+  const fig = el(figId);
+  if (!entries.length) { fig.innerHTML = `<figcaption>${esc(caption)}</figcaption><p class="acc-hint">אין נתונים להצגה בטווח שנבחר.</p>`; return; }
+  const peak = Math.max(...entries.map((e) => e.value));
+  const bars = entries.map((e) => {
+    const h = Math.round((e.value / peak) * 150);
+    return `
+      <div class="acc-bar" title="${esc(e.label)}: ${num(e.value)}">
+        <div class="acc-bar-track">
+          <span class="acc-bar-v">${num(e.value)}</span>
+          <div class="acc-bar-fill" style="block-size:${h}px"></div>
+        </div>
+        <span class="acc-bar-y">${esc(e.label)}</span>
+      </div>`;
+  }).join('');
+  fig.className = `acc-chart${colorClass ? ` ${colorClass}` : ''}`;
+  fig.innerHTML = `<figcaption>${esc(caption)}</figcaption><div class="acc-bars">${bars}</div>`;
+}
+
+function renderCharts() {
+  const list = state.filtered;
+
+  const byYear = new Map();
+  for (const m of list) {
+    const y = m.date.split('/')[2];
+    if (y) byYear.set(y, (byYear.get(y) || 0) + 1);
+  }
+  const yearEntries = [...byYear.entries()].sort(([a], [b]) => a.localeCompare(b))
+    .map(([label, value]) => ({ label, value }));
+  renderBarChart('cmChartByYear', 'ישיבות לפי שנה', yearEntries, 'total');
+
+  const byType = new Map();
+  for (const m of list) byType.set(m.committee, (byType.get(m.committee) || 0) + 1);
+  let typeEntries = [...byType.entries()].sort(([, a], [, b]) => b - a)
+    .map(([label, value]) => ({ label, value }));
+  if (typeEntries.length > 7) {
+    const rest = typeEntries.slice(6).reduce((s, e) => s + e.value, 0);
+    typeEntries = [...typeEntries.slice(0, 6), { label: 'אחר', value: rest }];
+  }
+  renderBarChart('cmChartByType', 'התפלגות לפי סוג ישיבה', typeEntries);
+}
+
+/* ---------- detailed table, with a per-row live doc fetch on expand ---------- */
+
+// Same has-files/files-row/x-mark convention as portal.js's own expandable
+// table (see table()/bindRows() there) - visual consistency with the rest of
+// the site. It differs underneath: portal.js's _files are pre-fetched with
+// the row, these are fetched lazily on first expand, so 565 meetings never
+// means 565 requests up front - only the ones a visitor actually opens.
+function renderTable() {
+  const list = state.filtered;
+  if (!list.length) {
+    el('cmTableWrap').innerHTML = '<p class="acc-hint">לא נמצאו ישיבות עבור הסינון הנוכחי.</p>';
+    return;
+  }
+  const rows = list.map((m, i) => `
+    <tr class="has-files" data-row="${i}" tabindex="0" role="button">
+      <td class="c-x"><span class="x-mark">▾</span></td>
+      <td dir="auto" class="ident">${esc(m.meetingNumber)}</td>
+      <td dir="auto">${esc(m.committee)}</td>
+      <td dir="auto">${esc(m.date)}</td>
+      <td dir="auto">${esc(m.day)}</td>
+    </tr>
+    <tr class="files-row" data-files="${i}" hidden><td colspan="5"></td></tr>`).join('');
+  el('cmTableWrap').innerHTML = `
+    <div class="matrix-wrap">
+      <table class="matrix preview expandable">
+        <thead>
+          <tr>
+            <th class="c-x"></th>
+            <th scope="col">מספר ישיבה</th>
+            <th scope="col">סוג ישיבה</th>
+            <th scope="col">תאריך</th>
+            <th scope="col">יום</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+  bindRows();
+}
+
+function bindRows() {
+  document.querySelectorAll('#cmTableWrap tr.has-files').forEach((tr) => {
+    const toggle = () => toggleDocs(Number(tr.dataset.row), tr);
+    tr.addEventListener('click', toggle);
+    tr.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
+    });
+  });
+}
+
+async function toggleDocs(i, tr) {
+  const target = document.querySelector(`#cmTableWrap tr[data-files="${i}"]`);
+  const mark = tr.querySelector('.x-mark');
+  if (!target.hidden) { target.hidden = true; mark.textContent = '▾'; return; }
+  target.hidden = false;
+  mark.textContent = '▴';
+
+  const meeting = state.filtered[i];
+  const key = `${siteSelect.value}_${meeting.vaadaId}_${meeting.meetingNumber}`;
+  const cell = target.querySelector('td');
+  if (state.docsCache.has(key)) { renderDocsCell(cell, state.docsCache.get(key)); return; }
+
+  cell.innerHTML = '<span class="acc-hint">טוען מסמכים…</span>';
+  const p = new URLSearchParams({
+    appname: 'cixpa', prgname: 'GetMeetingDocs', siteid: siteSelect.value,
+    v: meeting.vaadaId, m: meeting.meetingNumber, arguments: 'siteid,v,m',
+  });
+  try {
+    const res = await fetch(`${ENGINE}?${p}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const docs = parseMeetingDocs(await res.text());
+    state.docsCache.set(key, docs);
+    state.docsLoaded += 1;
+    renderKpis();
+    renderDocsCell(cell, docs);
+  } catch (err) {
+    cell.innerHTML = `<span class="acc-hint">שגיאה בטעינת המסמכים (${esc(err.message)}).</span>`;
+  }
+}
+
+function renderDocsCell(cell, docs) {
+  if (!docs.length) { cell.innerHTML = '<span class="acc-hint">לא נמצאו מסמכים לישיבה זו.</span>'; return; }
+  cell.innerHTML = `<ul class="cm-doclist">${docs.map((d) => `
+    <li><a href="${esc(d.url)}" target="_blank" rel="noopener">${esc(d.title || d.subject || 'מסמך')}</a>
+        <span class="acc-hint">(${esc(d.subject)}${d.date ? `, ${esc(d.date)}` : ''})</span></li>`).join('')}</ul>`;
+}
+
+/* ---------- CSV export - exactly the filtered rows on screen ---------- */
+
+el('cmCsv').addEventListener('click', () => {
+  const csv = buildCsv(
+    ['קוד_ועדה', 'מספר_ישיבה', 'סוג_ישיבה', 'תאריך', 'יום'],
+    state.filtered.map((m) => ({
+      קוד_ועדה: siteSelect.value,
+      מספר_ישיבה: m.meetingNumber,
+      סוג_ישיבה: m.committee,
+      תאריך: m.date,
+      יום: m.day,
+    })),
+  );
+  saveCsv(csv, `ישיבות_ועדת_תכנון_${siteSelect.value}.csv`);
+});
+
+/* ---------- wiring ---------- */
+
+['change'].forEach((evt) => {
+  siteSelect.addEventListener(evt, loadMeetings);
+  typeSelect.addEventListener(evt, loadMeetings);
+  el('cmFrom').addEventListener(evt, loadMeetings);
+  el('cmTo').addEventListener(evt, loadMeetings);
+});
+el('cmSearch').addEventListener('input', debounce(applyQuickFilter, 250));
+
+loadMeetings();

@@ -66,6 +66,15 @@ TARGETS = [
         "sources": ["src/ui.js", "src/theme.js", "src/portal.js", "src/city-stats.js", "src/accidents.js"],
         "data": True,
     },
+    {
+        "html": "committees.html",
+        "out": "dist/committees.html",
+        "entry": "src/committees.js",
+        # Talks to handasi.complot.co.il directly, live - no apis.json lookup,
+        # no shared portal.js machinery (its own filter/KPI/chart/table logic).
+        "sources": ["src/ui.js", "src/theme.js", "src/committee-sites.js", "src/committees.js"],
+        "data": False,
+    },
 ]
 
 IMPORT_RE = re.compile(r"^\s*import\s.*?;\s*$", re.M)
