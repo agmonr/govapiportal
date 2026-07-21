@@ -1049,9 +1049,16 @@ body.committees-page { --accent: #6b7280; }
    finance, its own mood distinct from both the accidents page's caution
    orange and the committees page's neutral gray. Same specificity story as
    the two rules above; source order (this one last) is what wins here. */
-body.finance-page { --accent: #a9820c; }
+body.finance-page {
+  --accent: #a9820c;
+  /* Same green/red the combo chart and .stat.ok/.stat.bad already use
+     elsewhere on this page - a surplus/deficit table cell borrows that same
+     vocabulary rather than inventing a third color pairing. */
+  --fin-ok: #1a7f45;
+  --fin-bad: var(--danger);
+}
 @media (prefers-color-scheme: dark) {
-  body.finance-page { --accent: #e0b93a; }
+  body.finance-page { --accent: #e0b93a; --fin-ok: #5fce8f; }
 }
 
 /* companies.html: light yellow, deliberately a cooler lemon/olive tone

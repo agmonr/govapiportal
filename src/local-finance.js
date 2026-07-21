@@ -289,6 +289,39 @@ function renderComboChart(figId, caption, points, unit) {
     <div class="acc-bars">${bars}</div>`;
 }
 
+// The chart's own values only show on hover (the title attribute) - a plain
+// table underneath makes every year's figures visible at once, newest year
+// first (a table is read top-down, so the most recent row leads).
+function renderAuthorityTable(points) {
+  const rows = [...points].sort((a, b) => b.year - a.year).map((p) => {
+    const surplus = p.revenue - p.expense;
+    // A subtle text-color flag, not a full row/cell fill - visible on a
+    // glance down the column without turning a deficit year into an alarm.
+    const color = surplus >= 0 ? 'var(--fin-ok)' : 'var(--fin-bad)';
+    return `
+      <tr>
+        <th scope="row">${p.year}</th>
+        <td>${num(p.revenue)}</td>
+        <td>${num(p.expense)}</td>
+        <td dir="ltr" style="color:${color}; font-weight:600">${surplus >= 0 ? '+' : ''}${num(surplus)}</td>
+      </tr>`;
+  }).join('');
+  el('finAuthTable').innerHTML = `
+    <div class="matrix-wrap">
+      <table class="matrix">
+        <thead>
+          <tr>
+            <th scope="col">שנה</th>
+            <th scope="col">הכנסות (אלפי ש"ח)</th>
+            <th scope="col">הוצאות (אלפי ש"ח)</th>
+            <th scope="col">עודף (גרעון)</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+}
+
 async function renderAuthorityCharts() {
   const wrap = el('finAuthCharts');
   if (!state.authority) {
@@ -303,6 +336,7 @@ async function renderAuthorityCharts() {
     return;
   }
   renderComboChart('finChartAuthRevenue', `הכנסות והוצאות לפי שנה — ${state.authority}`, points, 'אלפי ש"ח');
+  renderAuthorityTable(points);
 
   // ממוצע ארנונה למגורים למ"ר: same sheet as the national summary above, so
   // the same 2023-2024-only limit applies (confirmed absent from every
