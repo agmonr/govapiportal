@@ -294,6 +294,13 @@ button.stat { cursor: pointer; }
 /* The "all accidents" chart is the neutral-magnitude twin of the red "killed"
    one, so its bars take the accent hue instead of danger. */
 .acc-chart.total .acc-bar-fill { background: var(--accent); }
+/* A positive-value chart (e.g. a national surplus, not a deficit) - same
+   green as the revenue side of the combo bar above, kept as one semantic name
+   rather than repeating the hex value at every call site. */
+.acc-chart.ok-chart .acc-bar-fill { background: #1a7f45; }
+@media (prefers-color-scheme: dark) {
+  .acc-chart.ok-chart .acc-bar-fill { background: #5fce8f; }
+}
 .acc-chart figcaption {
   font-size: .85rem;
   font-weight: 600;
@@ -357,6 +364,60 @@ button.stat { cursor: pointer; }
    so the chart echoes the dropdown selection. */
 .acc-bars:has(.acc-bar.active) .acc-bar { opacity: .4; }
 .acc-bars:has(.acc-bar.active) .acc-bar.active { opacity: 1; }
+
+/* Horizontal bar list (local-finance's top-N authorities ranking): a leaderboard
+   of 20 reads far better top-to-bottom, one row per entry, than as 20 vertical
+   bars squeezed into a fixed-height row - this is a different mark, not a
+   rotated .acc-bars, so it gets its own component rather than reusing that one
+   awkwardly. inline-size (a logical property, not width) is what makes the
+   fill grow from the reading-start edge automatically in this RTL page. */
+.acc-chart-wide { max-inline-size: none; }
+.acc-hbars { display: flex; flex-direction: column; gap: .4rem; }
+.acc-hbar { display: flex; align-items: center; gap: .6rem; }
+.acc-hbar-y {
+  flex: 0 0 8rem;
+  font-size: .82rem;
+  color: var(--muted);
+  text-align: end;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.acc-hbar-track { flex: 1; block-size: 1.1rem; background: var(--surface); border-radius: 4px; overflow: hidden; }
+.acc-hbar-fill { block-size: 100%; border-radius: 4px; background: var(--accent); }
+.acc-hbar-v { flex: 0 0 auto; font-size: .82rem; font-weight: 600; font-variant-numeric: tabular-nums; min-inline-size: 4.5rem; }
+
+/* Two-series "behind" comparison bar (local-finance's revenue/expense per
+   year): the back series is drawn full-width and UNDER the front one, so its
+   edges show on both sides of the narrower front bar regardless of how their
+   heights compare - width, not height, is what keeps a same-height pair from
+   hiding one series behind the other. The front bar's own surface-colored
+   ring is the "2px gap on an overlapping mark" rule - it keeps that bar's
+   silhouette crisp against the back one even when the two are nearly flush. */
+/* Grid, not the base track's flex: a shared single cell is an unambiguous,
+   guaranteed overlap - stacking via position:absolute inside a flex parent
+   turned out to depend on exactly how much extra space flex-grow handed that
+   parent, and rendered as side-by-side more often than not. */
+.acc-bar-track.acc-bar-track-combo { display: grid; grid-template-columns: 100%; justify-items: center; }
+.acc-bar-fill.acc-bar-back, .acc-bar-fill.acc-bar-front { grid-area: 1 / 1; align-self: end; }
+.acc-bar-fill.acc-bar-back { z-index: 1; }
+.acc-bar-fill.acc-bar-front {
+  z-index: 2;
+  max-inline-size: 1.7rem;
+  box-shadow: 0 0 0 2px var(--bg);
+}
+.acc-chart .acc-bar-fill.acc-bar-back  { background: color-mix(in srgb, var(--accent) 55%, transparent); }
+.acc-chart .acc-bar-fill.acc-bar-front { background: #1a7f45; }
+@media (prefers-color-scheme: dark) {
+  .acc-chart .acc-bar-fill.acc-bar-front { background: #5fce8f; }
+}
+
+/* Legend for the two-series chart above - color meaning is never carried by
+   hue alone elsewhere on the site either (see .badge), so this pairs a swatch
+   with a text label rather than just a colored dot. */
+.acc-legend { display: flex; gap: 1rem; font-size: .8rem; color: var(--muted); margin-block-end: .5rem; }
+.acc-legend-item { display: flex; align-items: center; gap: .35rem; }
+.acc-legend-swatch { inline-size: .8rem; block-size: .8rem; border-radius: 3px; display: inline-block; }
 
 /* The table is the widest thing on the page; it scrolls, the body never does. */
 .matrix-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); }
@@ -1112,8 +1173,8 @@ body.accidents-page header.site h1 { inline-size: 100%; }
         <h2 id="chartsH">ויזואליזציה</h2>
         <div class="acc-charts">
           <figure id="finChartYoY" class="acc-chart" role="img"></figure>
-          <figure id="finChartTop" class="acc-chart total" role="img"></figure>
         </div>
+        <figure id="finChartTop" class="acc-chart total acc-chart-wide" role="img"></figure>
       </section>
 
       <section class="acc-section" aria-labelledby="filtersH">
@@ -1142,9 +1203,6 @@ body.accidents-page header.site h1 { inline-size: 100%; }
         </p>
         <div class="acc-charts">
           <figure id="finChartAuthRevenue" class="acc-chart" role="img"></figure>
-          <figure id="finChartAuthExpense" class="acc-chart total" role="img"></figure>
-        </div>
-        <div class="acc-charts">
           <figure id="finChartAuthArnona" class="acc-chart" role="img"></figure>
         </div>
       </section>
@@ -1455,11 +1513,37 @@ async function dsQuery(resourceId, filters, limit = 10000) {
 
 /* ---------- state ---------- */
 
+// הוד השרון is the default landing authority (not because it's special
+// statistically - it just needs to be *something* real rather than a blank
+// prompt on first load) and doubles as the one this whole data pipeline was
+// hand-verified against earlier, so it's also the safest default to show.
+const DEFAULT_AUTHORITY = 'הוד השרון';
+
 const state = {
-  authority: null,
+  authority: DEFAULT_AUTHORITY,
   year: YEARS_DESC[0],
   summaryCache: new Map(), // year -> { totals, byAuthority[] } | 'unsupported'
 };
+
+/* ---------- URL state: makes the current authority+year copyable/shareable
+   as a link, and a shared link reproduces the same view on open. Read once
+   on load (before the first render), written back with replaceState (not
+   pushState) on every change - a link should reflect the latest view, not
+   grow a back-button history entry per keystroke. */
+function readStateFromUrl() {
+  const p = new URLSearchParams(location.search);
+  const authority = p.get('authority')?.trim();
+  const year = Number(p.get('year'));
+  if (authority) state.authority = authority;
+  if (YEAR_RESOURCES[year]) state.year = year;
+}
+
+function syncUrl() {
+  const p = new URLSearchParams();
+  if (state.authority) p.set('authority', state.authority);
+  p.set('year', String(state.year));
+  history.replaceState(null, '', `?${p}`);
+}
 
 /* ---------- authority roster (one cheap query, cached) ---------- */
 
@@ -1583,6 +1667,22 @@ function renderBarChart(figId, caption, entries, unit, colorClass) {
   fig.innerHTML = `<figcaption>${esc(caption)}</figcaption><div class="acc-bars">${bars}</div>`;
 }
 
+/** A ranked leaderboard (top-N by value) reads far better as rows stacked
+ *  top-to-bottom than as N vertical bars squeezed into one fixed-height row -
+ *  a different mark from renderBarChart, not that same one rotated. */
+function renderHBarChart(figId, caption, entries, unit) {
+  const fig = el(figId);
+  if (!entries.length) { fig.innerHTML = `<figcaption>${esc(caption)}</figcaption><p class="acc-hint">אין נתונים להצגה.</p>`; return; }
+  const peak = Math.max(...entries.map((e) => e.value));
+  const rows = entries.map((e) => `
+    <div class="acc-hbar" title="${esc(e.label)}: ${num(e.value)} ${esc(unit)}">
+      <span class="acc-hbar-y" dir="auto">${esc(e.label)}</span>
+      <div class="acc-hbar-track"><div class="acc-hbar-fill" style="inline-size:${peak ? (e.value / peak) * 100 : 0}%"></div></div>
+      <span class="acc-hbar-v">${num(e.value)}</span>
+    </div>`).join('');
+  fig.innerHTML = `<figcaption>${esc(caption)}</figcaption><div class="acc-hbars">${rows}</div>`;
+}
+
 async function renderCharts(summary) {
   // YoY: the only other year that also has a national summary (2023<->2024
   // today) - not a general multi-year trend, since no other year has one.
@@ -1596,9 +1696,9 @@ async function renderCharts(summary) {
   renderBarChart('finChartYoY', 'עודף (גרעון) ארצי מצטבר, לפי שנה', yoyEntries, 'אלפי ש"ח',
     summary.totals.surplus >= 0 ? 'ok-chart' : 'total');
 
-  const top = [...summary.rows].sort((a, b) => (b.revenue || 0) - (a.revenue || 0)).slice(0, 10)
+  const top = [...summary.rows].sort((a, b) => (b.revenue || 0) - (a.revenue || 0)).slice(0, 20)
     .map((r) => ({ label: r.name, value: r.revenue || 0 }));
-  renderBarChart('finChartTop', `10 הרשויות עם ההכנסות הגבוהות ביותר, ${state.year}`, top, 'אלפי ש"ח', 'total');
+  renderHBarChart('finChartTop', `20 הרשויות עם ההכנסות הגבוהות ביותר, ${state.year}`, top, 'אלפי ש"ח');
 }
 
 /* ---------- one authority's own revenue/expense/surplus, across every year
@@ -1626,11 +1726,37 @@ async function fetchAuthorityYearly(authority) {
   return points.sort((a, b) => a.year - b.year); // oldest first - a trend reads left-to-right in time
 }
 
-function renderAuthorityYearlyCharts(points, authority) {
-  const revEntries = points.map((p) => ({ label: String(p.year), value: p.revenue }));
-  const expEntries = points.map((p) => ({ label: String(p.year), value: p.expense }));
-  renderBarChart('finChartAuthRevenue', `הכנסות לפי שנה — ${authority}`, revEntries, 'אלפי ש"ח', 'ok-chart');
-  renderBarChart('finChartAuthExpense', `הוצאות לפי שנה — ${authority}`, expEntries, 'אלפי ש"ח', 'total');
+/** Revenue (front, narrower, green) layered over expense (back, full-width,
+ *  accent) sharing one baseline per year - the back bar's edges show on both
+ *  sides of the front one regardless of how close the two values are, so
+ *  neither series depends on a height gap to stay visible. Peak is taken
+ *  across BOTH series together, not per-series, so a year where expense
+ *  exceeds revenue (a deficit year) doesn't get its back bar clipped taller
+ *  than the chart while the front bar looks artificially short. */
+function renderComboChart(figId, caption, points, unit) {
+  const fig = el(figId);
+  if (!points.length) { fig.innerHTML = `<figcaption>${esc(caption)}</figcaption><p class="acc-hint">אין נתונים להצגה.</p>`; return; }
+  const peak = Math.max(...points.flatMap((p) => [p.revenue, p.expense]));
+  const bars = points.map((p) => {
+    const revH = peak ? Math.round((p.revenue / peak) * 150) : 0;
+    const expH = peak ? Math.round((p.expense / peak) * 150) : 0;
+    return `
+      <div class="acc-bar" title="${esc(String(p.year))} — הכנסות: ${num(p.revenue)} ${esc(unit)}, הוצאות: ${num(p.expense)} ${esc(unit)}">
+        <div class="acc-bar-track acc-bar-track-combo">
+          <div class="acc-bar-fill acc-bar-back" style="block-size:${expH}px"></div>
+          <div class="acc-bar-fill acc-bar-front" style="block-size:${revH}px"></div>
+        </div>
+        <span class="acc-bar-y">${esc(String(p.year))}</span>
+      </div>`;
+  }).join('');
+  fig.className = 'acc-chart';
+  fig.innerHTML = `
+    <figcaption>${esc(caption)}</figcaption>
+    <div class="acc-legend">
+      <span class="acc-legend-item"><span class="acc-legend-swatch" style="background:#1a7f45"></span>הכנסות</span>
+      <span class="acc-legend-item"><span class="acc-legend-swatch" style="background:color-mix(in srgb, var(--accent) 55%, transparent)"></span>הוצאות</span>
+    </div>
+    <div class="acc-bars">${bars}</div>`;
 }
 
 async function renderAuthorityCharts() {
@@ -1641,14 +1767,12 @@ async function renderAuthorityCharts() {
   }
   wrap.hidden = false;
   el('finChartAuthRevenue').innerHTML = '<p class="acc-hint">טוען…</p>';
-  el('finChartAuthExpense').innerHTML = '';
   const points = await fetchAuthorityYearly(state.authority);
   if (!points.length) {
     el('finChartAuthRevenue').innerHTML = `<p class="acc-hint">לא נמצאו נתוני הכנסות/הוצאות עבור "${esc(state.authority)}" באף שנה זמינה.</p>`;
-    el('finChartAuthExpense').innerHTML = '';
     return;
   }
-  renderAuthorityYearlyCharts(points, state.authority);
+  renderComboChart('finChartAuthRevenue', `הכנסות והוצאות לפי שנה — ${state.authority}`, points, 'אלפי ש"ח');
 
   // ממוצע ארנונה למגורים למ"ר: same sheet as the national summary above, so
   // the same 2023-2024-only limit applies (confirmed absent from every
@@ -1791,19 +1915,24 @@ el('finCsvAll').addEventListener('click', downloadAllYearsForAuthority);
 async function onAuthorityChange() {
   const name = authorityInput.value.trim();
   state.authority = rosterNames.includes(name) ? name : (name || null);
+  syncUrl();
   await Promise.all([renderAuthorityCharts(), renderStatement()]);
 }
 
 el('finYear').addEventListener('change', async (e) => {
   state.year = Number(e.target.value);
+  syncUrl();
   await Promise.all([renderKpis(), renderStatement()]);
 });
 authorityInput.addEventListener('input', debounce(onAuthorityChange, 300));
 
 (async function start() {
+  readStateFromUrl();
+  authorityInput.value = state.authority || '';
+  el('finYear').value = String(state.year);
+  syncUrl(); // normalizes a bare visit (no query string yet) into a real, copyable link immediately
   await loadRoster();
-  await renderKpis();
-  await renderStatement();
+  await Promise.all([renderKpis(), renderAuthorityCharts(), renderStatement()]);
 }());
 
 </script>

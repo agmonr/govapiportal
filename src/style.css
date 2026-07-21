@@ -273,6 +273,13 @@ button.stat { cursor: pointer; }
 /* The "all accidents" chart is the neutral-magnitude twin of the red "killed"
    one, so its bars take the accent hue instead of danger. */
 .acc-chart.total .acc-bar-fill { background: var(--accent); }
+/* A positive-value chart (e.g. a national surplus, not a deficit) - same
+   green as the revenue side of the combo bar above, kept as one semantic name
+   rather than repeating the hex value at every call site. */
+.acc-chart.ok-chart .acc-bar-fill { background: #1a7f45; }
+@media (prefers-color-scheme: dark) {
+  .acc-chart.ok-chart .acc-bar-fill { background: #5fce8f; }
+}
 .acc-chart figcaption {
   font-size: .85rem;
   font-weight: 600;
@@ -336,6 +343,60 @@ button.stat { cursor: pointer; }
    so the chart echoes the dropdown selection. */
 .acc-bars:has(.acc-bar.active) .acc-bar { opacity: .4; }
 .acc-bars:has(.acc-bar.active) .acc-bar.active { opacity: 1; }
+
+/* Horizontal bar list (local-finance's top-N authorities ranking): a leaderboard
+   of 20 reads far better top-to-bottom, one row per entry, than as 20 vertical
+   bars squeezed into a fixed-height row - this is a different mark, not a
+   rotated .acc-bars, so it gets its own component rather than reusing that one
+   awkwardly. inline-size (a logical property, not width) is what makes the
+   fill grow from the reading-start edge automatically in this RTL page. */
+.acc-chart-wide { max-inline-size: none; }
+.acc-hbars { display: flex; flex-direction: column; gap: .4rem; }
+.acc-hbar { display: flex; align-items: center; gap: .6rem; }
+.acc-hbar-y {
+  flex: 0 0 8rem;
+  font-size: .82rem;
+  color: var(--muted);
+  text-align: end;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.acc-hbar-track { flex: 1; block-size: 1.1rem; background: var(--surface); border-radius: 4px; overflow: hidden; }
+.acc-hbar-fill { block-size: 100%; border-radius: 4px; background: var(--accent); }
+.acc-hbar-v { flex: 0 0 auto; font-size: .82rem; font-weight: 600; font-variant-numeric: tabular-nums; min-inline-size: 4.5rem; }
+
+/* Two-series "behind" comparison bar (local-finance's revenue/expense per
+   year): the back series is drawn full-width and UNDER the front one, so its
+   edges show on both sides of the narrower front bar regardless of how their
+   heights compare - width, not height, is what keeps a same-height pair from
+   hiding one series behind the other. The front bar's own surface-colored
+   ring is the "2px gap on an overlapping mark" rule - it keeps that bar's
+   silhouette crisp against the back one even when the two are nearly flush. */
+/* Grid, not the base track's flex: a shared single cell is an unambiguous,
+   guaranteed overlap - stacking via position:absolute inside a flex parent
+   turned out to depend on exactly how much extra space flex-grow handed that
+   parent, and rendered as side-by-side more often than not. */
+.acc-bar-track.acc-bar-track-combo { display: grid; grid-template-columns: 100%; justify-items: center; }
+.acc-bar-fill.acc-bar-back, .acc-bar-fill.acc-bar-front { grid-area: 1 / 1; align-self: end; }
+.acc-bar-fill.acc-bar-back { z-index: 1; }
+.acc-bar-fill.acc-bar-front {
+  z-index: 2;
+  max-inline-size: 1.7rem;
+  box-shadow: 0 0 0 2px var(--bg);
+}
+.acc-chart .acc-bar-fill.acc-bar-back  { background: color-mix(in srgb, var(--accent) 55%, transparent); }
+.acc-chart .acc-bar-fill.acc-bar-front { background: #1a7f45; }
+@media (prefers-color-scheme: dark) {
+  .acc-chart .acc-bar-fill.acc-bar-front { background: #5fce8f; }
+}
+
+/* Legend for the two-series chart above - color meaning is never carried by
+   hue alone elsewhere on the site either (see .badge), so this pairs a swatch
+   with a text label rather than just a colored dot. */
+.acc-legend { display: flex; gap: 1rem; font-size: .8rem; color: var(--muted); margin-block-end: .5rem; }
+.acc-legend-item { display: flex; align-items: center; gap: .35rem; }
+.acc-legend-swatch { inline-size: .8rem; block-size: .8rem; border-radius: 3px; display: inline-block; }
 
 /* The table is the widest thing on the page; it scrolls, the body never does. */
 .matrix-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); }

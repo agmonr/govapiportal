@@ -43,11 +43,37 @@ async function dsQuery(resourceId, filters, limit = 10000) {
 
 /* ---------- state ---------- */
 
+// הוד השרון is the default landing authority (not because it's special
+// statistically - it just needs to be *something* real rather than a blank
+// prompt on first load) and doubles as the one this whole data pipeline was
+// hand-verified against earlier, so it's also the safest default to show.
+const DEFAULT_AUTHORITY = 'הוד השרון';
+
 const state = {
-  authority: null,
+  authority: DEFAULT_AUTHORITY,
   year: YEARS_DESC[0],
   summaryCache: new Map(), // year -> { totals, byAuthority[] } | 'unsupported'
 };
+
+/* ---------- URL state: makes the current authority+year copyable/shareable
+   as a link, and a shared link reproduces the same view on open. Read once
+   on load (before the first render), written back with replaceState (not
+   pushState) on every change - a link should reflect the latest view, not
+   grow a back-button history entry per keystroke. */
+function readStateFromUrl() {
+  const p = new URLSearchParams(location.search);
+  const authority = p.get('authority')?.trim();
+  const year = Number(p.get('year'));
+  if (authority) state.authority = authority;
+  if (YEAR_RESOURCES[year]) state.year = year;
+}
+
+function syncUrl() {
+  const p = new URLSearchParams();
+  if (state.authority) p.set('authority', state.authority);
+  p.set('year', String(state.year));
+  history.replaceState(null, '', `?${p}`);
+}
 
 /* ---------- authority roster (one cheap query, cached) ---------- */
 
@@ -171,6 +197,22 @@ function renderBarChart(figId, caption, entries, unit, colorClass) {
   fig.innerHTML = `<figcaption>${esc(caption)}</figcaption><div class="acc-bars">${bars}</div>`;
 }
 
+/** A ranked leaderboard (top-N by value) reads far better as rows stacked
+ *  top-to-bottom than as N vertical bars squeezed into one fixed-height row -
+ *  a different mark from renderBarChart, not that same one rotated. */
+function renderHBarChart(figId, caption, entries, unit) {
+  const fig = el(figId);
+  if (!entries.length) { fig.innerHTML = `<figcaption>${esc(caption)}</figcaption><p class="acc-hint">אין נתונים להצגה.</p>`; return; }
+  const peak = Math.max(...entries.map((e) => e.value));
+  const rows = entries.map((e) => `
+    <div class="acc-hbar" title="${esc(e.label)}: ${num(e.value)} ${esc(unit)}">
+      <span class="acc-hbar-y" dir="auto">${esc(e.label)}</span>
+      <div class="acc-hbar-track"><div class="acc-hbar-fill" style="inline-size:${peak ? (e.value / peak) * 100 : 0}%"></div></div>
+      <span class="acc-hbar-v">${num(e.value)}</span>
+    </div>`).join('');
+  fig.innerHTML = `<figcaption>${esc(caption)}</figcaption><div class="acc-hbars">${rows}</div>`;
+}
+
 async function renderCharts(summary) {
   // YoY: the only other year that also has a national summary (2023<->2024
   // today) - not a general multi-year trend, since no other year has one.
@@ -184,9 +226,9 @@ async function renderCharts(summary) {
   renderBarChart('finChartYoY', 'עודף (גרעון) ארצי מצטבר, לפי שנה', yoyEntries, 'אלפי ש"ח',
     summary.totals.surplus >= 0 ? 'ok-chart' : 'total');
 
-  const top = [...summary.rows].sort((a, b) => (b.revenue || 0) - (a.revenue || 0)).slice(0, 10)
+  const top = [...summary.rows].sort((a, b) => (b.revenue || 0) - (a.revenue || 0)).slice(0, 20)
     .map((r) => ({ label: r.name, value: r.revenue || 0 }));
-  renderBarChart('finChartTop', `10 הרשויות עם ההכנסות הגבוהות ביותר, ${state.year}`, top, 'אלפי ש"ח', 'total');
+  renderHBarChart('finChartTop', `20 הרשויות עם ההכנסות הגבוהות ביותר, ${state.year}`, top, 'אלפי ש"ח');
 }
 
 /* ---------- one authority's own revenue/expense/surplus, across every year
@@ -214,11 +256,37 @@ async function fetchAuthorityYearly(authority) {
   return points.sort((a, b) => a.year - b.year); // oldest first - a trend reads left-to-right in time
 }
 
-function renderAuthorityYearlyCharts(points, authority) {
-  const revEntries = points.map((p) => ({ label: String(p.year), value: p.revenue }));
-  const expEntries = points.map((p) => ({ label: String(p.year), value: p.expense }));
-  renderBarChart('finChartAuthRevenue', `הכנסות לפי שנה — ${authority}`, revEntries, 'אלפי ש"ח', 'ok-chart');
-  renderBarChart('finChartAuthExpense', `הוצאות לפי שנה — ${authority}`, expEntries, 'אלפי ש"ח', 'total');
+/** Revenue (front, narrower, green) layered over expense (back, full-width,
+ *  accent) sharing one baseline per year - the back bar's edges show on both
+ *  sides of the front one regardless of how close the two values are, so
+ *  neither series depends on a height gap to stay visible. Peak is taken
+ *  across BOTH series together, not per-series, so a year where expense
+ *  exceeds revenue (a deficit year) doesn't get its back bar clipped taller
+ *  than the chart while the front bar looks artificially short. */
+function renderComboChart(figId, caption, points, unit) {
+  const fig = el(figId);
+  if (!points.length) { fig.innerHTML = `<figcaption>${esc(caption)}</figcaption><p class="acc-hint">אין נתונים להצגה.</p>`; return; }
+  const peak = Math.max(...points.flatMap((p) => [p.revenue, p.expense]));
+  const bars = points.map((p) => {
+    const revH = peak ? Math.round((p.revenue / peak) * 150) : 0;
+    const expH = peak ? Math.round((p.expense / peak) * 150) : 0;
+    return `
+      <div class="acc-bar" title="${esc(String(p.year))} — הכנסות: ${num(p.revenue)} ${esc(unit)}, הוצאות: ${num(p.expense)} ${esc(unit)}">
+        <div class="acc-bar-track acc-bar-track-combo">
+          <div class="acc-bar-fill acc-bar-back" style="block-size:${expH}px"></div>
+          <div class="acc-bar-fill acc-bar-front" style="block-size:${revH}px"></div>
+        </div>
+        <span class="acc-bar-y">${esc(String(p.year))}</span>
+      </div>`;
+  }).join('');
+  fig.className = 'acc-chart';
+  fig.innerHTML = `
+    <figcaption>${esc(caption)}</figcaption>
+    <div class="acc-legend">
+      <span class="acc-legend-item"><span class="acc-legend-swatch" style="background:#1a7f45"></span>הכנסות</span>
+      <span class="acc-legend-item"><span class="acc-legend-swatch" style="background:color-mix(in srgb, var(--accent) 55%, transparent)"></span>הוצאות</span>
+    </div>
+    <div class="acc-bars">${bars}</div>`;
 }
 
 async function renderAuthorityCharts() {
@@ -229,14 +297,12 @@ async function renderAuthorityCharts() {
   }
   wrap.hidden = false;
   el('finChartAuthRevenue').innerHTML = '<p class="acc-hint">טוען…</p>';
-  el('finChartAuthExpense').innerHTML = '';
   const points = await fetchAuthorityYearly(state.authority);
   if (!points.length) {
     el('finChartAuthRevenue').innerHTML = `<p class="acc-hint">לא נמצאו נתוני הכנסות/הוצאות עבור "${esc(state.authority)}" באף שנה זמינה.</p>`;
-    el('finChartAuthExpense').innerHTML = '';
     return;
   }
-  renderAuthorityYearlyCharts(points, state.authority);
+  renderComboChart('finChartAuthRevenue', `הכנסות והוצאות לפי שנה — ${state.authority}`, points, 'אלפי ש"ח');
 
   // ממוצע ארנונה למגורים למ"ר: same sheet as the national summary above, so
   // the same 2023-2024-only limit applies (confirmed absent from every
@@ -379,17 +445,22 @@ el('finCsvAll').addEventListener('click', downloadAllYearsForAuthority);
 async function onAuthorityChange() {
   const name = authorityInput.value.trim();
   state.authority = rosterNames.includes(name) ? name : (name || null);
+  syncUrl();
   await Promise.all([renderAuthorityCharts(), renderStatement()]);
 }
 
 el('finYear').addEventListener('change', async (e) => {
   state.year = Number(e.target.value);
+  syncUrl();
   await Promise.all([renderKpis(), renderStatement()]);
 });
 authorityInput.addEventListener('input', debounce(onAuthorityChange, 300));
 
 (async function start() {
+  readStateFromUrl();
+  authorityInput.value = state.authority || '';
+  el('finYear').value = String(state.year);
+  syncUrl(); // normalizes a bare visit (no query string yet) into a real, copyable link immediately
   await loadRoster();
-  await renderKpis();
-  await renderStatement();
+  await Promise.all([renderKpis(), renderAuthorityCharts(), renderStatement()]);
 }());
