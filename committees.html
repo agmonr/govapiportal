@@ -65,8 +65,10 @@
         <h2 id="filtersH">סינון</h2>
         <div class="cm-filters">
           <div class="acc-year-pick">
-            <label for="cmSite">ועדה:</label>
-            <select id="cmSite"></select>
+            <label for="cmSite">ועדה / ישוב:</label>
+            <input id="cmSite" type="text" list="cmSiteList" autocomplete="off"
+                   spellcheck="false" placeholder="הקלידו שם ישוב…">
+            <datalist id="cmSiteList"></datalist>
           </div>
           <div class="acc-year-pick">
             <label for="cmType">סוג ישיבה:</label>
@@ -108,6 +110,18 @@
         <h2 id="tableH">ריכוז ישיבות ופרוטוקולים</h2>
         <button type="button" id="cmCsv" class="drill-dl">הורדת CSV של הרשימה המסוננת ⭳</button>
         <div id="cmTableWrap"></div>
+      </section>
+
+      <section class="acc-section" aria-labelledby="allDocsH">
+        <h2 id="allDocsH">כל המסמכים ברשימה המסוננת</h2>
+        <p class="acc-hint">
+          כל קובץ הוא קישור ישיר לארכיון הפרוטוקולים (<code dir="ltr">archive.gis-net.co.il</code>) —
+          מורידים אחד־אחד, כמו בפתיחת קישור רגיל. אין כאן הורדה מרוכזת כ-ZIP: הארכיון עצמו חוסם
+          גישה אוטומטית (<code dir="ltr">robots.txt: Disallow: /</code>) ואינו שולח כותרת CORS,
+          כך שהדפדפן חוסם גם קריאת קבצים לצורך אריזה - רק ניווט/הורדה ישירים אפשריים.
+        </p>
+        <button type="button" id="cmLoadAllDocs" class="drill-dl">טעינת מסמכי כל הרשימה</button>
+        <div id="cmAllDocs"></div>
       </section>
     </div>
   </main>

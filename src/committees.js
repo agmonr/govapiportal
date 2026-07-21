@@ -41,7 +41,6 @@ const ENGINE = 'https://handasi.complot.co.il/magicscripts/mgrqispi.dll';
 /* ---------- date helpers: native <input type=date> (YYYY-MM-DD) <-> the
    engine's DD/MM/YYYY ---------- */
 const isoToApi = (iso) => { const [y, m, d] = iso.split('-'); return `${d}/${m}/${y}`; };
-const apiToIso = (api) => { const [d, m, y] = api.split('/'); return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`; };
 const todayIso = (offsetDays = 0) => {
   const t = new Date(); t.setDate(t.getDate() + offsetDays);
   return t.toISOString().slice(0, 10);
@@ -96,22 +95,34 @@ function parseMeetingDocs(html) {
 /* ---------- state ---------- */
 
 const state = {
+  siteid: '33', // הוד השרון - the one this data source was verified against end-to-end
   meetings: [],   // last fetch, unfiltered
   filtered: [],   // after the free-text quick filter
-  docsCache: new Map(), // `${vaadaId}_${meetingNumber}` -> docs[] | 'error'
+  docsCache: new Map(), // docsKeyFor(meeting) -> docs[]
   docsLoaded: 0,  // running count, across this session, of doc-lists fetched
 };
 
-/* ---------- filter bar ---------- */
+/* ---------- filter bar: committee/settlement is type-to-search, same
+   pattern as accidents.html's ישוב field - a <datalist> autocompletes over
+   all 68 sites, and only an exact label resolves to a siteid. ---------- */
 
-const siteSelect = el('cmSite');
-siteSelect.innerHTML = [...COMMITTEE_SITES]
+const siteLabel = (s) => (s.name_he
+  ? `${s.name_he} (${s.kind === 'regional' ? 'מרחבית' : 'מקומית'})`
+  : `${s.slug} (שם לא מזוהה)`);
+const SITE_BY_LABEL = new Map(COMMITTEE_SITES.map((s) => [siteLabel(s), s.siteid]));
+
+const cmSite = el('cmSite');
+el('cmSiteList').innerHTML = [...COMMITTEE_SITES]
   .sort((a, b) => (a.name_he || a.slug).localeCompare(b.name_he || b.slug, 'he'))
-  .map((s) => {
-    const label = s.name_he ? `${s.name_he} (${s.kind === 'regional' ? 'מרחבית' : 'מקומית'})` : `${s.slug} (שם לא מזוהה)`;
-    return `<option value="${s.siteid}">${esc(label)}</option>`;
-  }).join('');
-siteSelect.value = '33'; // הוד השרון - the one this data source was verified against end-to-end
+  .map((s) => `<option value="${esc(siteLabel(s))}"></option>`).join('');
+cmSite.value = siteLabel(COMMITTEE_SITES.find((s) => s.siteid === Number(state.siteid)));
+
+function onSiteInput() {
+  const id = SITE_BY_LABEL.get(cmSite.value.trim());
+  if (id == null || String(id) === state.siteid) return;
+  state.siteid = String(id);
+  loadMeetings();
+}
 
 const typeSelect = el('cmType');
 typeSelect.innerHTML = Object.entries(MEETING_TYPES)
@@ -124,7 +135,7 @@ el('cmTo').value = todayIso(60);
 /* ---------- fetch + render ---------- */
 
 async function loadMeetings() {
-  const siteid = siteSelect.value;
+  const siteid = state.siteid;
   const v = typeSelect.value;
   const fd = isoToApi(el('cmFrom').value);
   const td = isoToApi(el('cmTo').value);
@@ -133,6 +144,7 @@ async function loadMeetings() {
   el('cmKpis').innerHTML = '';
   el('cmChartByYear').innerHTML = '';
   el('cmChartByType').innerHTML = '';
+  el('cmAllDocs').innerHTML = ''; // stale docs from the previous list would mislead otherwise
 
   const p = new URLSearchParams({
     appname: 'cixpa', prgname: 'GetMeetingByDate', siteid, v, fd, td, l: 'false',
@@ -159,6 +171,7 @@ function applyQuickFilter() {
   renderKpis();
   renderCharts();
   renderTable();
+  el('cmAllDocs').innerHTML = ''; // the aggregated list belongs to the old filter, not this one
 }
 
 /* ---------- KPI tiles - same visual vocabulary as accidents.html's .stat-row ---------- */
@@ -285,6 +298,28 @@ function bindRows() {
   });
 }
 
+const docsKeyFor = (meeting) => `${state.siteid}_${meeting.vaadaId}_${meeting.meetingNumber}`;
+
+/** Shared by the per-row expand and the "load all" bulk action below, so a
+ *  document list can never come out differently fetched one-by-one than in
+ *  bulk. Caches on success; throws on failure rather than swallowing it, so
+ *  each caller decides how to show that failure. */
+async function fetchDocsFor(meeting) {
+  const key = docsKeyFor(meeting);
+  if (state.docsCache.has(key)) return state.docsCache.get(key);
+  const p = new URLSearchParams({
+    appname: 'cixpa', prgname: 'GetMeetingDocs', siteid: state.siteid,
+    v: meeting.vaadaId, m: meeting.meetingNumber, arguments: 'siteid,v,m',
+  });
+  const res = await fetch(`${ENGINE}?${p}`);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const docs = parseMeetingDocs(await res.text());
+  state.docsCache.set(key, docs);
+  state.docsLoaded += 1;
+  renderKpis();
+  return docs;
+}
+
 async function toggleDocs(i, tr) {
   const target = document.querySelector(`#cmTableWrap tr[data-files="${i}"]`);
   const mark = tr.querySelector('.x-mark');
@@ -293,23 +328,13 @@ async function toggleDocs(i, tr) {
   mark.textContent = '▴';
 
   const meeting = state.filtered[i];
-  const key = `${siteSelect.value}_${meeting.vaadaId}_${meeting.meetingNumber}`;
   const cell = target.querySelector('td');
-  if (state.docsCache.has(key)) { renderDocsCell(cell, state.docsCache.get(key)); return; }
+  const cached = state.docsCache.get(docsKeyFor(meeting));
+  if (cached) { renderDocsCell(cell, cached); return; }
 
   cell.innerHTML = '<span class="acc-hint">טוען מסמכים…</span>';
-  const p = new URLSearchParams({
-    appname: 'cixpa', prgname: 'GetMeetingDocs', siteid: siteSelect.value,
-    v: meeting.vaadaId, m: meeting.meetingNumber, arguments: 'siteid,v,m',
-  });
   try {
-    const res = await fetch(`${ENGINE}?${p}`);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const docs = parseMeetingDocs(await res.text());
-    state.docsCache.set(key, docs);
-    state.docsLoaded += 1;
-    renderKpis();
-    renderDocsCell(cell, docs);
+    renderDocsCell(cell, await fetchDocsFor(meeting));
   } catch (err) {
     cell.innerHTML = `<span class="acc-hint">שגיאה בטעינת המסמכים (${esc(err.message)}).</span>`;
   }
@@ -322,26 +347,101 @@ function renderDocsCell(cell, docs) {
         <span class="acc-hint">(${esc(d.subject)}${d.date ? `, ${esc(d.date)}` : ''})</span></li>`).join('')}</ul>`;
 }
 
+/* ---------- "load all documents" - one flat, downloadable-one-by-one list
+   across every meeting in the current filter. No ZIP: archive.gis-net.co.il
+   (where the PDFs actually live) disallows automated access in its own
+   robots.txt and sends no CORS header, so a browser can neither be scripted
+   to fetch it in bulk nor even read the bytes to bundle one - only ordinary
+   link navigation works, which is exactly what this list gives you. Fetches
+   go to handasi.complot.co.il instead (the listing engine, unrestricted),
+   one meeting at a time with a short delay - polite pacing, not a burst of
+   ~100+ requests at once. */
+const sleep = (ms) => new Promise((r) => { setTimeout(r, ms); });
+
+async function loadAllDocsForList() {
+  const list = state.filtered;
+  if (!list.length) return;
+  if (list.length > 150 && !confirm(`הרשימה כוללת ${list.length} ישיבות - הטעינה תשלח כ-${list.length} בקשות בזו אחר זו ותימשך זמן מה. להמשיך?`)) return;
+
+  const btn = el('cmLoadAllDocs');
+  btn.disabled = true;
+  const box = el('cmAllDocs');
+
+  const all = []; // { meeting, doc }
+  let failed = 0;
+  for (let i = 0; i < list.length; i += 1) {
+    box.innerHTML = `<p class="acc-hint">טוען מסמכים… (${i + 1}/${list.length})</p>`;
+    const meeting = list[i];
+    const cached = state.docsCache.get(docsKeyFor(meeting));
+    if (cached) {
+      cached.forEach((doc) => all.push({ meeting, doc }));
+      continue; // already known - no request, no delay needed
+    }
+    try {
+      const docs = await fetchDocsFor(meeting);
+      docs.forEach((doc) => all.push({ meeting, doc }));
+    } catch {
+      failed += 1;
+    }
+    await sleep(150); // politeness pacing, same spirit as the original scraper's rate limiter
+  }
+  btn.disabled = false;
+  renderAllDocs(all, failed);
+}
+
+function renderAllDocs(all, failed) {
+  const box = el('cmAllDocs');
+  if (!all.length) {
+    box.innerHTML = `<p class="acc-hint">לא נמצאו מסמכים לרשימה הנוכחית.${failed ? ` (${failed} ישיבות נכשלו בטעינה)` : ''}</p>`;
+    return;
+  }
+  const rows = all.map(({ meeting, doc }) => `
+    <tr>
+      <td dir="auto">${esc(meeting.date)}</td>
+      <td dir="auto">${esc(meeting.meetingNumber)}</td>
+      <td dir="auto">${esc(meeting.committee)}</td>
+      <td dir="auto"><a href="${esc(doc.url)}" target="_blank" rel="noopener">${esc(doc.title || doc.subject || 'מסמך')}</a></td>
+    </tr>`).join('');
+  box.innerHTML = `
+    <p class="acc-hint">${num(all.length)} מסמכים מתוך ${num(new Set(all.map((a) => a.meeting.meetingNumber)).size)} ישיבות.${failed ? ` (${failed} ישיבות נכשלו בטעינה)` : ''}</p>
+    <div class="matrix-wrap">
+      <table class="matrix">
+        <thead>
+          <tr>
+            <th scope="col">תאריך ישיבה</th>
+            <th scope="col">מספר ישיבה</th>
+            <th scope="col">סוג ישיבה</th>
+            <th scope="col">מסמך</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+}
+
+el('cmLoadAllDocs').addEventListener('click', loadAllDocsForList);
+
 /* ---------- CSV export - exactly the filtered rows on screen ---------- */
 
 el('cmCsv').addEventListener('click', () => {
   const csv = buildCsv(
     ['קוד_ועדה', 'מספר_ישיבה', 'סוג_ישיבה', 'תאריך', 'יום'],
     state.filtered.map((m) => ({
-      קוד_ועדה: siteSelect.value,
+      קוד_ועדה: state.siteid,
       מספר_ישיבה: m.meetingNumber,
       סוג_ישיבה: m.committee,
       תאריך: m.date,
       יום: m.day,
     })),
   );
-  saveCsv(csv, `ישיבות_ועדת_תכנון_${siteSelect.value}.csv`);
+  saveCsv(csv, `ישיבות_ועדת_תכנון_${state.siteid}.csv`);
 });
 
 /* ---------- wiring ---------- */
 
+cmSite.addEventListener('input', debounce(onSiteInput, 300));
+
 ['change'].forEach((evt) => {
-  siteSelect.addEventListener(evt, loadMeetings);
   typeSelect.addEventListener(evt, loadMeetings);
   el('cmFrom').addEventListener(evt, loadMeetings);
   el('cmTo').addEventListener(evt, loadMeetings);
