@@ -1133,15 +1133,19 @@ body.accidents-page header.site h1 { inline-size: 100%; }
       </section>
 
       <section class="acc-section" id="finAuthCharts" aria-labelledby="authChartsH" hidden>
-        <h2 id="authChartsH">הכנסות והוצאות לאורך השנים — הרשות שנבחרה</h2>
+        <h2 id="authChartsH">הכנסות, הוצאות וארנונה לאורך השנים — הרשות שנבחרה</h2>
         <p class="acc-hint">
-          מבוסס על השורות המסוכמות של טופס 2 (תקבולים/תשלומים בפועל) - קיים בכל אחת מ-9 השנים
-          שהרשות מכוסה בהן; שנים שהרשות לא נמצאת בהן (למשל עיר בשנים שכוסו רק עבור מועצות
-          מקומיות) פשוט חסרות בגרף, ולא מוצגות כאפס.
+          הכנסות/הוצאות מבוססות על השורות המסוכמות של טופס 2 (תקבולים/תשלומים בפועל) - קיים בכל
+          אחת מ-9 השנים שהרשות מכוסה בהן; שנים שהרשות לא נמצאת בהן (למשל עיר בשנים שכוסו רק עבור
+          מועצות מקומיות) פשוט חסרות בגרף, ולא מוצגות כאפס. ממוצע הארנונה מבוסס על גיליון "דוח
+          לתושב", הקיים רק ל-2023-2024 - לכן מוצג לכל היותר עבור שתי שנים אלה.
         </p>
         <div class="acc-charts">
           <figure id="finChartAuthRevenue" class="acc-chart" role="img"></figure>
           <figure id="finChartAuthExpense" class="acc-chart total" role="img"></figure>
+        </div>
+        <div class="acc-charts">
+          <figure id="finChartAuthArnona" class="acc-chart" role="img"></figure>
         </div>
       </section>
 
@@ -1379,13 +1383,34 @@ const SUMMARY_COLUMN = 'ביצוע שנה נוכחית';
  * spelled two different ways depending on era. 2023/2024 introduced a
  * "פעולות רגילות" (regular operations, as opposed to emergency/פעולות חירום)
  * prefix and dropped the gershayim from "סה"כ"; 2016-2022 has neither.
+ *
+ * The עמודה (column) name for these two totals differs by era too, and does
+ * NOT match SUMMARY_COLUMN above for the current era - confirmed directly:
+ * legacy years use the same "ביצוע שנה נוכחית" the summary sheet uses, but
+ * 2023/2024's Form 2 export labels it "תקבולים - ביצוע - שנה נוכחית" for
+ * BOTH the receipts row and the payments row (the source's own column name
+ * says "receipts" even on the payments row - an oddity of the export, not a
+ * bug here to "fix" by renaming it).
  */
 const FORM2_ROWS_BY_ERA = {
-  legacy: { revenue: 'סה"כ תקבולים', expense: 'סה"כ תשלומים' }, // 2016-2022
-  current: { revenue: 'פעולות רגילות - סהכ תקבולים', expense: 'פעולות רגילות - סהכ תשלומים' }, // 2023-2024
+  legacy: { revenue: 'סה"כ תקבולים', expense: 'סה"כ תשלומים', column: SUMMARY_COLUMN }, // 2016-2022
+  current: { revenue: 'פעולות רגילות - סהכ תקבולים', expense: 'פעולות רגילות - סהכ תשלומים', column: 'תקבולים - ביצוע - שנה נוכחית' }, // 2023-2024
 };
 const form2RowsFor = (year) => (YEAR_RESOURCES[year].hasSummary
   ? FORM2_ROWS_BY_ERA.current : FORM2_ROWS_BY_ERA.legacy);
+
+/**
+ * Average residential ארנונה per square meter - one row in the same
+ * "דוח לתושב" summary sheet as SUMMARY_ROWS above, so it shares that sheet's
+ * years-available limit (2023-2024 only - confirmed absent everywhere
+ * earlier, same as the rest of that sheet). Its own column pair is
+ * "שנה נוכחית"/"שנה קודמת" (plain current/previous year) - NOT
+ * SUMMARY_COLUMN's "ביצוע שנה נוכחית": this is a computed ratio, not a
+ * budget-vs-actual figure, so it never had budget/percent-executed columns
+ * to begin with. Confirmed directly against a real row, not assumed.
+ */
+const ARNONA_ROW = 'ממוצע ארנונה למגורים למר';
+const ARNONA_COLUMN = 'שנה נוכחית';
 
 /**
  * Entry point for local-finance.html - דוחות כספיים מבוקרים של רשויות מקומיות
@@ -1588,7 +1613,7 @@ async function fetchAuthorityYearly(authority) {
   for (const year of YEARS_DESC) {
     const cfg = YEAR_RESOURCES[year];
     const rows = form2RowsFor(year);
-    const filters = { שם_רשות: authority, [cfg.sheetField]: 'טופס 2', שורה: [rows.revenue, rows.expense], עמודה: SUMMARY_COLUMN };
+    const filters = { שם_רשות: authority, [cfg.sheetField]: 'טופס 2', שורה: [rows.revenue, rows.expense], עמודה: rows.column };
     if (cfg.yearFilter) filters[cfg.yearFilter.field] = cfg.yearFilter.value;
     try {
       const { records } = await dsQuery(cfg.resourceId, filters);
@@ -1624,6 +1649,30 @@ async function renderAuthorityCharts() {
     return;
   }
   renderAuthorityYearlyCharts(points, state.authority);
+
+  // ממוצע ארנונה למגורים למ"ר: same sheet as the national summary above, so
+  // the same 2023-2024-only limit applies (confirmed absent from every
+  // earlier year checked) - a separate, smaller fetch, not part of the
+  // Form 2 loop above, since it lives on a different sheet entirely.
+  el('finChartAuthArnona').innerHTML = '<p class="acc-hint">טוען…</p>';
+  const arnonaPoints = await fetchAuthorityArnona(state.authority);
+  renderBarChart('finChartAuthArnona', `ממוצע ארנונה למגורים למ"ר, לפי שנה — ${state.authority}`,
+    arnonaPoints.map((p) => ({ label: String(p.year), value: p.value })), 'ש"ח למ"ר', 'ok-chart');
+}
+
+async function fetchAuthorityArnona(authority) {
+  const points = []; // { year, value }
+  for (const year of YEARS_DESC) {
+    const cfg = YEAR_RESOURCES[year];
+    if (!cfg.hasSummary) continue; // this sheet only exists for 2023-2024
+    try {
+      const { records } = await dsQuery(cfg.resourceId, {
+        שם_רשות: authority, [cfg.sheetField]: SUMMARY_SHEET, שורה: ARNONA_ROW, עמודה: ARNONA_COLUMN,
+      });
+      if (records.length) points.push({ year, value: Number(records[0]['ערך']) || 0 });
+    } catch { /* one year failing shouldn't hide the other */ }
+  }
+  return points.sort((a, b) => a.year - b.year);
 }
 
 /* ---------- detailed per-authority statement - fully live, any year ---------- */

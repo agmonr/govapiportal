@@ -77,10 +77,31 @@ export const SUMMARY_COLUMN = 'ביצוע שנה נוכחית';
  * spelled two different ways depending on era. 2023/2024 introduced a
  * "פעולות רגילות" (regular operations, as opposed to emergency/פעולות חירום)
  * prefix and dropped the gershayim from "סה"כ"; 2016-2022 has neither.
+ *
+ * The עמודה (column) name for these two totals differs by era too, and does
+ * NOT match SUMMARY_COLUMN above for the current era - confirmed directly:
+ * legacy years use the same "ביצוע שנה נוכחית" the summary sheet uses, but
+ * 2023/2024's Form 2 export labels it "תקבולים - ביצוע - שנה נוכחית" for
+ * BOTH the receipts row and the payments row (the source's own column name
+ * says "receipts" even on the payments row - an oddity of the export, not a
+ * bug here to "fix" by renaming it).
  */
 export const FORM2_ROWS_BY_ERA = {
-  legacy: { revenue: 'סה"כ תקבולים', expense: 'סה"כ תשלומים' }, // 2016-2022
-  current: { revenue: 'פעולות רגילות - סהכ תקבולים', expense: 'פעולות רגילות - סהכ תשלומים' }, // 2023-2024
+  legacy: { revenue: 'סה"כ תקבולים', expense: 'סה"כ תשלומים', column: SUMMARY_COLUMN }, // 2016-2022
+  current: { revenue: 'פעולות רגילות - סהכ תקבולים', expense: 'פעולות רגילות - סהכ תשלומים', column: 'תקבולים - ביצוע - שנה נוכחית' }, // 2023-2024
 };
 export const form2RowsFor = (year) => (YEAR_RESOURCES[year].hasSummary
   ? FORM2_ROWS_BY_ERA.current : FORM2_ROWS_BY_ERA.legacy);
+
+/**
+ * Average residential ארנונה per square meter - one row in the same
+ * "דוח לתושב" summary sheet as SUMMARY_ROWS above, so it shares that sheet's
+ * years-available limit (2023-2024 only - confirmed absent everywhere
+ * earlier, same as the rest of that sheet). Its own column pair is
+ * "שנה נוכחית"/"שנה קודמת" (plain current/previous year) - NOT
+ * SUMMARY_COLUMN's "ביצוע שנה נוכחית": this is a computed ratio, not a
+ * budget-vs-actual figure, so it never had budget/percent-executed columns
+ * to begin with. Confirmed directly against a real row, not assumed.
+ */
+export const ARNONA_ROW = 'ממוצע ארנונה למגורים למר';
+export const ARNONA_COLUMN = 'שנה נוכחית';

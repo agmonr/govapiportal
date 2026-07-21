@@ -19,7 +19,7 @@
 
 import { el, esc, num, debounce, buildCsv, saveCsv, showError, showLoading } from './ui.js';
 import { initThemePicker } from './theme.js';
-import { YEAR_RESOURCES, YEARS_DESC, ROSTER_YEAR, ROSTER_FILTERS, SUMMARY_SHEET, SUMMARY_ROWS, SUMMARY_COLUMN, form2RowsFor } from './finance-data.js';
+import { YEAR_RESOURCES, YEARS_DESC, ROSTER_YEAR, ROSTER_FILTERS, SUMMARY_SHEET, SUMMARY_ROWS, SUMMARY_COLUMN, form2RowsFor, ARNONA_ROW, ARNONA_COLUMN } from './finance-data.js';
 
 initThemePicker(el('themePick'));
 
@@ -201,7 +201,7 @@ async function fetchAuthorityYearly(authority) {
   for (const year of YEARS_DESC) {
     const cfg = YEAR_RESOURCES[year];
     const rows = form2RowsFor(year);
-    const filters = { שם_רשות: authority, [cfg.sheetField]: 'טופס 2', שורה: [rows.revenue, rows.expense], עמודה: SUMMARY_COLUMN };
+    const filters = { שם_רשות: authority, [cfg.sheetField]: 'טופס 2', שורה: [rows.revenue, rows.expense], עמודה: rows.column };
     if (cfg.yearFilter) filters[cfg.yearFilter.field] = cfg.yearFilter.value;
     try {
       const { records } = await dsQuery(cfg.resourceId, filters);
@@ -237,6 +237,30 @@ async function renderAuthorityCharts() {
     return;
   }
   renderAuthorityYearlyCharts(points, state.authority);
+
+  // ממוצע ארנונה למגורים למ"ר: same sheet as the national summary above, so
+  // the same 2023-2024-only limit applies (confirmed absent from every
+  // earlier year checked) - a separate, smaller fetch, not part of the
+  // Form 2 loop above, since it lives on a different sheet entirely.
+  el('finChartAuthArnona').innerHTML = '<p class="acc-hint">טוען…</p>';
+  const arnonaPoints = await fetchAuthorityArnona(state.authority);
+  renderBarChart('finChartAuthArnona', `ממוצע ארנונה למגורים למ"ר, לפי שנה — ${state.authority}`,
+    arnonaPoints.map((p) => ({ label: String(p.year), value: p.value })), 'ש"ח למ"ר', 'ok-chart');
+}
+
+async function fetchAuthorityArnona(authority) {
+  const points = []; // { year, value }
+  for (const year of YEARS_DESC) {
+    const cfg = YEAR_RESOURCES[year];
+    if (!cfg.hasSummary) continue; // this sheet only exists for 2023-2024
+    try {
+      const { records } = await dsQuery(cfg.resourceId, {
+        שם_רשות: authority, [cfg.sheetField]: SUMMARY_SHEET, שורה: ARNONA_ROW, עמודה: ARNONA_COLUMN,
+      });
+      if (records.length) points.push({ year, value: Number(records[0]['ערך']) || 0 });
+    } catch { /* one year failing shouldn't hide the other */ }
+  }
+  return points.sort((a, b) => a.year - b.year);
 }
 
 /* ---------- detailed per-authority statement - fully live, any year ---------- */
