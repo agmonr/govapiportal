@@ -172,15 +172,15 @@ function applyQuickFilter() {
   renderKpis();
   renderCharts();
   renderTable();
-  state.filterGen += 1; // any earlier bulk-doc loop still running now belongs to a stale filter
+  state.filterGen += 1; // any earlier script build still running now belongs to a stale filter
 
-  // Auto-loop the document list only once an actual filter narrows things
-  // down (the free-text box) - not on the raw, possibly hundreds-strong
-  // default list, where looping every meeting's docs unasked would be a much
-  // heavier hit than a visitor asked for. Committee/type/date-range changes
-  // still require the explicit "טעינת מסמכי כל הרשימה" button for the same
-  // reason.
-  if (q) loadAllDocsForList(state.filterGen);
+  // Auto-build the script only once an actual filter narrows things down
+  // (the free-text box) - not on the raw, possibly hundreds-strong default
+  // list, where fetching every meeting's document list unasked would be a
+  // much heavier hit than a visitor asked for. Committee/type/date-range
+  // changes still require the explicit "הורדת כל המסמכים" button for the
+  // same reason.
+  if (q) buildDownloadScript(state.filterGen);
   else el('cmAllDocs').innerHTML = '';
 }
 
@@ -357,87 +357,127 @@ function renderDocsCell(cell, docs) {
         <span class="acc-hint">(${esc(d.subject)}${d.date ? `, ${esc(d.date)}` : ''})</span></li>`).join('')}</ul>`;
 }
 
-/* ---------- "load all documents" - one flat, downloadable-one-by-one list
-   across every meeting in the current filter. No ZIP: archive.gis-net.co.il
-   (where the PDFs actually live) disallows automated access in its own
-   robots.txt and sends no CORS header, so a browser can neither be scripted
-   to fetch it in bulk nor even read the bytes to bundle one - only ordinary
-   link navigation works, which is exactly what this list gives you. Fetches
-   go to handasi.complot.co.il instead (the listing engine, unrestricted),
-   one meeting at a time with a short delay - polite pacing, not a burst of
-   ~100+ requests at once. */
+/* ---------- "download all documents" - not a browser download at all, but a
+   generated shell script: one curl call per document in the current filter,
+   ready to copy into a terminal. This sidesteps every browser-side wall the
+   earlier approaches ran into - curl is a separate program, so none of it
+   applies: no popup blocker (nothing opens a tab), no CORS (that's a
+   browser-fetch/XHR restriction on reading a cross-origin *response in JS*,
+   irrelevant to a standalone process making its own request), and no
+   "did it finish downloading" ambiguity (curl writes the file and exits).
+   Fetching the per-meeting document *lists* to build the script still goes
+   through handasi.complot.co.il (the listing engine) exactly as everywhere
+   else on this page - only the resulting script's curl calls hit
+   archive.gis-net.co.il, the same one-file-at-a-time act as clicking each
+   link by hand, just batched into a paste. */
 const sleep = (ms) => new Promise((r) => { setTimeout(r, ms); });
+
+/** Strips characters that break either a shell command or a filesystem path
+ *  - mirrors sanitize_filename() in scrape_hodhasharon_meetings.py. */
+function sanitizeFilename(name) {
+  return String(name || 'מסמך')
+    .replace(/[\\/:*?"<>|\r\n\t]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 120) || 'מסמך';
+}
+
+/** POSIX single-quoting: wraps in '...', escaping any embedded ' as '"'"'.
+ *  Safe for any text - not just the ASCII curl expects most arguments to be. */
+const shQuote = (s) => `'${String(s).replace(/'/g, "'\"'\"'")}'`;
 
 // `gen` lets an auto-triggered run (from typing in the quick filter) abandon
 // itself the moment a newer keystroke changes the filter again, instead of
-// two loops racing to render over each other - see applyQuickFilter().
-async function loadAllDocsForList(gen = state.filterGen) {
+// two runs racing to overwrite the script panel - see applyQuickFilter().
+async function buildDownloadScript(gen = state.filterGen) {
   const list = state.filtered;
   if (!list.length) return;
-  if (list.length > 150 && !confirm(`הרשימה כוללת ${list.length} ישיבות - הטעינה תשלח כ-${list.length} בקשות בזו אחר זו ותימשך זמן מה. להמשיך?`)) return;
+  if (list.length > 150 && !confirm(`הרשימה כוללת ${list.length} ישיבות - בניית הסקריפט תשלח כ-${list.length} בקשות לרשימת המסמכים בזו אחר זו ותימשך זמן מה. להמשיך?`)) return;
 
   const btn = el('cmLoadAllDocs');
   const box = el('cmAllDocs');
   btn.disabled = true;
   try {
-    const all = []; // { meeting, doc }
-    let failed = 0;
+    const lines = [];
+    let failedMeetings = 0;
+    let docCount = 0;
     for (let i = 0; i < list.length; i += 1) {
       if (gen !== state.filterGen) return; // a newer filter took over mid-loop
-      box.innerHTML = `<p class="acc-hint">טוען מסמכים… (${i + 1}/${list.length})</p>`;
       const meeting = list[i];
-      const cached = state.docsCache.get(docsKeyFor(meeting));
-      if (cached) {
-        cached.forEach((doc) => all.push({ meeting, doc }));
-        continue; // already known - no request, no delay needed
+      box.innerHTML = `<p class="acc-hint">בונה רשימת קבצים… (ישיבה ${i + 1}/${list.length})</p>`;
+      let docs = state.docsCache.get(docsKeyFor(meeting));
+      if (!docs) {
+        try {
+          docs = await fetchDocsFor(meeting);
+        } catch {
+          failedMeetings += 1;
+          continue;
+        }
+        await sleep(150); // politeness pacing on the listing engine, same spirit as the original scraper's rate limiter
       }
-      try {
-        const docs = await fetchDocsFor(meeting);
-        docs.forEach((doc) => all.push({ meeting, doc }));
-      } catch {
-        failed += 1;
+      for (const doc of docs) {
+        docCount += 1;
+        const fname = sanitizeFilename(
+          `${meeting.date.replace(/\//g, '-')}_${meeting.meetingNumber}_${doc.title || doc.subject}.pdf`,
+        );
+        lines.push(
+          `curl -sS --retry 2 --retry-delay 3 -o ${shQuote(fname)} ${shQuote(doc.url)} `
+          + `&& echo "הורד: ${fname}" || echo "נכשל: ${fname}"`,
+        );
+        lines.push('sleep 0.5'); // politeness pacing on the archive host itself, run at the visitor's own pace, not this page's
       }
-      await sleep(150); // politeness pacing, same spirit as the original scraper's rate limiter
     }
-    if (gen === state.filterGen) renderAllDocs(all, failed); // stale otherwise - a newer run owns the panel now
+    if (gen === state.filterGen) renderDownloadScript(lines, docCount, failedMeetings); // stale otherwise - a newer run owns the panel now
   } finally {
     btn.disabled = false;
   }
 }
 
-function renderAllDocs(all, failed) {
+function renderDownloadScript(lines, docCount, failedMeetings) {
   const box = el('cmAllDocs');
-  if (!all.length) {
-    box.innerHTML = `<p class="acc-hint">לא נמצאו מסמכים לרשימה הנוכחית.${failed ? ` (${failed} ישיבות נכשלו בטעינה)` : ''}</p>`;
+  if (!docCount) {
+    box.innerHTML = `<p class="acc-hint">לא נמצאו מסמכים לרשימה הנוכחית.${failedMeetings ? ` (${failedMeetings} ישיבות נכשלו בטעינת רשימת המסמכים)` : ''}</p>`;
     return;
   }
-  const rows = all.map(({ meeting, doc }) => `
-    <tr>
-      <td dir="auto">${esc(meeting.date)}</td>
-      <td dir="auto">${esc(meeting.meetingNumber)}</td>
-      <td dir="auto">${esc(meeting.committee)}</td>
-      <td dir="auto"><a href="${esc(doc.url)}" target="_blank" rel="noopener">${esc(doc.title || doc.subject || 'מסמך')}</a></td>
-    </tr>`).join('');
+  const folder = sanitizeFilename(`ועדה_${state.siteid}_${el('cmFrom').value}_${el('cmTo').value}`);
+  const script = [
+    '#!/usr/bin/env bash',
+    'set -uo pipefail',
+    `mkdir -p ${shQuote(folder)}`,
+    `cd ${shQuote(folder)}`,
+    '',
+    ...lines,
+    '',
+    'echo "הסתיים."',
+  ].join('\n') + '\n';
+
   box.innerHTML = `
-    <p class="acc-hint">${num(all.length)} מסמכים מתוך ${num(new Set(all.map((a) => a.meeting.meetingNumber)).size)} ישיבות.${failed ? ` (${failed} ישיבות נכשלו בטעינה)` : ''}</p>
-    <div class="matrix-wrap">
-      <table class="matrix">
-        <thead>
-          <tr>
-            <th scope="col">תאריך ישיבה</th>
-            <th scope="col">מספר ישיבה</th>
-            <th scope="col">סוג ישיבה</th>
-            <th scope="col">מסמך</th>
-          </tr>
-        </thead>
-        <tbody>${rows}</tbody>
-      </table>
+    <p class="acc-hint">
+      ${num(docCount)} קבצים.${failedMeetings ? ` (${failedMeetings} ישיבות נכשלו בטעינת רשימת המסמכים)` : ''}
+      הריצו בטרמינל (למשל <code dir="ltr">bash script.sh</code>) - יוצר תיקייה משלו ומוריד לתוכה, קובץ אחר קובץ.
+    </p>
+    <div class="cm-script-wrap">
+      <textarea id="cmScript" class="cm-script" readonly rows="10" dir="ltr" spellcheck="false">${esc(script)}</textarea>
+      <button type="button" id="cmCopyScript" class="drill-dl">העתקת הסקריפט ⧉</button>
     </div>`;
+
+  el('cmCopyScript').addEventListener('click', async () => {
+    const copyBtn = el('cmCopyScript');
+    const original = copyBtn.textContent;
+    try {
+      await navigator.clipboard.writeText(script);
+      copyBtn.textContent = 'הועתק ✓';
+    } catch {
+      el('cmScript').select(); // clipboard API unavailable/denied - at least select it for manual Ctrl+C
+      copyBtn.textContent = 'סמנו והעתיקו ידנית (Ctrl+C)';
+    }
+    setTimeout(() => { copyBtn.textContent = original; }, 2000);
+  });
 }
 
-// Not `loadAllDocsForList` directly - addEventListener would pass the click
+// Not `buildDownloadScript` directly - addEventListener would pass the click
 // Event as `gen`, clobbering the default parameter.
-el('cmLoadAllDocs').addEventListener('click', () => loadAllDocsForList());
+el('cmLoadAllDocs').addEventListener('click', () => buildDownloadScript());
 
 /* ---------- CSV export - exactly the filtered rows on screen ---------- */
 

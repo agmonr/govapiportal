@@ -15,7 +15,7 @@
   </script>
   <link rel="stylesheet" href="./src/style.css">
 </head>
-<body class="accidents-page">
+<body class="accidents-page committees-page">
   <header class="site">
     <div class="wrap">
       <h1>ישיבות ועדות תכנון ובנייה</h1>
@@ -113,14 +113,16 @@
       </section>
 
       <section class="acc-section" aria-labelledby="allDocsH">
-        <h2 id="allDocsH">כל המסמכים ברשימה המסוננת</h2>
+        <h2 id="allDocsH">סקריפט הורדה לכל המסמכים ברשימה המסוננת</h2>
         <p class="acc-hint">
-          כל קובץ הוא קישור ישיר לארכיון הפרוטוקולים (<code dir="ltr">archive.gis-net.co.il</code>) —
-          מורידים אחד־אחד, כמו בפתיחת קישור רגיל. אין כאן הורדה מרוכזת כ-ZIP: הארכיון עצמו חוסם
-          גישה אוטומטית (<code dir="ltr">robots.txt: Disallow: /</code>) ואינו שולח כותרת CORS,
-          כך שהדפדפן חוסם גם קריאת קבצים לצורך אריזה - רק ניווט/הורדה ישירים אפשריים.
+          במקום להוריד דרך הדפדפן - הכפתור בונה סקריפט <code dir="ltr">bash</code> עם פקודת
+          <code dir="ltr">curl</code> אחת לכל קובץ, מוכן להעתקה ולהרצה בטרמינל. הסקריפט יוצר לעצמו
+          תיקייה ומוריד לתוכה קובץ אחר קובץ, בקצב מתון (השהיה קצרה בין קובץ לקובץ). אין כאן הורדה
+          מרוכזת כ-ZIP: ארכיון הפרוטוקולים (<code dir="ltr">archive.gis-net.co.il</code>) חוסם גישה
+          אוטומטית (<code dir="ltr">robots.txt: Disallow: /</code>) - הרצה כסקריפט, קובץ בכל פעם,
+          היא בדיוק אותה פעולה כמו לחיצה ידנית על כל קישור בתורו, רק ממוכנת.
         </p>
-        <button type="button" id="cmLoadAllDocs" class="drill-dl">טעינת מסמכי כל הרשימה</button>
+        <button type="button" id="cmLoadAllDocs" class="drill-dl">בניית סקריפט ההורדה</button>
         <div id="cmAllDocs"></div>
       </section>
     </div>

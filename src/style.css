@@ -213,6 +213,22 @@ button.stat { cursor: pointer; }
 .cm-doclist { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: .3rem; }
 .cm-doclist a { color: var(--accent); }
 
+.cm-script-wrap { display: flex; flex-direction: column; gap: .5rem; align-items: flex-start; }
+.cm-script {
+  inline-size: 100%;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: .8rem;
+  line-height: 1.5;
+  padding: .75rem;
+  color: var(--fg);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  resize: vertical;
+  white-space: pre;
+  overflow-x: auto;
+}
+
 /* ---------- page sections (ערים / כלל הארץ) ---------- */
 
 .acc-section { margin-block-end: 2.5rem; }
@@ -894,6 +910,18 @@ body.accidents-page header.site {
       color-mix(in srgb, var(--accent) 14%, transparent) 0 14px, transparent 14px 28px),
     var(--surface);
 }
+
+/* committees.html reuses accidents-page's whole header treatment (striped
+   background, centered title) but with its own neutral-gray mood instead of
+   the accidents page's orange - a separate topic, not a severity/warning
+   color, so it shouldn't borrow that page's caution tone. Same specificity
+   as the rule above (one class + one element), so source order alone is
+   what makes this win on pages carrying both classes. */
+body.committees-page { --accent: #6b7280; }
+@media (prefers-color-scheme: dark) {
+  body.committees-page { --accent: #9ca3af; }
+}
+
 /* Centered on this page specifically - the map's header stays a normal
    start-aligned row with a byline/theme-pick/probed-stamp cluster; this
    page's header only has the title and controls, so a centered title reads
