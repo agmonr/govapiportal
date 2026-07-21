@@ -100,6 +100,7 @@ const state = {
   filtered: [],   // after the free-text quick filter
   docsCache: new Map(), // docsKeyFor(meeting) -> docs[]
   docsLoaded: 0,  // running count, across this session, of doc-lists fetched
+  filterGen: 0,   // bumped on every quick-filter change; lets a stale bulk-doc loop abandon itself
 };
 
 /* ---------- filter bar: committee/settlement is type-to-search, same
@@ -171,7 +172,16 @@ function applyQuickFilter() {
   renderKpis();
   renderCharts();
   renderTable();
-  el('cmAllDocs').innerHTML = ''; // the aggregated list belongs to the old filter, not this one
+  state.filterGen += 1; // any earlier bulk-doc loop still running now belongs to a stale filter
+
+  // Auto-loop the document list only once an actual filter narrows things
+  // down (the free-text box) - not on the raw, possibly hundreds-strong
+  // default list, where looping every meeting's docs unasked would be a much
+  // heavier hit than a visitor asked for. Committee/type/date-range changes
+  // still require the explicit "טעינת מסמכי כל הרשימה" button for the same
+  // reason.
+  if (q) loadAllDocsForList(state.filterGen);
+  else el('cmAllDocs').innerHTML = '';
 }
 
 /* ---------- KPI tiles - same visual vocabulary as accidents.html's .stat-row ---------- */
@@ -358,35 +368,41 @@ function renderDocsCell(cell, docs) {
    ~100+ requests at once. */
 const sleep = (ms) => new Promise((r) => { setTimeout(r, ms); });
 
-async function loadAllDocsForList() {
+// `gen` lets an auto-triggered run (from typing in the quick filter) abandon
+// itself the moment a newer keystroke changes the filter again, instead of
+// two loops racing to render over each other - see applyQuickFilter().
+async function loadAllDocsForList(gen = state.filterGen) {
   const list = state.filtered;
   if (!list.length) return;
   if (list.length > 150 && !confirm(`הרשימה כוללת ${list.length} ישיבות - הטעינה תשלח כ-${list.length} בקשות בזו אחר זו ותימשך זמן מה. להמשיך?`)) return;
 
   const btn = el('cmLoadAllDocs');
-  btn.disabled = true;
   const box = el('cmAllDocs');
-
-  const all = []; // { meeting, doc }
-  let failed = 0;
-  for (let i = 0; i < list.length; i += 1) {
-    box.innerHTML = `<p class="acc-hint">טוען מסמכים… (${i + 1}/${list.length})</p>`;
-    const meeting = list[i];
-    const cached = state.docsCache.get(docsKeyFor(meeting));
-    if (cached) {
-      cached.forEach((doc) => all.push({ meeting, doc }));
-      continue; // already known - no request, no delay needed
+  btn.disabled = true;
+  try {
+    const all = []; // { meeting, doc }
+    let failed = 0;
+    for (let i = 0; i < list.length; i += 1) {
+      if (gen !== state.filterGen) return; // a newer filter took over mid-loop
+      box.innerHTML = `<p class="acc-hint">טוען מסמכים… (${i + 1}/${list.length})</p>`;
+      const meeting = list[i];
+      const cached = state.docsCache.get(docsKeyFor(meeting));
+      if (cached) {
+        cached.forEach((doc) => all.push({ meeting, doc }));
+        continue; // already known - no request, no delay needed
+      }
+      try {
+        const docs = await fetchDocsFor(meeting);
+        docs.forEach((doc) => all.push({ meeting, doc }));
+      } catch {
+        failed += 1;
+      }
+      await sleep(150); // politeness pacing, same spirit as the original scraper's rate limiter
     }
-    try {
-      const docs = await fetchDocsFor(meeting);
-      docs.forEach((doc) => all.push({ meeting, doc }));
-    } catch {
-      failed += 1;
-    }
-    await sleep(150); // politeness pacing, same spirit as the original scraper's rate limiter
+    if (gen === state.filterGen) renderAllDocs(all, failed); // stale otherwise - a newer run owns the panel now
+  } finally {
+    btn.disabled = false;
   }
-  btn.disabled = false;
-  renderAllDocs(all, failed);
 }
 
 function renderAllDocs(all, failed) {
@@ -419,7 +435,9 @@ function renderAllDocs(all, failed) {
     </div>`;
 }
 
-el('cmLoadAllDocs').addEventListener('click', loadAllDocsForList);
+// Not `loadAllDocsForList` directly - addEventListener would pass the click
+// Event as `gen`, clobbering the default parameter.
+el('cmLoadAllDocs').addEventListener('click', () => loadAllDocsForList());
 
 /* ---------- CSV export - exactly the filtered rows on screen ---------- */
 
