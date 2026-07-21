@@ -16,6 +16,22 @@
   <link rel="stylesheet" href="./src/style.css">
 </head>
 <body class="accidents-page">
+  <!-- The settlement lookup leads the page, above the "תאונות דרכים עם נפגעים"
+       title banner. Outside #app but hidden by the same file:// guard below. -->
+  <div class="wrap" id="citiesTopWrap">
+    <section class="acc-section" aria-labelledby="citiesH">
+      <h2 id="citiesH">ישובים</h2>
+      <div class="acc-year-pick">
+        <label for="cityInput">ישוב:</label>
+        <input id="cityInput" type="text" list="cityList" autocomplete="off"
+               spellcheck="false" placeholder="התחילו להקליד שם ישוב…">
+        <datalist id="cityList"></datalist>
+      </div>
+      <div id="cityStats" class="stat-row"></div>
+      <div id="cityTable"></div>
+    </section>
+  </div>
+
   <header class="site">
     <div class="wrap">
       <h1>תאונות דרכים עם נפגעים</h1>
@@ -46,18 +62,6 @@
     </div>
 
     <div id="app">
-      <section class="acc-section" aria-labelledby="citiesH">
-        <h2 id="citiesH">ישובים</h2>
-        <div class="acc-year-pick">
-          <label for="cityInput">ישוב:</label>
-          <input id="cityInput" type="text" list="cityList" autocomplete="off"
-                 spellcheck="false" placeholder="התחילו להקליד שם ישוב…">
-          <datalist id="cityList"></datalist>
-        </div>
-        <div id="cityStats" class="stat-row"></div>
-        <div id="cityTable"></div>
-      </section>
-
       <section class="acc-section" aria-labelledby="natH">
         <h2 id="natH">כלל הארץ</h2>
         <div class="acc-charts">
@@ -93,6 +97,7 @@
     if (location.protocol === 'file:') {
       document.getElementById('fileproto').hidden = false;
       document.getElementById('app').hidden = true;
+      document.getElementById('citiesTopWrap').hidden = true;
     }
   </script>
   <script type="module" src="./src/accidents.js"></script>
