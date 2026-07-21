@@ -260,6 +260,7 @@ button.stat { cursor: pointer; }
 .fin-sheet summary { cursor: pointer; font-weight: 600; }
 .fin-sheet summary:hover { color: var(--accent); }
 .fin-sheet .matrix-wrap { margin-block-start: .6rem; }
+.fin-export-row { display: flex; flex-wrap: wrap; gap: .5rem; margin-block-end: .5rem; }
 
 /* ---------- page sections (ערים / כלל הארץ) ---------- */
 
@@ -969,6 +970,16 @@ body.committees-page { --accent: #6b7280; }
 body.finance-page { --accent: #a9820c; }
 @media (prefers-color-scheme: dark) {
   body.finance-page { --accent: #e0b93a; }
+}
+
+/* companies.html: light yellow, deliberately a cooler lemon/olive tone
+   rather than finance-page's warmer amber-gold above - the two sit next to
+   each other in the same yellow family (both are registry/records-of-money-
+   adjacent government data), so this leans away from finance's hue rather
+   than toward it. Same specificity story as the rules above. */
+body.companies-page { --accent: #a89400; }
+@media (prefers-color-scheme: dark) {
+  body.companies-page { --accent: #e8d34a; }
 }
 
 /* Centered on this page specifically - the map's header stays a normal

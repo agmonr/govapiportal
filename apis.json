@@ -34,6 +34,26 @@
       "home": "https://data.gov.il/dataset/local-authorities"
     },
     {
+      "id": "companies",
+      "name": "Companies Registry (Ministry of Justice)",
+      "name_he": "מאגר החברות",
+      "kind": "אפליקציה",
+      "about": "728,280 תאגידים הרשומים אצל רשם החברות, נשלפים חי מ-DataStore של data.gov.il (ica_companies). 404,529 פעילות (55.5%), 194,846 מסומנות \"מפרה\", 126 חברות ממשלתיות - נספר ב-2026-07-21 משאילתות ספירה בפועל, לא הערכה. 728K שורות גדול מכדי לטעון לדפדפן בשלמותו, אז בשונה מאפליקציית הוועדות, החיפוש, הסינון (סטטוס/סוג/מפרה/ממשלתית) והעימוד רצים בשרת על כל הרשומות; ה-CSV מייצא את השאילתה המסוננת, לא את כל המרשם.",
+      "href": "./companies.html",
+      "external": false,
+      "home": "https://data.gov.il/dataset/ica_companies",
+      "computed_at": "2026-07-21T17:46+03:00"
+    },
+    {
+      "id": "agriculture",
+      "name": "Ministry of Agriculture Open Data (ArcGIS Hub)",
+      "name_he": "משרד החקלאות — אתר מידע גיאוגרפי פתוח",
+      "kind": "ממשלתי",
+      "about": "האתר הרשמי (ArcGIS Hub) של משרד החקלאות וביטחון המזון - קטלוג חזותי ואינטראקטיבי של שכבות, מפות ואפליקציות ייעודיות (תחת 'אפליקציות ומפות'), חלק ניתן להורדה ישירה. אותו מקור נתונים כמו הפורטל 'משרד החקלאות' במפת ה-API שלמטה (93 מאגרים גאוגרפיים דרך DCAT/ArcGIS FeatureServer) - זו חוויית הגלישה הוויזואלית שלו, לא קריאת API.",
+      "href": "https://data1-moag.opendata.arcgis.com/",
+      "external": true
+    },
+    {
       "id": "trees",
       "name": "Tree Objections Tracker",
       "name_he": "עצים והשגות",

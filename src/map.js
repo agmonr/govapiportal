@@ -141,7 +141,8 @@ function renderMatrix() {
 // One glyph each - a welcoming button reads as a destination, not a document,
 // so the icon carries it rather than a URL or an arrow-hint line.
 const APP_ICON = {
-  accidents: '🚦', trees: '🌳', committees: '🏛️', 'local-finance': '💰',
+  accidents: '🚦', trees: '🌳', committees: '🏛️', 'local-finance': '💰', agriculture: '🌾',
+  companies: '🏢',
 };
 
 function appCard(a) {

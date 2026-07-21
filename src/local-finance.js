@@ -252,6 +252,54 @@ el('finCsv').addEventListener('click', () => {
   saveCsv(csv, `דוח_כספי_${state.authority}_${state.year}.csv`);
 });
 
+/* ---------- CSV export - every year available for the selected authority,
+   one file. No separate "Excel" format: a CSV opens natively in Excel/Sheets
+   with full fidelity for a flat table like this one, so a second binary
+   format would just be the same data under a different extension - not a
+   real distinction worth a hand-rolled XLSX writer (this project ships no
+   external JS dependencies at all, browser-side). Years the authority has no
+   rows in (e.g. a city in 2020/2021, when only local councils were found)
+   are skipped, not treated as an error - see coverage per year in
+   finance-data.js. */
+async function downloadAllYearsForAuthority() {
+  if (!state.authority) return;
+  const btn = el('finCsvAll');
+  const original = btn.textContent;
+  btn.disabled = true;
+  try {
+    const all = [];
+    let found = 0;
+    for (const year of YEARS_DESC) {
+      btn.textContent = `טוען ${year}… (${found} שנים עד כה)`;
+      const cfg = YEAR_RESOURCES[year];
+      const filters = { שם_רשות: state.authority };
+      if (cfg.yearFilter) filters[cfg.yearFilter.field] = cfg.yearFilter.value;
+      try {
+        const { records } = await dsQuery(cfg.resourceId, filters);
+        if (records.length) {
+          found += 1;
+          records.forEach((r) => all.push({
+            שם_רשות: r['שם_רשות'], שנה: year, כיסוי: cfg.coverage,
+            גיליון: r[cfg.sheetField], שורה: r['שורה'], עמודה: r['עמודה'], ערך: r['ערך'],
+          }));
+        }
+      } catch { /* one year failing shouldn't abort the rest */ }
+      await new Promise((r) => { setTimeout(r, 200); }); // politeness pacing, same spirit as elsewhere on this site
+    }
+    if (!all.length) {
+      alert(`לא נמצאו נתונים עבור "${state.authority}" באף שנה זמינה.`);
+      return;
+    }
+    const csv = buildCsv(['שם_רשות', 'שנה', 'כיסוי', 'גיליון', 'שורה', 'עמודה', 'ערך'], all);
+    saveCsv(csv, `דוח_כספי_${state.authority}_כל_השנים.csv`);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = original;
+  }
+}
+
+el('finCsvAll').addEventListener('click', downloadAllYearsForAuthority);
+
 /* ---------- wiring ---------- */
 
 async function onAuthorityChange() {

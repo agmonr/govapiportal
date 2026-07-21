@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>מאגר החברות — רשם החברות (משרד המשפטים)</title>
+  <!-- Sets data-theme before the stylesheet is applied, so a returning
+       visitor who picked "fashion" never sees a flash of the clouds theme
+       first. See src/theme.js for the picker itself. -->
+  <script>
+    try {
+      var t = localStorage.getItem('theme');
+      if (t && t !== 'clouds') document.documentElement.setAttribute('data-theme', t);
+    } catch (e) {}
+  </script>
+  <link rel="stylesheet" href="./src/style.css">
+</head>
+<body class="accidents-page companies-page">
+  <header class="site">
+    <div class="wrap">
+      <h1>מאגר החברות</h1>
+      <span class="site-by">פרויקט של רם אגמון<span class="site-disclaimer">המידע באתר עלול להיות שגוי</span></span>
+      <div class="theme-pick" id="themePick" role="group" aria-label="ערכת נושא">
+        <button type="button" data-theme="clouds">עננים</button>
+        <button type="button" data-theme="fashion">אופנה</button>
+      </div>
+      <span class="meta" id="created"></span>
+      <span class="meta"><a href="./index.html">← חזרה למפת ה-API</a></span>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <div id="fileproto" class="notice error" dir="auto" hidden>
+      <strong>הדף נפתח כקובץ מקומי (<code dir="ltr">file://</code>) ולכן אינו יכול לטעון את הנתונים.</strong>
+      <p>
+        הדפדפן חוסם מודולי ES ממקור <code dir="ltr">null</code> — זו הגבלת אבטחה של הדפדפן, לא תקלה באתר.
+        הפעל שרת מקומי מתיקיית הפרויקט:
+      </p>
+      <pre dir="ltr"><code>python3 -m http.server 8000</code></pre>
+      <p>ולאחר מכן פתח <a href="http://localhost:8000/companies.html" dir="ltr">http://localhost:8000/companies.html</a>.</p>
+      <p>
+        לחלופין, ללא שרת כלל — <a href="./dist/companies.html" dir="ltr">dist/companies.html</a>
+        הוא קובץ יחיד ועצמאי שעובד בפתיחה ישירה מהדיסק, כולל הרצת בקשות חיות.
+      </p>
+    </div>
+
+    <div id="app">
+      <div class="notice info" dir="auto">
+        <strong>מה יש כאן:</strong>
+        <p>
+          728,280 תאגידים הרשומים אצל רשם החברות, נשלפים <strong>חי</strong> מה-DataStore של
+          data.gov.il (<code dir="ltr">ica_companies</code>) — לא סנפשוט. הקובץ גדול מכדי לטעון
+          בשלמותו לדפדפן, אז בשונה מאפליקציית הוועדות, הסינון, החיפוש ועימוד התוצאות למטה רצים
+          בשרת על כל השורות. מדדי ה-KPI וגרפי ההתפלגות מחושבים בעת הטעינה משאילתות ספירה בודדות
+          לכל ערך (סטטוס/סוג) — לא סריקה של כל 728K הרשומות.
+        </p>
+        <p>
+          הורדת ה-CSV מייצאת את <strong>השאילתה המסוננת</strong> שעל המסך, לא את כל המרשם — כפי
+          שגם דוחות הכספיים המבוקרים וגם סייר ה-CKAN עושים.
+        </p>
+      </div>
+
+      <section class="acc-section" aria-labelledby="filtersH">
+        <h2 id="filtersH">סינון וחיפוש</h2>
+        <div class="cm-filters">
+          <div class="acc-year-pick">
+            <label for="coQ">חיפוש חופשי (שם חברה / מספר):</label>
+            <input id="coQ" type="text" autocomplete="off" spellcheck="false" placeholder="לדוגמה: טבע…">
+          </div>
+          <div class="acc-year-pick">
+            <label for="coStatus">סטטוס חברה:</label>
+            <select id="coStatus"><option value="">טוען…</option></select>
+          </div>
+          <div class="acc-year-pick">
+            <label for="coType">סוג תאגיד:</label>
+            <select id="coType"><option value="">טוען…</option></select>
+          </div>
+          <label class="check"><input id="coViolator" type="checkbox"> חברה מפרה בלבד</label>
+          <label class="check"><input id="coGov" type="checkbox"> חברה ממשלתית בלבד</label>
+        </div>
+      </section>
+
+      <section class="acc-section" aria-labelledby="kpiH">
+        <h2 id="kpiH">מדדים</h2>
+        <div id="coKpis" class="stat-row"></div>
+      </section>
+
+      <section class="acc-section" aria-labelledby="chartsH">
+        <h2 id="chartsH">ויזואליזציה</h2>
+        <div class="acc-charts">
+          <figure id="coChartStatus" class="acc-chart" role="img"></figure>
+          <figure id="coChartType" class="acc-chart" role="img"></figure>
+        </div>
+      </section>
+
+      <section class="acc-section" aria-labelledby="resultsH">
+        <h2 id="resultsH">תוצאות</h2>
+        <button type="button" id="coCsv" class="drill-dl">הורדת CSV של השאילתה המסוננת ⭳</button>
+        <div id="coCount" class="ck-count"></div>
+        <div id="coTableWrap"></div>
+        <div id="coPager" class="pager"></div>
+      </section>
+    </div>
+  </main>
+
+  <!--
+    Same guard as index.html/accidents.html: opened from disk nothing below can
+    load, because ES module scripts are refused from origin 'null'. Must be a
+    classic inline script - a module would be the first thing blocked.
+  -->
+  <script>
+    if (location.protocol === 'file:') {
+      document.getElementById('fileproto').hidden = false;
+      document.getElementById('app').hidden = true;
+    }
+  </script>
+  <script type="module" src="./src/companies.js"></script>
+</body>
+</html>
