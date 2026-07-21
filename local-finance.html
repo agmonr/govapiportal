@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>דוחות כספיים מבוקרים — רשויות מקומיות (משרד הפנים)</title>
+  <!-- Sets data-theme before the stylesheet is applied, so a returning
+       visitor who picked "fashion" never sees a flash of the clouds theme
+       first. See src/theme.js for the picker itself. -->
+  <script>
+    try {
+      var t = localStorage.getItem('theme');
+      if (t && t !== 'clouds') document.documentElement.setAttribute('data-theme', t);
+    } catch (e) {}
+  </script>
+  <link rel="stylesheet" href="./src/style.css">
+</head>
+<body class="accidents-page finance-page">
+  <header class="site">
+    <div class="wrap">
+      <h1>דוחות כספיים מבוקרים — רשויות מקומיות</h1>
+      <span class="site-by">פרויקט של רם אגמון<span class="site-disclaimer">המידע באתר עלול להיות שגוי</span></span>
+      <div class="theme-pick" id="themePick" role="group" aria-label="ערכת נושא">
+        <button type="button" data-theme="clouds">עננים</button>
+        <button type="button" data-theme="fashion">אופנה</button>
+      </div>
+      <span class="meta" id="created"></span>
+      <span class="meta"><a href="./index.html">← חזרה למפת ה-API</a></span>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <div id="fileproto" class="notice error" dir="auto" hidden>
+      <strong>הדף נפתח כקובץ מקומי (<code dir="ltr">file://</code>) ולכן אינו יכול לטעון את הנתונים.</strong>
+      <p>
+        הדפדפן חוסם מודולי ES ממקור <code dir="ltr">null</code> — זו הגבלת אבטחה של הדפדפן, לא תקלה באתר.
+        הפעל שרת מקומי מתיקיית הפרויקט:
+      </p>
+      <pre dir="ltr"><code>python3 -m http.server 8000</code></pre>
+      <p>ולאחר מכן פתח <a href="http://localhost:8000/local-finance.html" dir="ltr">http://localhost:8000/local-finance.html</a>.</p>
+      <p>
+        לחלופין, ללא שרת כלל — <a href="./dist/local-finance.html" dir="ltr">dist/local-finance.html</a>
+        הוא קובץ יחיד ועצמאי שעובד בפתיחה ישירה מהדיסק, כולל הרצת בקשות חיות.
+      </p>
+    </div>
+
+    <div id="app">
+      <div class="notice info" dir="auto">
+        <strong>מה יש כאן, ומה עדיין לא:</strong>
+        <p>
+          כל מספר בעמוד הזה נשלף <strong>חי</strong>, בזמן אמת, ישירות מהדפדפן מול ה-DataStore של
+          data.gov.il, מתוך הדוחות הכספיים המבוקרים שמשרד הפנים מפרסם עבור כל רשות מקומית בישראל -
+          לא הערכה, לא סיכום מבוצע מראש. סעיף בודד, ערך בודד - בדיוק כפי שפורסם.
+        </p>
+        <p>
+          <strong>טווח השנים משתנה בין שני מקורות</strong> שנוצרים בתבניות שונות: 2016-2024, אך לא
+          כל שנה מכסה את כל סוגי הרשויות (עיריות/מועצות מקומיות/מועצות אזוריות) - ל-2020 ו-2021,
+          למשל, נמצאו נתונים רק עבור מועצות מקומיות. 2014-2015 לא נכללים כרגע - הם מתפרסמים
+          כקבצים מפוצלים לפי טווחי אלף-בית של שם הרשות, מה שדורש טיפול נפרד.
+        </p>
+        <p>
+          <strong>מדדים מסוכמים ברמה ארצית (למעלה) קיימים רק ל-2023 ו-2024</strong>: אלה השנים
+          היחידות שבהן משרד הפנים עצמו מפרסם גיליון סיכום מוכן ("דוח לתושב") עם שורות כמו
+          "סה\"כ הכנסות"/"סה\"כ הוצאות" - בשנים קודמות התיוג המדויק של שורת הסיכום משתנה משנה
+          לשנה, ולכן לא חושבו שם מדדים מצטברים; הטבלה המפורטת למטה עדיין עובדת לכל שנה, ומציגה
+          כל סעיף כפי שפורסם.
+        </p>
+        <p>
+          <strong>מאגר נפרד קיים גם עבור תשלומי משרד הפנים שהועברו בפועל</strong>
+          ("תשלומי משרד הפנים שהועברו" - בקשות תשלום, מקדמות, אבני דרך) - הוא <strong>אינו נכלל
+          בעמוד הזה</strong>. הוא מתאר תזרים תשלומים בפועל מול ספקים/רשויות, במבנה שונה לגמרי
+          מהדוחות הכספיים המבוקרים כאן (שמתארים את מצבה הכספי המלא של הרשות עצמה) - שילוב שני
+          המקורות דורש עבודת נרמול נפרדת, ולא בוצע.
+        </p>
+      </div>
+
+      <section class="acc-section" aria-labelledby="filtersH">
+        <h2 id="filtersH">בחירת רשות ושנה</h2>
+        <div class="cm-filters">
+          <div class="acc-year-pick">
+            <label for="finAuthority">רשות מקומית:</label>
+            <input id="finAuthority" type="text" list="finAuthorityList" autocomplete="off"
+                   spellcheck="false" placeholder="התחילו להקליד שם רשות…">
+            <datalist id="finAuthorityList"></datalist>
+          </div>
+          <div class="acc-year-pick">
+            <label for="finYear">שנה:</label>
+            <select id="finYear"></select>
+          </div>
+        </div>
+      </section>
+
+      <section class="acc-section" aria-labelledby="kpiH">
+        <h2 id="kpiH">מדדים ארציים — <span id="kpiYearLabel"></span></h2>
+        <div id="finKpis" class="stat-row"></div>
+      </section>
+
+      <section class="acc-section" aria-labelledby="chartsH">
+        <h2 id="chartsH">ויזואליזציה</h2>
+        <div class="acc-charts">
+          <figure id="finChartYoY" class="acc-chart" role="img"></figure>
+          <figure id="finChartTop" class="acc-chart total" role="img"></figure>
+        </div>
+      </section>
+
+      <section class="acc-section" aria-labelledby="statementH">
+        <h2 id="statementH">דוח כספי מפורט לרשות שנבחרה</h2>
+        <button type="button" id="finCsv" class="drill-dl">הורדת CSV של הדוח המוצג ⭳</button>
+        <div id="finStatement"></div>
+      </section>
+    </div>
+  </main>
+
+  <!--
+    Same guard as index.html/accidents.html: opened from disk nothing below can
+    load, because ES module scripts are refused from origin 'null'. Must be a
+    classic inline script - a module would be the first thing blocked.
+  -->
+  <script>
+    if (location.protocol === 'file:') {
+      document.getElementById('fileproto').hidden = false;
+      document.getElementById('app').hidden = true;
+    }
+  </script>
+  <script type="module" src="./src/local-finance.js"></script>
+</body>
+</html>

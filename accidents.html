@@ -72,9 +72,12 @@
         <h2 id="citiesH">ישובים</h2>
         <div class="acc-year-pick">
           <label for="cityInput">ישוב:</label>
-          <input id="cityInput" type="text" list="cityList" autocomplete="off"
-                 spellcheck="false" placeholder="התחילו להקליד שם ישוב…">
-          <datalist id="cityList"></datalist>
+          <div class="ac-wrap">
+            <input id="cityInput" type="text" autocomplete="off" spellcheck="false"
+                   role="combobox" aria-autocomplete="list" aria-expanded="false"
+                   aria-controls="cityMenu" placeholder="התחילו להקליד שם ישוב…">
+            <ul id="cityMenu" class="ac-menu" role="listbox" hidden></ul>
+          </div>
         </div>
         <div id="cityStats" class="stat-row"></div>
         <div id="cityTable"></div>

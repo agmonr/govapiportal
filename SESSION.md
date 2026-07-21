@@ -575,3 +575,52 @@ previous session's scratchpad no longer exists, and none of it was ever in git
 history — `ckan.js`, the dataset detail page, the record explorer,
 `build_index.py` and the catalog snapshot are unrecoverable. Recorded here so
 nobody goes looking for them. Anything wanted from that work must be rebuilt.
+
+## 2026-07-21
+
+### Ministry of Health app: scouted, not built
+
+Asked for an accidents/committees-style app ("משרד הבריאות", light-blue accent)
+covering two datasets. Got as far as a design mockup and a data-source check;
+no `health.html` / `src/health.js` exist. Recorded here so the next attempt
+starts from what was actually found rather than re-probing from scratch.
+
+Organization slug is **`ministry-health`** (not `ministry_of_health` —
+`organization_list` had to be grepped for `health` to find it; guessing the
+underscored form returns `count: 0` with no error). 54 packages under it.
+
+**Growth/obesity data** — package `bichildrengrowth2016` ("נתוני הערכת גדילה
+של תלמידים בישראל - משרד הבריאות"). One resource, `2c181d7b-be3a-41be-
+a99a-7228eccb665b`, XLSX, `datastore_active: false` — **2016 only**, no
+DataStore API to query. The download URL
+(`e.data.gov.il/dataset/.../download/bichildrengrowth2016.xlsx`) came back as
+an obfuscated JS challenge page instead of the file, same WAF pattern already
+documented for `datastore_search_sql` in
+[[accidents-data-pipeline]] — this is a datacentre-IP block, not a broken
+link, and a real browser likely fares better (unverified). `gov.il` itself
+also 403'd the same way when checked for the "מגזרים" breakdown mentioned in
+the dataset notes, so **whether the file even has a sector column is still
+unconfirmed** — the request's premise ("לפי מגזרים") could not be checked.
+
+**COVID vaccine side effects** — package `vacseffect` ("תופעות לאחר חיסוני
+קורונה"), 7 resources, 3 of them live DataStore tables (the other 4 are PDF
+readmes + one non-DataStore XLSX):
+
+- `3f9e53e9-3a0f-4793-98f6-79d7083e712f` "Effect by Timing" — 55,499 rows,
+  individual reports (`SideEffectStartTime`/`Type`, `SideEffectDurationTime`/
+  `Type`, effect name). Clean, queryable, the one worth building on.
+- `0e804f1f-2b9e-4e97-8ac5-cefb6aecf730` "Effect By Sex and Type" and
+  `7b821b6b-3645-433a-a660-660c0cc47372` "Effect By Age and Type" — both
+  **look like partial pivot exports**. Columns are `Pfizer`/`Moderna`/
+  `AstraZeneca`; row 1 carries a single category label in all three columns
+  ("זכר" for the sex table, "גיל 5-59" for the age table) instead of a real
+  header, and fetching all 179 rows of the sex table found no second block
+  for "נקבה" or any other age bracket. Reads like an Excel export that only
+  kept one sheet/section of a larger pivot. Not safe to present as a full
+  breakdown without checking against the two PDF readmes in the same package
+  (`b7c1a598-7c3c-4261-9dba-11e04e1621cc` for staff reports by age/sex/
+  manufacturer).
+
+The abandoned mockup (light-blue accent `#0f96bd`, dark-mode `#5cc9ea` — only
+`--accent` overridden, following the accidents/committees/finance per-page
+pattern) is not in the repo; it was a Claude-side Artifact, not a commit.

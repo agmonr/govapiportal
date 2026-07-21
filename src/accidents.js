@@ -136,21 +136,93 @@ function showCityPrompt() {
     '<p class="acc-hint">התחילו להקליד שם ישוב כדי לראות את הפירוט לפי שנה.</p>';
 }
 
-// Every city name feeds the datalist, so the field autocompletes as you type,
-// ordered most-accidents-first (Object insertion order = CITY_ROWS order).
+// A hand-rolled suggestion dropdown, not a native <datalist>: the latter's
+// popup is drawn by the OS/browser itself and ignores the page's dir="rtl" -
+// on Linux/GTK builds of Chrome it shows up left-anchored and LTR regardless
+// of the surrounding page, which isn't fixable from CSS. Rendering our own
+// <ul> keeps every pixel of it under our styling, RTL included.
 const cityInput = el('cityInput');
-el('cityList').innerHTML = Object.values(CITY_STATS)
-  .map((c) => `<option value="${esc(c.name)}"></option>`).join('');
+const cityMenu = el('cityMenu');
+// Most-accidents-first (Object insertion order = CITY_ROWS order), same order
+// the datalist used to offer suggestions in.
+const CITY_LIST = Object.entries(CITY_STATS).map(([code, c]) => ({ code, name: c.name }));
+const CITY_MENU_MAX = 8;
+
+let cityMatches = [];
+let cityActive = -1;
+
+function closeCityMenu() {
+  cityMenu.hidden = true;
+  cityMenu.innerHTML = '';
+  cityMatches = [];
+  cityActive = -1;
+  cityInput.setAttribute('aria-expanded', 'false');
+  cityInput.removeAttribute('aria-activedescendant');
+}
+
+function renderCityMenu() {
+  cityMenu.innerHTML = cityMatches.map((c, i) => `
+    <li role="option" id="cityopt-${i}" data-code="${c.code}"
+        class="${i === cityActive ? 'active' : ''}">${esc(c.name)}</li>`).join('');
+  cityMenu.hidden = false;
+  cityInput.setAttribute('aria-expanded', 'true');
+  if (cityActive >= 0) cityInput.setAttribute('aria-activedescendant', `cityopt-${cityActive}`);
+  else cityInput.removeAttribute('aria-activedescendant');
+}
+
+function selectCity(code, name) {
+  cityInput.value = name;
+  renderCity(code);
+  closeCityMenu();
+}
 
 // Empty by default; only an exact match to a known name resolves - a partial
 // string shows the prompt rather than guessing a city.
 function onCityInput() {
-  const code = CITY_BY_NAME.get(cityInput.value.trim());
+  const q = cityInput.value.trim();
+  const code = CITY_BY_NAME.get(q);
   if (code) renderCity(code);
   else showCityPrompt();
+
+  if (!q) { closeCityMenu(); return; }
+  cityMatches = CITY_LIST.filter((c) => c.name.includes(q)).slice(0, CITY_MENU_MAX);
+  cityActive = -1;
+  if (cityMatches.length) renderCityMenu();
+  else closeCityMenu();
 }
 showCityPrompt();
 cityInput.addEventListener('input', onCityInput);
+
+cityInput.addEventListener('keydown', (e) => {
+  if (cityMenu.hidden) return;
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    cityActive = Math.min(cityActive + 1, cityMatches.length - 1);
+    renderCityMenu();
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    cityActive = Math.max(cityActive - 1, 0);
+    renderCityMenu();
+  } else if (e.key === 'Enter' && cityActive >= 0) {
+    e.preventDefault();
+    const m = cityMatches[cityActive];
+    selectCity(m.code, m.name);
+  } else if (e.key === 'Escape') {
+    closeCityMenu();
+  }
+});
+
+// mousedown, not click: it fires before the input's blur, and preventDefault
+// here stops that blur from happening at all, so the menu is still there for
+// this same handler to read from when the tap/click lands.
+cityMenu.addEventListener('mousedown', (e) => {
+  const li = e.target.closest('li');
+  if (!li) return;
+  e.preventDefault();
+  selectCity(li.dataset.code, li.textContent);
+});
+
+cityInput.addEventListener('blur', closeCityMenu);
 
 // Years oldest→newest in the DOM; on this RTL page the flow lays them out
 // right→left, so time reads the same direction as the Hebrew around it -

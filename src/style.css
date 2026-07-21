@@ -112,7 +112,11 @@ button:disabled { opacity: .5; cursor: default; }
 }
 .card h3 { margin: 0 0 .3rem; font-size: 1rem; }
 .card h3 a { color: var(--accent); text-decoration: none; }
-.card p { margin: .25rem 0; color: var(--muted); font-size: .9rem; }
+/* Notes text is free-form and sometimes carries a long unbroken run (a raw
+   URL, a resource id) with no natural break point - without this, one such
+   run stretches the whole card (and everything above it) past the viewport
+   at narrow widths instead of just wrapping. */
+.card p { margin: .25rem 0; color: var(--muted); font-size: .9rem; overflow-wrap: anywhere; }
 
 .meta { display: flex; flex-wrap: wrap; gap: .5rem; font-size: .8rem; color: var(--muted); }
 .tag {
@@ -229,6 +233,13 @@ button.stat { cursor: pointer; }
   overflow-x: auto;
 }
 
+/* local-finance.html: one <details> per sheet (גיליון) in a statement, so a
+   34-sheet report opens collapsed rather than as one very long scroll. */
+.fin-sheet { border: 1px solid var(--border); border-radius: var(--radius); margin-block-end: .6rem; padding: .5rem .75rem; }
+.fin-sheet summary { cursor: pointer; font-weight: 600; }
+.fin-sheet summary:hover { color: var(--accent); }
+.fin-sheet .matrix-wrap { margin-block-start: .6rem; }
+
 /* ---------- page sections (ערים / כלל הארץ) ---------- */
 
 .acc-section { margin-block-end: 2.5rem; }
@@ -272,9 +283,17 @@ button.stat { cursor: pointer; }
   align-items: flex-end;
   gap: .5rem;
   max-inline-size: 32rem;
+  /* A handful of bars (accidents/committees' 5-7-category charts) always fit
+     and never trigger this; a chart with more categories and long labels
+     (e.g. finance's top-10-authorities, real multi-word city names) can
+     still be wider than the viewport even under the cap above - scrolling
+     the chart internally is exactly .matrix-wrap's fix for the same problem
+     on wide tables, so the body itself never has to. */
+  overflow-x: auto;
+  padding-block-end: .25rem;
 }
 .acc-bar {
-  flex: 1;
+  flex: 1 0 2.75rem;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -922,6 +941,15 @@ body.committees-page { --accent: #6b7280; }
   body.committees-page { --accent: #9ca3af; }
 }
 
+/* local-finance.html: same header treatment again, this time in gold - money/
+   finance, its own mood distinct from both the accidents page's caution
+   orange and the committees page's neutral gray. Same specificity story as
+   the two rules above; source order (this one last) is what wins here. */
+body.finance-page { --accent: #a9820c; }
+@media (prefers-color-scheme: dark) {
+  body.finance-page { --accent: #e0b93a; }
+}
+
 /* Centered on this page specifically - the map's header stays a normal
    start-aligned row with a byline/theme-pick/probed-stamp cluster; this
    page's header only has the title and controls, so a centered title reads
@@ -942,6 +970,29 @@ body.accidents-page header.site h1 { inline-size: 100%; }
   border-radius: var(--radius);
 }
 .acc-year-pick input { min-inline-size: 16rem; }
+
+/* The city field's own suggestion dropdown (accidents.js), standing in for a
+   native <datalist> - that popup is OS/browser-drawn and ignores dir="rtl"
+   (shows up left-anchored and LTR on Linux/GTK Chrome), so it can't be fixed
+   from here. .ac-wrap just gives the menu something positioned to hang off. */
+.ac-wrap { position: relative; inline-size: 100%; }
+.ac-menu {
+  position: absolute;
+  inset-inline: 0;
+  top: 100%;
+  z-index: 20;
+  margin: .25rem 0 0;
+  padding: .25rem;
+  list-style: none;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  max-block-size: 16rem;
+  overflow-y: auto;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, .12);
+}
+.ac-menu li { padding: .4rem .6rem; border-radius: 6px; cursor: pointer; text-align: start; }
+.ac-menu li:hover, .ac-menu li.active { background: var(--surface); }
 
 /* Shown in the city panel before a city is picked. */
 .acc-hint { color: var(--muted); font-size: .9rem; margin: .5rem 0; }

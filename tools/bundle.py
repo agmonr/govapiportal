@@ -75,6 +75,16 @@ TARGETS = [
         "sources": ["src/ui.js", "src/theme.js", "src/committee-sites.js", "src/committees.js"],
         "data": False,
     },
+    {
+        "html": "local-finance.html",
+        "out": "dist/local-finance.html",
+        "entry": "src/local-finance.js",
+        # Talks to data.gov.il's DataStore directly, live - no apis.json
+        # lookup, no shared portal.js machinery (its own KPI/chart/statement
+        # logic, over a per-year resource-id config in finance-data.js).
+        "sources": ["src/ui.js", "src/theme.js", "src/finance-data.js", "src/local-finance.js"],
+        "data": False,
+    },
 ]
 
 IMPORT_RE = re.compile(r"^\s*import\s.*?;\s*$", re.M)

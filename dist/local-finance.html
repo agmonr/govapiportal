@@ -8,7 +8,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>ישיבות ועדות תכנון ובנייה — מקומיות ומרחביות</title>
+  <title>דוחות כספיים מבוקרים — רשויות מקומיות (משרד הפנים)</title>
   <!-- Sets data-theme before the stylesheet is applied, so a returning
        visitor who picked "fashion" never sees a flash of the clouds theme
        first. See src/theme.js for the picker itself. -->
@@ -1026,10 +1026,10 @@ body.accidents-page header.site h1 { inline-size: 100%; }
 }
 </style>
 </head>
-<body class="accidents-page committees-page">
+<body class="accidents-page finance-page">
   <header class="site">
     <div class="wrap">
-      <h1>ישיבות ועדות תכנון ובנייה</h1>
+      <h1>דוחות כספיים מבוקרים — רשויות מקומיות</h1>
       <span class="site-by">פרויקט של רם אגמון<span class="site-disclaimer">המידע באתר עלול להיות שגוי</span></span>
       <div class="theme-pick" id="themePick" role="group" aria-label="ערכת נושא">
         <button type="button" data-theme="clouds">עננים</button>
@@ -1045,82 +1045,65 @@ body.accidents-page header.site h1 { inline-size: 100%; }
       <div class="notice info" dir="auto">
         <strong>מה יש כאן, ומה עדיין לא:</strong>
         <p>
-          כל מספר בעמוד הזה נשלף <strong>חי</strong>, בזמן אמת, ישירות מהדפדפן מול
-          <code dir="ltr">handasi.complot.co.il</code> — מנוע ציבורי, ללא הרשאה, המפעיל את
-          אתרי "איתור ישיבות" של כ-68 ועדות מקומיות ומרחביות. ישיבות, סוגי דיון,
-          תאריכים וקישורים לפרוטוקולים עצמם — אמיתיים ועדכניים.
+          כל מספר בעמוד הזה נשלף <strong>חי</strong>, בזמן אמת, ישירות מהדפדפן מול ה-DataStore של
+          data.gov.il, מתוך הדוחות הכספיים המבוקרים שמשרד הפנים מפרסם עבור כל רשות מקומית בישראל -
+          לא הערכה, לא סיכום מבוצע מראש. סעיף בודד, ערך בודד - בדיוק כפי שפורסם.
         </p>
         <p>
-          <strong>לא קיים כאן</strong> (ודורש פענוח טקסטואלי של קובצי הפרוטוקול עצמם, שלא בוצע):
-          מספר תכנית, סטטוס תכנית, ייעודי קרקע, יח"ד, מ"ר, אחוזי אישורים, זמן טיפול ממוצע,
-          פילוח החלטות, וענן מילים. ועדות מחוזיות/ארציות אינן זמינות דרך מקור הנתונים הזה —
-          הפרוטוקולים שלהן יושבים במערכת מבא"ת של מינהל התכנון, החסומה מאחורי reCAPTCHA.
+          <strong>טווח השנים משתנה בין שני מקורות</strong> שנוצרים בתבניות שונות: 2016-2024, אך לא
+          כל שנה מכסה את כל סוגי הרשויות (עיריות/מועצות מקומיות/מועצות אזוריות) - ל-2020 ו-2021,
+          למשל, נמצאו נתונים רק עבור מועצות מקומיות. 2014-2015 לא נכללים כרגע - הם מתפרסמים
+          כקבצים מפוצלים לפי טווחי אלף-בית של שם הרשות, מה שדורש טיפול נפרד.
+        </p>
+        <p>
+          <strong>מדדים מסוכמים ברמה ארצית (למעלה) קיימים רק ל-2023 ו-2024</strong>: אלה השנים
+          היחידות שבהן משרד הפנים עצמו מפרסם גיליון סיכום מוכן ("דוח לתושב") עם שורות כמו
+          "סה\"כ הכנסות"/"סה\"כ הוצאות" - בשנים קודמות התיוג המדויק של שורת הסיכום משתנה משנה
+          לשנה, ולכן לא חושבו שם מדדים מצטברים; הטבלה המפורטת למטה עדיין עובדת לכל שנה, ומציגה
+          כל סעיף כפי שפורסם.
+        </p>
+        <p>
+          <strong>מאגר נפרד קיים גם עבור תשלומי משרד הפנים שהועברו בפועל</strong>
+          ("תשלומי משרד הפנים שהועברו" - בקשות תשלום, מקדמות, אבני דרך) - הוא <strong>אינו נכלל
+          בעמוד הזה</strong>. הוא מתאר תזרים תשלומים בפועל מול ספקים/רשויות, במבנה שונה לגמרי
+          מהדוחות הכספיים המבוקרים כאן (שמתארים את מצבה הכספי המלא של הרשות עצמה) - שילוב שני
+          המקורות דורש עבודת נרמול נפרדת, ולא בוצע.
         </p>
       </div>
 
       <section class="acc-section" aria-labelledby="filtersH">
-        <h2 id="filtersH">סינון</h2>
+        <h2 id="filtersH">בחירת רשות ושנה</h2>
         <div class="cm-filters">
           <div class="acc-year-pick">
-            <label for="cmSite">ועדה / ישוב:</label>
-            <input id="cmSite" type="text" list="cmSiteList" autocomplete="off"
-                   spellcheck="false" placeholder="הקלידו שם ישוב…">
-            <datalist id="cmSiteList"></datalist>
+            <label for="finAuthority">רשות מקומית:</label>
+            <input id="finAuthority" type="text" list="finAuthorityList" autocomplete="off"
+                   spellcheck="false" placeholder="התחילו להקליד שם רשות…">
+            <datalist id="finAuthorityList"></datalist>
           </div>
           <div class="acc-year-pick">
-            <label for="cmType">סוג ישיבה:</label>
-            <select id="cmType"></select>
-          </div>
-          <div class="acc-year-pick">
-            <label for="cmFrom">מתאריך:</label>
-            <input id="cmFrom" type="date">
-          </div>
-          <div class="acc-year-pick">
-            <label for="cmTo">עד תאריך:</label>
-            <input id="cmTo" type="date">
-          </div>
-          <div class="acc-year-pick">
-            <label for="cmSearch">סינון חופשי:</label>
-            <input id="cmSearch" type="text" autocomplete="off" spellcheck="false"
-                   placeholder="לפי מספר ישיבה / סוג / תאריך…">
+            <label for="finYear">שנה:</label>
+            <select id="finYear"></select>
           </div>
         </div>
-        <p class="acc-hint">
-          הסינון החופשי בודק רק את מספר הישיבה, סוג הישיבה והתאריך — לא את תוכן הפרוטוקול.
-        </p>
       </section>
 
       <section class="acc-section" aria-labelledby="kpiH">
-        <h2 id="kpiH">מדדים</h2>
-        <div id="cmKpis" class="stat-row"></div>
+        <h2 id="kpiH">מדדים ארציים — <span id="kpiYearLabel"></span></h2>
+        <div id="finKpis" class="stat-row"></div>
       </section>
 
       <section class="acc-section" aria-labelledby="chartsH">
         <h2 id="chartsH">ויזואליזציה</h2>
         <div class="acc-charts">
-          <figure id="cmChartByYear" class="acc-chart" role="img"></figure>
-          <figure id="cmChartByType" class="acc-chart" role="img"></figure>
+          <figure id="finChartYoY" class="acc-chart" role="img"></figure>
+          <figure id="finChartTop" class="acc-chart total" role="img"></figure>
         </div>
       </section>
 
-      <section class="acc-section" aria-labelledby="tableH">
-        <h2 id="tableH">ריכוז ישיבות ופרוטוקולים</h2>
-        <button type="button" id="cmCsv" class="drill-dl">הורדת CSV של הרשימה המסוננת ⭳</button>
-        <div id="cmTableWrap"></div>
-      </section>
-
-      <section class="acc-section" aria-labelledby="allDocsH">
-        <h2 id="allDocsH">סקריפט הורדה לכל המסמכים ברשימה המסוננת</h2>
-        <p class="acc-hint">
-          במקום להוריד דרך הדפדפן - הכפתור בונה סקריפט <code dir="ltr">bash</code> עם פקודת
-          <code dir="ltr">curl</code> אחת לכל קובץ, מוכן להעתקה ולהרצה בטרמינל. הסקריפט יוצר לעצמו
-          תיקייה ומוריד לתוכה קובץ אחר קובץ, בקצב מתון (השהיה קצרה בין קובץ לקובץ). אין כאן הורדה
-          מרוכזת כ-ZIP: ארכיון הפרוטוקולים (<code dir="ltr">archive.gis-net.co.il</code>) חוסם גישה
-          אוטומטית (<code dir="ltr">robots.txt: Disallow: /</code>) - הרצה כסקריפט, קובץ בכל פעם,
-          היא בדיוק אותה פעולה כמו לחיצה ידנית על כל קישור בתורו, רק ממוכנת.
-        </p>
-        <button type="button" id="cmLoadAllDocs" class="drill-dl">בניית סקריפט ההורדה</button>
-        <div id="cmAllDocs"></div>
+      <section class="acc-section" aria-labelledby="statementH">
+        <h2 id="statementH">דוח כספי מפורט לרשות שנבחרה</h2>
+        <button type="button" id="finCsv" class="drill-dl">הורדת CSV של הדוח המוצג ⭳</button>
+        <div id="finStatement"></div>
       </section>
     </div>
   </main>
@@ -1266,130 +1249,87 @@ function initThemePicker(root) {
 }
 
 /**
- * Local & regional planning-committee sites reachable through the Complot
- * engine (handasi.complot.co.il) - the same public, no-auth, CORS-open API a
- * scraper mapped by sweeping siteid 1-120 and recording which ones served a
- * document archive (see /home/ram/Documents/scrapers/FINDINGS.md). 68 sites
- * responded; siteid > 120 was never swept, so this is a floor, not a claim of
- * completeness.
+ * Per-year config for the audited local-authority financial reports
+ * (משרד הפנים, published on data.gov.il / CKAN DataStore). GENERATED BY HAND
+ * from direct probing, not documentation - none of this is documented.
  *
- * Every site only carries what was actually verified: the siteid, its archive
- * folder slug (the one string the API itself exposes), and a real meeting
- * count from one probed 2024 H1 window - never a total. name_he is filled in
- * only where the slug unambiguously names a real Israeli municipality or
- * regional council; where it doesn't, name_he is null and the UI falls back
- * to the slug rather than guess at a civic institution's name.
+ * Two source CKAN packages, with genuinely different schemas per year - not
+ * a guess, confirmed by fetching real sample rows from each resource:
+ *   - "local-authorities" (all authority types: cities/local councils/
+ *     regional councils) - one resource per year, 2018/2019/2022/2023/2024.
+ *     sheet field is spelled 'גיליון' for 2018/2019/2022, but 'גליון' (no
+ *     extra י) for 2023/2024 - the ministry's own export changed spelling.
+ *   - "local-council-1" (local councils ONLY) - fills years
+ *     local-authorities doesn't cover: 2016, 2017 (via a resource spanning
+ *     2017-2018 together - needs its own year filter), 2020, 2021.
+ * 2014-2015 are NOT included: those two years are split into 2-3 files per
+ * year by alphabetical range of the authority's name, which this page
+ * doesn't yet handle.
  *
- * kind is best-effort from the slug/known geography, 'local' (municipal) or
- * 'regional' (מועצה אזורית - multiple settlements under one planning
- * committee) - not from any field the API returns.
+ * Only 2023 and 2024 carry the ministry's own computed summary sheet
+ * ("דוח לתושב" - a residents'-facing rollup with ready-made lines like
+ * "סה"כ הכנסות"/"סה"כ הוצאות"). Confirmed absent from every earlier year
+ * checked (2016, 2018, 2019, 2020, 2021, 2022) - and note-taking on Form 2
+ * ("טופס 2") showed its own line labels aren't stable across years either,
+ * so no computed national KPI is attempted for years before 2023. Every
+ * year's own detailed statement is still fully live-browsable regardless -
+ * that path shows whatever rows a year actually has, no assumption about
+ * label wording.
  */
-const COMMITTEE_SITES = [
-  { siteid: 1, slug: 'Amakim', name_he: 'עמקים', kind: 'regional' },
-  { siteid: 2, slug: 'Maale-Naftali', name_he: 'מעלה נפתלי', kind: 'regional' },
-  { siteid: 3, slug: 'RamatGan', name_he: 'רמת גן', kind: 'local' },
-  { siteid: 4, slug: 'metar', name_he: 'מיתר', kind: 'local' },
-  { siteid: 5, slug: 'Modiin_ilit', name_he: 'מודיעין עילית', kind: 'local' },
-  { siteid: 6, slug: 'GushEtzion', name_he: 'גוש עציון', kind: 'regional' },
-  { siteid: 7, slug: 'Hevel_Eilot', name_he: 'חבל אילות', kind: 'regional' },
-  { siteid: 8, slug: 'Migdal_Haemek', name_he: 'מגדל העמק', kind: 'local' },
-  { siteid: 9, slug: 'K_Shomron', name_he: null, kind: 'unknown' },
-  { siteid: 10, slug: 'Galil-Tachton', name_he: 'הגליל התחתון', kind: 'regional' },
-  { siteid: 11, slug: 'Dimona', name_he: 'דימונה', kind: 'local' },
-  { siteid: 12, slug: 'Eyarden', name_he: 'עמק הירדן', kind: 'regional' },
-  { siteid: 13, slug: 'Ksaba', name_he: null, kind: 'unknown' },
-  { siteid: 14, slug: 'Shomron', name_he: 'שומרון', kind: 'regional' },
-  { siteid: 15, slug: 'Raanana', name_he: 'רעננה', kind: 'local' },
-  { siteid: 16, slug: 'Haifa', name_he: 'חיפה', kind: 'local' },
-  { siteid: 20, slug: 'GalilMerkazi', name_he: 'הגליל המרכזי', kind: 'regional' },
-  { siteid: 22, slug: 'Rehovot', name_he: 'רחובות', kind: 'local' },
-  { siteid: 24, slug: 'Tira', name_he: 'טירה', kind: 'local' },
-  { siteid: 25, slug: 'Bet-Hakerem', name_he: 'בית הכרם', kind: 'regional' },
-  { siteid: 27, slug: 'Aloneem', name_he: 'אלונים', kind: 'regional' },
-  { siteid: 31, slug: 'Emek_lod', name_he: 'עמק לוד', kind: 'regional' },
-  { siteid: 32, slug: 'Kiryat_Ata', name_he: 'קריית אתא', kind: 'local' },
-  { siteid: 33, slug: 'HadHasharon', name_he: 'הוד השרון', kind: 'local' },
-  { siteid: 34, slug: 'Holon', name_he: 'חולון', kind: 'local' },
-  { siteid: 35, slug: 'Beitar-Ilit', name_he: 'ביתר עילית', kind: 'local' },
-  { siteid: 38, slug: 'sderot', name_he: 'שדרות', kind: 'local' },
-  { siteid: 43, slug: 'LevHasharon', name_he: 'לב השרון', kind: 'regional' },
-  { siteid: 46, slug: 'k-gat', name_he: 'קריית גת', kind: 'local' },
-  { siteid: 49, slug: 'Sharonim', name_he: 'שרונים', kind: 'regional' },
-  { siteid: 54, slug: 'BeitShean', name_he: 'בית שאן', kind: 'local' },
-  { siteid: 55, slug: 'Kfar-Yona', name_he: 'כפר יונה', kind: 'local' },
-  { siteid: 56, slug: 'Eilat', name_he: 'אילת', kind: 'local' },
-  { siteid: 57, slug: 'Iron', name_he: 'עירון', kind: 'regional' },
-  { siteid: 61, slug: 'MordotHacarmel', name_he: 'מורדות הכרמל', kind: 'regional' },
-  { siteid: 63, slug: 'Yoqneam', name_he: 'יקנעם עילית', kind: 'local' },
-  { siteid: 66, slug: 'Tiberias', name_he: 'טבריה', kind: 'local' },
-  { siteid: 67, slug: 'Ofakim', name_he: 'אופקים', kind: 'local' },
-  { siteid: 70, slug: 'MaaleHagalil', name_he: 'מעלה הגליל', kind: 'regional' },
-  { siteid: 73, slug: 'Or-Yehuda', name_he: 'אור יהודה', kind: 'local' },
-  { siteid: 75, slug: 'bneybrak', name_he: 'בני ברק', kind: 'local' },
-  { siteid: 77, slug: 'M_Sharon', name_he: null, kind: 'unknown' },
-  { siteid: 78, slug: 'Ashdod', name_he: 'אשדוד', kind: 'local' },
-  { siteid: 80, slug: 'Nahariya', name_he: 'נהריה', kind: 'local' },
-  { siteid: 81, slug: 'BatYam', name_he: 'בת ים', kind: 'local' },
-  { siteid: 82, slug: 'Modiin', name_he: 'מודיעין-מכבים-רעות', kind: 'local' },
-  { siteid: 83, slug: 'Emanuel', name_he: 'עמנואל', kind: 'local' },
-  { siteid: 84, slug: 'pt', name_he: 'פתח תקווה', kind: 'local' },
-  { siteid: 86, slug: 'Maale-Hermon', name_he: 'מעלה החרמון', kind: 'regional' },
-  { siteid: 87, slug: 'Yavne', name_he: 'יבנה', kind: 'local' },
-  { siteid: 88, slug: 'Tzfat', name_he: 'צפת', kind: 'local' },
-  { siteid: 89, slug: 'Shfelat-hagalil', name_he: 'שפלת הגליל', kind: 'regional' },
-  { siteid: 90, slug: 'Gilboa', name_he: 'גלבוע', kind: 'regional' },
-  { siteid: 93, slug: 'bshemesh', name_he: 'בית שמש', kind: 'local' },
-  { siteid: 94, slug: 'recheshacarmel', name_he: 'רכס הכרמל', kind: 'regional' },
-  { siteid: 95, slug: 'Ashkelon', name_he: 'אשקלון', kind: 'local' },
-  { siteid: 97, slug: 'rahat', name_he: 'רהט', kind: 'local' },
-  { siteid: 98, slug: 'Givatayim', name_he: 'גבעתיים', kind: 'local' },
-  { siteid: 100, slug: 'Yeruham', name_he: 'ירוחם', kind: 'local' },
-  { siteid: 102, slug: 'omer', name_he: 'עומר', kind: 'local' },
-  { siteid: 103, slug: 'GalilMiz', name_he: 'הגליל המזרחי', kind: 'regional' },
-  { siteid: 104, slug: 'GaneyTickva', name_he: 'גני תקווה', kind: 'local' },
-  { siteid: 105, slug: 'Beer-Sheva', name_he: 'באר שבע', kind: 'local' },
-  { siteid: 106, slug: 'M_Adumim', name_he: 'מעלה אדומים', kind: 'local' },
-  { siteid: 107, slug: 'kmalachi', name_he: 'קריית מלאכי', kind: 'local' },
-  { siteid: 108, slug: 'Rishon', name_he: 'ראשון לציון', kind: 'local' },
-  { siteid: 118, slug: 'RamatHasharon', name_he: 'רמת השרון', kind: 'local' },
-  { siteid: 120, slug: 'Maalot', name_he: 'מעלות-תרשיחא', kind: 'local' },
-];
-
-/**
- * MEETING_TYPES ('v' parameter): every code the scraper found by directly
- * probing the engine, not a documented enum - a code missing here still works
- * as a filter value, it just has no Hebrew label to show.
- */
-const MEETING_TYPES = {
-  0: 'הכל', 1: 'רשות רישוי', 2: 'מליאת הועדה המקומית', 3: 'הועדה המחוזית',
-  4: 'מכינה למליאה', 5: 'ועדת הקצאות', 6: 'ועדת משנה', 7: 'ועדת השבחה',
-  9: 'סדר יום לישיבת צוות היטל השבחה', 15: 'ועדת ערר',
+const YEAR_RESOURCES = {
+  2016: { source: 'local-council-1', resourceId: 'b7a3042a-a49a-4b38-99da-1de2fa9619ca', sheetField: 'גיליון', hasSummary: false, coverage: 'מועצות מקומיות בלבד' },
+  2017: { source: 'local-council-1', resourceId: '501c4ea2-cb2e-48e7-8de4-74c038de3449', sheetField: 'גיליון', yearFilter: { field: 'שנת_הדוח', value: '2017' }, hasSummary: false, coverage: 'מועצות מקומיות בלבד' },
+  2018: { source: 'local-authorities', resourceId: '1618b871-9b3d-4bc5-acc0-c1fbe939a3b1', sheetField: 'גיליון', hasSummary: false, coverage: 'כלל סוגי הרשויות' },
+  2019: { source: 'local-authorities', resourceId: 'f3f39a40-8404-4179-bcee-616ab2433631', sheetField: 'גיליון', hasSummary: false, coverage: 'כלל סוגי הרשויות' },
+  2020: { source: 'local-council-1', resourceId: 'f2f0d291-2d4c-43dc-a3ab-a884625e9f9a', sheetField: 'גיליון', hasSummary: false, coverage: 'מועצות מקומיות בלבד' },
+  2021: { source: 'local-council-1', resourceId: 'a001d2a7-f941-4ea9-beab-8065f549994f', sheetField: 'גיליון', hasSummary: false, coverage: 'מועצות מקומיות בלבד' },
+  2022: { source: 'local-authorities', resourceId: 'e5ff9ad0-6db2-4660-a94e-4499fce9475d', sheetField: 'גיליון', hasSummary: false, coverage: 'כלל סוגי הרשויות' },
+  2023: { source: 'local-authorities', resourceId: '5825080f-905c-40f7-9f53-8ea1cf8ed394', sheetField: 'גליון', hasSummary: true, coverage: 'כלל סוגי הרשויות' },
+  2024: { source: 'local-authorities', resourceId: '6e153ddd-d4d4-4450-a78c-20f594a7986a', sheetField: 'גליון', hasSummary: true, coverage: 'כלל סוגי הרשויות' },
 };
 
+// Newest first - how the year <select> lists them.
+const YEARS_DESC = Object.keys(YEAR_RESOURCES).map(Number).sort((a, b) => b - a);
+
+// The single sheet+row+column combo that yields exactly one row per
+// authority, cheaply, for the name roster (259 authorities, one page).
+const ROSTER_YEAR = 2024;
+const ROSTER_FILTERS = { גליון: 'נתונים לטופס 1', שורה: 'יתרה לתחילת שנה', עמודה: 'שנה נוכחית' };
+
+// The residents'-report ("דוח לתושב") rows that carry the ministry's own
+// computed bottom-line totals, for the years that have this sheet at all.
+const SUMMARY_SHEET = 'דוח לתושב';
+// Labels copied verbatim from the actual data - the source spells these
+// without gershayim ('סהכ', not 'סה"כ'), confirmed against real rows before
+// writing this, not the grammatically "correct" spelling.
+const SUMMARY_ROWS = {
+  revenue: 'סהכ הכנסות',
+  expense: 'סהכ הוצאות',
+  surplus: 'עודף (גרעון) השנה בתקציב הרגיל',
+  ownRevenue: 'הכנסות עצמיות',
+  grants: 'מענקים',
+};
+// Column that means "what actually happened this year" - not the budgeted
+// plan and not last year's figures, which the same sheet also carries.
+const SUMMARY_COLUMN = 'ביצוע שנה נוכחית';
+
 /**
- * Entry point for committees.html - ישיבות ועדות תכנון ובנייה (מקומיות/מרחביות).
+ * Entry point for local-finance.html - דוחות כספיים מבוקרים של רשויות מקומיות
+ * (משרד הפנים).
  *
- * Everything here is a LIVE browser fetch against handasi.complot.co.il, the
- * same public, no-auth, CORS-open engine ~68 municipal/regional planning
- * committees run their "meeting locator" pages on (verified by sweeping
- * siteid 1-120 - see /home/ram/Documents/scrapers/FINDINGS.md). It returns
- * HTML fragments, not JSON, so the two parse* functions below are a straight
- * port of that scraper's regexes - re-verified against live responses before
- * porting, not just translated blind.
+ * Everything here is a LIVE browser fetch against data.gov.il's DataStore API
+ * (the same CKAN engine every other data.gov.il-sourced page on this site
+ * already uses) - no offline precompute, no snapshot. Verified feasible
+ * before building: the national summary query below returns ~3,300 rows for
+ * all ~259 authorities combined, comfortably inside a single request, so
+ * there was no need for the accidents.html-style "dated snapshot" pattern
+ * here - real time filtering does the job.
  *
- * Deliberately NOT included, and NOT faked: plan number, decision outcome,
- * יח"ד, מ"ר, land-use, or any text pulled from inside a protocol. All of that
- * lives only inside the protocol PDFs themselves, which nothing here parses -
- * doing that honestly needs OCR/NLP over each PDF, not a page like this one.
- * See the notice at the top of committees.html for the full list of what the
- * original request asked for that isn't here yet.
- *
- * District/national committees (הועדה המחוזית) are asked for by meeting-type
- * code 3 the same as any other - the engine simply returns zero rows for it
- * on every site checked, because district-level protocols live on a
- * different system (mavat.iplan.gov.il) that gates its search behind
- * reCAPTCHA v3. Not circumvented; also not silently hidden - the filter stays
- * choosable and empty results say so.
+ * See the notice at the top of local-finance.html for what this deliberately
+ * does NOT attempt: computed national KPIs for years before 2023 (line-item
+ * labels aren't stable across years - confirmed by direct probing, not
+ * assumed), 2014-2015 (split into multiple files per year), and the separate
+ * "transferred payments" dataset (different shape entirely, not merged in).
  */
 
 
@@ -1402,194 +1342,137 @@ if (!Number.isNaN(created.getTime())) {
   el('created').title = created.toISOString();
 }
 
-const ENGINE = 'https://handasi.complot.co.il/magicscripts/mgrqispi.dll';
+const DATASTORE = 'https://data.gov.il/api/3/action/datastore_search';
 
-/* ---------- date helpers: native <input type=date> (YYYY-MM-DD) <-> the
-   engine's DD/MM/YYYY ---------- */
-const isoToApi = (iso) => { const [y, m, d] = iso.split('-'); return `${d}/${m}/${y}`; };
-const todayIso = (offsetDays = 0) => {
-  const t = new Date(); t.setDate(t.getDate() + offsetDays);
-  return t.toISOString().slice(0, 10);
-};
-
-/* ---------- HTML-fragment parsing: ported 1:1 from
-   scrape_hodhasharon_meetings.py, re-verified against live responses. ---------- */
-
-function parseMeetingList(html) {
-  const rowRe = /<tr>\s*<td class="hidden-on-mobile">[\s\S]*?<\/tr>/g;
-  const numRe = /showMeetingDocs\((\d+),\s*(\d+)/;
-  const cellRe = /<td[^>]*>\s*(?:<a[^>]*>)?([^<]*)(?:<\/a>)?\s*<\/td>/g;
-  const meetings = [];
-  for (const row of html.match(rowRe) || []) {
-    const m = numRe.exec(row);
-    if (!m) continue; // no document archive button -> nothing to show
-    // The icon cell (leading <td class="hidden-on-mobile"><a><span/></a></td>)
-    // and the trailing archive-button cell both fail cellRe outright (their
-    // content isn't plain text or a single wrapped <a>text</a>), so matchAll
-    // skips both silently - cells[0] here really is the meeting number, not a
-    // placeholder for the icon.
-    const cells = [...row.matchAll(cellRe)].map((c) => c[1].trim());
-    meetings.push({
-      vaadaId: m[1],
-      meetingNumber: m[2],
-      committee: cells[1] || MEETING_TYPES[m[1]] || '—',
-      date: cells[2] || '',
-      day: cells[3] || '',
-    });
-  }
-  return meetings;
-}
-
-function parseMeetingDocs(html) {
-  const rows = html.match(/<tr>\s*<td>[\s\S]*?<\/tr>/g) || [];
-  const docs = [];
-  for (const row of rows) {
-    const href = /<a href="([^"]+)"/.exec(row);
-    if (!href) continue;
-    const titleM = /<a href="[^"]+"[^>]*>(?:<span[^>]*><\/span>)?\s*([^<]*)<\/a>/.exec(row);
-    const cells = [...row.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)].map((c) => c[1].replace(/<[^>]+>/g, '').trim());
-    docs.push({
-      url: href[1],
-      title: (titleM ? titleM[1] : '').trim(),
-      subject: cells[1] || '',
-      date: cells[2] || '',
-    });
-  }
-  return docs;
+async function dsQuery(resourceId, filters, limit = 10000) {
+  const p = new URLSearchParams({ resource_id: resourceId, limit: String(limit) });
+  if (filters) p.set('filters', JSON.stringify(filters));
+  const res = await fetch(`${DATASTORE}?${p}`);
+  if (!res.ok) throw Object.assign(new Error(`HTTP ${res.status}`), { kind: 'network' });
+  const j = await res.json();
+  if (!j.success) throw new Error(j.error?.__type || 'שגיאת שרת');
+  return j.result;
 }
 
 /* ---------- state ---------- */
 
 const state = {
-  siteid: '33', // הוד השרון - the one this data source was verified against end-to-end
-  meetings: [],   // last fetch, unfiltered
-  filtered: [],   // after the free-text quick filter
-  docsCache: new Map(), // docsKeyFor(meeting) -> docs[]
-  docsLoaded: 0,  // running count, across this session, of doc-lists fetched
-  filterGen: 0,   // bumped on every quick-filter change; lets a stale bulk-doc loop abandon itself
+  authority: null,
+  year: YEARS_DESC[0],
+  summaryCache: new Map(), // year -> { totals, byAuthority[] } | 'unsupported'
 };
 
-/* ---------- filter bar: committee/settlement is type-to-search, same
-   pattern as accidents.html's ישוב field - a <datalist> autocompletes over
-   all 68 sites, and only an exact label resolves to a siteid. ---------- */
+/* ---------- authority roster (one cheap query, cached) ---------- */
 
-const siteLabel = (s) => (s.name_he
-  ? `${s.name_he} (${s.kind === 'regional' ? 'מרחבית' : 'מקומית'})`
-  : `${s.slug} (שם לא מזוהה)`);
-const SITE_BY_LABEL = new Map(COMMITTEE_SITES.map((s) => [siteLabel(s), s.siteid]));
+const authorityInput = el('finAuthority');
+let rosterNames = [];
 
-const cmSite = el('cmSite');
-el('cmSiteList').innerHTML = [...COMMITTEE_SITES]
-  .sort((a, b) => (a.name_he || a.slug).localeCompare(b.name_he || b.slug, 'he'))
-  .map((s) => `<option value="${esc(siteLabel(s))}"></option>`).join('');
-cmSite.value = siteLabel(COMMITTEE_SITES.find((s) => s.siteid === Number(state.siteid)));
-
-function onSiteInput() {
-  const id = SITE_BY_LABEL.get(cmSite.value.trim());
-  if (id == null || String(id) === state.siteid) return;
-  state.siteid = String(id);
-  loadMeetings();
-}
-
-const typeSelect = el('cmType');
-typeSelect.innerHTML = Object.entries(MEETING_TYPES)
-  .map(([code, label]) => `<option value="${code}">${esc(label)}</option>`).join('');
-typeSelect.value = '0';
-
-el('cmFrom').value = todayIso(-365 * 3);
-el('cmTo').value = todayIso(60);
-
-/* ---------- fetch + render ---------- */
-
-async function loadMeetings() {
-  const siteid = state.siteid;
-  const v = typeSelect.value;
-  const fd = isoToApi(el('cmFrom').value);
-  const td = isoToApi(el('cmTo').value);
-
-  showLoading(el('cmTableWrap'), 'טוען ישיבות…');
-  el('cmKpis').innerHTML = '';
-  el('cmChartByYear').innerHTML = '';
-  el('cmChartByType').innerHTML = '';
-  el('cmAllDocs').innerHTML = ''; // stale docs from the previous list would mislead otherwise
-
-  const p = new URLSearchParams({
-    appname: 'cixpa', prgname: 'GetMeetingByDate', siteid, v, fd, td, l: 'false',
-    arguments: 'siteid,v,fd,td,l',
-  });
+async function loadRoster() {
   try {
-    const res = await fetch(`${ENGINE}?${p}`);
-    if (!res.ok) throw Object.assign(new Error(`HTTP ${res.status}`), { kind: 'network' });
-    const html = await res.text();
-    state.meetings = parseMeetingList(html);
-    applyQuickFilter();
+    const cfg = YEAR_RESOURCES[ROSTER_YEAR];
+    const { records } = await dsQuery(cfg.resourceId, {
+      [cfg.sheetField]: ROSTER_FILTERS.גליון, שורה: ROSTER_FILTERS.שורה, עמודה: ROSTER_FILTERS.עמודה,
+    });
+    rosterNames = [...new Set(records.map((r) => r['שם_רשות']))].sort((a, b) => a.localeCompare(b, 'he'));
+    el('finAuthorityList').innerHTML = rosterNames.map((n) => `<option value="${esc(n)}"></option>`).join('');
   } catch (err) {
-    showError(el('cmTableWrap'), err);
-    state.meetings = [];
-    applyQuickFilter();
+    console.error('roster load failed', err);
   }
 }
 
-function applyQuickFilter() {
-  const q = el('cmSearch').value.trim();
-  state.filtered = q
-    ? state.meetings.filter((m) => `${m.meetingNumber} ${m.committee} ${m.date}`.includes(q))
-    : state.meetings;
-  renderKpis();
-  renderCharts();
-  renderTable();
-  state.filterGen += 1; // any earlier script build still running now belongs to a stale filter
+/* ---------- year select ---------- */
 
-  // Auto-build the script only once an actual filter narrows things down
-  // (the free-text box) - not on the raw, possibly hundreds-strong default
-  // list, where fetching every meeting's document list unasked would be a
-  // much heavier hit than a visitor asked for. Committee/type/date-range
-  // changes still require the explicit "הורדת כל המסמכים" button for the
-  // same reason.
-  if (q) buildDownloadScript(state.filterGen);
-  else el('cmAllDocs').innerHTML = '';
+el('finYear').innerHTML = YEARS_DESC.map((y) => `<option value="${y}">${y}</option>`).join('');
+el('finYear').value = String(state.year);
+
+/* ---------- national summary (KPIs + charts) - only for hasSummary years ---------- */
+
+async function fetchSummary(year) {
+  if (state.summaryCache.has(year)) return state.summaryCache.get(year);
+  const cfg = YEAR_RESOURCES[year];
+  if (!cfg?.hasSummary) { state.summaryCache.set(year, 'unsupported'); return 'unsupported'; }
+
+  const { records } = await dsQuery(cfg.resourceId, {
+    [cfg.sheetField]: SUMMARY_SHEET,
+    שורה: Object.values(SUMMARY_ROWS),
+    עמודה: SUMMARY_COLUMN,
+  });
+
+  const byAuthority = new Map(); // name -> { revenue, expense, surplus, ownRevenue, grants }
+  for (const rec of records) {
+    const name = rec['שם_רשות'];
+    const row = byAuthority.get(name) || { name };
+    const key = Object.entries(SUMMARY_ROWS).find(([, label]) => label === rec['שורה'])?.[0];
+    if (key) row[key] = Number(rec['ערך']) || 0;
+    byAuthority.set(name, row);
+  }
+  const rows = [...byAuthority.values()];
+  const totals = rows.reduce((acc, r) => ({
+    revenue: acc.revenue + (r.revenue || 0),
+    expense: acc.expense + (r.expense || 0),
+    surplus: acc.surplus + (r.surplus || 0),
+  }), { revenue: 0, expense: 0, surplus: 0 });
+  const deficitCount = rows.filter((r) => (r.surplus || 0) < 0).length;
+
+  const summary = { totals, rows, authorityCount: rows.length, deficitCount };
+  state.summaryCache.set(year, summary);
+  return summary;
 }
 
 /* ---------- KPI tiles - same visual vocabulary as accidents.html's .stat-row ---------- */
 
-function renderKpis() {
-  const list = state.filtered;
-  const dates = list.map((m) => m.date).filter(Boolean).sort((a, b) => {
-    const [da, ma, ya] = a.split('/'); const [db, mb, yb] = b.split('/');
-    return `${ya}${ma}${da}`.localeCompare(`${yb}${mb}${db}`);
-  });
-  const types = new Set(list.map((m) => m.committee));
-  const span = dates.length ? `${dates[0]} — ${dates[dates.length - 1]}` : '—';
+async function renderKpis() {
+  const { year } = state;
+  el('kpiYearLabel').textContent = year;
+  const box = el('finKpis');
 
-  el('cmKpis').innerHTML = `
-    <div class="stat">
-      <span class="stat-n">${num(list.length)}</span>
-      <span class="stat-l">סה"כ ישיבות (בסינון הנוכחי)</span>
-    </div>
-    <div class="stat ok">
-      <span class="stat-n">${num(types.size)}</span>
-      <span class="stat-l">סוגי ישיבה שונים</span>
-    </div>
-    <div class="stat">
-      <span class="stat-n" style="font-size:1.05rem">${esc(span)}</span>
-      <span class="stat-l">טווח תאריכים בפועל</span>
-    </div>
-    <div class="stat warn">
-      <span class="stat-n">${num(state.docsLoaded)}</span>
-      <span class="stat-l">רשימות מסמכים שנטענו (הפעלה זו)</span>
-    </div>`;
+  const cfg = YEAR_RESOURCES[year];
+  if (!cfg?.hasSummary) {
+    box.innerHTML = `<p class="acc-hint">אין גיליון סיכום ארצי מוכן לשנת ${year} — ראו ההסבר למעלה. הדוח המפורט של הרשות שנבחרה עדיין זמין למטה.</p>`;
+    el('finChartYoY').innerHTML = '';
+    el('finChartTop').innerHTML = '';
+    return;
+  }
+
+  showLoading(box, 'טוען מדדים ארציים…');
+  try {
+    const summary = await fetchSummary(year);
+    const balancedPct = summary.authorityCount
+      ? Math.round(((summary.authorityCount - summary.deficitCount) / summary.authorityCount) * 100)
+      : 0;
+    box.innerHTML = `
+      <div class="stat">
+        <span class="stat-n">${num(summary.totals.revenue)}</span>
+        <span class="stat-l">סה"כ הכנסות (אלפי ש"ח, ${summary.authorityCount} רשויות)</span>
+      </div>
+      <div class="stat warn">
+        <span class="stat-n">${num(summary.totals.expense)}</span>
+        <span class="stat-l">סה"כ הוצאות (אלפי ש"ח)</span>
+      </div>
+      <div class="stat ${summary.totals.surplus >= 0 ? 'ok' : 'bad'}">
+        <span class="stat-n">${num(summary.totals.surplus)}</span>
+        <span class="stat-l">עודף (גרעון) ארצי מצטבר</span>
+      </div>
+      <div class="stat ${balancedPct >= 50 ? 'ok' : 'warn'}">
+        <span class="stat-n">${balancedPct}%</span>
+        <span class="stat-l">רשויות מאוזנות (${summary.authorityCount - summary.deficitCount}/${summary.authorityCount})</span>
+      </div>`;
+    await renderCharts(summary);
+  } catch (err) {
+    showError(box, err);
+  }
 }
 
 /* ---------- charts - reuses accidents.html's .acc-chart/.acc-bars bar look ---------- */
 
-function renderBarChart(figId, caption, entries, colorClass) {
+function renderBarChart(figId, caption, entries, unit, colorClass) {
   const fig = el(figId);
-  if (!entries.length) { fig.innerHTML = `<figcaption>${esc(caption)}</figcaption><p class="acc-hint">אין נתונים להצגה בטווח שנבחר.</p>`; return; }
-  const peak = Math.max(...entries.map((e) => e.value));
+  if (!entries.length) { fig.innerHTML = `<figcaption>${esc(caption)}</figcaption><p class="acc-hint">אין נתונים להצגה.</p>`; return; }
+  const peak = Math.max(...entries.map((e) => Math.abs(e.value)));
   const bars = entries.map((e) => {
-    const h = Math.round((e.value / peak) * 150);
+    const h = peak ? Math.round((Math.abs(e.value) / peak) * 150) : 0;
     return `
-      <div class="acc-bar" title="${esc(e.label)}: ${num(e.value)}">
+      <div class="acc-bar" title="${esc(e.label)}: ${num(e.value)} ${esc(unit)}">
         <div class="acc-bar-track">
           <span class="acc-bar-v">${num(e.value)}</span>
           <div class="acc-bar-fill" style="block-size:${h}px"></div>
@@ -1601,278 +1484,106 @@ function renderBarChart(figId, caption, entries, colorClass) {
   fig.innerHTML = `<figcaption>${esc(caption)}</figcaption><div class="acc-bars">${bars}</div>`;
 }
 
-function renderCharts() {
-  const list = state.filtered;
+async function renderCharts(summary) {
+  // YoY: the only other year that also has a national summary (2023<->2024
+  // today) - not a general multi-year trend, since no other year has one.
+  const otherYear = YEARS_DESC.find((y) => YEAR_RESOURCES[y].hasSummary && y !== state.year);
+  const otherSummary = otherYear ? await fetchSummary(otherYear) : null;
+  const yoyEntries = [
+    { label: String(state.year), value: summary.totals.surplus },
+    ...(otherSummary && otherSummary !== 'unsupported'
+      ? [{ label: String(otherYear), value: otherSummary.totals.surplus }] : []),
+  ].sort((a, b) => a.label.localeCompare(b.label));
+  renderBarChart('finChartYoY', 'עודף (גרעון) ארצי מצטבר, לפי שנה', yoyEntries, 'אלפי ש"ח',
+    summary.totals.surplus >= 0 ? 'ok-chart' : 'total');
 
-  const byYear = new Map();
-  for (const m of list) {
-    const y = m.date.split('/')[2];
-    if (y) byYear.set(y, (byYear.get(y) || 0) + 1);
-  }
-  const yearEntries = [...byYear.entries()].sort(([a], [b]) => a.localeCompare(b))
-    .map(([label, value]) => ({ label, value }));
-  renderBarChart('cmChartByYear', 'ישיבות לפי שנה', yearEntries, 'total');
-
-  const byType = new Map();
-  for (const m of list) byType.set(m.committee, (byType.get(m.committee) || 0) + 1);
-  let typeEntries = [...byType.entries()].sort(([, a], [, b]) => b - a)
-    .map(([label, value]) => ({ label, value }));
-  if (typeEntries.length > 7) {
-    const rest = typeEntries.slice(6).reduce((s, e) => s + e.value, 0);
-    typeEntries = [...typeEntries.slice(0, 6), { label: 'אחר', value: rest }];
-  }
-  renderBarChart('cmChartByType', 'התפלגות לפי סוג ישיבה', typeEntries);
+  const top = [...summary.rows].sort((a, b) => (b.revenue || 0) - (a.revenue || 0)).slice(0, 10)
+    .map((r) => ({ label: r.name, value: r.revenue || 0 }));
+  renderBarChart('finChartTop', `10 הרשויות עם ההכנסות הגבוהות ביותר, ${state.year}`, top, 'אלפי ש"ח', 'total');
 }
 
-/* ---------- detailed table, with a per-row live doc fetch on expand ---------- */
+/* ---------- detailed per-authority statement - fully live, any year ---------- */
 
-// Same has-files/files-row/x-mark convention as portal.js's own expandable
-// table (see table()/bindRows() there) - visual consistency with the rest of
-// the site. It differs underneath: portal.js's _files are pre-fetched with
-// the row, these are fetched lazily on first expand, so 565 meetings never
-// means 565 requests up front - only the ones a visitor actually opens.
-function renderTable() {
-  const list = state.filtered;
-  if (!list.length) {
-    el('cmTableWrap').innerHTML = '<p class="acc-hint">לא נמצאו ישיבות עבור הסינון הנוכחי.</p>';
+async function renderStatement() {
+  const box = el('finStatement');
+  if (!state.authority) {
+    box.innerHTML = '<p class="acc-hint">התחילו להקליד שם רשות למעלה כדי לראות את הדוח הכספי המלא שלה.</p>';
     return;
   }
-  const rows = list.map((m, i) => `
-    <tr class="has-files" data-row="${i}" tabindex="0" role="button">
-      <td class="c-x"><span class="x-mark">▾</span></td>
-      <td dir="auto" class="ident">${esc(m.meetingNumber)}</td>
-      <td dir="auto">${esc(m.committee)}</td>
-      <td dir="auto">${esc(m.date)}</td>
-      <td dir="auto">${esc(m.day)}</td>
-    </tr>
-    <tr class="files-row" data-files="${i}" hidden><td colspan="5"></td></tr>`).join('');
-  el('cmTableWrap').innerHTML = `
-    <div class="matrix-wrap">
-      <table class="matrix preview expandable">
-        <thead>
-          <tr>
-            <th class="c-x"></th>
-            <th scope="col">מספר ישיבה</th>
-            <th scope="col">סוג ישיבה</th>
-            <th scope="col">תאריך</th>
-            <th scope="col">יום</th>
-          </tr>
-        </thead>
-        <tbody>${rows}</tbody>
-      </table>
-    </div>`;
-  bindRows();
-}
-
-function bindRows() {
-  document.querySelectorAll('#cmTableWrap tr.has-files').forEach((tr) => {
-    const toggle = () => toggleDocs(Number(tr.dataset.row), tr);
-    tr.addEventListener('click', toggle);
-    tr.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
-    });
-  });
-}
-
-const docsKeyFor = (meeting) => `${state.siteid}_${meeting.vaadaId}_${meeting.meetingNumber}`;
-
-/** Shared by the per-row expand and the "load all" bulk action below, so a
- *  document list can never come out differently fetched one-by-one than in
- *  bulk. Caches on success; throws on failure rather than swallowing it, so
- *  each caller decides how to show that failure. */
-async function fetchDocsFor(meeting) {
-  const key = docsKeyFor(meeting);
-  if (state.docsCache.has(key)) return state.docsCache.get(key);
-  const p = new URLSearchParams({
-    appname: 'cixpa', prgname: 'GetMeetingDocs', siteid: state.siteid,
-    v: meeting.vaadaId, m: meeting.meetingNumber, arguments: 'siteid,v,m',
-  });
-  const res = await fetch(`${ENGINE}?${p}`);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const docs = parseMeetingDocs(await res.text());
-  state.docsCache.set(key, docs);
-  state.docsLoaded += 1;
-  renderKpis();
-  return docs;
-}
-
-async function toggleDocs(i, tr) {
-  const target = document.querySelector(`#cmTableWrap tr[data-files="${i}"]`);
-  const mark = tr.querySelector('.x-mark');
-  if (!target.hidden) { target.hidden = true; mark.textContent = '▾'; return; }
-  target.hidden = false;
-  mark.textContent = '▴';
-
-  const meeting = state.filtered[i];
-  const cell = target.querySelector('td');
-  const cached = state.docsCache.get(docsKeyFor(meeting));
-  if (cached) { renderDocsCell(cell, cached); return; }
-
-  cell.innerHTML = '<span class="acc-hint">טוען מסמכים…</span>';
+  const cfg = YEAR_RESOURCES[state.year];
+  showLoading(box, `טוען דוח כספי — ${state.authority}, ${state.year}…`);
   try {
-    renderDocsCell(cell, await fetchDocsFor(meeting));
+    const filters = { שם_רשות: state.authority };
+    if (cfg.yearFilter) filters[cfg.yearFilter.field] = cfg.yearFilter.value;
+    const { records, total } = await dsQuery(cfg.resourceId, filters);
+    state.currentRecords = records;
+    if (!records.length) {
+      box.innerHTML = `<p class="acc-hint">לא נמצא דוח עבור "${esc(state.authority)}" בשנת ${state.year} (${esc(cfg.coverage)}).</p>`;
+      return;
+    }
+
+    const bySheet = new Map();
+    for (const rec of records) {
+      const sheet = rec[cfg.sheetField];
+      if (!bySheet.has(sheet)) bySheet.set(sheet, []);
+      bySheet.get(sheet).push(rec);
+    }
+
+    const sections = [...bySheet.entries()].map(([sheet, rows]) => `
+      <details class="fin-sheet">
+        <summary>${esc(sheet)} <span class="acc-hint">(${rows.length} סעיפים)</span></summary>
+        <div class="matrix-wrap">
+          <table class="matrix">
+            <thead><tr><th scope="col">שורה</th><th scope="col">עמודה</th><th scope="col">ערך</th></tr></thead>
+            <tbody>
+              ${rows.map((r) => `<tr><td dir="auto">${esc(r['שורה'])}</td><td dir="auto">${esc(r['עמודה'])}</td><td>${num(r['ערך'])}</td></tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+      </details>`).join('');
+
+    box.innerHTML = `
+      <p class="acc-hint">${num(total)} סעיפים, ${bySheet.size} גיליונות — ${esc(cfg.coverage)}.</p>
+      ${sections}`;
   } catch (err) {
-    cell.innerHTML = `<span class="acc-hint">שגיאה בטעינת המסמכים (${esc(err.message)}).</span>`;
+    showError(box, err);
+    state.currentRecords = [];
   }
 }
 
-function renderDocsCell(cell, docs) {
-  if (!docs.length) { cell.innerHTML = '<span class="acc-hint">לא נמצאו מסמכים לישיבה זו.</span>'; return; }
-  cell.innerHTML = `<ul class="cm-doclist">${docs.map((d) => `
-    <li><a href="${esc(d.url)}" target="_blank" rel="noopener">${esc(d.title || d.subject || 'מסמך')}</a>
-        <span class="acc-hint">(${esc(d.subject)}${d.date ? `, ${esc(d.date)}` : ''})</span></li>`).join('')}</ul>`;
-}
+/* ---------- CSV export - exactly the statement currently shown ---------- */
 
-/* ---------- "download all documents" - not a browser download at all, but a
-   generated shell script: one curl call per document in the current filter,
-   ready to copy into a terminal. This sidesteps every browser-side wall the
-   earlier approaches ran into - curl is a separate program, so none of it
-   applies: no popup blocker (nothing opens a tab), no CORS (that's a
-   browser-fetch/XHR restriction on reading a cross-origin *response in JS*,
-   irrelevant to a standalone process making its own request), and no
-   "did it finish downloading" ambiguity (curl writes the file and exits).
-   Fetching the per-meeting document *lists* to build the script still goes
-   through handasi.complot.co.il (the listing engine) exactly as everywhere
-   else on this page - only the resulting script's curl calls hit
-   archive.gis-net.co.il, the same one-file-at-a-time act as clicking each
-   link by hand, just batched into a paste. */
-const sleep = (ms) => new Promise((r) => { setTimeout(r, ms); });
-
-/** Strips characters that break either a shell command or a filesystem path
- *  - mirrors sanitize_filename() in scrape_hodhasharon_meetings.py. */
-function sanitizeFilename(name) {
-  return String(name || 'מסמך')
-    .replace(/[\\/:*?"<>|\r\n\t]+/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .slice(0, 120) || 'מסמך';
-}
-
-/** POSIX single-quoting: wraps in '...', escaping any embedded ' as '"'"'.
- *  Safe for any text - not just the ASCII curl expects most arguments to be. */
-const shQuote = (s) => `'${String(s).replace(/'/g, "'\"'\"'")}'`;
-
-// `gen` lets an auto-triggered run (from typing in the quick filter) abandon
-// itself the moment a newer keystroke changes the filter again, instead of
-// two runs racing to overwrite the script panel - see applyQuickFilter().
-async function buildDownloadScript(gen = state.filterGen) {
-  const list = state.filtered;
-  if (!list.length) return;
-  if (list.length > 150 && !confirm(`הרשימה כוללת ${list.length} ישיבות - בניית הסקריפט תשלח כ-${list.length} בקשות לרשימת המסמכים בזו אחר זו ותימשך זמן מה. להמשיך?`)) return;
-
-  const btn = el('cmLoadAllDocs');
-  const box = el('cmAllDocs');
-  btn.disabled = true;
-  try {
-    const lines = [];
-    let failedMeetings = 0;
-    let docCount = 0;
-    for (let i = 0; i < list.length; i += 1) {
-      if (gen !== state.filterGen) return; // a newer filter took over mid-loop
-      const meeting = list[i];
-      box.innerHTML = `<p class="acc-hint">בונה רשימת קבצים… (ישיבה ${i + 1}/${list.length})</p>`;
-      let docs = state.docsCache.get(docsKeyFor(meeting));
-      if (!docs) {
-        try {
-          docs = await fetchDocsFor(meeting);
-        } catch {
-          failedMeetings += 1;
-          continue;
-        }
-        await sleep(150); // politeness pacing on the listing engine, same spirit as the original scraper's rate limiter
-      }
-      for (const doc of docs) {
-        docCount += 1;
-        const fname = sanitizeFilename(
-          `${meeting.date.replace(/\//g, '-')}_${meeting.meetingNumber}_${doc.title || doc.subject}.pdf`,
-        );
-        lines.push(
-          `curl -sS --retry 2 --retry-delay 3 -o ${shQuote(fname)} ${shQuote(doc.url)} `
-          + `&& echo "הורד: ${fname}" || echo "נכשל: ${fname}"`,
-        );
-        lines.push('sleep 0.5'); // politeness pacing on the archive host itself, run at the visitor's own pace, not this page's
-      }
-    }
-    if (gen === state.filterGen) renderDownloadScript(lines, docCount, failedMeetings); // stale otherwise - a newer run owns the panel now
-  } finally {
-    btn.disabled = false;
-  }
-}
-
-function renderDownloadScript(lines, docCount, failedMeetings) {
-  const box = el('cmAllDocs');
-  if (!docCount) {
-    box.innerHTML = `<p class="acc-hint">לא נמצאו מסמכים לרשימה הנוכחית.${failedMeetings ? ` (${failedMeetings} ישיבות נכשלו בטעינת רשימת המסמכים)` : ''}</p>`;
-    return;
-  }
-  const folder = sanitizeFilename(`ועדה_${state.siteid}_${el('cmFrom').value}_${el('cmTo').value}`);
-  const script = [
-    '#!/usr/bin/env bash',
-    'set -uo pipefail',
-    `mkdir -p ${shQuote(folder)}`,
-    `cd ${shQuote(folder)}`,
-    '',
-    ...lines,
-    '',
-    'echo "הסתיים."',
-  ].join('\n') + '\n';
-
-  box.innerHTML = `
-    <p class="acc-hint">
-      ${num(docCount)} קבצים.${failedMeetings ? ` (${failedMeetings} ישיבות נכשלו בטעינת רשימת המסמכים)` : ''}
-      הריצו בטרמינל (למשל <code dir="ltr">bash script.sh</code>) - יוצר תיקייה משלו ומוריד לתוכה, קובץ אחר קובץ.
-    </p>
-    <div class="cm-script-wrap">
-      <textarea id="cmScript" class="cm-script" readonly rows="10" dir="ltr" spellcheck="false">${esc(script)}</textarea>
-      <button type="button" id="cmCopyScript" class="drill-dl">העתקת הסקריפט ⧉</button>
-    </div>`;
-
-  el('cmCopyScript').addEventListener('click', async () => {
-    const copyBtn = el('cmCopyScript');
-    const original = copyBtn.textContent;
-    try {
-      await navigator.clipboard.writeText(script);
-      copyBtn.textContent = 'הועתק ✓';
-    } catch {
-      el('cmScript').select(); // clipboard API unavailable/denied - at least select it for manual Ctrl+C
-      copyBtn.textContent = 'סמנו והעתיקו ידנית (Ctrl+C)';
-    }
-    setTimeout(() => { copyBtn.textContent = original; }, 2000);
-  });
-}
-
-// Not `buildDownloadScript` directly - addEventListener would pass the click
-// Event as `gen`, clobbering the default parameter.
-el('cmLoadAllDocs').addEventListener('click', () => buildDownloadScript());
-
-/* ---------- CSV export - exactly the filtered rows on screen ---------- */
-
-el('cmCsv').addEventListener('click', () => {
+el('finCsv').addEventListener('click', () => {
+  if (!state.currentRecords?.length) return;
+  const cfg = YEAR_RESOURCES[state.year];
   const csv = buildCsv(
-    ['קוד_ועדה', 'מספר_ישיבה', 'סוג_ישיבה', 'תאריך', 'יום'],
-    state.filtered.map((m) => ({
-      קוד_ועדה: state.siteid,
-      מספר_ישיבה: m.meetingNumber,
-      סוג_ישיבה: m.committee,
-      תאריך: m.date,
-      יום: m.day,
+    ['שם_רשות', 'שנה', 'גיליון', 'שורה', 'עמודה', 'ערך'],
+    state.currentRecords.map((r) => ({
+      שם_רשות: r['שם_רשות'], שנה: state.year, גיליון: r[cfg.sheetField], שורה: r['שורה'], עמודה: r['עמודה'], ערך: r['ערך'],
     })),
   );
-  saveCsv(csv, `ישיבות_ועדת_תכנון_${state.siteid}.csv`);
+  saveCsv(csv, `דוח_כספי_${state.authority}_${state.year}.csv`);
 });
 
 /* ---------- wiring ---------- */
 
-cmSite.addEventListener('input', debounce(onSiteInput, 300));
+async function onAuthorityChange() {
+  const name = authorityInput.value.trim();
+  state.authority = rosterNames.includes(name) ? name : (name || null);
+  await renderStatement();
+}
 
-['change'].forEach((evt) => {
-  typeSelect.addEventListener(evt, loadMeetings);
-  el('cmFrom').addEventListener(evt, loadMeetings);
-  el('cmTo').addEventListener(evt, loadMeetings);
+el('finYear').addEventListener('change', async (e) => {
+  state.year = Number(e.target.value);
+  await Promise.all([renderKpis(), renderStatement()]);
 });
-el('cmSearch').addEventListener('input', debounce(applyQuickFilter, 250));
+authorityInput.addEventListener('input', debounce(onAuthorityChange, 300));
 
-loadMeetings();
+(async function start() {
+  await loadRoster();
+  await renderKpis();
+  await renderStatement();
+}());
 
 </script>
 </body>
