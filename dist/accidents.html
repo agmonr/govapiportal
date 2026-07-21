@@ -220,10 +220,6 @@ button.stat { cursor: pointer; }
 .stat.unknown { border-inline-start-color: var(--muted); }
 .stat.active  { background: var(--surface); box-shadow: inset 0 0 0 1px var(--accent); }
 
-/* The settlement lookup sits above the title banner; trim the shared .wrap
-   bottom padding so it doesn't push a big gap before the header. */
-#citiesTopWrap { padding-block: 1.5rem 0; }
-
 /* ---------- page sections (ערים / כלל הארץ) ---------- */
 
 .acc-section { margin-block-end: 2.5rem; }
@@ -938,22 +934,6 @@ body.accidents-page header.site h1 { inline-size: 100%; }
 </style>
 </head>
 <body class="accidents-page">
-  <!-- The settlement lookup leads the page, above the "תאונות דרכים עם נפגעים"
-       title banner. Outside #app but hidden by the same file:// guard below. -->
-  <div class="wrap" id="citiesTopWrap">
-    <section class="acc-section" aria-labelledby="citiesH">
-      <h2 id="citiesH">ישובים</h2>
-      <div class="acc-year-pick">
-        <label for="cityInput">ישוב:</label>
-        <input id="cityInput" type="text" list="cityList" autocomplete="off"
-               spellcheck="false" placeholder="התחילו להקליד שם ישוב…">
-        <datalist id="cityList"></datalist>
-      </div>
-      <div id="cityStats" class="stat-row"></div>
-      <div id="cityTable"></div>
-    </section>
-  </div>
-
   <header class="site">
     <div class="wrap">
       <h1>תאונות דרכים עם נפגעים</h1>
@@ -990,9 +970,21 @@ body.accidents-page header.site h1 { inline-size: 100%; }
         </div>
 
         <div id="accStats" class="stat-row"></div>
-
-        <div id="accidents"></div>
       </section>
+
+      <section class="acc-section" aria-labelledby="citiesH">
+        <h2 id="citiesH">ישובים</h2>
+        <div class="acc-year-pick">
+          <label for="cityInput">ישוב:</label>
+          <input id="cityInput" type="text" list="cityList" autocomplete="off"
+                 spellcheck="false" placeholder="התחילו להקליד שם ישוב…">
+          <datalist id="cityList"></datalist>
+        </div>
+        <div id="cityStats" class="stat-row"></div>
+        <div id="cityTable"></div>
+      </section>
+
+      <div id="accidents"></div>
     </div>
   </main>
   <script type="module">
