@@ -1214,19 +1214,20 @@ body.accidents-page header.site h1 { inline-size: 100%; }
           רשות ההשוואה מופיעה רק כרקע אפור בגרף ההכנסות/הוצאות, לצורך קנה מידה - הטבלה, הדוח
           המפורט וה-CSV ממשיכים לשקף אך ורק את הרשות הראשית שנבחרה למעלה.
         </p>
+        <p id="finCompareWarn" class="notice error" dir="auto" hidden></p>
       </section>
 
       <section class="acc-section" id="finAuthCharts" aria-labelledby="authChartsH" hidden>
         <h2 id="authChartsH">נתונים כספיים לאורך השנים — הרשות שנבחרה</h2>
         <p class="acc-hint">
-          הכנסות/הוצאות ומאזן (נכסים/התחייבויות) מבוססים על השורות המסוכמות של טופס 1 וטופס 2 -
-          קיימים בכל אחת מ-9 השנים שהרשות מכוסה בהן; שנים שהרשות לא נמצאת בהן (למשל עיר בשנים
-          שכוסו רק עבור מועצות מקומיות) פשוט חסרות בגרף, ולא מוצגות כאפס. נכסים והתחייבויות אינם
-          מוצגים זה מול זה - במאזן תקין הם תמיד שווים בהגדרה - לכן מוצג סה"כ המאזן (מספר אחד),
-          ולצידו התחייבויות שוטפות מול הסה"כ. ממוצע הארנונה מבוסס על גיליון "דוח לתושב", הקיים רק
-          ל-2023-2024 - לכן מוצג לכל היותר עבור שתי שנים אלה. "היקף תב"רים" ו"התחייבויות לספקים"
-          נבדקו ואינם כלולים כרגע - הראשון קיים רק בשנים האחרונות, השני אינו מופיע כשורה נפרדת
-          בנתונים כלל.
+          הכנסות/הוצאות ומאזן (התחייבויות) מבוססים על השורות המסוכמות של טופס 1 וטופס 2 - קיימים
+          בכל אחת מ-9 השנים שהרשות מכוסה בהן; שנים שהרשות לא נמצאת בהן (למשל עיר בשנים שכוסו רק
+          עבור מועצות מקומיות) פשוט חסרות בגרף, ולא מוצגות כאפס. נכסים אינם מוצגים בנפרד -
+          במאזן תקין הם תמיד שווים להתחייבויות בהגדרה, כך שלא היה בהם מידע נוסף מעבר למה שגרף
+          ההתחייבויות (סה"כ מול שוטפות) כבר מראה. ממוצע הארנונה מבוסס על גיליון "דוח לתושב", הקיים
+          רק ל-2023-2024 - לכן מוצג לכל היותר עבור שתי שנים אלה. "היקף תב"רים" ו"התחייבויות
+          לספקים" נבדקו ואינם כלולים כרגע - הראשון קיים רק בשנים האחרונות, השני אינו מופיע כשורה
+          נפרדת בנתונים כלל.
         </p>
         <div class="acc-charts">
           <figure id="finChartAuthRevenue" class="acc-chart" role="img"></figure>
@@ -1234,7 +1235,6 @@ body.accidents-page header.site h1 { inline-size: 100%; }
         </div>
         <div id="finAuthTable"></div>
         <div class="acc-charts">
-          <figure id="finChartAuthBalance" class="acc-chart" role="img"></figure>
           <figure id="finChartAuthLiab" class="acc-chart" role="img"></figure>
         </div>
       </section>
@@ -1248,6 +1248,15 @@ body.accidents-page header.site h1 { inline-size: 100%; }
         <p class="acc-hint">
           קובץ CSV נפתח ישירות ב-Excel/Google Sheets עם כל העמודות והערכים - אין כאן קובץ .xlsx
           נפרד, כי אין הבדל אמיתי בין השניים עבור טבלה שטוחה כזו.
+        </p>
+        <div class="acc-year-pick">
+          <label for="finStatementSearch">חיפוש שדה:</label>
+          <input id="finStatementSearch" type="text" autocomplete="off" spellcheck="false"
+                 placeholder="לפי שם שורה, עמודה או ערך…">
+        </div>
+        <p class="acc-hint">
+          החיפוש פותח אוטומטית רק את הגיליונות עם תוצאה, ומסתיר את השאר - מנקים את השדה כדי לחזור
+          לרשימה המלאה.
         </p>
         <div id="finStatement"></div>
       </section>
@@ -1889,6 +1898,14 @@ async function renderAuthorityCharts() {
     ? { name: state.compareAuthority, points: comparePoints } : null;
   renderComboChart('finChartAuthRevenue', `הכנסות והוצאות לפי שנה — ${state.authority}`, points, 'אלפי ש"ח',
     undefined, compare);
+  // A typed compare-authority that matched nothing needs to say so - silently
+  // leaving the chart without a backdrop bar and no explanation looks
+  // identical to the feature simply not having run.
+  const compareWarn = el('finCompareWarn');
+  compareWarn.hidden = !(state.compareAuthority && !compare);
+  if (!compare && state.compareAuthority) {
+    compareWarn.textContent = `לא נמצאו נתונים עבור "${state.compareAuthority}" לצורך השוואה.`;
+  }
   renderAuthorityTable(points);
 
   // ממוצע ארנונה למגורים למ"ר: same sheet as the national summary above, so
@@ -1900,16 +1917,14 @@ async function renderAuthorityCharts() {
   renderBarChart('finChartAuthArnona', `ממוצע ארנונה למגורים למ"ר, לפי שנה — ${state.authority}`,
     arnonaPoints.map((p) => ({ label: String(p.year), value: p.value })), 'ש"ח למ"ר', 'ok-chart');
 
-  // Balance sheet: total size (assets == liabilities, so one series covers
-  // both) plus total-vs-current liabilities as its own combo chart.
-  el('finChartAuthBalance').innerHTML = '<p class="acc-hint">טוען…</p>';
-  el('finChartAuthLiab').innerHTML = '';
+  // Balance sheet: only the total-vs-current liabilities combo chart - the
+  // total-size-alone chart was removed (assets == liabilities exactly, so it
+  // just duplicated this chart's own "back" bar with no new information).
+  el('finChartAuthLiab').innerHTML = '<p class="acc-hint">טוען…</p>';
   const balancePoints = await fetchAuthorityBalance(state.authority);
   if (!balancePoints.length) {
-    el('finChartAuthBalance').innerHTML = `<p class="acc-hint">לא נמצאו נתוני מאזן עבור "${esc(state.authority)}" באף שנה זמינה.</p>`;
+    el('finChartAuthLiab').innerHTML = `<p class="acc-hint">לא נמצאו נתוני מאזן עבור "${esc(state.authority)}" באף שנה זמינה.</p>`;
   } else {
-    renderBarChart('finChartAuthBalance', `סה"כ מאזן לפי שנה — ${state.authority} (נכסים = התחייבויות)`,
-      balancePoints.map((p) => ({ label: String(p.year), value: p.assets })), 'אלפי ש"ח', 'ok-chart');
     renderComboChart('finChartAuthLiab', `התחייבויות: סה"כ מול שוטפות — ${state.authority}`,
       balancePoints.map((p) => ({ year: p.year, revenue: p.currentLiabilities, expense: p.liabilities })),
       'אלפי ש"ח', { front: 'שוטפות', back: 'סה"כ' });
@@ -2004,11 +2019,35 @@ async function renderStatement() {
     box.innerHTML = `
       <p class="acc-hint">${num(total)} סעיפים, ${bySheet.size} גיליונות — ${esc(cfg.coverage)}.</p>
       ${sections}`;
+    applyStatementSearch(); // re-apply whatever search was already typed, against the new render
   } catch (err) {
     showError(box, err);
     state.currentRecords = [];
   }
 }
+
+/** Filters the already-rendered statement in place - no re-fetch, this is
+ *  pure client-side text matching over what's already on screen. A sheet
+ *  with zero matching rows is hidden entirely (30+ sheets is too many to
+ *  scan past); a sheet with at least one match opens itself, so a result
+ *  is never left inside a still-collapsed <details>. Clearing the box shows
+ *  everything again, collapsed back to its normal closed state. */
+function applyStatementSearch() {
+  const q = el('finStatementSearch').value.trim().toLowerCase();
+  const sheets = document.querySelectorAll('#finStatement .fin-sheet');
+  sheets.forEach((sheet) => {
+    if (!q) { sheet.hidden = false; sheet.open = false; sheet.querySelectorAll('tr').forEach((tr) => { tr.hidden = false; }); return; }
+    let anyMatch = false;
+    sheet.querySelectorAll('tbody tr').forEach((tr) => {
+      const match = tr.textContent.toLowerCase().includes(q);
+      tr.hidden = !match;
+      if (match) anyMatch = true;
+    });
+    sheet.hidden = !anyMatch;
+    if (anyMatch) sheet.open = true;
+  });
+}
+el('finStatementSearch').addEventListener('input', debounce(applyStatementSearch, 200));
 
 /* ---------- CSV export - exactly the statement currently shown ---------- */
 
@@ -2081,14 +2120,17 @@ async function onAuthorityChange() {
   await Promise.all([renderAuthorityCharts(), renderStatement()]);
 }
 
-// Compare authority is deliberately loose about matching the roster (unlike
-// the main one) - clearing the field or typing a partial name just drops the
-// backdrop bar rather than blocking on an exact match, since this is a
-// lightweight visual extra, not the page's primary selection.
+// Deliberately no roster-exact-match gate here (unlike the comment that used
+// to be here claimed - the check was actually still there, silently doing
+// nothing on anything but a perfect match, including a real name typed
+// before loadRoster() had finished). Any non-empty text is accepted as-is;
+// fetchAuthorityYearly() naturally returns zero points for a name that
+// doesn't exist, and renderAuthorityCharts() below now says so explicitly
+// instead of just leaving the chart unchanged with no explanation.
 const compareInput = el('finCompare');
 async function onCompareChange() {
   const name = compareInput.value.trim();
-  state.compareAuthority = rosterNames.includes(name) ? name : null;
+  state.compareAuthority = name || null;
   syncUrl();
   await renderAuthorityCharts();
 }

@@ -362,6 +362,14 @@ async function renderAuthorityCharts() {
     ? { name: state.compareAuthority, points: comparePoints } : null;
   renderComboChart('finChartAuthRevenue', `הכנסות והוצאות לפי שנה — ${state.authority}`, points, 'אלפי ש"ח',
     undefined, compare);
+  // A typed compare-authority that matched nothing needs to say so - silently
+  // leaving the chart without a backdrop bar and no explanation looks
+  // identical to the feature simply not having run.
+  const compareWarn = el('finCompareWarn');
+  compareWarn.hidden = !(state.compareAuthority && !compare);
+  if (!compare && state.compareAuthority) {
+    compareWarn.textContent = `לא נמצאו נתונים עבור "${state.compareAuthority}" לצורך השוואה.`;
+  }
   renderAuthorityTable(points);
 
   // ממוצע ארנונה למגורים למ"ר: same sheet as the national summary above, so
@@ -373,16 +381,14 @@ async function renderAuthorityCharts() {
   renderBarChart('finChartAuthArnona', `ממוצע ארנונה למגורים למ"ר, לפי שנה — ${state.authority}`,
     arnonaPoints.map((p) => ({ label: String(p.year), value: p.value })), 'ש"ח למ"ר', 'ok-chart');
 
-  // Balance sheet: total size (assets == liabilities, so one series covers
-  // both) plus total-vs-current liabilities as its own combo chart.
-  el('finChartAuthBalance').innerHTML = '<p class="acc-hint">טוען…</p>';
-  el('finChartAuthLiab').innerHTML = '';
+  // Balance sheet: only the total-vs-current liabilities combo chart - the
+  // total-size-alone chart was removed (assets == liabilities exactly, so it
+  // just duplicated this chart's own "back" bar with no new information).
+  el('finChartAuthLiab').innerHTML = '<p class="acc-hint">טוען…</p>';
   const balancePoints = await fetchAuthorityBalance(state.authority);
   if (!balancePoints.length) {
-    el('finChartAuthBalance').innerHTML = `<p class="acc-hint">לא נמצאו נתוני מאזן עבור "${esc(state.authority)}" באף שנה זמינה.</p>`;
+    el('finChartAuthLiab').innerHTML = `<p class="acc-hint">לא נמצאו נתוני מאזן עבור "${esc(state.authority)}" באף שנה זמינה.</p>`;
   } else {
-    renderBarChart('finChartAuthBalance', `סה"כ מאזן לפי שנה — ${state.authority} (נכסים = התחייבויות)`,
-      balancePoints.map((p) => ({ label: String(p.year), value: p.assets })), 'אלפי ש"ח', 'ok-chart');
     renderComboChart('finChartAuthLiab', `התחייבויות: סה"כ מול שוטפות — ${state.authority}`,
       balancePoints.map((p) => ({ year: p.year, revenue: p.currentLiabilities, expense: p.liabilities })),
       'אלפי ש"ח', { front: 'שוטפות', back: 'סה"כ' });
@@ -477,11 +483,35 @@ async function renderStatement() {
     box.innerHTML = `
       <p class="acc-hint">${num(total)} סעיפים, ${bySheet.size} גיליונות — ${esc(cfg.coverage)}.</p>
       ${sections}`;
+    applyStatementSearch(); // re-apply whatever search was already typed, against the new render
   } catch (err) {
     showError(box, err);
     state.currentRecords = [];
   }
 }
+
+/** Filters the already-rendered statement in place - no re-fetch, this is
+ *  pure client-side text matching over what's already on screen. A sheet
+ *  with zero matching rows is hidden entirely (30+ sheets is too many to
+ *  scan past); a sheet with at least one match opens itself, so a result
+ *  is never left inside a still-collapsed <details>. Clearing the box shows
+ *  everything again, collapsed back to its normal closed state. */
+function applyStatementSearch() {
+  const q = el('finStatementSearch').value.trim().toLowerCase();
+  const sheets = document.querySelectorAll('#finStatement .fin-sheet');
+  sheets.forEach((sheet) => {
+    if (!q) { sheet.hidden = false; sheet.open = false; sheet.querySelectorAll('tr').forEach((tr) => { tr.hidden = false; }); return; }
+    let anyMatch = false;
+    sheet.querySelectorAll('tbody tr').forEach((tr) => {
+      const match = tr.textContent.toLowerCase().includes(q);
+      tr.hidden = !match;
+      if (match) anyMatch = true;
+    });
+    sheet.hidden = !anyMatch;
+    if (anyMatch) sheet.open = true;
+  });
+}
+el('finStatementSearch').addEventListener('input', debounce(applyStatementSearch, 200));
 
 /* ---------- CSV export - exactly the statement currently shown ---------- */
 
@@ -554,14 +584,17 @@ async function onAuthorityChange() {
   await Promise.all([renderAuthorityCharts(), renderStatement()]);
 }
 
-// Compare authority is deliberately loose about matching the roster (unlike
-// the main one) - clearing the field or typing a partial name just drops the
-// backdrop bar rather than blocking on an exact match, since this is a
-// lightweight visual extra, not the page's primary selection.
+// Deliberately no roster-exact-match gate here (unlike the comment that used
+// to be here claimed - the check was actually still there, silently doing
+// nothing on anything but a perfect match, including a real name typed
+// before loadRoster() had finished). Any non-empty text is accepted as-is;
+// fetchAuthorityYearly() naturally returns zero points for a name that
+// doesn't exist, and renderAuthorityCharts() below now says so explicitly
+// instead of just leaving the chart unchanged with no explanation.
 const compareInput = el('finCompare');
 async function onCompareChange() {
   const name = compareInput.value.trim();
-  state.compareAuthority = rosterNames.includes(name) ? name : null;
+  state.compareAuthority = name || null;
   syncUrl();
   await renderAuthorityCharts();
 }
