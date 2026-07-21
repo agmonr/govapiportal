@@ -302,7 +302,15 @@ button.stat { cursor: pointer; }
 }
 .acc-bars {
   display: flex;
-  align-items: flex-end;
+  /* flex-start, not flex-end: every .acc-bar-track is a fixed 150px box at
+     the top of its column, so aligning columns by their tops keeps all bars'
+     zero-baselines level regardless of category-label length below them.
+     flex-end would align by the *label's* bottom instead - fine when every
+     label is a same-height year (accidents.html), but companies.html's
+     status/type labels wrap to a different number of lines each, which then
+     pushed each track up or down by however tall its own label happened to
+     be, throwing the bars' baseline out of line with each other. */
+  align-items: flex-start;
   gap: .5rem;
   max-inline-size: 32rem;
   /* A handful of bars (accidents/committees' 5-7-category charts) always fit
@@ -707,14 +715,27 @@ button.stat { cursor: pointer; }
   white-space: nowrap;
 }
 
-/* Expandable rows: a dataset opens into its downloadable files. */
-.matrix.preview.expandable tr.has-files { cursor: pointer; }
+/* Expandable rows: a dataset opens into its downloadable files
+   (portal.js/committees.js); companies.html reuses the same mechanic to open
+   a row into ica_companies fields the columns above have no room for. */
+.matrix.preview.expandable tr.has-files,
+.matrix.preview.expandable tr.has-detail { cursor: pointer; }
 .matrix.preview.expandable tr.has-files:hover,
-.matrix.preview.expandable tr.has-files:focus-visible { background: var(--surface); outline: none; }
-.matrix.preview.expandable tr.has-files:focus-visible { box-shadow: inset 0 0 0 2px var(--accent); }
+.matrix.preview.expandable tr.has-files:focus-visible,
+.matrix.preview.expandable tr.has-detail:hover,
+.matrix.preview.expandable tr.has-detail:focus-visible { background: var(--surface); outline: none; }
+.matrix.preview.expandable tr.has-files:focus-visible,
+.matrix.preview.expandable tr.has-detail:focus-visible { box-shadow: inset 0 0 0 2px var(--accent); }
 .matrix.preview .c-x { inline-size: 1.6rem; text-align: center; }
 .x-mark { color: var(--muted); font-size: .8rem; }
-.matrix.preview tr.files-row td { background: var(--surface); padding: .5rem .7rem; }
+.matrix.preview tr.files-row td,
+.matrix.preview tr.detail-row td { background: var(--surface); padding: .5rem .7rem; }
+
+/* companies.html's per-row detail panel: a plain label/value grid. */
+.co-detail { margin: 0; display: grid; gap: .35rem .1rem; }
+.co-detail div { display: flex; gap: .5rem; }
+.co-detail dt { flex: 0 0 11rem; color: var(--muted); }
+.co-detail dd { margin: 0; }
 
 .files { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .3rem; }
 .files a {
@@ -1077,7 +1098,6 @@ body.accidents-page header.site h1 { inline-size: 100%; }
         <h2 id="chartsH">ויזואליזציה</h2>
         <div class="acc-charts">
           <figure id="coChartStatus" class="acc-chart" role="img"></figure>
-          <figure id="coChartType" class="acc-chart" role="img"></figure>
         </div>
       </section>
 
@@ -1399,8 +1419,11 @@ async function loadGlobalStats() {
         <span class="stat-l">חברות ממשלתיות</span>
       </div>`;
 
+    // Only the status breakdown is charted - type isn't: 723,280 of 728,280
+    // companies are a single type (חברה פרטית ישראלית), so a bar chart of it
+    // is one full-height bar and a row of invisible slivers, not a picture of
+    // anything. The counts still drive the coType dropdown below, unchanged.
     renderBarChart('coChartStatus', 'פילוח לפי סטטוס חברה', statusCounts, 'total');
-    renderBarChart('coChartType', 'פילוח לפי סוג תאגיד', typeCounts);
 
     el('coStatus').innerHTML = `<option value="">הכל (${num(total)})</option>`
       + statusCounts.map((s) => `<option value="${esc(s.label)}">${esc(s.label)} (${num(s.value)})</option>`).join('');
@@ -1409,7 +1432,6 @@ async function loadGlobalStats() {
   } catch (err) {
     showError(el('coKpis'), err);
     el('coChartStatus').innerHTML = '';
-    el('coChartType').innerHTML = '';
   }
 }
 
@@ -1419,26 +1441,52 @@ function statusBadge(status) {
   return `<span class="badge ${statusClass(status)}" dir="auto">${esc(status)}</span>`;
 }
 
+// Fields ica_companies already carries but the row itself has no room for -
+// tucked behind the expand arrow instead of a 7th/8th/9th column.
+function detailRow(r) {
+  const address = [
+    [r['שם רחוב'], r['מספר בית']].filter(Boolean).join(' '),
+    r['מיקוד'] ? `מיקוד ${r['מיקוד']}` : '',
+    r['ת.ד.'] ? `ת.ד. ${r['ת.ד.']}` : '',
+    r['מדינה'] && r['מדינה'] !== 'ישראל' ? r['מדינה'] : '',
+  ].filter(Boolean).join(', ');
+  const fields = [
+    ['שם באנגלית', r['שם באנגלית']],
+    ['אצל', r['אצל']],
+    ['כתובת', address],
+    ['תת סטטוס', r['תת סטטוס']],
+    ['מגבלות', r['מגבלות']],
+    ['מטרה', r['מטרה']],
+    ['דוח שנתי אחרון שהוגש', r['שנה אחרונה של דוח שנתי (שהוגש)']],
+  ].filter(([, v]) => v);
+  if (!fields.length) return '<p class="acc-hint">אין פרטים נוספים לתאגיד זה.</p>';
+  return `<dl class="co-detail">${fields.map(([k, v]) => `
+    <div><dt>${esc(k)}</dt><dd dir="auto">${esc(v)}</dd></div>`).join('')}</dl>`;
+}
+
 function renderTable() {
   const box = el('coTableWrap');
   if (!state.records.length) {
     box.innerHTML = '<p class="acc-hint">לא נמצאו תאגידים התואמים לסינון הנוכחי.</p>';
     return;
   }
-  const rows = state.records.map((r) => `
-    <tr>
+  const rows = state.records.map((r, i) => `
+    <tr class="has-detail" data-row="${i}" tabindex="0" role="button">
+      <td class="c-x"><span class="x-mark">▾</span></td>
       <td dir="ltr">${num(r['מספר חברה'])}</td>
       <td dir="auto">${esc(r['שם חברה'])}${r[F_VIOLATOR] === 'מפרה' ? ' <span class="badge bad">מפרה</span>' : ''}</td>
       <td dir="auto">${esc(r[F_TYPE] || '—')}</td>
       <td dir="auto">${statusBadge(r[F_STATUS] || '—')}</td>
       <td dir="auto">${esc(r['שם עיר'] || '—')}</td>
       <td dir="auto">${esc(r['תאריך התאגדות'] || '—')}</td>
-    </tr>`).join('');
+    </tr>
+    <tr class="detail-row" data-detail="${i}" hidden><td colspan="7">${detailRow(r)}</td></tr>`).join('');
   box.innerHTML = `
     <div class="matrix-wrap">
-      <table class="matrix preview">
+      <table class="matrix preview expandable">
         <thead>
           <tr>
+            <th class="c-x"></th>
             <th scope="col">מס׳ חברה</th>
             <th scope="col">שם חברה</th>
             <th scope="col">סוג תאגיד</th>
@@ -1450,6 +1498,24 @@ function renderTable() {
         <tbody>${rows}</tbody>
       </table>
     </div>`;
+  bindDetailRows(box);
+}
+
+/** Same has-files/files-row/x-mark toggle convention as portal.js/committees.js. */
+function bindDetailRows(scope) {
+  scope.querySelectorAll('tr.has-detail').forEach((tr) => {
+    const toggle = () => {
+      const target = scope.querySelector(`tr[data-detail="${tr.dataset.row}"]`);
+      if (!target) return;
+      target.hidden = !target.hidden;
+      const mark = tr.querySelector('.x-mark');
+      if (mark) mark.textContent = target.hidden ? '▾' : '▴';
+    };
+    tr.addEventListener('click', toggle);
+    tr.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
+    });
+  });
 }
 
 function renderPager() {

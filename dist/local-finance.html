@@ -302,7 +302,15 @@ button.stat { cursor: pointer; }
 }
 .acc-bars {
   display: flex;
-  align-items: flex-end;
+  /* flex-start, not flex-end: every .acc-bar-track is a fixed 150px box at
+     the top of its column, so aligning columns by their tops keeps all bars'
+     zero-baselines level regardless of category-label length below them.
+     flex-end would align by the *label's* bottom instead - fine when every
+     label is a same-height year (accidents.html), but companies.html's
+     status/type labels wrap to a different number of lines each, which then
+     pushed each track up or down by however tall its own label happened to
+     be, throwing the bars' baseline out of line with each other. */
+  align-items: flex-start;
   gap: .5rem;
   max-inline-size: 32rem;
   /* A handful of bars (accidents/committees' 5-7-category charts) always fit
@@ -707,14 +715,27 @@ button.stat { cursor: pointer; }
   white-space: nowrap;
 }
 
-/* Expandable rows: a dataset opens into its downloadable files. */
-.matrix.preview.expandable tr.has-files { cursor: pointer; }
+/* Expandable rows: a dataset opens into its downloadable files
+   (portal.js/committees.js); companies.html reuses the same mechanic to open
+   a row into ica_companies fields the columns above have no room for. */
+.matrix.preview.expandable tr.has-files,
+.matrix.preview.expandable tr.has-detail { cursor: pointer; }
 .matrix.preview.expandable tr.has-files:hover,
-.matrix.preview.expandable tr.has-files:focus-visible { background: var(--surface); outline: none; }
-.matrix.preview.expandable tr.has-files:focus-visible { box-shadow: inset 0 0 0 2px var(--accent); }
+.matrix.preview.expandable tr.has-files:focus-visible,
+.matrix.preview.expandable tr.has-detail:hover,
+.matrix.preview.expandable tr.has-detail:focus-visible { background: var(--surface); outline: none; }
+.matrix.preview.expandable tr.has-files:focus-visible,
+.matrix.preview.expandable tr.has-detail:focus-visible { box-shadow: inset 0 0 0 2px var(--accent); }
 .matrix.preview .c-x { inline-size: 1.6rem; text-align: center; }
 .x-mark { color: var(--muted); font-size: .8rem; }
-.matrix.preview tr.files-row td { background: var(--surface); padding: .5rem .7rem; }
+.matrix.preview tr.files-row td,
+.matrix.preview tr.detail-row td { background: var(--surface); padding: .5rem .7rem; }
+
+/* companies.html's per-row detail panel: a plain label/value grid. */
+.co-detail { margin: 0; display: grid; gap: .35rem .1rem; }
+.co-detail div { display: flex; gap: .5rem; }
+.co-detail dt { flex: 0 0 11rem; color: var(--muted); }
+.co-detail dd { margin: 0; }
 
 .files { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .3rem; }
 .files a {
@@ -1111,6 +1132,19 @@ body.accidents-page header.site h1 { inline-size: 100%; }
         </div>
       </section>
 
+      <section class="acc-section" id="finAuthCharts" aria-labelledby="authChartsH" hidden>
+        <h2 id="authChartsH">הכנסות והוצאות לאורך השנים — הרשות שנבחרה</h2>
+        <p class="acc-hint">
+          מבוסס על השורות המסוכמות של טופס 2 (תקבולים/תשלומים בפועל) - קיים בכל אחת מ-9 השנים
+          שהרשות מכוסה בהן; שנים שהרשות לא נמצאת בהן (למשל עיר בשנים שכוסו רק עבור מועצות
+          מקומיות) פשוט חסרות בגרף, ולא מוצגות כאפס.
+        </p>
+        <div class="acc-charts">
+          <figure id="finChartAuthRevenue" class="acc-chart" role="img"></figure>
+          <figure id="finChartAuthExpense" class="acc-chart total" role="img"></figure>
+        </div>
+      </section>
+
       <section class="acc-section" aria-labelledby="statementH">
         <h2 id="statementH">דוח כספי מפורט לרשות שנבחרה</h2>
         <div class="fin-export-row">
@@ -1286,13 +1320,19 @@ function initThemePicker(root) {
  *
  * Only 2023 and 2024 carry the ministry's own computed summary sheet
  * ("דוח לתושב" - a residents'-facing rollup with ready-made lines like
- * "סה"כ הכנסות"/"סה"כ הוצאות"). Confirmed absent from every earlier year
- * checked (2016, 2018, 2019, 2020, 2021, 2022) - and note-taking on Form 2
- * ("טופס 2") showed its own line labels aren't stable across years either,
- * so no computed national KPI is attempted for years before 2023. Every
- * year's own detailed statement is still fully live-browsable regardless -
- * that path shows whatever rows a year actually has, no assumption about
- * label wording.
+ * "סהכ הכנסות"/"סהכ הוצאות"). Confirmed absent from every earlier year
+ * checked (2016, 2018, 2019, 2020, 2021, 2022), so no *national* KPI is
+ * attempted for years before 2023 - that would need summing every
+ * authority's figure for a year, and there is no ready-made per-authority
+ * total to sum in those years.
+ *
+ * Form 2 ("טופס 2") is a different story: it DOES carry a stable
+ * receipts/payments/surplus total in every year, just under two different
+ * labels depending on era - confirmed directly, not assumed, by checking a
+ * real authority in each year (see FORM2_TOTALS below). This is what
+ * powers the per-authority revenue/expense-over-the-years chart: unlike the
+ * national KPIs, this is one authority's own figure per year, no cross-
+ * authority summing needed, so both eras are usable.
  */
 const YEAR_RESOURCES = {
   2016: { source: 'local-council-1', resourceId: 'b7a3042a-a49a-4b38-99da-1de2fa9619ca', sheetField: 'גיליון', hasSummary: false, coverage: 'מועצות מקומיות בלבד' },
@@ -1330,6 +1370,22 @@ const SUMMARY_ROWS = {
 // Column that means "what actually happened this year" - not the budgeted
 // plan and not last year's figures, which the same sheet also carries.
 const SUMMARY_COLUMN = 'ביצוע שנה נוכחית';
+
+/**
+ * Form 2's own receipts/payments/surplus totals, confirmed present in every
+ * one of the 9 years this page covers (checked directly per year: a real
+ * council in 2016/2017/2020/2021's local-council-1 resource, a real
+ * authority in 2018/2019/2022/2023/2024's local-authorities resource) - just
+ * spelled two different ways depending on era. 2023/2024 introduced a
+ * "פעולות רגילות" (regular operations, as opposed to emergency/פעולות חירום)
+ * prefix and dropped the gershayim from "סה"כ"; 2016-2022 has neither.
+ */
+const FORM2_ROWS_BY_ERA = {
+  legacy: { revenue: 'סה"כ תקבולים', expense: 'סה"כ תשלומים' }, // 2016-2022
+  current: { revenue: 'פעולות רגילות - סהכ תקבולים', expense: 'פעולות רגילות - סהכ תשלומים' }, // 2023-2024
+};
+const form2RowsFor = (year) => (YEAR_RESOURCES[year].hasSummary
+  ? FORM2_ROWS_BY_ERA.current : FORM2_ROWS_BY_ERA.legacy);
 
 /**
  * Entry point for local-finance.html - דוחות כספיים מבוקרים של רשויות מקומיות
@@ -1520,6 +1576,56 @@ async function renderCharts(summary) {
   renderBarChart('finChartTop', `10 הרשויות עם ההכנסות הגבוהות ביותר, ${state.year}`, top, 'אלפי ש"ח', 'total');
 }
 
+/* ---------- one authority's own revenue/expense/surplus, across every year
+   it has data for - unlike the national KPIs above, this needs no
+   cross-authority summing, so both label eras (see form2RowsFor) are usable
+   and all 9 years can appear, not just 2023-2024. Years the authority has no
+   row in (e.g. a city in 2020/2021, a councils-only year) are skipped, not
+   shown as zero - a real gap should look like a gap, not a false zero. ---------- */
+
+async function fetchAuthorityYearly(authority) {
+  const points = []; // { year, revenue, expense }
+  for (const year of YEARS_DESC) {
+    const cfg = YEAR_RESOURCES[year];
+    const rows = form2RowsFor(year);
+    const filters = { שם_רשות: authority, [cfg.sheetField]: 'טופס 2', שורה: [rows.revenue, rows.expense], עמודה: SUMMARY_COLUMN };
+    if (cfg.yearFilter) filters[cfg.yearFilter.field] = cfg.yearFilter.value;
+    try {
+      const { records } = await dsQuery(cfg.resourceId, filters);
+      if (!records.length) continue; // authority not covered this year - a real gap, not an error
+      const revenue = Number(records.find((r) => r['שורה'] === rows.revenue)?.['ערך']) || 0;
+      const expense = Number(records.find((r) => r['שורה'] === rows.expense)?.['ערך']) || 0;
+      points.push({ year, revenue, expense });
+    } catch { /* one year failing shouldn't hide the rest */ }
+  }
+  return points.sort((a, b) => a.year - b.year); // oldest first - a trend reads left-to-right in time
+}
+
+function renderAuthorityYearlyCharts(points, authority) {
+  const revEntries = points.map((p) => ({ label: String(p.year), value: p.revenue }));
+  const expEntries = points.map((p) => ({ label: String(p.year), value: p.expense }));
+  renderBarChart('finChartAuthRevenue', `הכנסות לפי שנה — ${authority}`, revEntries, 'אלפי ש"ח', 'ok-chart');
+  renderBarChart('finChartAuthExpense', `הוצאות לפי שנה — ${authority}`, expEntries, 'אלפי ש"ח', 'total');
+}
+
+async function renderAuthorityCharts() {
+  const wrap = el('finAuthCharts');
+  if (!state.authority) {
+    wrap.hidden = true;
+    return;
+  }
+  wrap.hidden = false;
+  el('finChartAuthRevenue').innerHTML = '<p class="acc-hint">טוען…</p>';
+  el('finChartAuthExpense').innerHTML = '';
+  const points = await fetchAuthorityYearly(state.authority);
+  if (!points.length) {
+    el('finChartAuthRevenue').innerHTML = `<p class="acc-hint">לא נמצאו נתוני הכנסות/הוצאות עבור "${esc(state.authority)}" באף שנה זמינה.</p>`;
+    el('finChartAuthExpense').innerHTML = '';
+    return;
+  }
+  renderAuthorityYearlyCharts(points, state.authority);
+}
+
 /* ---------- detailed per-authority statement - fully live, any year ---------- */
 
 async function renderStatement() {
@@ -1636,7 +1742,7 @@ el('finCsvAll').addEventListener('click', downloadAllYearsForAuthority);
 async function onAuthorityChange() {
   const name = authorityInput.value.trim();
   state.authority = rosterNames.includes(name) ? name : (name || null);
-  await renderStatement();
+  await Promise.all([renderAuthorityCharts(), renderStatement()]);
 }
 
 el('finYear').addEventListener('change', async (e) => {

@@ -19,7 +19,7 @@
 
 import { el, esc, num, debounce, buildCsv, saveCsv, showError, showLoading } from './ui.js';
 import { initThemePicker } from './theme.js';
-import { YEAR_RESOURCES, YEARS_DESC, ROSTER_YEAR, ROSTER_FILTERS, SUMMARY_SHEET, SUMMARY_ROWS, SUMMARY_COLUMN } from './finance-data.js';
+import { YEAR_RESOURCES, YEARS_DESC, ROSTER_YEAR, ROSTER_FILTERS, SUMMARY_SHEET, SUMMARY_ROWS, SUMMARY_COLUMN, form2RowsFor } from './finance-data.js';
 
 initThemePicker(el('themePick'));
 
@@ -189,6 +189,56 @@ async function renderCharts(summary) {
   renderBarChart('finChartTop', `10 הרשויות עם ההכנסות הגבוהות ביותר, ${state.year}`, top, 'אלפי ש"ח', 'total');
 }
 
+/* ---------- one authority's own revenue/expense/surplus, across every year
+   it has data for - unlike the national KPIs above, this needs no
+   cross-authority summing, so both label eras (see form2RowsFor) are usable
+   and all 9 years can appear, not just 2023-2024. Years the authority has no
+   row in (e.g. a city in 2020/2021, a councils-only year) are skipped, not
+   shown as zero - a real gap should look like a gap, not a false zero. ---------- */
+
+async function fetchAuthorityYearly(authority) {
+  const points = []; // { year, revenue, expense }
+  for (const year of YEARS_DESC) {
+    const cfg = YEAR_RESOURCES[year];
+    const rows = form2RowsFor(year);
+    const filters = { שם_רשות: authority, [cfg.sheetField]: 'טופס 2', שורה: [rows.revenue, rows.expense], עמודה: SUMMARY_COLUMN };
+    if (cfg.yearFilter) filters[cfg.yearFilter.field] = cfg.yearFilter.value;
+    try {
+      const { records } = await dsQuery(cfg.resourceId, filters);
+      if (!records.length) continue; // authority not covered this year - a real gap, not an error
+      const revenue = Number(records.find((r) => r['שורה'] === rows.revenue)?.['ערך']) || 0;
+      const expense = Number(records.find((r) => r['שורה'] === rows.expense)?.['ערך']) || 0;
+      points.push({ year, revenue, expense });
+    } catch { /* one year failing shouldn't hide the rest */ }
+  }
+  return points.sort((a, b) => a.year - b.year); // oldest first - a trend reads left-to-right in time
+}
+
+function renderAuthorityYearlyCharts(points, authority) {
+  const revEntries = points.map((p) => ({ label: String(p.year), value: p.revenue }));
+  const expEntries = points.map((p) => ({ label: String(p.year), value: p.expense }));
+  renderBarChart('finChartAuthRevenue', `הכנסות לפי שנה — ${authority}`, revEntries, 'אלפי ש"ח', 'ok-chart');
+  renderBarChart('finChartAuthExpense', `הוצאות לפי שנה — ${authority}`, expEntries, 'אלפי ש"ח', 'total');
+}
+
+async function renderAuthorityCharts() {
+  const wrap = el('finAuthCharts');
+  if (!state.authority) {
+    wrap.hidden = true;
+    return;
+  }
+  wrap.hidden = false;
+  el('finChartAuthRevenue').innerHTML = '<p class="acc-hint">טוען…</p>';
+  el('finChartAuthExpense').innerHTML = '';
+  const points = await fetchAuthorityYearly(state.authority);
+  if (!points.length) {
+    el('finChartAuthRevenue').innerHTML = `<p class="acc-hint">לא נמצאו נתוני הכנסות/הוצאות עבור "${esc(state.authority)}" באף שנה זמינה.</p>`;
+    el('finChartAuthExpense').innerHTML = '';
+    return;
+  }
+  renderAuthorityYearlyCharts(points, state.authority);
+}
+
 /* ---------- detailed per-authority statement - fully live, any year ---------- */
 
 async function renderStatement() {
@@ -305,7 +355,7 @@ el('finCsvAll').addEventListener('click', downloadAllYearsForAuthority);
 async function onAuthorityChange() {
   const name = authorityInput.value.trim();
   state.authority = rosterNames.includes(name) ? name : (name || null);
-  await renderStatement();
+  await Promise.all([renderAuthorityCharts(), renderStatement()]);
 }
 
 el('finYear').addEventListener('change', async (e) => {

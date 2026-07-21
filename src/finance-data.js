@@ -18,13 +18,19 @@
  *
  * Only 2023 and 2024 carry the ministry's own computed summary sheet
  * ("דוח לתושב" - a residents'-facing rollup with ready-made lines like
- * "סה"כ הכנסות"/"סה"כ הוצאות"). Confirmed absent from every earlier year
- * checked (2016, 2018, 2019, 2020, 2021, 2022) - and note-taking on Form 2
- * ("טופס 2") showed its own line labels aren't stable across years either,
- * so no computed national KPI is attempted for years before 2023. Every
- * year's own detailed statement is still fully live-browsable regardless -
- * that path shows whatever rows a year actually has, no assumption about
- * label wording.
+ * "סהכ הכנסות"/"סהכ הוצאות"). Confirmed absent from every earlier year
+ * checked (2016, 2018, 2019, 2020, 2021, 2022), so no *national* KPI is
+ * attempted for years before 2023 - that would need summing every
+ * authority's figure for a year, and there is no ready-made per-authority
+ * total to sum in those years.
+ *
+ * Form 2 ("טופס 2") is a different story: it DOES carry a stable
+ * receipts/payments/surplus total in every year, just under two different
+ * labels depending on era - confirmed directly, not assumed, by checking a
+ * real authority in each year (see FORM2_TOTALS below). This is what
+ * powers the per-authority revenue/expense-over-the-years chart: unlike the
+ * national KPIs, this is one authority's own figure per year, no cross-
+ * authority summing needed, so both eras are usable.
  */
 export const YEAR_RESOURCES = {
   2016: { source: 'local-council-1', resourceId: 'b7a3042a-a49a-4b38-99da-1de2fa9619ca', sheetField: 'גיליון', hasSummary: false, coverage: 'מועצות מקומיות בלבד' },
@@ -62,3 +68,19 @@ export const SUMMARY_ROWS = {
 // Column that means "what actually happened this year" - not the budgeted
 // plan and not last year's figures, which the same sheet also carries.
 export const SUMMARY_COLUMN = 'ביצוע שנה נוכחית';
+
+/**
+ * Form 2's own receipts/payments/surplus totals, confirmed present in every
+ * one of the 9 years this page covers (checked directly per year: a real
+ * council in 2016/2017/2020/2021's local-council-1 resource, a real
+ * authority in 2018/2019/2022/2023/2024's local-authorities resource) - just
+ * spelled two different ways depending on era. 2023/2024 introduced a
+ * "פעולות רגילות" (regular operations, as opposed to emergency/פעולות חירום)
+ * prefix and dropped the gershayim from "סה"כ"; 2016-2022 has neither.
+ */
+export const FORM2_ROWS_BY_ERA = {
+  legacy: { revenue: 'סה"כ תקבולים', expense: 'סה"כ תשלומים' }, // 2016-2022
+  current: { revenue: 'פעולות רגילות - סהכ תקבולים', expense: 'פעולות רגילות - סהכ תשלומים' }, // 2023-2024
+};
+export const form2RowsFor = (year) => (YEAR_RESOURCES[year].hasSummary
+  ? FORM2_ROWS_BY_ERA.current : FORM2_ROWS_BY_ERA.legacy);

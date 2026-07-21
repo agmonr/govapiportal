@@ -148,8 +148,11 @@ async function loadGlobalStats() {
         <span class="stat-l">חברות ממשלתיות</span>
       </div>`;
 
+    // Only the status breakdown is charted - type isn't: 723,280 of 728,280
+    // companies are a single type (חברה פרטית ישראלית), so a bar chart of it
+    // is one full-height bar and a row of invisible slivers, not a picture of
+    // anything. The counts still drive the coType dropdown below, unchanged.
     renderBarChart('coChartStatus', 'פילוח לפי סטטוס חברה', statusCounts, 'total');
-    renderBarChart('coChartType', 'פילוח לפי סוג תאגיד', typeCounts);
 
     el('coStatus').innerHTML = `<option value="">הכל (${num(total)})</option>`
       + statusCounts.map((s) => `<option value="${esc(s.label)}">${esc(s.label)} (${num(s.value)})</option>`).join('');
@@ -158,7 +161,6 @@ async function loadGlobalStats() {
   } catch (err) {
     showError(el('coKpis'), err);
     el('coChartStatus').innerHTML = '';
-    el('coChartType').innerHTML = '';
   }
 }
 
@@ -168,26 +170,52 @@ function statusBadge(status) {
   return `<span class="badge ${statusClass(status)}" dir="auto">${esc(status)}</span>`;
 }
 
+// Fields ica_companies already carries but the row itself has no room for -
+// tucked behind the expand arrow instead of a 7th/8th/9th column.
+function detailRow(r) {
+  const address = [
+    [r['שם רחוב'], r['מספר בית']].filter(Boolean).join(' '),
+    r['מיקוד'] ? `מיקוד ${r['מיקוד']}` : '',
+    r['ת.ד.'] ? `ת.ד. ${r['ת.ד.']}` : '',
+    r['מדינה'] && r['מדינה'] !== 'ישראל' ? r['מדינה'] : '',
+  ].filter(Boolean).join(', ');
+  const fields = [
+    ['שם באנגלית', r['שם באנגלית']],
+    ['אצל', r['אצל']],
+    ['כתובת', address],
+    ['תת סטטוס', r['תת סטטוס']],
+    ['מגבלות', r['מגבלות']],
+    ['מטרה', r['מטרה']],
+    ['דוח שנתי אחרון שהוגש', r['שנה אחרונה של דוח שנתי (שהוגש)']],
+  ].filter(([, v]) => v);
+  if (!fields.length) return '<p class="acc-hint">אין פרטים נוספים לתאגיד זה.</p>';
+  return `<dl class="co-detail">${fields.map(([k, v]) => `
+    <div><dt>${esc(k)}</dt><dd dir="auto">${esc(v)}</dd></div>`).join('')}</dl>`;
+}
+
 function renderTable() {
   const box = el('coTableWrap');
   if (!state.records.length) {
     box.innerHTML = '<p class="acc-hint">לא נמצאו תאגידים התואמים לסינון הנוכחי.</p>';
     return;
   }
-  const rows = state.records.map((r) => `
-    <tr>
+  const rows = state.records.map((r, i) => `
+    <tr class="has-detail" data-row="${i}" tabindex="0" role="button">
+      <td class="c-x"><span class="x-mark">▾</span></td>
       <td dir="ltr">${num(r['מספר חברה'])}</td>
       <td dir="auto">${esc(r['שם חברה'])}${r[F_VIOLATOR] === 'מפרה' ? ' <span class="badge bad">מפרה</span>' : ''}</td>
       <td dir="auto">${esc(r[F_TYPE] || '—')}</td>
       <td dir="auto">${statusBadge(r[F_STATUS] || '—')}</td>
       <td dir="auto">${esc(r['שם עיר'] || '—')}</td>
       <td dir="auto">${esc(r['תאריך התאגדות'] || '—')}</td>
-    </tr>`).join('');
+    </tr>
+    <tr class="detail-row" data-detail="${i}" hidden><td colspan="7">${detailRow(r)}</td></tr>`).join('');
   box.innerHTML = `
     <div class="matrix-wrap">
-      <table class="matrix preview">
+      <table class="matrix preview expandable">
         <thead>
           <tr>
+            <th class="c-x"></th>
             <th scope="col">מס׳ חברה</th>
             <th scope="col">שם חברה</th>
             <th scope="col">סוג תאגיד</th>
@@ -199,6 +227,24 @@ function renderTable() {
         <tbody>${rows}</tbody>
       </table>
     </div>`;
+  bindDetailRows(box);
+}
+
+/** Same has-files/files-row/x-mark toggle convention as portal.js/committees.js. */
+function bindDetailRows(scope) {
+  scope.querySelectorAll('tr.has-detail').forEach((tr) => {
+    const toggle = () => {
+      const target = scope.querySelector(`tr[data-detail="${tr.dataset.row}"]`);
+      if (!target) return;
+      target.hidden = !target.hidden;
+      const mark = tr.querySelector('.x-mark');
+      if (mark) mark.textContent = target.hidden ? '▾' : '▴';
+    };
+    tr.addEventListener('click', toggle);
+    tr.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
+    });
+  });
 }
 
 function renderPager() {
