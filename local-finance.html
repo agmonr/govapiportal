@@ -100,7 +100,16 @@
             <label for="finYear">שנה:</label>
             <select id="finYear"></select>
           </div>
+          <div class="acc-year-pick">
+            <label for="finCompare">השוואה לרשות נוספת (אופציונלי):</label>
+            <input id="finCompare" type="text" list="finAuthorityList" autocomplete="off"
+                   spellcheck="false" placeholder="התחילו להקליד שם רשות…">
+          </div>
         </div>
+        <p class="acc-hint">
+          רשות ההשוואה מופיעה רק כרקע אפור בגרף ההכנסות/הוצאות, לצורך קנה מידה - הטבלה, הדוח
+          המפורט וה-CSV ממשיכים לשקף אך ורק את הרשות הראשית שנבחרה למעלה.
+        </p>
       </section>
 
       <section class="acc-section" id="finAuthCharts" aria-labelledby="authChartsH" hidden>

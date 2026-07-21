@@ -51,6 +51,7 @@ const DEFAULT_AUTHORITY = 'הוד השרון';
 
 const state = {
   authority: DEFAULT_AUTHORITY,
+  compareAuthority: null, // chart-only backdrop - never touches the table/statement/CSV
   year: YEARS_DESC[0],
   summaryCache: new Map(), // year -> { totals, byAuthority[] } | 'unsupported'
 };
@@ -63,14 +64,17 @@ const state = {
 function readStateFromUrl() {
   const p = new URLSearchParams(location.search);
   const authority = p.get('authority')?.trim();
+  const compare = p.get('compare')?.trim();
   const year = Number(p.get('year'));
   if (authority) state.authority = authority;
+  if (compare) state.compareAuthority = compare;
   if (YEAR_RESOURCES[year]) state.year = year;
 }
 
 function syncUrl() {
   const p = new URLSearchParams();
   if (state.authority) p.set('authority', state.authority);
+  if (state.compareAuthority) p.set('compare', state.compareAuthority);
   p.set('year', String(state.year));
   history.replaceState(null, '', `?${p}`);
 }
@@ -263,16 +267,28 @@ async function fetchAuthorityYearly(authority) {
  *  across BOTH series together, not per-series, so a year where expense
  *  exceeds revenue (a deficit year) doesn't get its back bar clipped taller
  *  than the chart while the front bar looks artificially short. */
-function renderComboChart(figId, caption, points, unit, labels = { front: 'הכנסות', back: 'הוצאות' }) {
+/** `compare` (optional): another authority's own revenue, per year - shown as
+ *  a third, gray, widest-of-the-three backdrop bar purely for scale (per the
+ *  request: chart-only context, never touching the table/statement/CSV,
+ *  which stay scoped to the main authority alone). Keyed by year, not
+ *  assumed to line up positionally with `points` - the compare authority can
+ *  easily have data for a different subset of the 9 years (a city vs. a
+ *  council-only year, for instance). */
+function renderComboChart(figId, caption, points, unit, labels = { front: 'הכנסות', back: 'הוצאות' }, compare = null) {
   const fig = el(figId);
   if (!points.length) { fig.innerHTML = `<figcaption>${esc(caption)}</figcaption><p class="acc-hint">אין נתונים להצגה.</p>`; return; }
-  const peak = Math.max(...points.flatMap((p) => [p.revenue, p.expense]));
+  const compareByYear = new Map((compare?.points || []).map((p) => [p.year, p.revenue]));
+  const peak = Math.max(...points.flatMap((p) => [p.revenue, p.expense]), ...compareByYear.values());
   const bars = points.map((p) => {
     const revH = peak ? Math.round((p.revenue / peak) * 150) : 0;
     const expH = peak ? Math.round((p.expense / peak) * 150) : 0;
+    const cmpVal = compareByYear.get(p.year);
+    const cmpH = cmpVal != null && peak ? Math.round((cmpVal / peak) * 150) : 0;
+    const cmpTitle = cmpVal != null ? `, ${esc(compare.name)}: ${num(cmpVal)} ${esc(unit)}` : '';
     return `
-      <div class="acc-bar" title="${esc(String(p.year))} — ${esc(labels.front)}: ${num(p.revenue)} ${esc(unit)}, ${esc(labels.back)}: ${num(p.expense)} ${esc(unit)}">
+      <div class="acc-bar" title="${esc(String(p.year))} — ${esc(labels.front)}: ${num(p.revenue)} ${esc(unit)}, ${esc(labels.back)}: ${num(p.expense)} ${esc(unit)}${cmpTitle}">
         <div class="acc-bar-track acc-bar-track-combo">
+          ${cmpVal != null ? `<div class="acc-bar-fill acc-bar-compare" style="block-size:${cmpH}px"></div>` : ''}
           <div class="acc-bar-fill acc-bar-back" style="block-size:${expH}px"></div>
           <div class="acc-bar-fill acc-bar-front" style="block-size:${revH}px"></div>
         </div>
@@ -285,6 +301,7 @@ function renderComboChart(figId, caption, points, unit, labels = { front: 'הכ�
     <div class="acc-legend">
       <span class="acc-legend-item"><span class="acc-legend-swatch" style="background:#1a7f45"></span>${esc(labels.front)}</span>
       <span class="acc-legend-item"><span class="acc-legend-swatch" style="background:color-mix(in srgb, var(--accent) 55%, transparent)"></span>${esc(labels.back)}</span>
+      ${compare ? `<span class="acc-legend-item"><span class="acc-legend-swatch" style="background:color-mix(in srgb, var(--muted) 45%, transparent)"></span>${esc(compare.name)} (השוואה)</span>` : ''}
     </div>
     <div class="acc-bars">${bars}</div>`;
 }
@@ -330,12 +347,21 @@ async function renderAuthorityCharts() {
   }
   wrap.hidden = false;
   el('finChartAuthRevenue').innerHTML = '<p class="acc-hint">טוען…</p>';
-  const points = await fetchAuthorityYearly(state.authority);
+  // The compare authority reuses fetchAuthorityYearly() as-is (same function,
+  // different name) - it's a chart-only backdrop, so its own revenue series
+  // is enough; nothing from it reaches the table/statement/CSV below.
+  const [points, comparePoints] = await Promise.all([
+    fetchAuthorityYearly(state.authority),
+    state.compareAuthority ? fetchAuthorityYearly(state.compareAuthority) : Promise.resolve(null),
+  ]);
   if (!points.length) {
     el('finChartAuthRevenue').innerHTML = `<p class="acc-hint">לא נמצאו נתוני הכנסות/הוצאות עבור "${esc(state.authority)}" באף שנה זמינה.</p>`;
     return;
   }
-  renderComboChart('finChartAuthRevenue', `הכנסות והוצאות לפי שנה — ${state.authority}`, points, 'אלפי ש"ח');
+  const compare = state.compareAuthority && comparePoints?.length
+    ? { name: state.compareAuthority, points: comparePoints } : null;
+  renderComboChart('finChartAuthRevenue', `הכנסות והוצאות לפי שנה — ${state.authority}`, points, 'אלפי ש"ח',
+    undefined, compare);
   renderAuthorityTable(points);
 
   // ממוצע ארנונה למגורים למ"ר: same sheet as the national summary above, so
@@ -528,6 +554,19 @@ async function onAuthorityChange() {
   await Promise.all([renderAuthorityCharts(), renderStatement()]);
 }
 
+// Compare authority is deliberately loose about matching the roster (unlike
+// the main one) - clearing the field or typing a partial name just drops the
+// backdrop bar rather than blocking on an exact match, since this is a
+// lightweight visual extra, not the page's primary selection.
+const compareInput = el('finCompare');
+async function onCompareChange() {
+  const name = compareInput.value.trim();
+  state.compareAuthority = rosterNames.includes(name) ? name : null;
+  syncUrl();
+  await renderAuthorityCharts();
+}
+compareInput.addEventListener('input', debounce(onCompareChange, 300));
+
 el('finYear').addEventListener('change', async (e) => {
   state.year = Number(e.target.value);
   syncUrl();
@@ -538,6 +577,7 @@ authorityInput.addEventListener('input', debounce(onAuthorityChange, 300));
 (async function start() {
   readStateFromUrl();
   authorityInput.value = state.authority || '';
+  compareInput.value = state.compareAuthority || '';
   el('finYear').value = String(state.year);
   syncUrl(); // normalizes a bare visit (no query string yet) into a real, copyable link immediately
   await loadRoster();

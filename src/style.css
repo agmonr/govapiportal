@@ -391,6 +391,13 @@ button.stat { cursor: pointer; }
   .acc-chart .acc-bar-fill.acc-bar-front { background: #5fce8f; }
 }
 
+/* Optional third layer: another authority's own value, shown purely as a
+   gray backdrop for scale - widest of the three (so it peeks out around
+   both the back and front bars, same "width carries visibility" logic as
+   back/front above) and behind both in z-index, since it's context, not
+   one of the two series this chart is actually about. */
+.acc-bar-fill.acc-bar-compare { grid-area: 1 / 1; align-self: end; z-index: 0; background: color-mix(in srgb, var(--muted) 45%, transparent); }
+
 /* Legend for the two-series chart above - color meaning is never carried by
    hue alone elsewhere on the site either (see .badge), so this pairs a swatch
    with a text label rather than just a colored dot. */
