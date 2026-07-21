@@ -31,6 +31,39 @@ const YEAR_STATS = {
   2020: { fatal: 286, severe: 1899, light: 8651, total: 10836 },
 };
 
+// Years oldest→newest in the DOM; on this RTL page the flow lays them out
+// right→left, so time reads the same direction as the Hebrew around it -
+// oldest (2020) on the right, newest (2024) on the left.
+const CHART_YEARS = ['2020', '2021', '2022', '2023', '2024'];
+const CHART_MAX_H = 150; // px height of the tallest bar; the rest scale to it
+
+// Single series (fatalities per year), so no legend - the caption names it -
+// and one hue: the same danger red as the "killed" stat tile. Bars share a
+// zero baseline and are labelled directly, so the plot carries its own numbers.
+function renderChart(year) {
+  const peak = Math.max(...CHART_YEARS.map((y) => YEAR_STATS[y].fatal));
+  const bars = CHART_YEARS.map((y) => {
+    const n = YEAR_STATS[y].fatal;
+    const h = Math.round((n / peak) * CHART_MAX_H);
+    const active = year !== 'all' && year === y ? ' active' : '';
+    return `
+      <div class="acc-bar${active}" title="${y}: ${num(n)} הרוגים">
+        <div class="acc-bar-track">
+          <span class="acc-bar-v">${num(n)}</span>
+          <div class="acc-bar-fill" style="block-size:${h}px"></div>
+        </div>
+        <span class="acc-bar-y">${y}</span>
+      </div>`;
+  }).join('');
+  const fig = el('accChart');
+  fig.setAttribute('aria-label',
+    'הרוגים בתאונות דרכים לפי שנה, ' + CHART_YEARS[0] + '–' +
+    CHART_YEARS[CHART_YEARS.length - 1]);
+  fig.innerHTML = `
+    <figcaption>הרוגים לפי שנה</figcaption>
+    <div class="acc-bars">${bars}</div>`;
+}
+
 function renderStats(year) {
   const s = YEAR_STATS[year] || YEAR_STATS.all;
   el('accStats').innerHTML = `
@@ -52,8 +85,12 @@ function renderStats(year) {
     </div>`;
 }
 
+renderChart('all');
 renderStats('all');
-el('accYear').addEventListener('change', (e) => renderStats(e.target.value));
+el('accYear').addEventListener('change', (e) => {
+  renderChart(e.target.value);
+  renderStats(e.target.value);
+});
 
 async function load() {
   const mount = el('accidents');
