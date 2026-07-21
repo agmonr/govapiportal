@@ -45,23 +45,36 @@
     </div>
 
     <div id="app">
-      <figure id="accChart" class="acc-chart" role="img"></figure>
+      <section class="acc-section" aria-labelledby="citiesH">
+        <h2 id="citiesH">ערים</h2>
+        <div class="acc-year-pick">
+          <label for="cityPick">עיר:</label>
+          <select id="cityPick"></select>
+        </div>
+        <div id="cityStats" class="stat-row"></div>
+        <div id="cityTable"></div>
+      </section>
 
-      <div class="acc-year-pick">
-        <label for="accYear">שנה:</label>
-        <select id="accYear">
-          <option value="all" selected>כל השנים (2020–2024)</option>
-          <option value="2024">2024</option>
-          <option value="2023">2023</option>
-          <option value="2022">2022</option>
-          <option value="2021">2021</option>
-          <option value="2020">2020</option>
-        </select>
-      </div>
+      <section class="acc-section" aria-labelledby="natH">
+        <h2 id="natH">כלל הארץ</h2>
+        <figure id="accChart" class="acc-chart" role="img"></figure>
 
-      <div id="accStats" class="stat-row"></div>
+        <div class="acc-year-pick">
+          <label for="accYear">שנה:</label>
+          <select id="accYear">
+            <option value="all" selected>כל השנים (2020–2024)</option>
+            <option value="2024">2024</option>
+            <option value="2023">2023</option>
+            <option value="2022">2022</option>
+            <option value="2021">2021</option>
+            <option value="2020">2020</option>
+          </select>
+        </div>
 
-      <div id="accidents"></div>
+        <div id="accStats" class="stat-row"></div>
+
+        <div id="accidents"></div>
+      </section>
     </div>
   </main>
 
