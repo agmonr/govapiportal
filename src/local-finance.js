@@ -19,7 +19,7 @@
 
 import { el, esc, num, debounce, buildCsv, saveCsv, showError, showLoading } from './ui.js';
 import { initThemePicker } from './theme.js';
-import { YEAR_RESOURCES, YEARS_DESC, ROSTER_YEAR, ROSTER_FILTERS, SUMMARY_SHEET, SUMMARY_ROWS, SUMMARY_COLUMN, form2RowsFor, ARNONA_ROW, ARNONA_COLUMN } from './finance-data.js';
+import { YEAR_RESOURCES, YEARS_DESC, ROSTER_YEAR, ROSTER_FILTERS, SUMMARY_SHEET, SUMMARY_ROWS, SUMMARY_COLUMN, form2RowsFor, ARNONA_ROW, ARNONA_COLUMN, BALANCE_COLUMN, balanceRowsFor } from './finance-data.js';
 
 initThemePicker(el('themePick'));
 
@@ -263,7 +263,7 @@ async function fetchAuthorityYearly(authority) {
  *  across BOTH series together, not per-series, so a year where expense
  *  exceeds revenue (a deficit year) doesn't get its back bar clipped taller
  *  than the chart while the front bar looks artificially short. */
-function renderComboChart(figId, caption, points, unit) {
+function renderComboChart(figId, caption, points, unit, labels = { front: 'הכנסות', back: 'הוצאות' }) {
   const fig = el(figId);
   if (!points.length) { fig.innerHTML = `<figcaption>${esc(caption)}</figcaption><p class="acc-hint">אין נתונים להצגה.</p>`; return; }
   const peak = Math.max(...points.flatMap((p) => [p.revenue, p.expense]));
@@ -271,7 +271,7 @@ function renderComboChart(figId, caption, points, unit) {
     const revH = peak ? Math.round((p.revenue / peak) * 150) : 0;
     const expH = peak ? Math.round((p.expense / peak) * 150) : 0;
     return `
-      <div class="acc-bar" title="${esc(String(p.year))} — הכנסות: ${num(p.revenue)} ${esc(unit)}, הוצאות: ${num(p.expense)} ${esc(unit)}">
+      <div class="acc-bar" title="${esc(String(p.year))} — ${esc(labels.front)}: ${num(p.revenue)} ${esc(unit)}, ${esc(labels.back)}: ${num(p.expense)} ${esc(unit)}">
         <div class="acc-bar-track acc-bar-track-combo">
           <div class="acc-bar-fill acc-bar-back" style="block-size:${expH}px"></div>
           <div class="acc-bar-fill acc-bar-front" style="block-size:${revH}px"></div>
@@ -283,8 +283,8 @@ function renderComboChart(figId, caption, points, unit) {
   fig.innerHTML = `
     <figcaption>${esc(caption)}</figcaption>
     <div class="acc-legend">
-      <span class="acc-legend-item"><span class="acc-legend-swatch" style="background:#1a7f45"></span>הכנסות</span>
-      <span class="acc-legend-item"><span class="acc-legend-swatch" style="background:color-mix(in srgb, var(--accent) 55%, transparent)"></span>הוצאות</span>
+      <span class="acc-legend-item"><span class="acc-legend-swatch" style="background:#1a7f45"></span>${esc(labels.front)}</span>
+      <span class="acc-legend-item"><span class="acc-legend-swatch" style="background:color-mix(in srgb, var(--accent) 55%, transparent)"></span>${esc(labels.back)}</span>
     </div>
     <div class="acc-bars">${bars}</div>`;
 }
@@ -346,6 +346,21 @@ async function renderAuthorityCharts() {
   const arnonaPoints = await fetchAuthorityArnona(state.authority);
   renderBarChart('finChartAuthArnona', `ממוצע ארנונה למגורים למ"ר, לפי שנה — ${state.authority}`,
     arnonaPoints.map((p) => ({ label: String(p.year), value: p.value })), 'ש"ח למ"ר', 'ok-chart');
+
+  // Balance sheet: total size (assets == liabilities, so one series covers
+  // both) plus total-vs-current liabilities as its own combo chart.
+  el('finChartAuthBalance').innerHTML = '<p class="acc-hint">טוען…</p>';
+  el('finChartAuthLiab').innerHTML = '';
+  const balancePoints = await fetchAuthorityBalance(state.authority);
+  if (!balancePoints.length) {
+    el('finChartAuthBalance').innerHTML = `<p class="acc-hint">לא נמצאו נתוני מאזן עבור "${esc(state.authority)}" באף שנה זמינה.</p>`;
+  } else {
+    renderBarChart('finChartAuthBalance', `סה"כ מאזן לפי שנה — ${state.authority} (נכסים = התחייבויות)`,
+      balancePoints.map((p) => ({ label: String(p.year), value: p.assets })), 'אלפי ש"ח', 'ok-chart');
+    renderComboChart('finChartAuthLiab', `התחייבויות: סה"כ מול שוטפות — ${state.authority}`,
+      balancePoints.map((p) => ({ year: p.year, revenue: p.currentLiabilities, expense: p.liabilities })),
+      'אלפי ש"ח', { front: 'שוטפות', back: 'סה"כ' });
+  }
 }
 
 async function fetchAuthorityArnona(authority) {
@@ -359,6 +374,36 @@ async function fetchAuthorityArnona(authority) {
       });
       if (records.length) points.push({ year, value: Number(records[0]['ערך']) || 0 });
     } catch { /* one year failing shouldn't hide the other */ }
+  }
+  return points.sort((a, b) => a.year - b.year);
+}
+
+/** Form 1's balance-sheet totals - assets/liabilities/current-liabilities,
+ *  same 9-year coverage as revenue/expense (both eras confirmed stable,
+ *  just the row text's gershayim - not the column - changes). Assets is
+ *  fetched but not charted on its own: it's identical to liabilities by
+ *  definition (a balance sheet balances), so the useful pairing is total
+ *  liabilities vs. its own current (short-term) subset instead. */
+async function fetchAuthorityBalance(authority) {
+  const points = []; // { year, assets, liabilities, currentLiabilities }
+  for (const year of YEARS_DESC) {
+    const cfg = YEAR_RESOURCES[year];
+    const rows = balanceRowsFor(year);
+    const filters = {
+      שם_רשות: authority,
+      [cfg.sheetField]: ['טופס 1 אקטיב', 'טופס 1 פאסיב'],
+      שורה: [rows.assets, rows.liabilities, rows.currentLiabilities],
+      עמודה: BALANCE_COLUMN,
+    };
+    if (cfg.yearFilter) filters[cfg.yearFilter.field] = cfg.yearFilter.value;
+    try {
+      const { records } = await dsQuery(cfg.resourceId, filters);
+      if (!records.length) continue;
+      const assets = Number(records.find((r) => r['שורה'] === rows.assets)?.['ערך']) || 0;
+      const liabilities = Number(records.find((r) => r['שורה'] === rows.liabilities)?.['ערך']) || 0;
+      const currentLiabilities = Number(records.find((r) => r['שורה'] === rows.currentLiabilities)?.['ערך']) || 0;
+      points.push({ year, assets, liabilities, currentLiabilities });
+    } catch { /* one year failing shouldn't hide the rest */ }
   }
   return points.sort((a, b) => a.year - b.year);
 }

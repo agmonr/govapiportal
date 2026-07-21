@@ -105,3 +105,28 @@ export const form2RowsFor = (year) => (YEAR_RESOURCES[year].hasSummary
  */
 export const ARNONA_ROW = 'ממוצע ארנונה למגורים למר';
 export const ARNONA_COLUMN = 'שנה נוכחית';
+
+/**
+ * Form 1 (טופס 1) - the actual balance sheet, split across two sheets:
+ * טופס 1 אקטיב (assets) and טופס 1 פאסיב (liabilities). Confirmed present in
+ * every year this page covers, in both eras. The row text drops the
+ * gershayim in 2023-2024 same as everywhere else on this sheet family, but -
+ * unlike Form 2 - the column name does NOT change between eras: both eras
+ * use the plain "שנה נוכחית" pair a balance sheet needs (a point-in-time
+ * snapshot has no budget-vs-actual distinction to carry, unlike a year's
+ * flow of receipts/payments).
+ *
+ * Assets and liabilities are NOT charted against each other: a balance sheet
+ * is defined so that the two always match exactly (confirmed directly -
+ * ₪447,542 = ₪447,542 for Hod HaSharon 2024, ₪252,125 = ₪252,125 for 2018) -
+ * showing them as two series would just be two identical bars. The
+ * meaningful pairing instead is total liabilities vs. current (short-term)
+ * liabilities - a real subset relationship, confirmed as its own stable row.
+ */
+export const BALANCE_COLUMN = 'שנה נוכחית';
+export const BALANCE_ROWS_BY_ERA = {
+  legacy: { assets: 'סה"כ מאזן אקטיב', liabilities: 'סה"כ מאזן פאסיב', currentLiabilities: 'סה"כ התחייבויות שוטפות' },
+  current: { assets: 'סהכ מאזן אקטיב', liabilities: 'סהכ מאזן פאסיב', currentLiabilities: 'סהכ התחייבויות שוטפות' },
+};
+export const balanceRowsFor = (year) => (YEAR_RESOURCES[year].hasSummary
+  ? BALANCE_ROWS_BY_ERA.current : BALANCE_ROWS_BY_ERA.legacy);
