@@ -9,11 +9,51 @@
  * already exercised on the map, just given a page of its own.
  */
 
-import { el, esc } from './ui.js';
+import { el, esc, num, probedAt } from './ui.js';
 import { openPortal } from './portal.js';
 import { initThemePicker } from './theme.js';
 
 initThemePicker(el('themePick'));
+
+/**
+ * Severity counts by year, computed once against the live DataStore (all
+ * 49,941 records across the five per-year resources, paginated past the
+ * API's 10,000-row page cap) rather than recalculated in-browser on every
+ * visit - the same "snapshot fact, dated" pattern as the about/notes text
+ * elsewhere in apis.json. See apps[].computed_at for when.
+ */
+const YEAR_STATS = {
+  all:  { fatal: 1684, severe: 11253, light: 37004, total: 49941 },
+  2024: { fatal: 405, severe: 2452, light: 5458, total: 8315 },
+  2023: { fatal: 338, severe: 2374, light: 6120, total: 8832 },
+  2022: { fatal: 319, severe: 2320, light: 7765, total: 10404 },
+  2021: { fatal: 336, severe: 2208, light: 9010, total: 11554 },
+  2020: { fatal: 286, severe: 1899, light: 8651, total: 10836 },
+};
+
+function renderStats(year) {
+  const s = YEAR_STATS[year] || YEAR_STATS.all;
+  el('accStats').innerHTML = `
+    <div class="stat bad">
+      <span class="stat-n">${num(s.fatal)}</span>
+      <span class="stat-l">הרוגים (תאונות קטלניות)</span>
+    </div>
+    <div class="stat warn">
+      <span class="stat-n">${num(s.severe)}</span>
+      <span class="stat-l">פצועים קשה</span>
+    </div>
+    <div class="stat ok">
+      <span class="stat-n">${num(s.light)}</span>
+      <span class="stat-l">פצועים קל</span>
+    </div>
+    <div class="stat">
+      <span class="stat-n">${num(s.total)}</span>
+      <span class="stat-l">סה"כ תאונות עם נפגעים</span>
+    </div>`;
+}
+
+renderStats('all');
+el('accYear').addEventListener('change', (e) => renderStats(e.target.value));
 
 async function load() {
   const mount = el('accidents');
@@ -25,6 +65,10 @@ async function load() {
     })();
     const app = data.apps.find((a) => a.id === 'accidents');
     if (!app) throw new Error('accidents app entry not found in apis.json');
+    if (app.computed_at) {
+      el('computed').textContent = `מחושב: ${probedAt(app.computed_at)}`;
+      el('computed').title = app.computed_at;
+    }
     await openPortal(mount, app, { standalone: true });
   } catch (err) {
     mount.innerHTML = `<div class="notice error">טעינת הנתונים נכשלה: ${esc(err.message)}</div>`;

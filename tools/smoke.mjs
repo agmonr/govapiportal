@@ -78,10 +78,10 @@ async function runPass(label, url, { bundled = false } = {}) {
     'and the API list below stays unfiltered - opening it is not the same as clicking it');
 
   /* --- apps are a distinct concept from portals, not a variant of one --- */
-  const appLinks = page.locator('#apps a.portal');
+  const appLinks = page.locator('#apps a.app-tile');
   ok(await appLinks.count() === data.apps.length, `apps grid holds all ${data.apps.length} apps`);
   for (const app of data.apps) {
-    const link = page.locator(`#apps a.portal[href="${app.href}"]`);
+    const link = page.locator(`#apps a.app-tile[href="${app.href}"]`);
     ok(await link.count() === 1, `app "${app.id}" links to ${app.href}`);
     ok(await link.getAttribute('target') === (app.external ? '_blank' : null),
       `app "${app.id}" ${app.external ? 'opens in a new tab' : 'navigates in place'}`);
@@ -349,6 +349,19 @@ async function runAccidentsPass(label, url, { bundled = false } = {}) {
   await page.goto(url, { waitUntil: 'load' });
   ok(await page.locator('body.accidents-page').count() === 1,
     'the page carries its own design hook (body.accidents-page)');
+
+  /* Severity stats are a hand-maintained snapshot (see YEAR_STATS in
+     accidents.js), not live-recomputed - so this checks presence and that
+     the year picker actually changes what's shown, not the numbers
+     themselves against a live source. */
+  ok(await page.locator('#accStats .stat').count() === 4,
+    'shows 4 severity/total tiles (fatal, severe, light, total)');
+  const allTotal = await page.locator('#accStats .stat-n').last().innerText();
+  await page.locator('#accYear').selectOption('2024');
+  await page.waitForTimeout(100);
+  const year2024Total = await page.locator('#accStats .stat-n').last().innerText();
+  ok(allTotal !== year2024Total, 'picking a year changes the stats shown');
+  await page.locator('#accYear').selectOption('all');
 
   if (bundled) {
     ok(await page.locator('#fileproto').count() === 0,

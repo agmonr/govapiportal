@@ -48,6 +48,15 @@ export const clear = (node) => { node.innerHTML = ''; };
 
 export const param = (name) => new URLSearchParams(location.search).get(name);
 
+/** Formats an apis.json `probed` (or app `computed_at`) timestamp for display. */
+export function probedAt(raw) {
+  const t = new Date(raw);
+  if (Number.isNaN(t.getTime())) return raw;
+  const date = t.toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  const time = t.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+  return `${date} ${time}`;
+}
+
 /** Debounce for search-as-you-type without hammering the API. */
 export function debounce(fn, ms = 300) {
   let t;

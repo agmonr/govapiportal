@@ -19,11 +19,12 @@
   <header class="site">
     <div class="wrap">
       <h1>תאונות דרכים עם נפגעים</h1>
-      <span class="site-by">פרויקט של רם אגמון</span>
+      <span class="site-by">פרויקט של רם אגמון<span class="site-disclaimer">המידע באתר עלול להיות שגוי</span></span>
       <div class="theme-pick" id="themePick" role="group" aria-label="ערכת נושא">
         <button type="button" data-theme="clouds">עננים</button>
         <button type="button" data-theme="fashion">אופנה</button>
       </div>
+      <span class="meta" id="computed"></span>
       <span class="meta"><a href="./index.html">← חזרה למפת ה-API</a></span>
     </div>
   </header>
@@ -44,17 +45,20 @@
     </div>
 
     <div id="app">
-      <div class="headline" dir="auto">
-        <p class="headline-num">במדינת ישראל נהרגו <strong>לפחות 1,684</strong> אנשים בתאונות דרכים בין השנים 2020–2024</p>
-        <p class="headline-sub">נתוני הלמ"ס, ברמת התאונה הבודדת — לפירוט המלא, לפי שנה וישוב ↓</p>
+      <div id="accStats" class="stat-row"></div>
+
+      <div class="acc-year-pick">
+        <label for="accYear">שנה:</label>
+        <select id="accYear">
+          <option value="all" selected>כל השנים (2020–2024)</option>
+          <option value="2024">2024</option>
+          <option value="2023">2023</option>
+          <option value="2022">2022</option>
+          <option value="2021">2021</option>
+          <option value="2020">2020</option>
+        </select>
       </div>
 
-      <p class="lead" dir="auto">
-        נתוני הלשכה המרכזית לסטטיסטיקה על תאונות דרכים עם נפגעים, ברמת האירוע הבודד, 2020–2024 — מתפרסמים
-        דרך data.gov.il. <strong>988 (59%)</strong> מהתאונות הקטלניות מחוץ לתחום כל ישוב — לא ברחוב של עיר
-        מסוימת, אלא בדרך שביניהן.
-        <span class="lead-computed">(מחושב 21.07.2026)</span>
-      </p>
       <div id="accidents"></div>
     </div>
   </main>

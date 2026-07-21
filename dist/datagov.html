@@ -78,7 +78,9 @@ header.site .wrap { padding-block: 1rem; display: flex; align-items: baseline; f
 header.site h1 { font-size: 1.15rem; margin: 0; }
 header.site a { color: var(--accent); text-decoration: none; font-size: .9rem; }
 /* An attribution line, not a headline - kept quiet on purpose. */
-header.site .site-by { font-size: .78rem; color: var(--muted); }
+header.site .site-by { display: flex; flex-direction: column; font-size: .78rem; color: var(--muted); }
+/* Quieter still than the byline it sits under - a caveat, not a warning. */
+header.site .site-disclaimer { font-size: .7rem; opacity: .8; }
 
 /* Pushes itself (and the probed-timestamp span after it) to the far end of
    the header row, away from the title cluster. */
@@ -150,23 +152,6 @@ button:disabled { opacity: .5; cursor: default; }
 /* ---------- API map ---------- */
 
 .lead { color: var(--muted); max-inline-size: 62ch; margin-block-end: 1.5rem; }
-
-/* The first thing on the page, on purpose - a warning tone regardless of
-   which of the two site themes is active, same reasoning as
-   body.accidents-page: this number doesn't suit calm blue or gold shine. */
-.headline {
-  color: var(--fg);
-  border: 1px solid var(--danger);
-  border-inline-start-width: 4px;
-  border-radius: var(--radius);
-  background: color-mix(in srgb, var(--danger) 8%, var(--bg));
-  padding: 1rem 1.25rem;
-  margin-block-end: 1.25rem;
-}
-.headline-num { margin: 0; font-size: 1.3rem; font-weight: 600; line-height: 1.4; }
-.headline-num strong { color: var(--danger); }
-.headline-sub { margin: .4rem 0 0; font-size: .85rem; color: var(--muted); }
-.lead-computed { font-size: .8rem; color: var(--muted); }
 
 .controls { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; margin-block-end: .75rem; }
 .controls input[type="search"] { flex: 1; min-inline-size: 15rem; }
@@ -311,6 +296,40 @@ button.stat { cursor: pointer; }
 .p-name { font-weight: 600; }
 .p-sub  { font-size: .78rem; color: var(--muted); }
 .p-about { font-size: .85rem; color: var(--muted); line-height: 1.45; }
+
+/* ---------- apps: big, welcoming, nothing that reads as a URL ----------
+   No title/subtitle/description text, no arrow-hint line - an icon and a
+   name, styled as a destination to tap rather than a link to read. Fixed
+   light colours rather than the page's own theme variables: the point is
+   to stand out as an inviting button regardless of which of the two site
+   themes (or accidents.html's own warning mood) happens to be active. */
+.apps-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+  gap: .85rem;
+}
+.app-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: .5rem;
+  text-align: center;
+  text-decoration: none;
+  padding: 1.5rem 1rem;
+  border-radius: 1.1rem;
+  border: 1px solid #f0d9bc;
+  background: linear-gradient(160deg, #fffaf3, #ffe6c2);
+  color: #3a2c17;
+  box-shadow: 0 3px 10px -6px rgba(0, 0, 0, .35);
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+.app-tile:hover, .app-tile:focus-visible {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 22px -10px rgba(0, 0, 0, .4);
+}
+.app-icon { font-size: 2.3rem; line-height: 1; }
+.app-name { font-weight: 600; font-size: .95rem; }
 
 /* ---------- "continue" disclosure past the portals ----------
    Native <details>/<summary>: no JS toggle to write or keep accessible,
@@ -802,6 +821,24 @@ body.accidents-page header.site {
       color-mix(in srgb, var(--accent) 14%, transparent) 0 14px, transparent 14px 28px),
     var(--surface);
 }
+/* Centered on this page specifically - the map's header stays a normal
+   start-aligned row with a byline/theme-pick/probed-stamp cluster; this
+   page's header only has the title and controls, so a centered title reads
+   as a page heading rather than a squeezed-in item in a row. */
+body.accidents-page header.site .wrap { justify-content: center; text-align: center; }
+body.accidents-page header.site h1 { inline-size: 100%; }
+
+.acc-year-pick { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; margin-block-end: 1.25rem; }
+.acc-year-pick label { font-size: .9rem; color: var(--muted); }
+.acc-year-pick select {
+  font: inherit;
+  font-size: .9rem;
+  padding: .35rem .6rem;
+  color: var(--fg);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
 
 [data-theme="fashion"] .more summary.more-toggle {
   background: linear-gradient(180deg, var(--accent), color-mix(in srgb, var(--accent) 80%, #000));
@@ -815,7 +852,7 @@ body.accidents-page header.site {
   <header class="site">
     <div class="wrap">
       <h1>המאגר הממשלתי הפתוח</h1>
-      <span class="site-by">פרויקט של רם אגמון</span>
+      <span class="site-by">פרויקט של רם אגמון<span class="site-disclaimer">המידע באתר עלול להיות שגוי</span></span>
       <div class="theme-pick" id="themePick" role="group" aria-label="ערכת נושא">
         <button type="button" data-theme="clouds">עננים</button>
         <button type="button" data-theme="fashion">אופנה</button>
@@ -885,6 +922,15 @@ function showLoading(node, text = 'טוען…') {
 const clear = (node) => { node.innerHTML = ''; };
 
 const param = (name) => new URLSearchParams(location.search).get(name);
+
+/** Formats an apis.json `probed` (or app `computed_at`) timestamp for display. */
+function probedAt(raw) {
+  const t = new Date(raw);
+  if (Number.isNaN(t.getTime())) return raw;
+  const date = t.toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  const time = t.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+  return `${date} ${time}`;
+}
 
 /** Debounce for search-as-you-type without hammering the API. */
 function debounce(fn, ms = 300) {

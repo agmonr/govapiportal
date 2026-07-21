@@ -3,7 +3,7 @@
  * request panel.
  */
 
-import { el, esc } from './ui.js';
+import { el, esc, probedAt } from './ui.js';
 import { attachExplorer } from './explorer.js';
 import { openPortal, hasPreview } from './portal.js';
 import { initThemePicker } from './theme.js';
@@ -19,19 +19,6 @@ const more = el('more');
 
 let data = { portals: [], apis: [], apps: [] };
 const state = { q: '', browserOnly: false, portal: null, verdict: null };
-
-/**
- * The probe stamp carries an hour now, so an ISO string with an offset is what
- * apis.json holds. Render it in local terms; fall back to the raw value rather
- * than showing "Invalid Date" if the field is ever a bare date again.
- */
-function probedAt(raw) {
-  const t = new Date(raw);
-  if (Number.isNaN(t.getTime())) return raw;
-  const date = t.toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: 'numeric' });
-  const time = t.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
-  return `${date} ${time}`;
-}
 
 /** Three states, not two: usable / blocked / unknown. Conflating the last two lies. */
 function verdict(api) {
@@ -151,16 +138,16 @@ function renderMatrix() {
    Plain links, not filter buttons: there is no in-page state to open for
    either. */
 
+// One glyph each - a welcoming button reads as a destination, not a document,
+// so the icon carries it rather than a URL or an arrow-hint line.
+const APP_ICON = { accidents: '🚦', trees: '🌳' };
+
 function appCard(a) {
   return `
-    <a class="portal app" href="${esc(a.href)}"${a.external ? ' target="_blank" rel="noopener"' : ''} dir="auto">
-      <span class="p-head">
-        <span class="p-name" dir="auto">${esc(a.name_he)}</span>
-      </span>
-      <span class="p-sub" dir="ltr">${esc(a.name)}</span>
-      <span class="p-about" dir="auto">${esc(a.about)}</span>
-      <span class="meta"><span class="tag">${esc(a.kind)}</span></span>
-      <span class="p-open">${a.external ? 'לאתר החיצוני ↗' : 'לעמוד המלא ←'}</span>
+    <a class="app-tile" href="${esc(a.href)}"${a.external ? ' target="_blank" rel="noopener"' : ''}
+       title="${esc(a.about)}" dir="auto">
+      <span class="app-icon" aria-hidden="true">${APP_ICON[a.id] || '🔗'}</span>
+      <span class="app-name" dir="auto">${esc(a.name_he)}</span>
     </a>`;
 }
 
