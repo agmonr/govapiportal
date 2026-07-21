@@ -943,6 +943,7 @@ body.accidents-page header.site h1 { inline-size: 100%; }
         <button type="button" data-theme="fashion">אופנה</button>
       </div>
       <span class="meta" id="computed"></span>
+      <span class="meta" id="created"></span>
       <span class="meta"><a href="./index.html">← חזרה למפת ה-API</a></span>
     </div>
   </header>
@@ -2415,6 +2416,15 @@ const CITY_ROWS = {
 
 
 initThemePicker(el('themePick'));
+
+// When this page itself was built/published, distinct from "מחושב" (when the
+// data was computed). document.lastModified is the file's Last-Modified - the
+// GitHub Pages deploy time when served, the file's mtime when opened offline.
+const built = new Date(document.lastModified);
+if (!Number.isNaN(built.getTime())) {
+  el('created').textContent = `נוצר: ${probedAt(document.lastModified)}`;
+  el('created').title = built.toISOString();
+}
 
 /**
  * Severity counts by year, computed once against the live DataStore (all

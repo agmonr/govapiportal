@@ -16,6 +16,15 @@ import { CITY_ROWS, CITY_YEARS } from './city-stats.js';
 
 initThemePicker(el('themePick'));
 
+// When this page itself was built/published, distinct from "מחושב" (when the
+// data was computed). document.lastModified is the file's Last-Modified - the
+// GitHub Pages deploy time when served, the file's mtime when opened offline.
+const built = new Date(document.lastModified);
+if (!Number.isNaN(built.getTime())) {
+  el('created').textContent = `נוצר: ${probedAt(document.lastModified)}`;
+  el('created').title = built.toISOString();
+}
+
 /**
  * Severity counts by year, computed once against the live DataStore (all
  * 49,941 records across the five per-year resources, paginated past the
