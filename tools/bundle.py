@@ -63,7 +63,7 @@ TARGETS = [
         # map.js minus explorer.js - accidents.html has no per-API request
         # panel to attach. Needs apis.json inlined: it looks up the
         # "accidents" app entry the same way map.js looks up portals.
-        "sources": ["src/ui.js", "src/theme.js", "src/portal.js", "src/accidents.js"],
+        "sources": ["src/ui.js", "src/theme.js", "src/portal.js", "src/city-stats.js", "src/accidents.js"],
         "data": True,
     },
 ]

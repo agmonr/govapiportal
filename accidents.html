@@ -46,10 +46,12 @@
 
     <div id="app">
       <section class="acc-section" aria-labelledby="citiesH">
-        <h2 id="citiesH">ערים</h2>
+        <h2 id="citiesH">ישובים</h2>
         <div class="acc-year-pick">
-          <label for="cityPick">עיר:</label>
-          <select id="cityPick"></select>
+          <label for="cityInput">ישוב:</label>
+          <input id="cityInput" type="text" list="cityList" autocomplete="off"
+                 spellcheck="false" placeholder="התחילו להקליד שם ישוב…">
+          <datalist id="cityList"></datalist>
         </div>
         <div id="cityStats" class="stat-row"></div>
         <div id="cityTable"></div>
@@ -57,7 +59,10 @@
 
       <section class="acc-section" aria-labelledby="natH">
         <h2 id="natH">כלל הארץ</h2>
-        <figure id="accChart" class="acc-chart" role="img"></figure>
+        <div class="acc-charts">
+          <figure id="accChartKilled" class="acc-chart" role="img"></figure>
+          <figure id="accChartTotal" class="acc-chart total" role="img"></figure>
+        </div>
 
         <div class="acc-year-pick">
           <label for="accYear">שנה:</label>

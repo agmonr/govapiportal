@@ -217,7 +217,20 @@ button.stat { cursor: pointer; }
 
 /* ---------- fatalities-by-year chart ---------- */
 
+/* The two year charts sit side by side and wrap to a stack when the row gets
+   too narrow for both to keep readable bar widths. */
+.acc-charts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2rem 3rem;
+  margin-block-end: 1.25rem;
+}
+.acc-charts .acc-chart { flex: 1 1 20rem; margin: 0; }
+
 .acc-chart { margin: 0 0 1.25rem; }
+/* The "all accidents" chart is the neutral-magnitude twin of the red "killed"
+   one, so its bars take the accent hue instead of danger. */
+.acc-chart.total .acc-bar-fill { background: var(--accent); }
 .acc-chart figcaption {
   font-size: .85rem;
   font-weight: 600;
@@ -876,7 +889,8 @@ body.accidents-page header.site h1 { inline-size: 100%; }
 
 .acc-year-pick { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; margin-block-end: 1.25rem; }
 .acc-year-pick label { font-size: .9rem; color: var(--muted); }
-.acc-year-pick select {
+.acc-year-pick select,
+.acc-year-pick input {
   font: inherit;
   font-size: .9rem;
   padding: .35rem .6rem;
@@ -885,6 +899,10 @@ body.accidents-page header.site h1 { inline-size: 100%; }
   border: 1px solid var(--border);
   border-radius: var(--radius);
 }
+.acc-year-pick input { min-inline-size: 16rem; }
+
+/* Shown in the city panel before a city is picked. */
+.acc-hint { color: var(--muted); font-size: .9rem; margin: .5rem 0; }
 
 [data-theme="fashion"] .more summary.more-toggle {
   background: linear-gradient(180deg, var(--accent), color-mix(in srgb, var(--accent) 80%, #000));

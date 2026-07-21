@@ -12,6 +12,7 @@
 import { el, esc, num, probedAt } from './ui.js';
 import { openPortal } from './portal.js';
 import { initThemePicker } from './theme.js';
+import { CITY_ROWS, CITY_YEARS } from './city-stats.js';
 
 initThemePicker(el('themePick'));
 
@@ -32,150 +33,30 @@ const YEAR_STATS = {
 };
 
 /**
- * The same severity counts broken down by settlement, for the twelve cities
- * with the most accidents over 2020-2024. Computed from the identical snapshot
- * as YEAR_STATS (its per-city sums validate against the national totals above),
- * so it is dated by the very same apps[].computed_at - not a second live query.
+ * CITY_ROWS (src/city-stats.js) packs each settlement flat to stay small;
+ * unpack it here into the {fatal,severe,light,total} shape the tiles and the
+ * table read, and sum the all-years figures once. Same dated snapshot as
+ * YEAR_STATS - its per-city sums validate against the national totals above -
+ * so it is dated by the very same apps[].computed_at, not a second live query.
  * SEMEL_YISHUV code -> { name, all-years total, per-year totals }.
  */
-const CITY_STATS = {
-  '5000': {
-    name: 'תל אביב - יפו',
-    all: { fatal: 82, severe: 960, light: 3905, total: 4947 },
-    years: {
-      2020: { fatal: 13, severe: 168, light: 1092, total: 1273 },
-      2021: { fatal: 20, severe: 200, light: 1124, total: 1344 },
-      2022: { fatal: 20, severe: 231, light: 852, total: 1103 },
-      2023: { fatal: 16, severe: 176, light: 453, total: 645 },
-      2024: { fatal: 13, severe: 185, light: 384, total: 582 },
-    },
-  },
-  '3000': {
-    name: 'ירושלים',
-    all: { fatal: 71, severe: 880, light: 2854, total: 3805 },
-    years: {
-      2020: { fatal: 15, severe: 151, light: 669, total: 835 },
-      2021: { fatal: 16, severe: 153, light: 640, total: 809 },
-      2022: { fatal: 8, severe: 186, light: 597, total: 791 },
-      2023: { fatal: 11, severe: 176, light: 578, total: 765 },
-      2024: { fatal: 21, severe: 214, light: 370, total: 605 },
-    },
-  },
-  '4000': {
-    name: 'חיפה',
-    all: { fatal: 37, severe: 366, light: 1738, total: 2141 },
-    years: {
-      2020: { fatal: 7, severe: 63, light: 306, total: 376 },
-      2021: { fatal: 9, severe: 60, light: 355, total: 424 },
-      2022: { fatal: 4, severe: 75, light: 406, total: 485 },
-      2023: { fatal: 10, severe: 98, light: 323, total: 431 },
-      2024: { fatal: 7, severe: 70, light: 348, total: 425 },
-    },
-  },
-  '7900': {
-    name: 'פתח תקווה',
-    all: { fatal: 29, severe: 230, light: 1291, total: 1550 },
-    years: {
-      2020: { fatal: 3, severe: 43, light: 276, total: 322 },
-      2021: { fatal: 4, severe: 48, light: 249, total: 301 },
-      2022: { fatal: 8, severe: 41, light: 261, total: 310 },
-      2023: { fatal: 5, severe: 45, light: 235, total: 285 },
-      2024: { fatal: 9, severe: 53, light: 270, total: 332 },
-    },
-  },
-  '7400': {
-    name: 'נתניה',
-    all: { fatal: 23, severe: 178, light: 1002, total: 1203 },
-    years: {
-      2020: { fatal: 9, severe: 32, light: 171, total: 212 },
-      2021: { fatal: 4, severe: 44, light: 208, total: 256 },
-      2022: { fatal: 2, severe: 30, light: 218, total: 250 },
-      2023: { fatal: 6, severe: 37, light: 217, total: 260 },
-      2024: { fatal: 2, severe: 35, light: 188, total: 225 },
-    },
-  },
-  '6600': {
-    name: 'חולון',
-    all: { fatal: 19, severe: 194, light: 984, total: 1197 },
-    years: {
-      2020: { fatal: 4, severe: 35, light: 274, total: 313 },
-      2021: { fatal: 5, severe: 28, light: 296, total: 329 },
-      2022: { fatal: 4, severe: 46, light: 206, total: 256 },
-      2023: { fatal: 3, severe: 44, light: 104, total: 151 },
-      2024: { fatal: 3, severe: 41, light: 104, total: 148 },
-    },
-  },
-  '70': {
-    name: 'אשדוד',
-    all: { fatal: 25, severe: 224, light: 809, total: 1058 },
-    years: {
-      2020: { fatal: 1, severe: 31, light: 177, total: 209 },
-      2021: { fatal: 6, severe: 39, light: 173, total: 218 },
-      2022: { fatal: 8, severe: 45, light: 157, total: 210 },
-      2023: { fatal: 8, severe: 51, light: 145, total: 204 },
-      2024: { fatal: 2, severe: 58, light: 157, total: 217 },
-    },
-  },
-  '8600': {
-    name: 'רמת גן',
-    all: { fatal: 8, severe: 222, light: 813, total: 1043 },
-    years: {
-      2020: { fatal: 3, severe: 45, light: 249, total: 297 },
-      2021: { fatal: 1, severe: 31, light: 231, total: 263 },
-      2022: { fatal: 2, severe: 43, light: 173, total: 218 },
-      2023: { fatal: 1, severe: 51, light: 91, total: 143 },
-      2024: { fatal: 1, severe: 52, light: 69, total: 122 },
-    },
-  },
-  '9000': {
-    name: 'באר שבע',
-    all: { fatal: 30, severe: 227, light: 765, total: 1022 },
-    years: {
-      2020: { fatal: 7, severe: 40, light: 170, total: 217 },
-      2021: { fatal: 8, severe: 45, light: 187, total: 240 },
-      2022: { fatal: 3, severe: 46, light: 122, total: 171 },
-      2023: { fatal: 8, severe: 55, light: 124, total: 187 },
-      2024: { fatal: 4, severe: 41, light: 162, total: 207 },
-    },
-  },
-  '6200': {
-    name: 'בת ים',
-    all: { fatal: 16, severe: 135, light: 782, total: 933 },
-    years: {
-      2020: { fatal: 2, severe: 20, light: 215, total: 237 },
-      2021: { fatal: 4, severe: 28, light: 202, total: 234 },
-      2022: { fatal: 0, severe: 26, light: 168, total: 194 },
-      2023: { fatal: 8, severe: 40, light: 101, total: 149 },
-      2024: { fatal: 2, severe: 21, light: 96, total: 119 },
-    },
-  },
-  '8300': {
-    name: 'ראשון לציון',
-    all: { fatal: 27, severe: 236, light: 504, total: 767 },
-    years: {
-      2020: { fatal: 7, severe: 37, light: 158, total: 202 },
-      2021: { fatal: 2, severe: 51, light: 109, total: 162 },
-      2022: { fatal: 9, severe: 52, light: 94, total: 155 },
-      2023: { fatal: 5, severe: 45, light: 63, total: 113 },
-      2024: { fatal: 4, severe: 51, light: 80, total: 135 },
-    },
-  },
-  '6100': {
-    name: 'בני ברק',
-    all: { fatal: 12, severe: 147, light: 576, total: 735 },
-    years: {
-      2020: { fatal: 3, severe: 26, light: 163, total: 192 },
-      2021: { fatal: 3, severe: 29, light: 171, total: 203 },
-      2022: { fatal: 0, severe: 28, light: 133, total: 161 },
-      2023: { fatal: 3, severe: 32, light: 70, total: 105 },
-      2024: { fatal: 3, severe: 32, light: 39, total: 74 },
-    },
-  },
-};
+const CITY_STATS = {};
+for (const [code, row] of Object.entries(CITY_ROWS)) {
+  const years = {};
+  const all = { fatal: 0, severe: 0, light: 0, total: 0 };
+  CITY_YEARS.forEach((y, i) => {
+    const fatal = row[1 + i * 3], severe = row[2 + i * 3], light = row[3 + i * 3];
+    years[y] = { fatal, severe, light, total: fatal + severe + light };
+    all.fatal += fatal; all.severe += severe; all.light += light;
+    all.total += years[y].total;
+  });
+  CITY_STATS[code] = { name: row[0], all, years };
+}
 
-// Cities listed most-accidents-first, the order the dropdown shows them in.
-const CITY_ORDER = ['5000', '3000', '4000', '7900', '7400', '6600',
-  '70', '8600', '9000', '6200', '8300', '6100'];
+// Typed city name -> its code, for the autocomplete lookup. Settlement names
+// are unique in the source list; a later duplicate would just win, harmlessly.
+const CITY_BY_NAME = new Map(
+  Object.entries(CITY_STATS).map(([code, c]) => [c.name, code]));
 
 // Newest year first: a table is read top-down, so the most recent row leads.
 const CITY_TABLE_YEARS = ['2024', '2023', '2022', '2021', '2020'];
@@ -233,17 +114,34 @@ function renderCityTable(city) {
 }
 
 function renderCity(code) {
-  const city = CITY_STATS[code] || CITY_STATS[CITY_ORDER[0]];
+  const city = CITY_STATS[code];
   renderCityStats(city.all);
   renderCityTable(city);
 }
 
-// Fill the dropdown from the ranked list, then show the busiest city first.
-const cityPick = el('cityPick');
-cityPick.innerHTML = CITY_ORDER
-  .map((c) => `<option value="${c}">${esc(CITY_STATS[c].name)}</option>`).join('');
-renderCity(CITY_ORDER[0]);
-cityPick.addEventListener('change', (e) => renderCity(e.target.value));
+// The panel before any city is chosen (and whenever the text isn't yet a whole
+// city name): a prompt, not stale numbers from a previous pick.
+function showCityPrompt() {
+  el('cityStats').innerHTML = '';
+  el('cityTable').innerHTML =
+    '<p class="acc-hint">התחילו להקליד שם ישוב כדי לראות את הפירוט לפי שנה.</p>';
+}
+
+// Every city name feeds the datalist, so the field autocompletes as you type,
+// ordered most-accidents-first (Object insertion order = CITY_ROWS order).
+const cityInput = el('cityInput');
+el('cityList').innerHTML = Object.values(CITY_STATS)
+  .map((c) => `<option value="${esc(c.name)}"></option>`).join('');
+
+// Empty by default; only an exact match to a known name resolves - a partial
+// string shows the prompt rather than guessing a city.
+function onCityInput() {
+  const code = CITY_BY_NAME.get(cityInput.value.trim());
+  if (code) renderCity(code);
+  else showCityPrompt();
+}
+showCityPrompt();
+cityInput.addEventListener('input', onCityInput);
 
 // Years oldest→newest in the DOM; on this RTL page the flow lays them out
 // right→left, so time reads the same direction as the Hebrew around it -
@@ -251,17 +149,21 @@ cityPick.addEventListener('change', (e) => renderCity(e.target.value));
 const CHART_YEARS = ['2020', '2021', '2022', '2023', '2024'];
 const CHART_MAX_H = 150; // px height of the tallest bar; the rest scale to it
 
-// Single series (fatalities per year), so no legend - the caption names it -
-// and one hue: the same danger red as the "killed" stat tile. Bars share a
-// zero baseline and are labelled directly, so the plot carries its own numbers.
-function renderChart(year) {
-  const peak = Math.max(...CHART_YEARS.map((y) => YEAR_STATS[y].fatal));
+// Two single-series bar charts side by side, each its own hue (fatalities in
+// the danger red of the "killed" tile, all accidents in the neutral accent) -
+// one series apiece, so no legend, the caption names it. Bars share a zero
+// baseline and are labelled directly, so each plot carries its own numbers.
+// A picked year lights its bar in both and recedes the rest, echoing the
+// dropdown; the two charts stay on the same y-scale is NOT wanted - each is
+// keyed to its own peak, since killed and total counts differ by two orders.
+function renderChart(figId, caption, unit, valueOf, year) {
+  const peak = Math.max(...CHART_YEARS.map(valueOf));
   const bars = CHART_YEARS.map((y) => {
-    const n = YEAR_STATS[y].fatal;
+    const n = valueOf(y);
     const h = Math.round((n / peak) * CHART_MAX_H);
     const active = year !== 'all' && year === y ? ' active' : '';
     return `
-      <div class="acc-bar${active}" title="${y}: ${num(n)} הרוגים">
+      <div class="acc-bar${active}" title="${y}: ${num(n)} ${unit}">
         <div class="acc-bar-track">
           <span class="acc-bar-v">${num(n)}</span>
           <div class="acc-bar-fill" style="block-size:${h}px"></div>
@@ -269,13 +171,19 @@ function renderChart(year) {
         <span class="acc-bar-y">${y}</span>
       </div>`;
   }).join('');
-  const fig = el('accChart');
+  const fig = el(figId);
   fig.setAttribute('aria-label',
-    'הרוגים בתאונות דרכים לפי שנה, ' + CHART_YEARS[0] + '–' +
-    CHART_YEARS[CHART_YEARS.length - 1]);
+    `${caption}, ${CHART_YEARS[0]}–${CHART_YEARS[CHART_YEARS.length - 1]}`);
   fig.innerHTML = `
-    <figcaption>הרוגים לפי שנה</figcaption>
+    <figcaption>${caption}</figcaption>
     <div class="acc-bars">${bars}</div>`;
+}
+
+function renderCharts(year) {
+  renderChart('accChartKilled', 'הרוגים לפי שנה', 'הרוגים',
+    (y) => YEAR_STATS[y].fatal, year);
+  renderChart('accChartTotal', 'מספר התאונות לפי שנה', 'תאונות',
+    (y) => YEAR_STATS[y].total, year);
 }
 
 function renderStats(year) {
@@ -299,10 +207,10 @@ function renderStats(year) {
     </div>`;
 }
 
-renderChart('all');
+renderCharts('all');
 renderStats('all');
 el('accYear').addEventListener('change', (e) => {
-  renderChart(e.target.value);
+  renderCharts(e.target.value);
   renderStats(e.target.value);
 });
 
