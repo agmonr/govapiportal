@@ -99,8 +99,72 @@ async function loadRoster() {
 
 /* ---------- year select ---------- */
 
-el('finYear').innerHTML = YEARS_DESC.map((y) => `<option value="${y}">${y}</option>`).join('');
-el('finYear').value = String(state.year);
+// Unverified years (see discoverNewYears below) get a visible marker in the
+// dropdown itself - the least intrusive place to flag "this one wasn't
+// hand-checked yet" without a separate banner most visitors would never
+// look for.
+function populateYearSelect() {
+  el('finYear').innerHTML = YEARS_DESC
+    .map((y) => `<option value="${y}">${y}${YEAR_RESOURCES[y].unverified ? ' (חדש - טרם אומת)' : ''}</option>`)
+    .join('');
+  el('finYear').value = String(state.year);
+}
+populateYearSelect();
+
+const FINANCE_PACKAGES = ['local-authorities', 'local-council-1'];
+
+/** Looks for a financial-report resource for a year newer than every year
+ *  already in YEAR_RESOURCES - e.g. the ministry publishing next year's
+ *  reports sometime after this file was last hand-updated. Resource names
+ *  in both source packages embed the year directly and were checked
+ *  directly, not assumed: the reliable convention is "... לשנת 2024"
+ *  (singular "year") - a combined multi-year resource like "...לשנים שבין
+ *  2017-2018" (plural "years") never matches that phrase, confirmed against
+ *  that exact resource, so it's correctly skipped rather than misread as a
+ *  new single year. A resource whose name carries the phrase but ALSO a
+ *  second unrelated 20xx number (an update date, e.g. "עדכון אפריל 2020")
+ *  is still read correctly, since the phrase match anchors on the specific
+ *  number that follows "לשנת", not on "some 4-digit number in the string".
+ *
+ *  A newly discovered year is registered using the SAME conventions
+ *  2023/2024 use (current era: no gershayim, has the "דוח לתושב" summary
+ *  sheet, no in-file yearFilter needed) - the best available guess, since
+ *  every era boundary in this dataset so far has kept or extended that
+ *  convention rather than reverting to an older one. It is marked
+ *  `unverified: true` and flagged in the UI (year <select>, statement
+ *  coverage line) rather than silently trusted - a wrong guess here would
+ *  show real-looking numbers, not an error, and every other year in this
+ *  file needed hand probing before being trusted too. */
+async function discoverNewYears() {
+  const currentMax = Math.max(...YEARS_DESC);
+  const found = [];
+  for (const pkg of FINANCE_PACKAGES) {
+    try {
+      const res = await fetch(`https://data.gov.il/api/3/action/package_show?id=${pkg}`);
+      if (!res.ok) continue;
+      const j = await res.json();
+      if (!j.success) continue;
+      for (const r of j.result.resources) {
+        if (!r.datastore_active || !r.name) continue;
+        const named = r.name.match(/לשנת\s+(20\d{2})/);
+        if (!named) continue; // "לשנים" (plural, multi-year ranges) never matches - deliberately not handled here
+        const year = Number(named[1]);
+        if (year <= currentMax || YEAR_RESOURCES[year]) continue;
+        YEAR_RESOURCES[year] = {
+          source: pkg, resourceId: r.id, sheetField: 'גליון', hasSummary: true,
+          coverage: 'כלל סוגי הרשויות (שנה חדשה שהתגלתה אוטומטית - טרם אומתה ידנית)',
+          unverified: true,
+        };
+        found.push(year);
+      }
+    } catch { /* discovery is best-effort - a failure here shouldn't block the rest of the page */ }
+  }
+  if (found.length) {
+    for (const y of found) if (!YEARS_DESC.includes(y)) YEARS_DESC.push(y);
+    YEARS_DESC.sort((a, b) => b - a);
+  }
+  return found;
+}
 
 /* ---------- national summary (KPIs + charts) - only for hasSummary years ---------- */
 
@@ -471,6 +535,34 @@ function renderLiabilityTable(points, compare = null) {
     </div>`;
 }
 
+// A stat tile per city (reusing the same .stat/.stat-row look as the
+// national KPIs at the top of the page), right under the section heading -
+// the population figures feed the per-resident chart/columns further down,
+// but a reader shouldn't have to find those to learn the headcount itself.
+function renderPopulationStats(population, compareName, comparePopulation) {
+  const box = el('finPopStats');
+  const tiles = [];
+  if (population != null) {
+    tiles.push(`
+      <div class="stat" style="border-inline-start-color:${CITY_COLOR_MAIN}">
+        <span class="stat-n">${num(population)}</span>
+        <span class="stat-l">תושבים — ${esc(state.authority)} (מפקד ${CBS_POPULATION_YEAR})</span>
+      </div>`);
+  }
+  if (compareName) {
+    tiles.push(comparePopulation != null ? `
+      <div class="stat" style="border-inline-start-color:${CITY_COLOR_COMPARE}">
+        <span class="stat-n">${num(comparePopulation)}</span>
+        <span class="stat-l">תושבים — ${esc(compareName)} (מפקד ${CBS_POPULATION_YEAR})</span>
+      </div>` : `
+      <div class="stat unknown">
+        <span class="stat-n">—</span>
+        <span class="stat-l">תושבים — ${esc(compareName)}: הנתון לא נמצא</span>
+      </div>`);
+  }
+  box.innerHTML = tiles.join('');
+}
+
 async function renderAuthorityCharts() {
   const wrap = el('finAuthCharts');
   if (!state.authority) {
@@ -507,6 +599,8 @@ async function renderAuthorityCharts() {
     hasCompare ? fetchAuthorityAreas(state.compareAuthority) : Promise.resolve(null),
     hasCompare ? fetchJurisdictionArea(state.compareAuthority) : Promise.resolve(null),
   ]);
+
+  renderPopulationStats(population, hasCompare ? state.compareAuthority : null, comparePopulation);
 
   if (!points.length) {
     el('finChartAuthRevenue').innerHTML = `<p class="acc-hint">לא נמצאו נתוני הכנסות/הוצאות עבור "${esc(state.authority)}" באף שנה זמינה.</p>`;
@@ -732,8 +826,51 @@ function renderAreasTable(points, compare = null) {
 
 /* ---------- detailed per-authority statement - fully live, any year ---------- */
 
+// The analyst-persona/instructions half of the suggested prompt - fixed
+// text, not generated per authority/year (see ai_promt.txt in the repo
+// root, which this is copied from verbatim; edit that file for reference
+// and mirror the change here, since the page has no runtime file-loading
+// mechanism to read it live).
+const AI_PROMPT_INSTRUCTIONS = `אתה מומחה בהסברת נתונים מורכבים לאנשים פשוטים, נתח את הדוחות הכספיים, מצא אנומליות, מגמות בעיתיות, הצג גרפים וכל כלי אחר על מנת לאפשר להדיוט את המשמעויות הכלכליות, הנסתרות והחשובות בדוחות הכספיים. אם אינך יכול לייצר גרפים, ייצר טבלאות.
+
+התייחס לנושאים כמו הוצאות על חינוך, פיתוח, היקף השטחים המניבים לעירייה, התחיבויות עתידיות וכל פרמטר אחר אשר משפיע על איכות החיים של התושבים. אם אינך יכול לבצע חלק מהבקשות, בצע את מה שאתה יכול`;
+
+/** A ready-to-paste prompt pointing an AI chat at the SAME live URL
+ *  renderStatement() below fetches - no file to download/upload, since the
+ *  DataStore API is a plain https GET that returns JSON, exactly the kind
+ *  of URL an assistant with browsing/fetch can pull on its own. Independent
+ *  of whether the fetch below actually succeeds - the URL itself is valid
+ *  either way, so this runs unconditionally, not inside renderStatement's
+ *  try/catch. */
+function renderAiPrompt() {
+  const box = el('finAiPrompt');
+  if (!state.authority) { box.value = ''; return; }
+  const cfg = YEAR_RESOURCES[state.year];
+  const filters = { שם_רשות: state.authority };
+  if (cfg.yearFilter) filters[cfg.yearFilter.field] = cfg.yearFilter.value;
+  const p = new URLSearchParams({ resource_id: cfg.resourceId, limit: '10000', filters: JSON.stringify(filters) });
+  box.value = `${AI_PROMPT_INSTRUCTIONS}
+
+הנתונים הגולמיים זמינים כ-JSON בכתובת הבאה (ה-DataStore API של data.gov.il) - זהו הדוח הכספי המבוקר של הרשות המקומית "${state.authority}" לשנת ${state.year}, כפי שמפרסם משרד הפנים. כל רשומה היא סעיף אחד בדוח (שדות: גיליון/גליון, שורה, עמודה, ערך):
+
+${DATASTORE}?${p}`;
+}
+el('finAiPromptCopy').addEventListener('click', async () => {
+  const btn = el('finAiPromptCopy');
+  const original = btn.textContent;
+  try {
+    await navigator.clipboard.writeText(el('finAiPrompt').value);
+    btn.textContent = 'הועתק ✓';
+  } catch {
+    el('finAiPrompt').select(); // clipboard API unavailable/denied - at least select it for manual Ctrl+C
+    btn.textContent = 'סמנו והעתיקו ידנית (Ctrl+C)';
+  }
+  setTimeout(() => { btn.textContent = original; }, 2000);
+});
+
 async function renderStatement() {
   const box = el('finStatement');
+  renderAiPrompt();
   if (!state.authority) {
     box.innerHTML = '<p class="acc-hint">התחילו להקליד שם רשות למעלה כדי לראות את הדוח הכספי המלא שלה.</p>';
     return;
@@ -898,6 +1035,14 @@ el('finYear').addEventListener('change', async (e) => {
 authorityInput.addEventListener('input', debounce(onAuthorityChange, 300));
 
 (async function start() {
+  // Runs before anything else trusts YEAR_RESOURCES/YEARS_DESC - readStateFromUrl
+  // below validates a ?year= against YEAR_RESOURCES, and the default (state.year,
+  // set above at module load) should already point at the newest year if one
+  // was just discovered, not silently stay one year behind it.
+  const discovered = await discoverNewYears();
+  if (discovered.length) state.year = YEARS_DESC[0];
+  populateYearSelect();
+
   readStateFromUrl();
   authorityInput.value = state.authority || '';
   compareInput.value = state.compareAuthority || '';
