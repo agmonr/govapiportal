@@ -60,6 +60,24 @@ const state = {
   summaryCache: new Map(), // year -> { totals, byAuthority[] } | 'unsupported'
 };
 
+/* Bumped on every call to renderAuthorityCharts()/renderStatement() -
+ * neither guards against being superseded mid-flight otherwise. Typing a
+ * second authority before the first one's fetch resolves starts a second
+ * call while the first is still awaiting; the first call's captions/legends
+ * read state.authority LIVE (after its own await), so by the time it
+ * finishes it can render the FIRST city's fetched numbers under the SECOND
+ * city's name - the data and the label come from two different calls,
+ * silently. A per-function generation counter lets a call detect it's been
+ * superseded right after its await and bail before touching the DOM, so
+ * only the newest call (whose captured state.authority is still current)
+ * ever renders. Two separate counters because the two functions fire on
+ * different triggers (year alone re-runs renderStatement but not
+ * renderAuthorityCharts; compare alone re-runs renderAuthorityCharts but
+ * not renderStatement) - sharing one counter would make an unrelated
+ * change falsely look like it superseded a still-valid in-flight call. */
+let authorityChartsGeneration = 0;
+let statementGeneration = 0;
+
 /* ---------- URL state: makes the current authority+year copyable/shareable
    as a link, and a shared link reproduces the same view on open. Read once
    on load (before the first render), written back with replaceState (not
@@ -701,6 +719,7 @@ function renderPopulationStats(population, compareName, comparePopulation) {
 }
 
 async function renderAuthorityCharts() {
+  const myGeneration = ++authorityChartsGeneration;
   const wrap = el('finAuthCharts');
   if (!state.authority) {
     wrap.hidden = true;
@@ -730,6 +749,11 @@ async function renderAuthorityCharts() {
     fetchJurisdictionArea(state.authority),
     hasCompare ? fetchJurisdictionArea(state.compareAuthority) : Promise.resolve(null),
   ]);
+  // A newer authority/compare/year change already started its own call while
+  // this one was awaiting - state.authority etc. have moved on, so anything
+  // built from them below would mislabel the data this call actually fetched.
+  // Bail silently; the newer call owns rendering from here.
+  if (myGeneration !== authorityChartsGeneration) return;
 
   renderPopulationStats(population, hasCompare ? state.compareAuthority : null, comparePopulation);
 
@@ -1015,6 +1039,7 @@ el('finPyTemplateCopy').addEventListener('click', async () => {
 });
 
 async function renderStatement() {
+  const myGeneration = ++statementGeneration;
   const box = el('finStatement');
   renderAiPrompt();
   renderPyTemplate();
@@ -1028,6 +1053,12 @@ async function renderStatement() {
     const filters = { שם_רשות: state.authority };
     if (cfg.yearFilter) filters[cfg.yearFilter.field] = cfg.yearFilter.value;
     const { records, total } = await dsQuery(cfg.resourceId, filters);
+    // A newer authority/year change already started its own call while this
+    // one was awaiting - the fetch above is scoped correctly to what THIS
+    // call asked for, but writing it now would show stale data (or overwrite
+    // the newer call's already-current render) under whatever state.authority
+    // has since become. Bail; the newer call owns the DOM from here.
+    if (myGeneration !== statementGeneration) return;
     state.currentRecords = records;
     if (!records.length) {
       box.innerHTML = `<p class="acc-hint">לא נמצא דוח עבור "${esc(state.authority)}" בשנת ${state.year} (${esc(cfg.coverage)}).</p>`;
