@@ -460,12 +460,34 @@ button.stat { cursor: pointer; }
   color: var(--fg);
   text-align: center;
 }
-#finChartAuthLiab .acc-legend { justify-content: center; }
-/* The bar groups themselves - flex-start (right, in RTL) by default, same
-   as every other grouped chart, since centering the plot only reads well
-   when it isn't wide enough to need its own overflow-x:auto scroll anyway
-   (this chart's ~6 year-groups measured well under the box's own width). */
-#finChartAuthLiab .fin-chart-plot { justify-content: center; }
+#finChartAuthLiab .acc-legend,
+#finChartAuthRevenue .acc-legend,
+#finChartAuthPerCapita .acc-legend {
+  justify-content: center;
+}
+/* Centers the axis (Y-axis number scale) and the bar groups TOGETHER as one
+   unit, not just the bars within their own already-full-width box - the
+   first attempt only did the latter, so the axis numbers (a fixed-width
+   column that never grows) stayed pinned to their own edge regardless of
+   the bars moving. .fin-chart-plot's flex:1 (the global default - it fills
+   whatever space the axis doesn't use) is overridden to flex:0 1 auto here
+   so the plot stops claiming all the leftover width; with both children
+   sized to their own content, centering the shared .fin-chart-body row
+   moves axis+bars as a single block instead of leaving the axis stranded.
+   Applies to all three of this page's authority charts (revenue, per-
+   capita, liabilities) - only the liabilities chart also gets the bigger/
+   bolder "most important graph" treatment above/below this block. */
+#finChartAuthLiab .fin-chart-body,
+#finChartAuthRevenue .fin-chart-body,
+#finChartAuthPerCapita .fin-chart-body {
+  justify-content: center;
+}
+#finChartAuthLiab .fin-chart-plot,
+#finChartAuthRevenue .fin-chart-plot,
+#finChartAuthPerCapita .fin-chart-plot {
+  flex: 0 1 auto;
+  justify-content: center;
+}
 #finChartAuthLiab .acc-legend-item,
 #finChartAuthLiab .fin-chart-y,
 #finChartAuthLiab .fin-chart-axis-scale span,
