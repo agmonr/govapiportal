@@ -15,7 +15,7 @@
 
 import { el, esc, num, debounce, buildCsv, saveCsv, showError, showLoading } from './ui.js';
 import { initThemePicker } from './theme.js';
-import { NATIONAL_RESOURCE_ID, NATIONAL_FIELDS, AUTHORITY_RESOURCE_ID, AUTHORITY_FIELDS, CATEGORY_COMMUNITY, CATEGORY_OUT_OF_HOME, normalizeCategory, parseAuthorityField } from './welfare-data.js';
+import { NATIONAL_RESOURCE_ID, NATIONAL_FIELDS, AUTHORITY_RESOURCE_ID, AUTHORITY_FIELDS, CATEGORY_COMMUNITY, CATEGORY_OUT_OF_HOME, normalizeCategory, parseAuthorityField, RECIPIENTS_RESOURCE_ID, RECIPIENTS_AUTHORITY_FIELD, parseRecipientsYearField } from './welfare-data.js';
 import { renderGroupedChart, CITY_COLOR_MAIN, CITY_COLOR_COMPARE, citySwatchCell } from './charts.js';
 import { dsQuery } from './datastore.js';
 
@@ -43,8 +43,15 @@ const state = {
 };
 
 // code -> { name, byYear: Map<year, { קהילה: {recipients,amount}|null, 'חוץ-ביתי': {...}|null }> }
+// - the 18 "big" authorities with a ₪+category breakdown.
 let authorityByCode = new Map();
-// display name -> code, covering BOTH historical spellings (see welfare-data.js)
+// code -> { name, byYear: Map<year, totalRecipients> } - the ~243 "small"
+// authorities with only a combined recipient total, no ₪, no category split.
+// Never overlaps authorityByCode - see loadRecipientsOnly().
+let smallAuthorityByCode = new Map();
+// display name -> code, covering every spelling of every authority (big AND
+// small, all historical spellings - see welfare-data.js) - the roster a
+// visitor actually picks from.
 let nameToCode = new Map();
 let nationalRows = []; // [{year, community:{recipients,amount}, outOfHome:{recipients,amount}}], ascending
 
@@ -106,13 +113,47 @@ async function loadAuthorities() {
     };
   }
   authorityByCode = byCode;
-  nameToCode = new Map();
-  for (const [code, entry] of byCode) {
-    nameToCode.set(entry.name, code); // canonical (newest) spelling
-  }
-  // Older spelling(s) also resolve, so a shared link or typed-in old name
-  // still finds the right authority instead of silently matching nothing.
+  // Kept for buildNameIndex() below, which also needs every OLDER spelling
+  // (e.g. "313 תל אביב"), not just each code's final canonical name.
+  return records;
+}
+
+/** The ~243 authorities with only a combined recipient total - see
+ *  RECIPIENTS_RESOURCE_ID in welfare-data.js. A code already covered by
+ *  loadAuthorities() is skipped here even if it also appears in this
+ *  resource, so a "big" authority's numbers always come from exactly one
+ *  source, never a mix of two not-quite-matching totals. */
+async function loadRecipientsOnly() {
+  const records = await dsAll(RECIPIENTS_RESOURCE_ID);
+  const yearFields = records.length
+    ? Object.keys(records[0]).filter((k) => parseRecipientsYearField(k) != null) : [];
+  const byCode = new Map();
   for (const r of records) {
+    const parsed = parseAuthorityField(r[RECIPIENTS_AUTHORITY_FIELD]);
+    if (!parsed || authorityByCode.has(parsed.code)) continue;
+    const byYear = new Map();
+    for (const field of yearFields) {
+      const year = parseRecipientsYearField(field);
+      const n = Number(String(r[field]).replace(/,/g, ''));
+      if (Number.isFinite(n)) byYear.set(year, n);
+    }
+    byCode.set(parsed.code, { name: parsed.name, byYear });
+  }
+  smallAuthorityByCode = byCode;
+}
+
+/** Builds the single name->code index every input/URL lookup uses, covering
+ *  both authority tiers and every historical spelling. Run once both loads
+ *  are done, not inside either loader - loadAuthorities() must finish
+ *  deciding each big authority's canonical (newest) name before anything
+ *  indexes by name. */
+function buildNameIndex(bigAuthorityRecords) {
+  nameToCode = new Map();
+  for (const [code, entry] of authorityByCode) nameToCode.set(entry.name, code); // canonical (newest) spelling wins first
+  for (const [code, entry] of smallAuthorityByCode) if (!nameToCode.has(entry.name)) nameToCode.set(entry.name, code);
+  // Older spelling(s) of a BIG authority also resolve, so a shared link or
+  // typed-in old name still finds it instead of silently matching nothing.
+  for (const r of bigAuthorityRecords) {
     const parsed = parseAuthorityField(r[AUTHORITY_FIELDS.authority]);
     if (parsed && !nameToCode.has(parsed.name)) nameToCode.set(parsed.name, parsed.code);
   }
@@ -128,7 +169,10 @@ function authorityYears(code) {
 /* ---------- authority roster (datalist) ---------- */
 
 function populateRoster() {
-  const names = [...authorityByCode.values()].map((e) => e.name).sort((a, b) => a.localeCompare(b, 'he'));
+  const names = [
+    ...[...authorityByCode.values()].map((e) => e.name),
+    ...[...smallAuthorityByCode.values()].map((e) => e.name),
+  ].sort((a, b) => a.localeCompare(b, 'he'));
   el('welAuthorityList').innerHTML = names.map((n) => `<option value="${esc(n)}"></option>`).join('');
 }
 
@@ -236,32 +280,108 @@ function pointsFor(code) {
   }));
 }
 
+function authorityDisplayName(code) {
+  return authorityByCode.get(code)?.name ?? smallAuthorityByCode.get(code)?.name ?? null;
+}
+
+/** Total recipients by year, for ANY authority - big or small. This is the
+ *  one number every one of the 261 authorities has, so it's the only chart
+ *  that can compare a small authority against a big one (or two smalls, or
+ *  two bigs) without dropping down to a lowest-common-denominator dataset
+ *  mid-comparison. Fed into renderGroupedChart as `revenue` with `expense`
+ *  always 0 - a real single-series chart, not a category split pretending
+ *  to be one (a small authority's total is NOT known to split into
+ *  קהילה/חוץ-ביתי, so it must not be plotted as if it were all קהילה). */
+function totalRecipientsPointsFor(code) {
+  if (authorityByCode.has(code)) {
+    return pointsFor(code).map((p) => ({ year: p.year, revenue: p.communityRecipients + p.outOfHomeRecipients, expense: 0 }));
+  }
+  const entry = smallAuthorityByCode.get(code);
+  if (!entry) return [];
+  return [...entry.byYear.entries()].sort(([a], [b]) => a - b)
+    .map(([year, total]) => ({ year, revenue: total, expense: 0 }));
+}
+
+function renderRecipientsTable(points, compare) {
+  const compareByYear = new Map((compare?.points || []).map((p) => [p.year, p]));
+  const rows = [...points].sort((a, b) => b.year - a.year).map((p) => {
+    const cmp = compareByYear.get(p.year);
+    const mainRow = `
+      <tr>
+        <th scope="row"${cmp ? ' rowspan="2"' : ''}>${p.year}</th>
+        ${compare ? citySwatchCell(state.authority, CITY_COLOR_MAIN) : ''}
+        <td>${num(p.revenue)}</td>
+      </tr>`;
+    if (!cmp) return mainRow;
+    const cmpRow = `
+      <tr class="fin-row-compare">
+        ${citySwatchCell(compare.name, CITY_COLOR_COMPARE)}
+        <td>${num(cmp.revenue)}</td>
+      </tr>`;
+    return mainRow + cmpRow;
+  }).join('');
+  el('welRecipientsTable').innerHTML = `
+    <div class="matrix-wrap">
+      <table class="matrix">
+        <thead>
+          <tr>
+            <th scope="col">שנה</th>
+            ${compare ? '<th scope="col">רשות</th>' : ''}
+            <th scope="col">מקבלי שירות</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+}
+
 function renderAuthoritySection() {
-  const section = el('welAuthSection');
+  const recipientsSection = el('welRecipientsSection');
+  const amountsSection = el('welAuthSection');
   const code = state.authority ? nameToCode.get(state.authority) : null;
   if (!state.authority || !code) {
-    section.hidden = true;
+    recipientsSection.hidden = true;
+    amountsSection.hidden = true;
     el('welCompareWarn').hidden = true;
     return;
   }
-  section.hidden = false;
 
   const compareCode = state.compareAuthority ? nameToCode.get(state.compareAuthority) : null;
   const compareWarn = el('welCompareWarn');
   compareWarn.hidden = !(state.compareAuthority && !compareCode);
   if (state.compareAuthority && !compareCode) {
-    compareWarn.textContent = `לא נמצאו נתונים עבור "${state.compareAuthority}" לצורך השוואה - הרשימה כוללת רק את 18 הרשויות שיש להן נתוני ₪.`;
+    compareWarn.textContent = `לא נמצאו נתונים עבור "${state.compareAuthority}" לצורך השוואה בכל אחד מ-261 הרשויות.`;
   }
 
-  const points = pointsFor(code);
-  const compare = compareCode
-    ? { name: authorityByCode.get(compareCode).name, points: pointsFor(compareCode) }
+  // Recipients: always shown, for either tier, on either side of the compare.
+  recipientsSection.hidden = false;
+  const recipientsPoints = totalRecipientsPointsFor(code);
+  const recipientsCompare = compareCode
+    ? { name: authorityDisplayName(compareCode), points: totalRecipientsPointsFor(compareCode) }
     : null;
+  renderGroupedChart('welRecipientsChart', `מקבלי שירות, לפי שנה — ${state.authority}`, recipientsPoints, 'מקבלים',
+    state.authority, { front: 'מקבלי שירות', back: '' }, recipientsCompare);
+  renderRecipientsTable(recipientsPoints, recipientsCompare);
 
-  el('authChartH').textContent = `תשלומים לפי שנה — ${state.authority}`;
-  renderGroupedChart('welAuthChart', `תשלומים למסגרות רווחה, לפי שנה — ${state.authority}`, points, '₪',
-    state.authority, { front: CATEGORY_COMMUNITY, back: CATEGORY_OUT_OF_HOME }, compare);
-  renderAuthorityTable(points, compare);
+  // ₪+category breakdown: only for the 18 big authorities - a small
+  // authority has no such data to show, on either side of the compare. Per
+  // the request: comparing a small authority against a big one drops the
+  // big one's "extra" ₪/category detail rather than erroring or faking a
+  // number for the small side - so this section's OWN compare backdrop
+  // only appears when the compare authority is ALSO big.
+  const isBig = authorityByCode.has(code);
+  amountsSection.hidden = !isBig;
+  if (isBig) {
+    const points = pointsFor(code);
+    const compareIsBig = compareCode && authorityByCode.has(compareCode);
+    const compare = compareIsBig
+      ? { name: authorityByCode.get(compareCode).name, points: pointsFor(compareCode) }
+      : null;
+    el('authChartH').textContent = `תשלומים לפי שנה — ${state.authority}`;
+    renderGroupedChart('welAuthChart', `תשלומים למסגרות רווחה, לפי שנה — ${state.authority}`, points, '₪',
+      state.authority, { front: CATEGORY_COMMUNITY, back: CATEGORY_OUT_OF_HOME }, compare);
+    renderAuthorityTable(points, compare);
+  }
 }
 
 /* ---------- CSV export ---------- */
@@ -270,18 +390,26 @@ el('welCsv').addEventListener('click', () => {
   if (!state.authority) return;
   const code = nameToCode.get(state.authority);
   if (!code) return;
-  const fields = ['רשות', 'שנה', 'קטגוריה', 'סכום', 'מספר_מקבלים'];
-  const records = [];
-  for (const y of authorityYears(code)) {
-    for (const cat of [CATEGORY_COMMUNITY, CATEGORY_OUT_OF_HOME]) {
-      if (!y[cat]) continue;
-      records.push({
-        רשות: state.authority, שנה: y.year, קטגוריה: cat,
-        סכום: y[cat].amount, מספר_מקבלים: y[cat].recipients,
-      });
+  if (authorityByCode.has(code)) {
+    const fields = ['רשות', 'שנה', 'קטגוריה', 'סכום', 'מספר_מקבלים'];
+    const records = [];
+    for (const y of authorityYears(code)) {
+      for (const cat of [CATEGORY_COMMUNITY, CATEGORY_OUT_OF_HOME]) {
+        if (!y[cat]) continue;
+        records.push({
+          רשות: state.authority, שנה: y.year, קטגוריה: cat,
+          סכום: y[cat].amount, מספר_מקבלים: y[cat].recipients,
+        });
+      }
     }
+    saveCsv(buildCsv(fields, records), `תשלומי_רווחה_${state.authority}.csv`);
+  } else {
+    // A small authority has no ₪/category breakdown - the export matches
+    // what's actually shown for it: total recipients only.
+    const fields = ['רשות', 'שנה', 'מספר_מקבלים'];
+    const records = totalRecipientsPointsFor(code).map((p) => ({ רשות: state.authority, שנה: p.year, מספר_מקבלים: p.revenue }));
+    saveCsv(buildCsv(fields, records), `מקבלי_רווחה_${state.authority}.csv`);
   }
-  saveCsv(buildCsv(fields, records), `תשלומי_רווחה_${state.authority}.csv`);
 });
 
 /* ---------- wiring ---------- */
@@ -315,7 +443,12 @@ el('welYear').addEventListener('change', (e) => {
   const box = el('welKpis');
   showLoading(box, 'טוען נתונים ארציים…');
   try {
-    await Promise.all([loadNational(), loadAuthorities()]);
+    // loadRecipientsOnly() must run AFTER loadAuthorities() - it checks
+    // authorityByCode to skip any code the richer resource already covers,
+    // so it needs that map already populated, not raced against it.
+    const [, bigRecords] = await Promise.all([loadNational(), loadAuthorities()]);
+    await loadRecipientsOnly();
+    buildNameIndex(bigRecords);
   } catch (err) {
     showError(box, err);
     return;

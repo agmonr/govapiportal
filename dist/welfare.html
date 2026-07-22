@@ -1236,8 +1236,14 @@ body.accidents-page header.site h1 { inline-size: 100%; }
           לאורך זמן ממשיכה נכון על פני הגבול הזה.
         </p>
         <p>
-          <strong>נתוני ₪ קיימים רק ל-18 רשויות</strong> (בערך אלה שמעל 100,000 תושבים) - שאר כ-240
-          הרשויות מופיעות במאגר נפרד עם מספרי מקבלים בלבד, ללא סכום; מאגר זה אינו נכלל כאן.
+          <strong>נתוני ₪ קיימים רק ל-18 רשויות</strong> (בערך אלה שמעל 100,000 תושבים). שאר 243
+          הרשויות ("הרשויות הקטנות") <strong>כן נכללות כאן</strong>, ממאגר נפרד - אך רק עם
+          <strong>מספר מקבלי שירות כולל</strong> לפי שנה, בלי פירוט ₪ ובלי חלוקה לבקהילה/חוץ-ביתי
+          (המאגר הזה לא מפרסם את הפירוט, רק סה"כ). השוואה בין רשות קטנה לרשות גדולה מתבססת על
+          מקבלי שירות בלבד - הפירוט הכספי והקטגוריאלי של הרשות הגדולה לא נכנס להשוואה, כי אין
+          מקבילה לו אצל הרשות הקטנה. שני המאגרים אינם זהים במדויק גם עבור אותה רשות: לדוגמה
+          אשקלון 2022 - 4,234 מקבלים במאגר הכולל, מול 3,994+372=4,366 במאגר המפורט - קרוב אך לא
+          זהה, כנראה שני תאריכי "נכון ל-" שונים בין שני פרסומים נפרדים של המשרד, לא טעות באחד מהם.
         </p>
       </details>
 
@@ -1271,13 +1277,29 @@ body.accidents-page header.site h1 { inline-size: 100%; }
           </div>
         </div>
         <p class="acc-hint">
-          הרשימה כוללת רק את 18 הרשויות שיש להן נתוני ₪ (ראו ההסבר למעלה) - לא את כל הרשויות בישראל.
+          הרשימה כוללת את כל 261 הרשויות. ל-18 מהן (ראו ההסבר למעלה) יש גם פירוט ₪ וקטגוריה;
+          לשאר יש רק סה"כ מקבלי שירות. אפשר להשוות בין כל שתי רשויות, גדולות כקטנות.
         </p>
         <p id="welCompareWarn" class="notice error" dir="auto" hidden></p>
       </section>
 
+      <section class="acc-section" id="welRecipientsSection" aria-labelledby="recipientsChartH" hidden>
+        <h2 id="recipientsChartH">מקבלי שירות לפי שנה — הרשות שנבחרה</h2>
+        <p class="acc-hint">
+          הסה"כ הזה זמין לכל רשות, גדולה כקטנה - זו לכן ההשוואה שמתאימה לכל זוג רשויות. עבור 18
+          הרשויות הגדולות זהו סכום קהילה+חוץ-ביתי מהמאגר המפורט (לא תמיד זהה למאגר הרשויות
+          הכולל - ראו ההסבר למעלה); עבור רשות קטנה זהו הסה"כ הכולל שהמאגר מפרסם עבורה ישירות.
+        </p>
+        <figure id="welRecipientsChart" class="acc-chart acc-chart-wide" role="img"></figure>
+        <div id="welRecipientsTable"></div>
+      </section>
+
       <section class="acc-section" id="welAuthSection" aria-labelledby="authChartH" hidden>
         <h2 id="authChartH">תשלומים לפי שנה — הרשות שנבחרה</h2>
+        <p class="acc-hint">
+          פירוט ₪ וקטגוריה (בקהילה/חוץ-ביתי) קיים רק לרשויות הגדולות - קטע זה מוצג רק כשלרשות
+          שנבחרה יש נתון כזה; רשות ללא פירוט מציגה רק את הגרף הכללי למעלה.
+        </p>
         <figure id="welAuthChart" class="acc-chart acc-chart-wide" role="img"></figure>
         <div id="welAuthTable"></div>
       </section>
@@ -1462,16 +1484,39 @@ const NATIONAL_FIELDS = {
   outOfHome: { recipients: 'מספר מקבלי מענה במסגרות חוץ-ביתיות', amount: 'סכום התשלומים למסגרות חוץ-ביתיות' },
 };
 
-// Per-authority ₪ breakdown - 232 rows, but only 18 of Israel's ~261 local
+// Per-authority ₪ breakdown - 232 rows, but only 18 of Israel's 261 local
 // authorities (roughly the ones over 100k population) appear at all; every
-// other authority has only recipient COUNTS elsewhere on data.gov.il, no ₪
-// figure, so this page doesn't attempt to cover them - see the notice in
-// welfare.html.
+// other authority only has recipient COUNTS, no ₪ figure - see
+// RECIPIENTS_RESOURCE_ID below for those.
 const AUTHORITY_RESOURCE_ID = '39a00c6d-5bb4-470c-8fa3-449ba73de309';
 const AUTHORITY_FIELDS = {
   authority: 'רשות שולחת /רשות', year: 'שנה', category: 'סוג סידור',
   recipients: 'מספר מקבלי מענה', amount: 'סכום תשלומים',
 };
+
+/**
+ * Recipient counts (no ₪, no קהילה/חוץ-ביתי split) for ALL 261 authorities,
+ * 2016-2022, one row per authority (wide format - one column per year,
+ * unlike AUTHORITY_RESOURCE_ID's long format). This is the ONLY welfare-
+ * payments source that covers the ~243 authorities missing from
+ * AUTHORITY_RESOURCE_ID.
+ *
+ * Its own total for a code ALSO present in AUTHORITY_RESOURCE_ID does not
+ * exactly match that resource's community+out-of-home sum (checked
+ * directly: אשקלון 2022 - 4,234 here vs. 3,994+372=4,366 there) - close but
+ * not identical, likely a different "as of" snapshot or scope between two
+ * separately-published ministry tables, not a bug in either. welfare.js
+ * therefore never mixes the two for the same authority: a code already in
+ * AUTHORITY_RESOURCE_ID keeps using ONLY that resource's numbers, and this
+ * one is consulted purely to fill in the codes AUTHORITY_RESOURCE_ID lacks.
+ */
+const RECIPIENTS_RESOURCE_ID = 'a9ef87fa-ded4-461d-884d-1976f234f711';
+const RECIPIENTS_AUTHORITY_FIELD = 'רשות שולחת';
+// Field names embed the year directly: "מספר מקבלי מענה במסגרות רווחה - 2022".
+function parseRecipientsYearField(fieldName) {
+  const m = /-\s*(20\d{2})\s*$/.exec(fieldName || '');
+  return m ? Number(m[1]) : null;
+}
 
 /**
  * Both the authority NAME and the category LABEL change spelling at the
@@ -1688,8 +1733,13 @@ function renderGroupedChart(figId, caption, points, unit, mainName, labels = { f
     const mainTotal = p.revenue + p.expense;
     const cmpTotal = cmp ? cmp.revenue + cmp.expense : null;
     const pct = cmp && cmpTotal ? Math.round((mainTotal / cmpTotal) * 100) : null;
-    const title = `${slot.year}${mainName ? ` — ${esc(mainName)}` : ''}: ${esc(labels.front)} ${num(p.revenue)}, ${esc(labels.back)} ${num(p.expense)} ${esc(unit)}`
-      + (cmp ? `; ${esc(compare.name)}: ${esc(labels.front)} ${num(cmp.revenue)}, ${esc(labels.back)} ${num(cmp.expense)} ${esc(unit)}` : '');
+    // A falsy labels.back means a genuine single-series chart (welfare.js's
+    // recipients-only comparison, where `expense` is always 0 by
+    // construction, not a real second series) - the back half of every
+    // title/legend line is dropped rather than describing a series that
+    // was never real.
+    const title = `${slot.year}${mainName ? ` — ${esc(mainName)}` : ''}: ${esc(labels.front)} ${num(p.revenue)}${labels.back ? `, ${esc(labels.back)} ${num(p.expense)}` : ''} ${esc(unit)}`
+      + (cmp ? `; ${esc(compare.name)}: ${esc(labels.front)} ${num(cmp.revenue)}${labels.back ? `, ${esc(labels.back)} ${num(cmp.expense)}` : ''} ${esc(unit)}` : '');
     return `
       <div class="fin-chart-group" title="${title}">
         <span class="fin-chart-pct">${pct != null ? `${pct}% מ-${esc(compare.name)}` : ''}</span>
@@ -1708,7 +1758,7 @@ function renderGroupedChart(figId, caption, points, unit, mainName, labels = { f
   fig.innerHTML = `
     <figcaption>${esc(caption)}</figcaption>
     <div class="acc-legend">
-      <span class="acc-legend-item"><span class="acc-legend-swatch" style="background:var(--accent)"></span>${mainName ? `${esc(mainName)} - ` : ''}${esc(labels.front)} (מלא, ראשון) / ${esc(labels.back)} (בהיר, שני)</span>
+      <span class="acc-legend-item"><span class="acc-legend-swatch" style="background:var(--accent)"></span>${mainName ? `${esc(mainName)} - ` : ''}${esc(labels.front)}${labels.back ? ` (מלא, ראשון) / ${esc(labels.back)} (בהיר, שני)` : ''}</span>
       ${compare ? `<span class="acc-legend-item"><span class="acc-legend-swatch" style="background:var(--fin-compare)"></span>${esc(compare.name)} - אותו סדר</span>` : ''}
     </div>
     <div class="fin-chart-body">
@@ -1809,8 +1859,15 @@ const state = {
 };
 
 // code -> { name, byYear: Map<year, { קהילה: {recipients,amount}|null, 'חוץ-ביתי': {...}|null }> }
+// - the 18 "big" authorities with a ₪+category breakdown.
 let authorityByCode = new Map();
-// display name -> code, covering BOTH historical spellings (see welfare-data.js)
+// code -> { name, byYear: Map<year, totalRecipients> } - the ~243 "small"
+// authorities with only a combined recipient total, no ₪, no category split.
+// Never overlaps authorityByCode - see loadRecipientsOnly().
+let smallAuthorityByCode = new Map();
+// display name -> code, covering every spelling of every authority (big AND
+// small, all historical spellings - see welfare-data.js) - the roster a
+// visitor actually picks from.
 let nameToCode = new Map();
 let nationalRows = []; // [{year, community:{recipients,amount}, outOfHome:{recipients,amount}}], ascending
 
@@ -1872,13 +1929,47 @@ async function loadAuthorities() {
     };
   }
   authorityByCode = byCode;
-  nameToCode = new Map();
-  for (const [code, entry] of byCode) {
-    nameToCode.set(entry.name, code); // canonical (newest) spelling
-  }
-  // Older spelling(s) also resolve, so a shared link or typed-in old name
-  // still finds the right authority instead of silently matching nothing.
+  // Kept for buildNameIndex() below, which also needs every OLDER spelling
+  // (e.g. "313 תל אביב"), not just each code's final canonical name.
+  return records;
+}
+
+/** The ~243 authorities with only a combined recipient total - see
+ *  RECIPIENTS_RESOURCE_ID in welfare-data.js. A code already covered by
+ *  loadAuthorities() is skipped here even if it also appears in this
+ *  resource, so a "big" authority's numbers always come from exactly one
+ *  source, never a mix of two not-quite-matching totals. */
+async function loadRecipientsOnly() {
+  const records = await dsAll(RECIPIENTS_RESOURCE_ID);
+  const yearFields = records.length
+    ? Object.keys(records[0]).filter((k) => parseRecipientsYearField(k) != null) : [];
+  const byCode = new Map();
   for (const r of records) {
+    const parsed = parseAuthorityField(r[RECIPIENTS_AUTHORITY_FIELD]);
+    if (!parsed || authorityByCode.has(parsed.code)) continue;
+    const byYear = new Map();
+    for (const field of yearFields) {
+      const year = parseRecipientsYearField(field);
+      const n = Number(String(r[field]).replace(/,/g, ''));
+      if (Number.isFinite(n)) byYear.set(year, n);
+    }
+    byCode.set(parsed.code, { name: parsed.name, byYear });
+  }
+  smallAuthorityByCode = byCode;
+}
+
+/** Builds the single name->code index every input/URL lookup uses, covering
+ *  both authority tiers and every historical spelling. Run once both loads
+ *  are done, not inside either loader - loadAuthorities() must finish
+ *  deciding each big authority's canonical (newest) name before anything
+ *  indexes by name. */
+function buildNameIndex(bigAuthorityRecords) {
+  nameToCode = new Map();
+  for (const [code, entry] of authorityByCode) nameToCode.set(entry.name, code); // canonical (newest) spelling wins first
+  for (const [code, entry] of smallAuthorityByCode) if (!nameToCode.has(entry.name)) nameToCode.set(entry.name, code);
+  // Older spelling(s) of a BIG authority also resolve, so a shared link or
+  // typed-in old name still finds it instead of silently matching nothing.
+  for (const r of bigAuthorityRecords) {
     const parsed = parseAuthorityField(r[AUTHORITY_FIELDS.authority]);
     if (parsed && !nameToCode.has(parsed.name)) nameToCode.set(parsed.name, parsed.code);
   }
@@ -1894,7 +1985,10 @@ function authorityYears(code) {
 /* ---------- authority roster (datalist) ---------- */
 
 function populateRoster() {
-  const names = [...authorityByCode.values()].map((e) => e.name).sort((a, b) => a.localeCompare(b, 'he'));
+  const names = [
+    ...[...authorityByCode.values()].map((e) => e.name),
+    ...[...smallAuthorityByCode.values()].map((e) => e.name),
+  ].sort((a, b) => a.localeCompare(b, 'he'));
   el('welAuthorityList').innerHTML = names.map((n) => `<option value="${esc(n)}"></option>`).join('');
 }
 
@@ -2002,32 +2096,108 @@ function pointsFor(code) {
   }));
 }
 
+function authorityDisplayName(code) {
+  return authorityByCode.get(code)?.name ?? smallAuthorityByCode.get(code)?.name ?? null;
+}
+
+/** Total recipients by year, for ANY authority - big or small. This is the
+ *  one number every one of the 261 authorities has, so it's the only chart
+ *  that can compare a small authority against a big one (or two smalls, or
+ *  two bigs) without dropping down to a lowest-common-denominator dataset
+ *  mid-comparison. Fed into renderGroupedChart as `revenue` with `expense`
+ *  always 0 - a real single-series chart, not a category split pretending
+ *  to be one (a small authority's total is NOT known to split into
+ *  קהילה/חוץ-ביתי, so it must not be plotted as if it were all קהילה). */
+function totalRecipientsPointsFor(code) {
+  if (authorityByCode.has(code)) {
+    return pointsFor(code).map((p) => ({ year: p.year, revenue: p.communityRecipients + p.outOfHomeRecipients, expense: 0 }));
+  }
+  const entry = smallAuthorityByCode.get(code);
+  if (!entry) return [];
+  return [...entry.byYear.entries()].sort(([a], [b]) => a - b)
+    .map(([year, total]) => ({ year, revenue: total, expense: 0 }));
+}
+
+function renderRecipientsTable(points, compare) {
+  const compareByYear = new Map((compare?.points || []).map((p) => [p.year, p]));
+  const rows = [...points].sort((a, b) => b.year - a.year).map((p) => {
+    const cmp = compareByYear.get(p.year);
+    const mainRow = `
+      <tr>
+        <th scope="row"${cmp ? ' rowspan="2"' : ''}>${p.year}</th>
+        ${compare ? citySwatchCell(state.authority, CITY_COLOR_MAIN) : ''}
+        <td>${num(p.revenue)}</td>
+      </tr>`;
+    if (!cmp) return mainRow;
+    const cmpRow = `
+      <tr class="fin-row-compare">
+        ${citySwatchCell(compare.name, CITY_COLOR_COMPARE)}
+        <td>${num(cmp.revenue)}</td>
+      </tr>`;
+    return mainRow + cmpRow;
+  }).join('');
+  el('welRecipientsTable').innerHTML = `
+    <div class="matrix-wrap">
+      <table class="matrix">
+        <thead>
+          <tr>
+            <th scope="col">שנה</th>
+            ${compare ? '<th scope="col">רשות</th>' : ''}
+            <th scope="col">מקבלי שירות</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+}
+
 function renderAuthoritySection() {
-  const section = el('welAuthSection');
+  const recipientsSection = el('welRecipientsSection');
+  const amountsSection = el('welAuthSection');
   const code = state.authority ? nameToCode.get(state.authority) : null;
   if (!state.authority || !code) {
-    section.hidden = true;
+    recipientsSection.hidden = true;
+    amountsSection.hidden = true;
     el('welCompareWarn').hidden = true;
     return;
   }
-  section.hidden = false;
 
   const compareCode = state.compareAuthority ? nameToCode.get(state.compareAuthority) : null;
   const compareWarn = el('welCompareWarn');
   compareWarn.hidden = !(state.compareAuthority && !compareCode);
   if (state.compareAuthority && !compareCode) {
-    compareWarn.textContent = `לא נמצאו נתונים עבור "${state.compareAuthority}" לצורך השוואה - הרשימה כוללת רק את 18 הרשויות שיש להן נתוני ₪.`;
+    compareWarn.textContent = `לא נמצאו נתונים עבור "${state.compareAuthority}" לצורך השוואה בכל אחד מ-261 הרשויות.`;
   }
 
-  const points = pointsFor(code);
-  const compare = compareCode
-    ? { name: authorityByCode.get(compareCode).name, points: pointsFor(compareCode) }
+  // Recipients: always shown, for either tier, on either side of the compare.
+  recipientsSection.hidden = false;
+  const recipientsPoints = totalRecipientsPointsFor(code);
+  const recipientsCompare = compareCode
+    ? { name: authorityDisplayName(compareCode), points: totalRecipientsPointsFor(compareCode) }
     : null;
+  renderGroupedChart('welRecipientsChart', `מקבלי שירות, לפי שנה — ${state.authority}`, recipientsPoints, 'מקבלים',
+    state.authority, { front: 'מקבלי שירות', back: '' }, recipientsCompare);
+  renderRecipientsTable(recipientsPoints, recipientsCompare);
 
-  el('authChartH').textContent = `תשלומים לפי שנה — ${state.authority}`;
-  renderGroupedChart('welAuthChart', `תשלומים למסגרות רווחה, לפי שנה — ${state.authority}`, points, '₪',
-    state.authority, { front: CATEGORY_COMMUNITY, back: CATEGORY_OUT_OF_HOME }, compare);
-  renderAuthorityTable(points, compare);
+  // ₪+category breakdown: only for the 18 big authorities - a small
+  // authority has no such data to show, on either side of the compare. Per
+  // the request: comparing a small authority against a big one drops the
+  // big one's "extra" ₪/category detail rather than erroring or faking a
+  // number for the small side - so this section's OWN compare backdrop
+  // only appears when the compare authority is ALSO big.
+  const isBig = authorityByCode.has(code);
+  amountsSection.hidden = !isBig;
+  if (isBig) {
+    const points = pointsFor(code);
+    const compareIsBig = compareCode && authorityByCode.has(compareCode);
+    const compare = compareIsBig
+      ? { name: authorityByCode.get(compareCode).name, points: pointsFor(compareCode) }
+      : null;
+    el('authChartH').textContent = `תשלומים לפי שנה — ${state.authority}`;
+    renderGroupedChart('welAuthChart', `תשלומים למסגרות רווחה, לפי שנה — ${state.authority}`, points, '₪',
+      state.authority, { front: CATEGORY_COMMUNITY, back: CATEGORY_OUT_OF_HOME }, compare);
+    renderAuthorityTable(points, compare);
+  }
 }
 
 /* ---------- CSV export ---------- */
@@ -2036,18 +2206,26 @@ el('welCsv').addEventListener('click', () => {
   if (!state.authority) return;
   const code = nameToCode.get(state.authority);
   if (!code) return;
-  const fields = ['רשות', 'שנה', 'קטגוריה', 'סכום', 'מספר_מקבלים'];
-  const records = [];
-  for (const y of authorityYears(code)) {
-    for (const cat of [CATEGORY_COMMUNITY, CATEGORY_OUT_OF_HOME]) {
-      if (!y[cat]) continue;
-      records.push({
-        רשות: state.authority, שנה: y.year, קטגוריה: cat,
-        סכום: y[cat].amount, מספר_מקבלים: y[cat].recipients,
-      });
+  if (authorityByCode.has(code)) {
+    const fields = ['רשות', 'שנה', 'קטגוריה', 'סכום', 'מספר_מקבלים'];
+    const records = [];
+    for (const y of authorityYears(code)) {
+      for (const cat of [CATEGORY_COMMUNITY, CATEGORY_OUT_OF_HOME]) {
+        if (!y[cat]) continue;
+        records.push({
+          רשות: state.authority, שנה: y.year, קטגוריה: cat,
+          סכום: y[cat].amount, מספר_מקבלים: y[cat].recipients,
+        });
+      }
     }
+    saveCsv(buildCsv(fields, records), `תשלומי_רווחה_${state.authority}.csv`);
+  } else {
+    // A small authority has no ₪/category breakdown - the export matches
+    // what's actually shown for it: total recipients only.
+    const fields = ['רשות', 'שנה', 'מספר_מקבלים'];
+    const records = totalRecipientsPointsFor(code).map((p) => ({ רשות: state.authority, שנה: p.year, מספר_מקבלים: p.revenue }));
+    saveCsv(buildCsv(fields, records), `מקבלי_רווחה_${state.authority}.csv`);
   }
-  saveCsv(buildCsv(fields, records), `תשלומי_רווחה_${state.authority}.csv`);
 });
 
 /* ---------- wiring ---------- */
@@ -2081,7 +2259,12 @@ el('welYear').addEventListener('change', (e) => {
   const box = el('welKpis');
   showLoading(box, 'טוען נתונים ארציים…');
   try {
-    await Promise.all([loadNational(), loadAuthorities()]);
+    // loadRecipientsOnly() must run AFTER loadAuthorities() - it checks
+    // authorityByCode to skip any code the richer resource already covers,
+    // so it needs that map already populated, not raced against it.
+    const [, bigRecords] = await Promise.all([loadNational(), loadAuthorities()]);
+    await loadRecipientsOnly();
+    buildNameIndex(bigRecords);
   } catch (err) {
     showError(box, err);
     return;

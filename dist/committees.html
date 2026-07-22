@@ -1730,8 +1730,13 @@ function renderGroupedChart(figId, caption, points, unit, mainName, labels = { f
     const mainTotal = p.revenue + p.expense;
     const cmpTotal = cmp ? cmp.revenue + cmp.expense : null;
     const pct = cmp && cmpTotal ? Math.round((mainTotal / cmpTotal) * 100) : null;
-    const title = `${slot.year}${mainName ? ` — ${esc(mainName)}` : ''}: ${esc(labels.front)} ${num(p.revenue)}, ${esc(labels.back)} ${num(p.expense)} ${esc(unit)}`
-      + (cmp ? `; ${esc(compare.name)}: ${esc(labels.front)} ${num(cmp.revenue)}, ${esc(labels.back)} ${num(cmp.expense)} ${esc(unit)}` : '');
+    // A falsy labels.back means a genuine single-series chart (welfare.js's
+    // recipients-only comparison, where `expense` is always 0 by
+    // construction, not a real second series) - the back half of every
+    // title/legend line is dropped rather than describing a series that
+    // was never real.
+    const title = `${slot.year}${mainName ? ` — ${esc(mainName)}` : ''}: ${esc(labels.front)} ${num(p.revenue)}${labels.back ? `, ${esc(labels.back)} ${num(p.expense)}` : ''} ${esc(unit)}`
+      + (cmp ? `; ${esc(compare.name)}: ${esc(labels.front)} ${num(cmp.revenue)}${labels.back ? `, ${esc(labels.back)} ${num(cmp.expense)}` : ''} ${esc(unit)}` : '');
     return `
       <div class="fin-chart-group" title="${title}">
         <span class="fin-chart-pct">${pct != null ? `${pct}% מ-${esc(compare.name)}` : ''}</span>
@@ -1750,7 +1755,7 @@ function renderGroupedChart(figId, caption, points, unit, mainName, labels = { f
   fig.innerHTML = `
     <figcaption>${esc(caption)}</figcaption>
     <div class="acc-legend">
-      <span class="acc-legend-item"><span class="acc-legend-swatch" style="background:var(--accent)"></span>${mainName ? `${esc(mainName)} - ` : ''}${esc(labels.front)} (מלא, ראשון) / ${esc(labels.back)} (בהיר, שני)</span>
+      <span class="acc-legend-item"><span class="acc-legend-swatch" style="background:var(--accent)"></span>${mainName ? `${esc(mainName)} - ` : ''}${esc(labels.front)}${labels.back ? ` (מלא, ראשון) / ${esc(labels.back)} (בהיר, שני)` : ''}</span>
       ${compare ? `<span class="acc-legend-item"><span class="acc-legend-swatch" style="background:var(--fin-compare)"></span>${esc(compare.name)} - אותו סדר</span>` : ''}
     </div>
     <div class="fin-chart-body">

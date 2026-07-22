@@ -21,16 +21,39 @@ export const NATIONAL_FIELDS = {
   outOfHome: { recipients: 'מספר מקבלי מענה במסגרות חוץ-ביתיות', amount: 'סכום התשלומים למסגרות חוץ-ביתיות' },
 };
 
-// Per-authority ₪ breakdown - 232 rows, but only 18 of Israel's ~261 local
+// Per-authority ₪ breakdown - 232 rows, but only 18 of Israel's 261 local
 // authorities (roughly the ones over 100k population) appear at all; every
-// other authority has only recipient COUNTS elsewhere on data.gov.il, no ₪
-// figure, so this page doesn't attempt to cover them - see the notice in
-// welfare.html.
+// other authority only has recipient COUNTS, no ₪ figure - see
+// RECIPIENTS_RESOURCE_ID below for those.
 export const AUTHORITY_RESOURCE_ID = '39a00c6d-5bb4-470c-8fa3-449ba73de309';
 export const AUTHORITY_FIELDS = {
   authority: 'רשות שולחת /רשות', year: 'שנה', category: 'סוג סידור',
   recipients: 'מספר מקבלי מענה', amount: 'סכום תשלומים',
 };
+
+/**
+ * Recipient counts (no ₪, no קהילה/חוץ-ביתי split) for ALL 261 authorities,
+ * 2016-2022, one row per authority (wide format - one column per year,
+ * unlike AUTHORITY_RESOURCE_ID's long format). This is the ONLY welfare-
+ * payments source that covers the ~243 authorities missing from
+ * AUTHORITY_RESOURCE_ID.
+ *
+ * Its own total for a code ALSO present in AUTHORITY_RESOURCE_ID does not
+ * exactly match that resource's community+out-of-home sum (checked
+ * directly: אשקלון 2022 - 4,234 here vs. 3,994+372=4,366 there) - close but
+ * not identical, likely a different "as of" snapshot or scope between two
+ * separately-published ministry tables, not a bug in either. welfare.js
+ * therefore never mixes the two for the same authority: a code already in
+ * AUTHORITY_RESOURCE_ID keeps using ONLY that resource's numbers, and this
+ * one is consulted purely to fill in the codes AUTHORITY_RESOURCE_ID lacks.
+ */
+export const RECIPIENTS_RESOURCE_ID = 'a9ef87fa-ded4-461d-884d-1976f234f711';
+export const RECIPIENTS_AUTHORITY_FIELD = 'רשות שולחת';
+// Field names embed the year directly: "מספר מקבלי מענה במסגרות רווחה - 2022".
+export function parseRecipientsYearField(fieldName) {
+  const m = /-\s*(20\d{2})\s*$/.exec(fieldName || '');
+  return m ? Number(m[1]) : null;
+}
 
 /**
  * Both the authority NAME and the category LABEL change spelling at the
