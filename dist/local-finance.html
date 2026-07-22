@@ -295,6 +295,16 @@ button.stat { cursor: pointer; }
    staying contained in the descendant's own scrollbar. */
 .acc-charts .acc-chart { flex: 1 1 20rem; margin: 0; min-inline-size: 0; }
 
+/* local-finance's revenue/expense + per-capita grouped charts need real
+   width once a compare authority doubles every year's bar group (measured:
+   ~512px of content squeezed into a ~410-426px half-share of a two-column
+   row triggers the group's own overflow-x:auto, so the far side scrolls out
+   of view with no visible scrollbar hint - reads as "cut off", not
+   "scrollable"). Full-width stacking gives each chart the whole row instead
+   of half, the same fix as widening the page, without touching the shared
+   two-small-charts layout accidents.html/committees.html still rely on. */
+.fin-charts-stack .acc-chart { flex-basis: 100%; }
+
 .acc-chart { margin: 0 0 1.25rem; }
 /* The "all accidents" chart is the neutral-magnitude twin of the red "killed"
    one, so its bars take the accent hue instead of danger. */
@@ -1276,7 +1286,7 @@ body.accidents-page header.site h1 { inline-size: 100%; }
           אותו מספר תושבים משמש לחישוב בכל השנים בטבלה.
         </p>
         <div id="finPopStats" class="stat-row"></div>
-        <div class="acc-charts">
+        <div class="acc-charts fin-charts-stack">
           <figure id="finChartAuthRevenue" class="acc-chart" role="img"></figure>
           <figure id="finChartAuthPerCapita" class="acc-chart" role="img"></figure>
         </div>
@@ -1339,6 +1349,15 @@ body.accidents-page header.site h1 { inline-size: 100%; }
           לרשימה המלאה.
         </p>
         <div id="finStatement"></div>
+      </section>
+
+      <section class="acc-section" aria-labelledby="pyFooterH">
+        <h2 id="pyFooterH">תבנית ה-Python, שוב — לעיון בתחתית העמוד</h2>
+        <p class="acc-hint">
+          אותה תבנית שבתיבה למעלה, מוצגת כאן שוב כטקסט קבוע - אחרי גלילה דרך הדוח המפורט השלם,
+          שלא תצטרכו לגלול חזרה כדי למצוא אותה.
+        </p>
+        <pre id="finPyTemplateFooter" class="cm-script" dir="ltr"></pre>
       </section>
     </div>
   </main>
@@ -2649,6 +2668,12 @@ latest_year = df['שנה'].max()
 resident_report = df[(df['שנה'] == latest_year) & (df['גיליון'] == 'דוח לתושב')]
 print(f"\\n--- דוח לתושב, {latest_year} ---")
 print(resident_report[['שורה', 'עמודה', 'ערך']].head(10))`;
+  // Same text, shown again as plain read-only content at the true end of the
+  // page - see finPyTemplateFooter in local-finance.html - so a reader who
+  // scrolled past the full statement below doesn't have to scroll back up to
+  // find the copy box.
+  const footer = el('finPyTemplateFooter');
+  if (footer) footer.textContent = box.value;
 }
 el('finPyTemplateCopy').addEventListener('click', async () => {
   const btn = el('finPyTemplateCopy');

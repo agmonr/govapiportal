@@ -1,5 +1,8 @@
 # מפת ממשקי API ממשלתיים — Israeli Government API Map
 
+
+אנחנו באים בשלום, אנחנו שואפים לטוב
+
 A reference map of Israeli government APIs: endpoint, auth, CORS, format and
 current status for each. Static site, no build step, hosted on GitHub Pages.
 

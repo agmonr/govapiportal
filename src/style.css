@@ -274,6 +274,16 @@ button.stat { cursor: pointer; }
    staying contained in the descendant's own scrollbar. */
 .acc-charts .acc-chart { flex: 1 1 20rem; margin: 0; min-inline-size: 0; }
 
+/* local-finance's revenue/expense + per-capita grouped charts need real
+   width once a compare authority doubles every year's bar group (measured:
+   ~512px of content squeezed into a ~410-426px half-share of a two-column
+   row triggers the group's own overflow-x:auto, so the far side scrolls out
+   of view with no visible scrollbar hint - reads as "cut off", not
+   "scrollable"). Full-width stacking gives each chart the whole row instead
+   of half, the same fix as widening the page, without touching the shared
+   two-small-charts layout accidents.html/committees.html still rely on. */
+.fin-charts-stack .acc-chart { flex-basis: 100%; }
+
 .acc-chart { margin: 0 0 1.25rem; }
 /* The "all accidents" chart is the neutral-magnitude twin of the red "killed"
    one, so its bars take the accent hue instead of danger. */

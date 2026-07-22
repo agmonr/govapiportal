@@ -994,6 +994,12 @@ latest_year = df['שנה'].max()
 resident_report = df[(df['שנה'] == latest_year) & (df['גיליון'] == 'דוח לתושב')]
 print(f"\\n--- דוח לתושב, {latest_year} ---")
 print(resident_report[['שורה', 'עמודה', 'ערך']].head(10))`;
+  // Same text, shown again as plain read-only content at the true end of the
+  // page - see finPyTemplateFooter in local-finance.html - so a reader who
+  // scrolled past the full statement below doesn't have to scroll back up to
+  // find the copy box.
+  const footer = el('finPyTemplateFooter');
+  if (footer) footer.textContent = box.value;
 }
 el('finPyTemplateCopy').addEventListener('click', async () => {
   const btn = el('finPyTemplateCopy');
