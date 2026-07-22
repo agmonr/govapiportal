@@ -19,9 +19,10 @@
 
 import { el, esc, num, debounce, buildCsv, saveCsv, showError, showLoading } from './ui.js';
 import { initThemePicker } from './theme.js';
-import { YEAR_RESOURCES, YEARS_DESC, ROSTER_YEAR, ROSTER_FILTERS, SUMMARY_SHEET, SUMMARY_ROWS, SUMMARY_COLUMN, form2RowsFor, BALANCE_COLUMN, balanceRowsFor, CBS_POPULATION_RESOURCE_ID, CBS_POPULATION_FIELD, CBS_POPULATION_YEAR, AREA_SHEET, AREA_CATEGORIES, areaColumnFor, JURISDICTION_SHEET, JURISDICTION_ROW, JURISDICTION_YEAR } from './finance-data.js';
+import { YEAR_RESOURCES, YEARS_DESC, ROSTER_YEAR, ROSTER_FILTERS, SUMMARY_SHEET, SUMMARY_ROWS, SUMMARY_COLUMN, form2RowsFor, BALANCE_COLUMN, balanceRowsFor, AREA_SHEET, AREA_CATEGORIES, areaColumnFor, JURISDICTION_SHEET, JURISDICTION_ROW, JURISDICTION_YEAR } from './finance-data.js';
 import { renderBarChart, renderHBarChart, renderGroupedChart, CITY_COLOR_MAIN, CITY_COLOR_COMPARE, citySwatchCell } from './charts.js';
 import { dsFilter } from './datastore.js';
+import { CBS_POPULATION_YEAR, fetchPopulation } from './population.js';
 
 initThemePicker(el('themePick'));
 
@@ -685,19 +686,6 @@ async function renderAuthorityCharts() {
       jurNote.hidden = true;
     }
   }
-}
-
-/** A single population figure for one authority, from CBS's 2022 census (see
- *  finance-data.js) - not per-year, so every year's per-resident figure in
- *  the table below reuses this same number; a real limitation, stated on the
- *  page next to the numbers it affects, not hidden in a tooltip. */
-async function fetchPopulation(authority) {
-  try {
-    const { records } = await dsFilter(CBS_POPULATION_RESOURCE_ID, { [CBS_POPULATION_FIELD]: authority });
-    if (!records.length) return null;
-    const n = Number(String(records[0]['Total_Population']).replace(/,/g, ''));
-    return Number.isFinite(n) ? n : null;
-  } catch { return null; }
 }
 
 /** Jurisdiction area (דונם) - a single figure, 2024 only (see

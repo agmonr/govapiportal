@@ -118,22 +118,8 @@ export const BALANCE_ROWS_BY_ERA = {
 export const balanceRowsFor = (year) => (YEAR_RESOURCES[year].hasSummary
   ? BALANCE_ROWS_BY_ERA.current : BALANCE_ROWS_BY_ERA.legacy);
 
-/**
- * Per-locality population - a single snapshot from CBS's own 2022 Population
- * and Housing Census ("מפקד האוכלוסין והדיור 2022", package id "2022" on
- * data.gov.il), not an annual series - CBS has not published a live-
- * queryable per-locality population dataset for any other year on
- * data.gov.il, confirmed by search. The resource itself IS live-queryable
- * via the same DataStore engine every other source on this page already
- * uses (1,222 rows: localities + statistical sub-areas together).
- * LocNameHeb matches this page's שם_רשות spelling exactly - confirmed
- * directly against הוד השרון (both spelled identically, one row returned).
- * Total_Population arrives as a comma-formatted string ("65,020"), not a
- * number - callers must strip the comma before parsing.
- */
-export const CBS_POPULATION_RESOURCE_ID = '38207cf8-afe2-48ed-a3b0-c8f70c796015';
-export const CBS_POPULATION_FIELD = 'LocNameHeb';
-export const CBS_POPULATION_YEAR = 2022;
+// CBS population lookup (CBS_POPULATION_RESOURCE_ID etc., fetchPopulation)
+// moved to population.js - shared with welfare.js, see that file.
 
 /**
  * Land-use area breakdown ("נספח א" in the financial report) - מ"ר by usage

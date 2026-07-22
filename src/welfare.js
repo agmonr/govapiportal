@@ -7,10 +7,12 @@
  * src/welfare-data.js for why this differs from local-finance.js's per-year
  * fetch pattern.
  *
- * Deliberately NOT included: any per-resident (population-normalized) figure.
- * Unlike local-finance.js, nothing here merges in a population source, so
- * there is no guarded/ungarded distinction to get wrong - there is simply no
- * per-capita number anywhere on this page.
+ * Population (city size, ₪-per-resident) comes from CBS's 2022 census via
+ * the shared population.js (also used by local-finance.js) - fetched per
+ * authority/compare selection, unlike the two welfare tables above which
+ * load once. A population lookup that finds nothing leaves the per-resident
+ * figure blank (—) rather than dividing by an unknown population - the same
+ * guard local-finance.js already had, now shared.
  */
 
 import { el, esc, num, debounce, buildCsv, saveCsv, showError, showLoading } from './ui.js';
@@ -18,6 +20,7 @@ import { initThemePicker } from './theme.js';
 import { NATIONAL_RESOURCE_ID, NATIONAL_FIELDS, AUTHORITY_RESOURCE_ID, AUTHORITY_FIELDS, CATEGORY_COMMUNITY, CATEGORY_OUT_OF_HOME, normalizeCategory, parseAuthorityField, RECIPIENTS_RESOURCE_ID, RECIPIENTS_AUTHORITY_FIELD, parseRecipientsYearField } from './welfare-data.js';
 import { renderGroupedChart, CITY_COLOR_MAIN, CITY_COLOR_COMPARE, citySwatchCell } from './charts.js';
 import { dsQuery } from './datastore.js';
+import { fetchPopulation, CBS_POPULATION_YEAR } from './population.js';
 
 initThemePicker(el('themePick'));
 
@@ -41,6 +44,14 @@ const state = {
   compareAuthority: DEFAULT_COMPARE_AUTHORITY,
   year: null, // set once national data loads and the real max year is known
 };
+
+// Bumped on every call to renderAuthoritySection() - it now awaits a
+// population fetch, the same race renderAuthorityCharts()/renderStatement()
+// in local-finance.js already guard against: typing a second authority
+// before the first one's fetch resolves must not let the stale call render
+// over the newer one. Same pattern, see local-finance.js for the fuller
+// explanation of why this is needed at all.
+let authorityGeneration = 0;
 
 // code -> { name, byYear: Map<year, { קהילה: {recipients,amount}|null, 'חוץ-ביתי': {...}|null }> }
 // - the 18 "big" authorities with a ₪+category breakdown.
@@ -228,8 +239,16 @@ function renderNationalChart() {
 
 /* ---------- per-authority section ---------- */
 
-function renderAuthorityTable(points, compare) {
+/** `population`/`comparePopulation` (optional): each authority's own CBS
+ *  2022 resident count (see population.js) - feeds a combined ₪-לתושב
+ *  column (total of both categories ÷ population). Left as '—' rather than
+ *  computed when population is null, exactly like local-finance.js's own
+ *  per-capita guard - never divide by an unknown population. Welfare's ₪
+ *  figures are already plain שקלים (not אלפי ש"ח like local-finance.js's),
+ *  so this is a direct division, no ×1000 factor. */
+function renderAuthorityTable(points, compare, population = null, comparePopulation = null) {
   const compareByYear = new Map((compare?.points || []).map((p) => [p.year, p]));
+  const perResident = (p, pop) => (pop ? Math.round((p.revenue + p.expense) / pop) : null);
   const rows = [...points].sort((a, b) => b.year - a.year).map((p) => {
     const cmp = compareByYear.get(p.year);
     const mainRow = `
@@ -240,6 +259,7 @@ function renderAuthorityTable(points, compare) {
         <td>${num(p.communityRecipients)}</td>
         <td>${num(p.expense)}</td>
         <td>${num(p.outOfHomeRecipients)}</td>
+        <td>${population ? num(perResident(p, population)) : '—'}</td>
       </tr>`;
     if (!cmp) return mainRow;
     const cmpRow = `
@@ -249,6 +269,7 @@ function renderAuthorityTable(points, compare) {
         <td>${num(cmp.communityRecipients)}</td>
         <td>${num(cmp.expense)}</td>
         <td>${num(cmp.outOfHomeRecipients)}</td>
+        <td>${comparePopulation ? num(perResident(cmp, comparePopulation)) : '—'}</td>
       </tr>`;
     return mainRow + cmpRow;
   }).join('');
@@ -263,11 +284,41 @@ function renderAuthorityTable(points, compare) {
             <th scope="col">${esc(CATEGORY_COMMUNITY)} — מקבלים</th>
             <th scope="col">${esc(CATEGORY_OUT_OF_HOME)} (₪)</th>
             <th scope="col">${esc(CATEGORY_OUT_OF_HOME)} — מקבלים</th>
+            <th scope="col">₪ לתושב (סה"כ)</th>
           </tr>
         </thead>
         <tbody>${rows}</tbody>
       </table>
     </div>`;
+}
+
+// Same stat-tile look as local-finance.html's population section - one
+// tile per side of the comparison, right above the recipients chart so a
+// reader sees city size before the per-authority numbers it contextualizes.
+function renderPopStats(population, compareName, comparePopulation) {
+  const section = el('welPopSection');
+  const box = el('welPopStats');
+  const tiles = [];
+  if (population != null) {
+    tiles.push(`
+      <div class="stat" style="border-inline-start-color:${CITY_COLOR_MAIN}">
+        <span class="stat-n">${num(population)}</span>
+        <span class="stat-l">תושבים — ${esc(state.authority)} (מפקד ${CBS_POPULATION_YEAR})</span>
+      </div>`);
+  }
+  if (compareName) {
+    tiles.push(comparePopulation != null ? `
+      <div class="stat" style="border-inline-start-color:${CITY_COLOR_COMPARE}">
+        <span class="stat-n">${num(comparePopulation)}</span>
+        <span class="stat-l">תושבים — ${esc(compareName)} (מפקד ${CBS_POPULATION_YEAR})</span>
+      </div>` : `
+      <div class="stat unknown">
+        <span class="stat-n">—</span>
+        <span class="stat-l">תושבים — ${esc(compareName)}: הנתון לא נמצא</span>
+      </div>`);
+  }
+  section.hidden = !tiles.length;
+  box.innerHTML = tiles.join('');
 }
 
 function pointsFor(code) {
@@ -335,13 +386,15 @@ function renderRecipientsTable(points, compare) {
     </div>`;
 }
 
-function renderAuthoritySection() {
+async function renderAuthoritySection() {
+  const myGeneration = ++authorityGeneration;
   const recipientsSection = el('welRecipientsSection');
   const amountsSection = el('welAuthSection');
   const code = state.authority ? nameToCode.get(state.authority) : null;
   if (!state.authority || !code) {
     recipientsSection.hidden = true;
     amountsSection.hidden = true;
+    el('welPopSection').hidden = true;
     el('welCompareWarn').hidden = true;
     return;
   }
@@ -352,6 +405,22 @@ function renderAuthoritySection() {
   if (state.compareAuthority && !compareCode) {
     compareWarn.textContent = `לא נמצאו נתונים עבור "${state.compareAuthority}" לצורך השוואה בכל אחד מ-261 הרשויות.`;
   }
+
+  // Population applies to every authority regardless of tier ("city size" is
+  // a fact about the place, not about which welfare resource covers it) -
+  // fetched here rather than at load time since it's per-selection, not
+  // cached whole like the two welfare tables above.
+  const [population, comparePopulation] = await Promise.all([
+    fetchPopulation(state.authority),
+    compareCode ? fetchPopulation(state.compareAuthority) : Promise.resolve(null),
+  ]);
+  // A newer authority/compare change already started its own call while this
+  // one was awaiting the population fetch - bail rather than render stale
+  // data (or a population figure) over whatever the newer call already put
+  // on screen. Same race local-finance.js guards against.
+  if (myGeneration !== authorityGeneration) return;
+
+  renderPopStats(population, compareCode ? authorityDisplayName(compareCode) : null, comparePopulation);
 
   // Recipients: always shown, for either tier, on either side of the compare.
   recipientsSection.hidden = false;
@@ -380,7 +449,7 @@ function renderAuthoritySection() {
     el('authChartH').textContent = `תשלומים לפי שנה — ${state.authority}`;
     renderGroupedChart('welAuthChart', `תשלומים למסגרות רווחה, לפי שנה — ${state.authority}`, points, '₪',
       state.authority, { front: CATEGORY_COMMUNITY, back: CATEGORY_OUT_OF_HOME }, compare);
-    renderAuthorityTable(points, compare);
+    renderAuthorityTable(points, compare, population, compareIsBig ? comparePopulation : null);
   }
 }
 
