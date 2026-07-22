@@ -288,7 +288,12 @@ button.stat { cursor: pointer; }
   gap: 2rem 3rem;
   margin-block-end: 1.25rem;
 }
-.acc-charts .acc-chart { flex: 1 1 20rem; margin: 0; }
+/* min-inline-size:0 overrides a flex item's default min-width:auto - without
+   it, a wide-content descendant (local-finance's grouped chart, scrollable
+   via its own overflow-x:auto) refuses to let THIS figure shrink below that
+   content's natural width, and the overflow escapes to the page instead of
+   staying contained in the descendant's own scrollbar. */
+.acc-charts .acc-chart { flex: 1 1 20rem; margin: 0; min-inline-size: 0; }
 
 .acc-chart { margin: 0 0 1.25rem; }
 /* The "all accidents" chart is the neutral-magnitude twin of the red "killed"
@@ -392,50 +397,54 @@ button.stat { cursor: pointer; }
 .acc-hbar-compare .acc-hbar-fill { background: color-mix(in srgb, var(--accent) 55%, var(--bg) 45%); }
 .acc-hbar-compare .acc-hbar-y { color: color-mix(in srgb, var(--muted) 80%, transparent); font-size: .78rem; }
 
-/* Two-series "behind" comparison bar (local-finance's revenue/expense per
-   year): the back series is drawn full-width and UNDER the front one, so its
-   edges show on both sides of the narrower front bar regardless of how their
-   heights compare - width, not height, is what keeps a same-height pair from
-   hiding one series behind the other. The front bar's own surface-colored
-   ring is the "2px gap on an overlapping mark" rule - it keeps that bar's
-   silhouette crisp against the back one even when the two are nearly flush. */
-/* Grid, not the base track's flex: a shared single cell is an unambiguous,
-   guaranteed overlap - stacking via position:absolute inside a flex parent
-   turned out to depend on exactly how much extra space flex-grow handed that
-   parent, and rendered as side-by-side more often than not. */
-.acc-bar-track.acc-bar-track-combo { display: grid; grid-template-columns: 100%; justify-items: center; }
-.acc-bar-fill.acc-bar-back, .acc-bar-fill.acc-bar-front { grid-area: 1 / 1; align-self: end; }
-.acc-bar-fill.acc-bar-back { z-index: 1; }
-.acc-bar-fill.acc-bar-front {
-  z-index: 3;
-  max-inline-size: 1.7rem;
-  box-shadow: 0 0 0 2px var(--bg);
+/* Grouped bar chart with a gridlined y-axis (local-finance's revenue/
+   expense, per-resident and liabilities charts) - see renderGroupedChart().
+   Side-by-side bars on a shared axis, not layered/overlapping ones: a value
+   can be read straight off the chart instead of needing the table
+   underneath. Color encodes which CITY a bar belongs to (--accent vs.
+   --fin-compare), identical across all three charts; which SERIES it is
+   (front/back, e.g. income/expense) is carried by position within its
+   city's pair plus a lighter tint, not a second hue - see the legend this
+   renders. */
+/* Every column (the axis, and each year/gap group) stacks in NORMAL FLOW:
+   an optional pct-label row, then a zone fixed at exactly FIN_PLOT_PX tall
+   (never a percentage or flex-stretch height - this site sets
+   box-sizing:border-box globally, so a percentage height combined with any
+   ancestor padding silently shrinks below what JS computed bar heights
+   against, throwing gridlines and bars out of alignment), then a year-
+   label row. As long as every column's pct-label row is the same height
+   (all share the .fin-chart-pct class, real text or not), the FIN_PLOT_PX
+   zones line up across every column with no shared-ancestor height tricks
+   needed - align-items:flex-end on .fin-chart-body would otherwise still
+   be fighting the same box-sizing issue this avoids entirely. */
+.fin-chart-body { display: flex; align-items: flex-start; gap: .6rem; }
+.fin-chart-axis { flex: 0 0 auto; display: flex; flex-direction: column; text-align: end; }
+.fin-chart-axis-scale {
+  display: flex; flex-direction: column; justify-content: space-between;
+  font-size: .72rem; color: var(--muted); font-variant-numeric: tabular-nums;
 }
-.acc-chart .acc-bar-fill.acc-bar-back  { background: color-mix(in srgb, var(--accent) 55%, transparent); }
-.acc-chart .acc-bar-fill.acc-bar-front { background: #1a7f45; }
-@media (prefers-color-scheme: dark) {
-  .acc-chart .acc-bar-fill.acc-bar-front { background: #5fce8f; }
+.fin-chart-plot { flex: 1; min-inline-size: 0; overflow-x: auto; display: flex; align-items: flex-start; gap: 1.3rem; }
+.fin-chart-group { flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; }
+.fin-chart-pct {
+  display: block; block-size: 1.1rem; text-align: center; font-size: .68rem; color: var(--muted);
+  white-space: nowrap; font-variant-numeric: tabular-nums;
 }
-
-/* Optional second front/back pair: the compare authority's OWN two series,
-   in pale tints of the same two hues (see renderComboChart) - a light wash
-   toward the page background, not a gray mix, so "which series" (hue) still
-   reads the same way for both authorities while "which city" (solid vs.
-   pale) stays unmistakable even at a glance, not just on close inspection.
-   Four concentric widths, each layer 2px+ narrower than the one behind it
-   (compare-back > main-back > compare-front > main-front), keep every bar's
-   edges visible regardless of height, same "width carries visibility" logic
-   the original two-bar version relied on - z-index climbs alongside as each
-   layer narrows, so the narrowest (the main authority's own revenue) always
-   draws fully on top. */
-.acc-bar-fill.acc-bar-compare-back {
-  grid-area: 1 / 1; align-self: end; z-index: 0; max-inline-size: 3.4rem;
-  background: color-mix(in srgb, var(--accent) 55%, var(--bg) 45%);
+.fin-chart-bars-wrap {
+  display: flex; align-items: flex-end; gap: .5rem; /* between the main/compare sub-groups within one year - see .fin-chart-plot for the larger between-YEAR gap */
+  background-image: linear-gradient(to top, var(--border) 0 1px, transparent 1px 100%);
+  background-repeat: repeat-y; background-position: bottom;
 }
-.acc-bar-fill.acc-bar-compare-front {
-  grid-area: 1 / 1; align-self: end; z-index: 2; max-inline-size: 2.3rem;
-  background: color-mix(in srgb, #1a7f45 55%, var(--bg) 45%);
-}
+.fin-chart-bars { display: flex; align-items: flex-end; gap: 3px; }
+.fin-chart-bar { inline-size: 14px; border-radius: 3px 3px 0 0; background: var(--accent); }
+.fin-chart-bar-light { background: color-mix(in srgb, var(--accent) 45%, var(--bg) 55%); }
+.fin-chart-bar-compare { background: var(--fin-compare); }
+.fin-chart-bar-compare.fin-chart-bar-light { background: color-mix(in srgb, var(--fin-compare) 45%, var(--bg) 55%); }
+.fin-chart-y { margin-block-start: .4rem; font-size: .74rem; color: var(--muted); white-space: nowrap; }
+/* A run of missing years (e.g. 2020-2021) between two real ones - a dashed
+   box instead of just skipping straight from 2019 to 2022, so a reader
+   scanning the x-axis doesn't read the two surviving years as adjacent. */
+.fin-chart-gap-box { border-inline: 1px dashed var(--border); }
+.fin-chart-gap-label { text-align: center; line-height: 1.3; white-space: normal; max-inline-size: 5rem; }
 
 /* Legend for the two-series chart above - color meaning is never carried by
    hue alone elsewhere on the site either (see .badge), so this pairs a swatch
@@ -1091,9 +1100,15 @@ body.finance-page {
      vocabulary rather than inventing a third color pairing. */
   --fin-ok: #1a7f45;
   --fin-bad: var(--danger);
+  /* The compare authority's identity color, used identically everywhere it
+     appears (grouped-bar charts, table city-swatch column) - a hue clearly
+     distinct from --accent (gold/main), --fin-ok/--fin-bad (surplus/deficit)
+     and --danger, so "which city" never gets confused with "which series"
+     or "good/bad". */
+  --fin-compare: #2f6f9e;
 }
 @media (prefers-color-scheme: dark) {
-  body.finance-page { --accent: #e0b93a; --fin-ok: #5fce8f; }
+  body.finance-page { --accent: #e0b93a; --fin-ok: #5fce8f; --fin-compare: #6fa8d6; }
 }
 
 /* companies.html: light yellow, deliberately a cooler lemon/olive tone
@@ -1165,7 +1180,7 @@ body.accidents-page header.site h1 { inline-size: 100%; }
   <header class="site">
     <div class="wrap">
       <h1>מאגר החברות</h1>
-      <span class="site-by">פרויקט של רם אגמון<span class="site-disclaimer">המידע באתר עלול להיות שגוי</span></span>
+      <span class="site-by">פרויקט של רם אגמון<span class="site-disclaimer">המידע באתר עלול להיות שגוי</span><a href="https://hod-hasharon.org/" target="_blank" rel="noopener">הירוקים הוד השרון</a></span>
       <div class="theme-pick" id="themePick" role="group" aria-label="ערכת נושא">
         <button type="button" data-theme="clouds">עננים</button>
         <button type="button" data-theme="fashion">אופנה</button>

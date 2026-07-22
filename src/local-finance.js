@@ -352,15 +352,72 @@ async function fetchAuthorityYearly(authority) {
  *  assumed to line up positionally with `points` - the compare authority can
  *  easily have data for a different subset of the 9 years (a city vs. a
  *  council-only year, for instance). */
-/** `compare` (optional): { name, points: [{year, revenue, expense}] } - the
- *  compare authority's OWN two series, not a single flattened number, drawn
- *  as a second front/back pair in grayed-out versions of the same two colors
- *  so "which series" reads the same way for both authorities, with only
- *  saturation telling main from compare apart. Four concentric widths (widest
- *  to narrowest: compare-back, main-back, compare-front, main-front) keep
- *  every one of the four bars' edges visible regardless of height, same
- *  "width carries visibility" rule the original two-bar version relied on. */
-function renderComboChart(figId, caption, points, unit, labels = { front: 'הכנסות', back: 'הוצאות' }, compare = null) {
+const FIN_PLOT_PX = 200; // shared by bar heights, gridline spacing and axis labels - must stay one constant so all three line up
+
+/** Rounds a peak value up to a "nice" axis maximum (1/2/2.5/5 x 10^n steps),
+ *  the standard chart-axis algorithm - a gridline at 683,417 would tell a
+ *  reader nothing an unlabeled bar didn't already; a gridline at 700,000
+ *  does. `targetSteps` is a target, not a guarantee - the actual count is
+ *  whatever full steps fit under the rounded max. */
+function niceAxisStep(max, targetSteps = 5) {
+  if (!max || max <= 0) return { step: 1, steps: 1, axisMax: 1 };
+  const roughStep = max / targetSteps;
+  const magnitude = 10 ** Math.floor(Math.log10(roughStep));
+  const residual = roughStep / magnitude;
+  const niceResidual = residual <= 1 ? 1 : residual <= 2 ? 2 : residual <= 2.5 ? 2.5 : residual <= 5 ? 5 : 10;
+  const step = niceResidual * magnitude;
+  const steps = Math.ceil(max / step);
+  return { step, steps, axisMax: step * steps };
+}
+
+/** Splits the main authority's own year coverage into real years and gap
+ *  runs (e.g. 2020-2021, missing because Hod Hasharon isn't in those two
+ *  years' councils-only source) - a gap INSIDE the covered span (between
+ *  the earliest and latest year with data) gets its own dashed slot on the
+ *  chart; years outside that span (a city not covered before/after) are
+ *  simply not shown at all, same as before - there's no "gap" to mark at
+ *  the edge of what the chart covers in the first place. */
+function buildYearSlots(points) {
+  const years = points.map((p) => p.year);
+  const minYear = Math.min(...years);
+  const maxYear = Math.max(...years);
+  const present = new Set(years);
+  const slots = [];
+  let gapFrom = null;
+  for (let y = minYear; y <= maxYear; y++) {
+    if (present.has(y)) {
+      if (gapFrom != null) { slots.push({ type: 'gap', from: gapFrom, to: y - 1 }); gapFrom = null; }
+      slots.push({ type: 'year', year: y });
+    } else if (gapFrom == null) {
+      gapFrom = y;
+    }
+  }
+  return slots;
+}
+
+/** Grouped (not overlapping) bar chart with a gridlined y-axis, replacing
+ *  the earlier layered/telescoping-bar version - a reader can now read an
+ *  exact-ish value straight off a single bar instead of needing the table
+ *  underneath. `compare` (optional): { name, points: [{year, revenue,
+ *  expense}] } - the compare authority's own two series, drawn as a second,
+ *  distinctly-colored bar group right next to the main authority's for the
+ *  same year.
+ *
+ *  Color encodes CITY, not series: the main authority is always --accent,
+ *  the compare authority always --fin-compare, identical across all three
+ *  finance charts on this page (revenue/expense, per-resident, liabilities)
+ *  - a color's meaning here doesn't need re-checking chart to chart. Which
+ *  of the two series a bar is (`labels.front` vs `labels.back`) is carried
+ *  by POSITION (front's bar always comes first in its city's pair) and a
+ *  lighter tint of that same city's color, not a second hue - see the
+ *  legend this renders, which states the position rule once per chart.
+ *
+ *  When `compare` is set, each year gets a small "X% מ-<city>" label above
+ *  its bars - the main authority's total (front+back) as a percentage of
+ *  the compare authority's same total - so the comparison answers "closer
+ *  to or further from the other city than last year", not just "which
+ *  city is bigger" from two overlapping bars of very different height. */
+function renderGroupedChart(figId, caption, points, unit, labels = { front: 'הכנסות', back: 'הוצאות' }, compare = null) {
   const fig = el(figId);
   if (!points.length) { fig.innerHTML = `<figcaption>${esc(caption)}</figcaption><p class="acc-hint">אין נתונים להצגה.</p>`; return; }
   const compareByYear = new Map((compare?.points || []).map((p) => [p.year, p]));
@@ -368,35 +425,71 @@ function renderComboChart(figId, caption, points, unit, labels = { front: 'הכ�
     ...points.flatMap((p) => [p.revenue, p.expense]),
     ...[...compareByYear.values()].flatMap((p) => [p.revenue, p.expense]),
   );
-  const bars = points.map((p) => {
-    const revH = peak ? Math.round((p.revenue / peak) * 150) : 0;
-    const expH = peak ? Math.round((p.expense / peak) * 150) : 0;
-    const cmp = compareByYear.get(p.year);
-    const cmpRevH = cmp && peak ? Math.round((cmp.revenue / peak) * 150) : 0;
-    const cmpExpH = cmp && peak ? Math.round((cmp.expense / peak) * 150) : 0;
-    const cmpTitle = cmp ? `, ${esc(compare.name)} — ${esc(labels.front)}: ${num(cmp.revenue)} ${esc(unit)}, ${esc(labels.back)}: ${num(cmp.expense)} ${esc(unit)}` : '';
+  const { steps, axisMax } = niceAxisStep(peak);
+  const byYear = new Map(points.map((p) => [p.year, p]));
+  const slots = buildYearSlots(points);
+
+  const barH = (v) => (axisMax ? Math.round((v / axisMax) * FIN_PLOT_PX) : 0);
+  const cityBars = (p, mainCity) => `
+    <div class="fin-chart-bars">
+      <div class="fin-chart-bar${mainCity ? '' : ' fin-chart-bar-compare'}" style="block-size:${barH(p.revenue)}px"></div>
+      <div class="fin-chart-bar fin-chart-bar-light${mainCity ? '' : ' fin-chart-bar-compare'}" style="block-size:${barH(p.expense)}px"></div>
+    </div>`;
+
+  // Every group stacks in normal flow - an optional pct label, then a
+  // bars-wrap fixed at EXACTLY FIN_PLOT_PX (never a percentage/flex-fill
+  // height, which under this site's global box-sizing:border-box would
+  // silently shrink by whatever padding sits on an ancestor, throwing off
+  // every height computed against FIN_PLOT_PX elsewhere), then the year
+  // label - so the pct label always sits directly above whatever that
+  // year's tallest bar happens to be, with no separate pixel math to keep
+  // in sync, and every bars-wrap's own 0-line lines up with every other
+  // group's without relying on shared ancestor height tricks.
+  const groups = slots.map((slot) => {
+    if (slot.type === 'gap') {
+      const label = slot.from === slot.to ? String(slot.from) : `${slot.from}-${slot.to}`;
+      return `
+        <div class="fin-chart-group" title="אין נתונים לשנים ${esc(label)}">
+          <div class="fin-chart-gap-box" style="block-size:${FIN_PLOT_PX}px"></div>
+          <span class="fin-chart-y fin-chart-gap-label">${esc(label)}<br>אין נתונים</span>
+        </div>`;
+    }
+    const p = byYear.get(slot.year);
+    const cmp = compareByYear.get(slot.year);
+    const mainTotal = p.revenue + p.expense;
+    const cmpTotal = cmp ? cmp.revenue + cmp.expense : null;
+    const pct = cmp && cmpTotal ? Math.round((mainTotal / cmpTotal) * 100) : null;
+    const title = `${slot.year} — ${esc(state.authority)}: ${esc(labels.front)} ${num(p.revenue)}, ${esc(labels.back)} ${num(p.expense)} ${esc(unit)}`
+      + (cmp ? `; ${esc(compare.name)}: ${esc(labels.front)} ${num(cmp.revenue)}, ${esc(labels.back)} ${num(cmp.expense)} ${esc(unit)}` : '');
     return `
-      <div class="acc-bar" title="${esc(String(p.year))} — ${esc(labels.front)}: ${num(p.revenue)} ${esc(unit)}, ${esc(labels.back)}: ${num(p.expense)} ${esc(unit)}${cmpTitle}">
-        <div class="acc-bar-track acc-bar-track-combo">
-          ${cmp ? `<div class="acc-bar-fill acc-bar-compare-back" style="block-size:${cmpExpH}px"></div>` : ''}
-          <div class="acc-bar-fill acc-bar-back" style="block-size:${expH}px"></div>
-          ${cmp ? `<div class="acc-bar-fill acc-bar-compare-front" style="block-size:${cmpRevH}px"></div>` : ''}
-          <div class="acc-bar-fill acc-bar-front" style="block-size:${revH}px"></div>
+      <div class="fin-chart-group" title="${title}">
+        <span class="fin-chart-pct">${pct != null ? `${pct}% מ-${esc(compare.name)}` : ''}</span>
+        <div class="fin-chart-bars-wrap" style="block-size:${FIN_PLOT_PX}px; background-size:100% ${FIN_PLOT_PX / steps}px">
+          ${cityBars(p, true)}
+          ${cmp ? cityBars(cmp, false) : ''}
         </div>
-        <span class="acc-bar-y">${esc(String(p.year))}</span>
+        <span class="fin-chart-y">${slot.year}</span>
       </div>`;
   }).join('');
+
+  const axisLabels = Array.from({ length: steps + 1 }, (_, i) => axisMax - i * (axisMax / steps))
+    .map((v) => `<span>${num(Math.round(v))}</span>`).join('');
+
   fig.className = 'acc-chart';
   fig.innerHTML = `
     <figcaption>${esc(caption)}</figcaption>
     <div class="acc-legend">
-      <span class="acc-legend-item"><span class="acc-legend-swatch" style="background:#1a7f45"></span>${esc(labels.front)}</span>
-      <span class="acc-legend-item"><span class="acc-legend-swatch" style="background:color-mix(in srgb, var(--accent) 55%, transparent)"></span>${esc(labels.back)}</span>
-      ${compare ? `
-        <span class="acc-legend-item"><span class="acc-legend-swatch" style="background:color-mix(in srgb, #1a7f45 55%, var(--bg) 45%)"></span>${esc(labels.front)} — ${esc(compare.name)}</span>
-        <span class="acc-legend-item"><span class="acc-legend-swatch" style="background:color-mix(in srgb, var(--accent) 55%, var(--bg) 45%)"></span>${esc(labels.back)} — ${esc(compare.name)}</span>` : ''}
+      <span class="acc-legend-item"><span class="acc-legend-swatch" style="background:var(--accent)"></span>${esc(state.authority)} - ${esc(labels.front)} (מלא, ראשון) / ${esc(labels.back)} (בהיר, שני)</span>
+      ${compare ? `<span class="acc-legend-item"><span class="acc-legend-swatch" style="background:var(--fin-compare)"></span>${esc(compare.name)} - אותו סדר</span>` : ''}
     </div>
-    <div class="acc-bars">${bars}</div>`;
+    <div class="fin-chart-body">
+      <div class="fin-chart-axis">
+        <span class="fin-chart-pct">&nbsp;</span>
+        <div class="fin-chart-axis-scale" style="block-size:${FIN_PLOT_PX}px">${axisLabels}</div>
+      </div>
+      <div class="fin-chart-plot">${groups}</div>
+    </div>
+    <p class="acc-hint">${esc(unit)}${compare ? ' - האחוז מעל כל שנה: הסה"כ של ' + esc(state.authority) + ' כאחוז מהסה"כ של ' + esc(compare.name) + ' אותה שנה' : ''}</p>`;
 }
 
 // The chart's own values only show on hover (the title attribute) - a plain
@@ -610,7 +703,7 @@ async function renderAuthorityCharts() {
   } else {
     const compare = hasCompare && comparePoints?.length
       ? { name: state.compareAuthority, points: comparePoints } : null;
-    renderComboChart('finChartAuthRevenue', `הכנסות והוצאות לפי שנה — ${state.authority}`, points, 'אלפי ש"ח',
+    renderGroupedChart('finChartAuthRevenue', `הכנסות והוצאות לפי שנה — ${state.authority}`, points, 'אלפי ש"ח',
       undefined, compare);
     renderAuthorityTable(points, compare, population, comparePopulation);
     // A typed compare-authority that matched nothing needs to say so - silently
@@ -638,7 +731,7 @@ async function renderAuthorityCharts() {
             year: p.year, revenue: Math.round((p.revenue * 1000) / comparePopulation), expense: Math.round((p.expense * 1000) / comparePopulation),
           })),
         } : null;
-      renderComboChart('finChartAuthPerCapita', `הכנסות והוצאות לתושב, לפי שנה — ${state.authority}`, perCapitaPoints, 'ש"ח',
+      renderGroupedChart('finChartAuthPerCapita', `הכנסות והוצאות לתושב, לפי שנה — ${state.authority}`, perCapitaPoints, 'ש"ח',
         undefined, comparePerCapita);
     } else {
       el('finChartAuthPerCapita').innerHTML = `<p class="acc-hint">לא נמצא נתון אוכלוסייה עבור "${esc(state.authority)}" במפקד ${CBS_POPULATION_YEAR}.</p>`;
@@ -659,7 +752,7 @@ async function renderAuthorityCharts() {
     const compareBalance = hasCompare && compareBalancePoints?.length
       ? { name: state.compareAuthority, points: compareBalancePoints.map((p) => ({ year: p.year, revenue: p.currentLiabilities, expense: p.liabilities })) }
       : null;
-    renderComboChart('finChartAuthLiab', `התחייבויות: סה"כ מול שוטפות — ${state.authority}`,
+    renderGroupedChart('finChartAuthLiab', `התחייבויות: סה"כ מול שוטפות — ${state.authority}`,
       balancePoints.map((p) => ({ year: p.year, revenue: p.currentLiabilities, expense: p.liabilities })),
       'אלפי ש"ח', { front: 'שוטפות', back: 'סה"כ' }, compareBalance);
     // The table's own compare columns use the compare authority's real
@@ -835,25 +928,18 @@ const AI_PROMPT_INSTRUCTIONS = `אתה מומחה בהסברת נתונים מו
 
 התייחס לנושאים כמו הוצאות על חינוך, פיתוח, היקף השטחים המניבים לעירייה, התחיבויות עתידיות וכל פרמטר אחר אשר משפיע על איכות החיים של התושבים. אם אינך יכול לבצע חלק מהבקשות, בצע את מה שאתה יכול`;
 
-/** A ready-to-paste prompt pointing an AI chat at the SAME live URL
- *  renderStatement() below fetches - no file to download/upload, since the
- *  DataStore API is a plain https GET that returns JSON, exactly the kind
- *  of URL an assistant with browsing/fetch can pull on its own. Independent
- *  of whether the fetch below actually succeeds - the URL itself is valid
- *  either way, so this runs unconditionally, not inside renderStatement's
- *  try/catch. */
+/** A ready-to-paste prompt for an AI chat, framed around the CSV file the
+ *  buttons further down this page produce - NOT a live URL for the
+ *  assistant to fetch on its own. data.gov.il's DataStore API only answers
+ *  requests from Israeli sources, so a chat service running elsewhere
+ *  (which is most of them) can't reach it directly; the reliable path is
+ *  download-then-upload, same as any other file a person hands the chat. */
 function renderAiPrompt() {
   const box = el('finAiPrompt');
   if (!state.authority) { box.value = ''; return; }
-  const cfg = YEAR_RESOURCES[state.year];
-  const filters = { שם_רשות: state.authority };
-  if (cfg.yearFilter) filters[cfg.yearFilter.field] = cfg.yearFilter.value;
-  const p = new URLSearchParams({ resource_id: cfg.resourceId, limit: '10000', filters: JSON.stringify(filters) });
   box.value = `${AI_PROMPT_INSTRUCTIONS}
 
-הנתונים הגולמיים זמינים כ-JSON בכתובת הבאה (ה-DataStore API של data.gov.il) - זהו הדוח הכספי המבוקר של הרשות המקומית "${state.authority}" לשנת ${state.year}, כפי שמפרסם משרד הפנים. כל רשומה היא סעיף אחד בדוח (שדות: גיליון/גליון, שורה, עמודה, ערך):
-
-${DATASTORE}?${p}`;
+מצורף קובץ CSV עם הדוח הכספי המבוקר של הרשות המקומית "${state.authority}" לשנת ${state.year}, כפי שמפרסם משרד הפנים (מקור: data.gov.il). כל שורה בקובץ היא סעיף אחד בדוח (עמודות: שם_רשות, שנה, גיליון, שורה, עמודה, ערך).`;
 }
 el('finAiPromptCopy').addEventListener('click', async () => {
   const btn = el('finAiPromptCopy');

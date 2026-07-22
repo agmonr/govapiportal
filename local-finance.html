@@ -19,7 +19,7 @@
   <header class="site">
     <div class="wrap">
       <h1>דוחות כספיים מבוקרים — רשויות מקומיות</h1>
-      <span class="site-by">פרויקט של רם אגמון<span class="site-disclaimer">המידע באתר עלול להיות שגוי</span></span>
+      <span class="site-by">פרויקט של רם אגמון<span class="site-disclaimer">המידע באתר עלול להיות שגוי</span><a href="https://hod-hasharon.org/" target="_blank" rel="noopener">הירוקים הוד השרון</a></span>
       <div class="theme-pick" id="themePick" role="group" aria-label="ערכת נושא">
         <button type="button" data-theme="clouds">עננים</button>
         <button type="button" data-theme="fashion">אופנה</button>
@@ -154,6 +154,19 @@
         <div id="finAreasTable"></div>
       </section>
 
+      <section class="acc-section" aria-labelledby="aiPromptH">
+        <h2 id="aiPromptH">ניתן לטעון את הנתונים ישירות אל הצ'אט החביב עליך</h2>
+        <p class="acc-hint">
+          ה-API של data.gov.il נגיש רק ממקורות בישראל, ולכן רוב שירותי ה-AI (שרצים מחוץ לישראל) לא
+          מצליחים לשלוף ממנו ישירות. הדרך שעובדת: הורידו את קובץ ה-CSV (בכפתורים בהמשך העמוד)
+          והעלו אותו לצ'אט, יחד עם הפרומפט הבא - מוכן להעתקה, עבור הרשות והשנה המוצגות כרגע:
+        </p>
+        <div class="cm-script-wrap">
+          <textarea id="finAiPrompt" class="cm-script" readonly rows="6" dir="auto" spellcheck="false"></textarea>
+          <button type="button" id="finAiPromptCopy" class="drill-dl">העתקת הפרומפט ⧉</button>
+        </div>
+      </section>
+
       <section class="acc-section" aria-labelledby="statementH">
         <h2 id="statementH">דוח כספי מפורט לרשות שנבחרה</h2>
         <div class="fin-export-row">
@@ -174,19 +187,6 @@
           לרשימה המלאה.
         </p>
         <div id="finStatement"></div>
-      </section>
-
-      <section class="acc-section" aria-labelledby="aiPromptH">
-        <h2 id="aiPromptH">ניתן לטעון את הנתונים ישירות אל הצ'אט החביב עליך</h2>
-        <p class="acc-hint">
-          ה-API של data.gov.il הוא כתובת <code dir="ltr">https</code> רגילה שמחזירה JSON - עוזרי
-          AI עם יכולת גלישה/שליפת כתובות (כמו Claude או ChatGPT) יכולים לפנות אליה ישירות, בלי
-          להוריד ולהעלות שום קובץ. הצעה לפרומפט, מוכנה להעתקה, עבור הרשות והשנה המוצגות כרגע:
-        </p>
-        <div class="cm-script-wrap">
-          <textarea id="finAiPrompt" class="cm-script" readonly rows="6" dir="auto" spellcheck="false"></textarea>
-          <button type="button" id="finAiPromptCopy" class="drill-dl">העתקת הפרומפט ⧉</button>
-        </div>
       </section>
     </div>
   </main>
