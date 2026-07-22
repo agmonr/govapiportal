@@ -978,6 +978,19 @@ a:focus-visible, button:focus-visible {
   .card, .portal, .stat { padding: .85rem 1rem; }
   .wrap { padding-block: 1.5rem 4.5rem; }
 
+  /* Grouped charts (local-finance.html's revenue/per-capita/liabilities,
+     welfare.html's payments/recipients) need up to ~520px of bar-group width
+     with a compare authority set - fine on desktop, wider than most phone
+     screens. Bar height already shrinks in charts.js itself (inline styles,
+     not reachable from CSS); this half is the width side of the same fix -
+     narrower bars and tighter gaps so a full compare-mode chart has a real
+     chance of fitting without .fin-chart-plot's own overflow-x:auto kicking
+     in and silently scrolling part of it out of view. */
+  .fin-chart-bar { inline-size: 9px; }
+  .fin-chart-bars { gap: 2px; }
+  .fin-chart-bars-wrap { gap: .3rem; }
+  .fin-chart-plot { gap: .8rem; }
+
   /* The one button on the page meant to be found without scrolling first -
      filled rather than outlined, so it reads as the next step rather than
      one option among the portal cards above it. */
@@ -1028,23 +1041,45 @@ a:focus-visible, button:focus-visible {
   letter-spacing: .03em;
 }
 
-[data-theme="fashion"] header.site {
-  background: radial-gradient(120% 140% at 20% 0%, color-mix(in srgb, var(--accent) 10%, var(--surface)), var(--bg) 65%);
-  border-block-end: 1px solid var(--border);
-  box-shadow: 0 1px 0 color-mix(in srgb, var(--accent) 25%, transparent);
+/* Flat, high-contrast header per request - replaces the shine/gradient-text
+   look above and the striped background this theme inherited from
+   body.accidents-page/committees-page/etc by default. That page-specific
+   striped rule is (0,2,2) specificity (body+class+header+class); the plain
+   [data-theme="fashion"] header.site selector alone is only (0,2,1) and
+   would silently lose to it, so the second selector below repeats
+   body.accidents-page explicitly to win outright rather than relying on
+   source order. Same reasoning applies to h1 - text-decoration/background/
+   animation are reset with real values, not just omitted, since the
+   earlier rule already set them and CSS cascade doesn't "un-set" on its own. */
+[data-theme="fashion"] header.site,
+[data-theme="fashion"] body.accidents-page header.site {
+  background: #1e1e1e;
+  background-image: none;
+  border-block-end: 1px solid #333333;
+  box-shadow: none;
 }
 [data-theme="fashion"] header.site h1 {
-  text-transform: uppercase;
-  letter-spacing: .16em;
-  background: linear-gradient(100deg, var(--accent) 0%, #fff6dc 22%, var(--accent) 45%, var(--muted) 65%, var(--accent) 85%);
-  background-size: 250% auto;
-  background-clip: text;
-  -webkit-background-clip: text;
-  color: transparent;
-  -webkit-text-fill-color: transparent;
-  animation: fh-shine 7s ease-in-out infinite;
+  text-transform: none;
+  letter-spacing: normal;
+  background: none;
+  background-clip: initial;
+  -webkit-background-clip: initial;
+  color: #ffffff;
+  -webkit-text-fill-color: initial;
+  animation: none;
+  font-size: 1.8rem;
+  font-weight: 700;
 }
 [data-theme="fashion"] header.site a { text-transform: uppercase; font-size: .72rem; letter-spacing: .08em; }
+[data-theme="fashion"] header.site .site-by { color: #ffd54f; font-size: 1.1rem; }
+[data-theme="fashion"] .meta { color: #b0bec5; }
+[data-theme="fashion"] .theme-pick button {
+  background: #333333;
+  color: #ffffff;
+  border: 1px solid #555555;
+  border-radius: 16px;
+  padding: 4px 12px;
+}
 
 [data-theme="fashion"] .section {
   display: flex; align-items: center; gap: .7rem;
@@ -1053,20 +1088,27 @@ a:focus-visible, button:focus-visible {
 }
 [data-theme="fashion"] .section::after { content: ''; flex: 1; block-size: 1px; background: var(--border); }
 
-@keyframes fh-shine {
-  0%, 100% { background-position: 220% 0; }
-  50%      { background-position: -60% 0; }
-}
-
 /* Hairline borders + a soft gold lift on the surfaces that matter - cards,
    portals, stat tiles, the explorer panel. Status colour on the leading
    edge (.card.api, .stat, tr.row) is left alone: it's the one thing on the
    page carrying meaning, not decoration. */
-[data-theme="fashion"] .card, [data-theme="fashion"] .portal, [data-theme="fashion"] .stat,
+[data-theme="fashion"] .card, [data-theme="fashion"] .portal,
 [data-theme="fashion"] .ckan, [data-theme="fashion"] .explorer, [data-theme="fashion"] .drill,
 [data-theme="fashion"] .matrix-wrap, [data-theme="fashion"] .ck-card {
   background: linear-gradient(180deg, var(--surface), var(--bg));
   border-color: var(--border);
+}
+/* .stat gets its own flat panel per request, instead of the gradient lift
+   every other surface above gets - deliberately placed AFTER that shared
+   rule (same [data-theme="fashion"] .x specificity throughout this file,
+   so source order is the tiebreak) rather than relying on being edited
+   in place, since a future edit to the shared rule shouldn't silently
+   swallow this one back. */
+[data-theme="fashion"] .stat {
+  background: #242424;
+  border-color: #383838;
+  border-radius: 8px;
+  color: #ffffff;
 }
 [data-theme="fashion"] .portal:hover, [data-theme="fashion"] .ck-card:hover {
   border-color: var(--accent);
@@ -1763,7 +1805,15 @@ const CITY_COLOR_MAIN = 'var(--accent)';
 const CITY_COLOR_COMPARE = 'color-mix(in srgb, var(--accent) 55%, var(--bg) 45%)';
 const citySwatchCell = (name, color) => `<td><span class="acc-legend-swatch" style="background:${color}"></span>${esc(name)}</td>`;
 
-const FIN_PLOT_PX = 200; // shared by bar heights, gridline spacing and axis labels - must stay one constant so all three line up
+const FIN_PLOT_PX_DESKTOP = 200;
+const FIN_PLOT_PX_MOBILE = 130; // shorter too, not just narrower - "smaller" on mobile means both axes, not just fitting the width
+/** Checked once per render, same convention as index.html's own
+ *  matchMedia('(max-width: 640px)') check for the "#more" section - not a
+ *  live-updating listener, so a mid-session resize/rotation only takes
+ *  effect on the NEXT re-render (a new authority/year/compare pick), not
+ *  instantly. Consistent with the rest of this site rather than a special
+ *  case for charts. */
+const plotPx = () => (window.matchMedia('(max-width: 640px)').matches ? FIN_PLOT_PX_MOBILE : FIN_PLOT_PX_DESKTOP);
 
 /** Rounds a peak value up to a "nice" axis maximum (1/2/2.5/5 x 10^n steps) -
  *  a gridline at 683,417 would tell a reader nothing an unlabeled bar didn't
@@ -1839,8 +1889,9 @@ function renderGroupedChart(figId, caption, points, unit, mainName, labels = { f
   const { steps, axisMax } = niceAxisStep(peak);
   const byYear = new Map(points.map((p) => [p.year, p]));
   const slots = buildYearSlots(points);
+  const plotHeight = plotPx();
 
-  const barH = (v) => (axisMax ? Math.round((v / axisMax) * FIN_PLOT_PX) : 0);
+  const barH = (v) => (axisMax ? Math.round((v / axisMax) * plotHeight) : 0);
   const cityBars = (p, mainEntity) => `
     <div class="fin-chart-bars">
       <div class="fin-chart-bar${mainEntity ? '' : ' fin-chart-bar-compare'}" style="block-size:${barH(p.revenue)}px"></div>
@@ -1852,7 +1903,7 @@ function renderGroupedChart(figId, caption, points, unit, mainName, labels = { f
       const label = slot.from === slot.to ? String(slot.from) : `${slot.from}-${slot.to}`;
       return `
         <div class="fin-chart-group" title="אין נתונים לשנים ${esc(label)}">
-          <div class="fin-chart-gap-box" style="block-size:${FIN_PLOT_PX}px"></div>
+          <div class="fin-chart-gap-box" style="block-size:${plotHeight}px"></div>
           <span class="fin-chart-y fin-chart-gap-label">${esc(label)}<br>אין נתונים</span>
         </div>`;
     }
@@ -1871,7 +1922,7 @@ function renderGroupedChart(figId, caption, points, unit, mainName, labels = { f
     return `
       <div class="fin-chart-group" title="${title}">
         <span class="fin-chart-pct">${pct != null ? `${pct}% מ-${esc(compare.name)}` : ''}</span>
-        <div class="fin-chart-bars-wrap" style="block-size:${FIN_PLOT_PX}px; background-size:100% ${FIN_PLOT_PX / steps}px">
+        <div class="fin-chart-bars-wrap" style="block-size:${plotHeight}px; background-size:100% ${plotHeight / steps}px">
           ${cityBars(p, true)}
           ${cmp ? cityBars(cmp, false) : ''}
         </div>
@@ -1892,7 +1943,7 @@ function renderGroupedChart(figId, caption, points, unit, mainName, labels = { f
     <div class="fin-chart-body">
       <div class="fin-chart-axis">
         <span class="fin-chart-pct">&nbsp;</span>
-        <div class="fin-chart-axis-scale" style="block-size:${FIN_PLOT_PX}px">${axisLabels}</div>
+        <div class="fin-chart-axis-scale" style="block-size:${plotHeight}px">${axisLabels}</div>
       </div>
       <div class="fin-chart-plot">${groups}</div>
     </div>

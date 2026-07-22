@@ -89,7 +89,15 @@ export const CITY_COLOR_MAIN = 'var(--accent)';
 export const CITY_COLOR_COMPARE = 'color-mix(in srgb, var(--accent) 55%, var(--bg) 45%)';
 export const citySwatchCell = (name, color) => `<td><span class="acc-legend-swatch" style="background:${color}"></span>${esc(name)}</td>`;
 
-const FIN_PLOT_PX = 200; // shared by bar heights, gridline spacing and axis labels - must stay one constant so all three line up
+const FIN_PLOT_PX_DESKTOP = 200;
+const FIN_PLOT_PX_MOBILE = 130; // shorter too, not just narrower - "smaller" on mobile means both axes, not just fitting the width
+/** Checked once per render, same convention as index.html's own
+ *  matchMedia('(max-width: 640px)') check for the "#more" section - not a
+ *  live-updating listener, so a mid-session resize/rotation only takes
+ *  effect on the NEXT re-render (a new authority/year/compare pick), not
+ *  instantly. Consistent with the rest of this site rather than a special
+ *  case for charts. */
+const plotPx = () => (window.matchMedia('(max-width: 640px)').matches ? FIN_PLOT_PX_MOBILE : FIN_PLOT_PX_DESKTOP);
 
 /** Rounds a peak value up to a "nice" axis maximum (1/2/2.5/5 x 10^n steps) -
  *  a gridline at 683,417 would tell a reader nothing an unlabeled bar didn't
@@ -165,8 +173,9 @@ export function renderGroupedChart(figId, caption, points, unit, mainName, label
   const { steps, axisMax } = niceAxisStep(peak);
   const byYear = new Map(points.map((p) => [p.year, p]));
   const slots = buildYearSlots(points);
+  const plotHeight = plotPx();
 
-  const barH = (v) => (axisMax ? Math.round((v / axisMax) * FIN_PLOT_PX) : 0);
+  const barH = (v) => (axisMax ? Math.round((v / axisMax) * plotHeight) : 0);
   const cityBars = (p, mainEntity) => `
     <div class="fin-chart-bars">
       <div class="fin-chart-bar${mainEntity ? '' : ' fin-chart-bar-compare'}" style="block-size:${barH(p.revenue)}px"></div>
@@ -178,7 +187,7 @@ export function renderGroupedChart(figId, caption, points, unit, mainName, label
       const label = slot.from === slot.to ? String(slot.from) : `${slot.from}-${slot.to}`;
       return `
         <div class="fin-chart-group" title="אין נתונים לשנים ${esc(label)}">
-          <div class="fin-chart-gap-box" style="block-size:${FIN_PLOT_PX}px"></div>
+          <div class="fin-chart-gap-box" style="block-size:${plotHeight}px"></div>
           <span class="fin-chart-y fin-chart-gap-label">${esc(label)}<br>אין נתונים</span>
         </div>`;
     }
@@ -197,7 +206,7 @@ export function renderGroupedChart(figId, caption, points, unit, mainName, label
     return `
       <div class="fin-chart-group" title="${title}">
         <span class="fin-chart-pct">${pct != null ? `${pct}% מ-${esc(compare.name)}` : ''}</span>
-        <div class="fin-chart-bars-wrap" style="block-size:${FIN_PLOT_PX}px; background-size:100% ${FIN_PLOT_PX / steps}px">
+        <div class="fin-chart-bars-wrap" style="block-size:${plotHeight}px; background-size:100% ${plotHeight / steps}px">
           ${cityBars(p, true)}
           ${cmp ? cityBars(cmp, false) : ''}
         </div>
@@ -218,7 +227,7 @@ export function renderGroupedChart(figId, caption, points, unit, mainName, label
     <div class="fin-chart-body">
       <div class="fin-chart-axis">
         <span class="fin-chart-pct">&nbsp;</span>
-        <div class="fin-chart-axis-scale" style="block-size:${FIN_PLOT_PX}px">${axisLabels}</div>
+        <div class="fin-chart-axis-scale" style="block-size:${plotHeight}px">${axisLabels}</div>
       </div>
       <div class="fin-chart-plot">${groups}</div>
     </div>
