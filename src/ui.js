@@ -6,7 +6,11 @@ export const el = (id) => document.getElementById(id);
    bundle.py flattens all sources into a single scope - a second `const num`
    anywhere would be a redeclaration, not a shadow. */
 
-export const num = (v) => (v == null ? '—' : Number(v).toLocaleString('he-IL'));
+// maximumFractionDigits: 0 - every figure shown via this helper rounds to a
+// whole number site-wide (revenue in thousands, area in sqm, rates per m²,
+// etc.) - a fractional digit never carries enough meaning here to be worth
+// the visual noise, consistently, not just for one table.
+export const num = (v) => (v == null ? '—' : Number(v).toLocaleString('he-IL', { maximumFractionDigits: 0 }));
 
 /** Bytes -> a size someone can judge a download by. */
 export function bytes(n) {

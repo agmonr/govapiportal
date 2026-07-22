@@ -386,6 +386,11 @@ button.stat { cursor: pointer; }
 .acc-hbar-track { flex: 1; block-size: 1.1rem; background: var(--surface); border-radius: 4px; overflow: hidden; }
 .acc-hbar-fill { block-size: 100%; border-radius: 4px; background: var(--accent); }
 .acc-hbar-v { flex: 0 0 auto; font-size: .82rem; font-weight: 600; font-variant-numeric: tabular-nums; min-inline-size: 4.5rem; }
+/* A compare authority's own row in the same leaderboard (see
+   renderHBarChart's `compare` entry flag) - the same pale tint used for a
+   compare authority's bars everywhere else on this page. */
+.acc-hbar-compare .acc-hbar-fill { background: color-mix(in srgb, var(--accent) 55%, var(--bg) 45%); }
+.acc-hbar-compare .acc-hbar-y { color: color-mix(in srgb, var(--muted) 80%, transparent); font-size: .78rem; }
 
 /* Two-series "behind" comparison bar (local-finance's revenue/expense per
    year): the back series is drawn full-width and UNDER the front one, so its
@@ -413,21 +418,23 @@ button.stat { cursor: pointer; }
 }
 
 /* Optional second front/back pair: the compare authority's OWN two series,
-   in grayed-out versions of the same two colors (see renderComboChart) so
-   "which series" reads the same way for both authorities - only saturation
-   tells main from compare apart. Four concentric widths, each layer 2px+
-   narrower than the one behind it (compare-back > main-back > compare-front
-   > main-front), keep every bar's edges visible regardless of height, same
-   "width carries visibility" logic the original two-bar version relied on -
-   z-index climbs alongside as each layer narrows, so the narrowest (the
-   main authority's own revenue) always draws fully on top. */
+   in pale tints of the same two hues (see renderComboChart) - a light wash
+   toward the page background, not a gray mix, so "which series" (hue) still
+   reads the same way for both authorities while "which city" (solid vs.
+   pale) stays unmistakable even at a glance, not just on close inspection.
+   Four concentric widths, each layer 2px+ narrower than the one behind it
+   (compare-back > main-back > compare-front > main-front), keep every bar's
+   edges visible regardless of height, same "width carries visibility" logic
+   the original two-bar version relied on - z-index climbs alongside as each
+   layer narrows, so the narrowest (the main authority's own revenue) always
+   draws fully on top. */
 .acc-bar-fill.acc-bar-compare-back {
   grid-area: 1 / 1; align-self: end; z-index: 0; max-inline-size: 3.4rem;
-  background: color-mix(in srgb, var(--accent) 40%, var(--muted) 60%);
+  background: color-mix(in srgb, var(--accent) 55%, var(--bg) 45%);
 }
 .acc-bar-fill.acc-bar-compare-front {
   grid-area: 1 / 1; align-self: end; z-index: 2; max-inline-size: 2.3rem;
-  background: color-mix(in srgb, #1a7f45 40%, var(--muted) 60%);
+  background: color-mix(in srgb, #1a7f45 55%, var(--bg) 45%);
 }
 
 /* Legend for the two-series chart above - color meaning is never carried by
@@ -470,6 +477,16 @@ button.stat { cursor: pointer; }
   border-block: 1px solid var(--border);
 }
 .grp-sub { font-weight: 400; color: var(--muted); font-size: .75rem; }
+
+/* A compare authority's row, directly beneath the main authority's row for
+   the same year (see renderAuthorityTable et al.) - a clearly visible tint
+   plus muted text, closed off by a bottom border so each year's two-row
+   group reads as one unit rather than bleeding into the next year's. */
+.matrix tr.fin-row-compare {
+  background: color-mix(in srgb, var(--muted) 16%, transparent);
+  color: var(--muted);
+  border-block-end: 1px solid var(--border);
+}
 
 .matrix tr.row { cursor: pointer; border-block-end: 1px solid var(--border); }
 .matrix tr.row:hover, .matrix tr.row:focus-visible { background: var(--surface); outline: none; }
@@ -1213,7 +1230,11 @@ const el = (id) => document.getElementById(id);
    bundle.py flattens all sources into a single scope - a second `const num`
    anywhere would be a redeclaration, not a shadow. */
 
-const num = (v) => (v == null ? '—' : Number(v).toLocaleString('he-IL'));
+// maximumFractionDigits: 0 - every figure shown via this helper rounds to a
+// whole number site-wide (revenue in thousands, area in sqm, rates per m²,
+// etc.) - a fractional digit never carries enough meaning here to be worth
+// the visual noise, consistently, not just for one table.
+const num = (v) => (v == null ? '—' : Number(v).toLocaleString('he-IL', { maximumFractionDigits: 0 }));
 
 /** Bytes -> a size someone can judge a download by. */
 function bytes(n) {

@@ -94,19 +94,6 @@ export const form2RowsFor = (year) => (YEAR_RESOURCES[year].hasSummary
   ? FORM2_ROWS_BY_ERA.current : FORM2_ROWS_BY_ERA.legacy);
 
 /**
- * Average residential ארנונה per square meter - one row in the same
- * "דוח לתושב" summary sheet as SUMMARY_ROWS above, so it shares that sheet's
- * years-available limit (2023-2024 only - confirmed absent everywhere
- * earlier, same as the rest of that sheet). Its own column pair is
- * "שנה נוכחית"/"שנה קודמת" (plain current/previous year) - NOT
- * SUMMARY_COLUMN's "ביצוע שנה נוכחית": this is a computed ratio, not a
- * budget-vs-actual figure, so it never had budget/percent-executed columns
- * to begin with. Confirmed directly against a real row, not assumed.
- */
-export const ARNONA_ROW = 'ממוצע ארנונה למגורים למר';
-export const ARNONA_COLUMN = 'שנה נוכחית';
-
-/**
  * Form 1 (טופס 1) - the actual balance sheet, split across two sheets:
  * טופס 1 אקטיב (assets) and טופס 1 פאסיב (liabilities). Confirmed present in
  * every year this page covers, in both eras. The row text drops the
