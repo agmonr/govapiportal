@@ -461,6 +461,11 @@ button.stat { cursor: pointer; }
   text-align: center;
 }
 #finChartAuthLiab .acc-legend { justify-content: center; }
+/* The bar groups themselves - flex-start (right, in RTL) by default, same
+   as every other grouped chart, since centering the plot only reads well
+   when it isn't wide enough to need its own overflow-x:auto scroll anyway
+   (this chart's ~6 year-groups measured well under the box's own width). */
+#finChartAuthLiab .fin-chart-plot { justify-content: center; }
 #finChartAuthLiab .acc-legend-item,
 #finChartAuthLiab .fin-chart-y,
 #finChartAuthLiab .fin-chart-axis-scale span,
