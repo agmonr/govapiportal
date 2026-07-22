@@ -440,6 +440,37 @@ button.stat { cursor: pointer; }
    with a text label rather than just a colored dot. */
 .acc-legend { display: flex; gap: 1rem; font-size: .8rem; color: var(--muted); margin-block-end: .5rem; }
 .acc-legend-item { display: flex; align-items: center; gap: .35rem; }
+
+/* local-finance.html: the liabilities chart is called out as the most
+   important one on the page - a bigger, high-contrast headline and bolder
+   figures than every other chart here, plus a tinted card so it reads as a
+   destination rather than one more figure in the scroll. Scoped by this
+   chart's own #id rather than a class, since renderGroupedChart (charts.js)
+   is shared by every grouped chart on every page and must stay neutral -
+   this is a look for one specific chart, not a variant of the component. */
+#finChartAuthLiab {
+  padding: 1rem;
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--accent) 7%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border));
+}
+#finChartAuthLiab figcaption {
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: var(--fg);
+}
+#finChartAuthLiab .acc-legend-item,
+#finChartAuthLiab .fin-chart-y,
+#finChartAuthLiab .fin-chart-axis-scale span,
+#finChartAuthLiab .fin-chart-pct {
+  font-weight: 700;
+}
+#finChartAuthLiab .fin-chart-axis-scale span { color: var(--fg); }
+/* Same table-below-the-chart pattern as everywhere else on this page, just
+   bolder/larger to match the chart above it being called out. */
+#finLiabTable .matrix { font-size: 1rem; }
+#finLiabTable .matrix td { font-weight: 700; }
+#finLiabTable .matrix thead th { font-weight: 800; color: var(--fg); }
 .acc-legend-swatch { inline-size: .8rem; block-size: .8rem; border-radius: 3px; display: inline-block; }
 
 /* The table is the widest thing on the page; it scrolls, the body never does. */
