@@ -249,22 +249,29 @@ async function renderCharts(summary) {
    row in (e.g. a city in 2020/2021, a councils-only year) are skipped, not
    shown as zero - a real gap should look like a gap, not a false zero. ---------- */
 
+// All 9 years are fetched CONCURRENTLY, not one after another - each year
+// lives on its own resource_id, so there's no reason to wait for 2024 to
+// answer before asking 2023. Sequential awaiting inside this loop used to be
+// the single biggest contributor to the "טוען" wait (up to 9x one request's
+// latency, per authority); Promise.all pins it to the slowest single year
+// instead. A year failing (or an authority not covered that year) still
+// resolves to `null` rather than rejecting, so one bad year can't abort the
+// others - `.filter(Boolean)` drops those before sorting.
 async function fetchAuthorityYearly(authority) {
-  const points = []; // { year, revenue, expense }
-  for (const year of YEARS_DESC) {
+  const points = await Promise.all(YEARS_DESC.map(async (year) => {
     const cfg = YEAR_RESOURCES[year];
     const rows = form2RowsFor(year);
     const filters = { שם_רשות: authority, [cfg.sheetField]: 'טופס 2', שורה: [rows.revenue, rows.expense], עמודה: rows.column };
     if (cfg.yearFilter) filters[cfg.yearFilter.field] = cfg.yearFilter.value;
     try {
       const { records } = await dsQuery(cfg.resourceId, filters);
-      if (!records.length) continue; // authority not covered this year - a real gap, not an error
+      if (!records.length) return null; // authority not covered this year - a real gap, not an error
       const revenue = Number(records.find((r) => r['שורה'] === rows.revenue)?.['ערך']) || 0;
       const expense = Number(records.find((r) => r['שורה'] === rows.expense)?.['ערך']) || 0;
-      points.push({ year, revenue, expense });
-    } catch { /* one year failing shouldn't hide the rest */ }
-  }
-  return points.sort((a, b) => a.year - b.year); // oldest first - a trend reads left-to-right in time
+      return { year, revenue, expense };
+    } catch { return null; /* one year failing shouldn't hide the rest */ }
+  }));
+  return points.filter(Boolean).sort((a, b) => a.year - b.year); // oldest first - a trend reads left-to-right in time
 }
 
 /** Revenue (front, narrower, green) layered over expense (back, full-width,
@@ -606,30 +613,15 @@ async function renderAuthorityCharts() {
   }
 }
 
-async function fetchAuthorityArnona(authority) {
-  const points = []; // { year, value }
-  for (const year of YEARS_DESC) {
-    const cfg = YEAR_RESOURCES[year];
-    if (!cfg.hasSummary) continue; // this sheet only exists for 2023-2024
-    try {
-      const { records } = await dsQuery(cfg.resourceId, {
-        שם_רשות: authority, [cfg.sheetField]: SUMMARY_SHEET, שורה: ARNONA_ROW, עמודה: ARNONA_COLUMN,
-      });
-      if (records.length) points.push({ year, value: Number(records[0]['ערך']) || 0 });
-    } catch { /* one year failing shouldn't hide the other */ }
-  }
-  return points.sort((a, b) => a.year - b.year);
-}
-
 /** Form 1's balance-sheet totals - assets/liabilities/current-liabilities,
  *  same 9-year coverage as revenue/expense (both eras confirmed stable,
  *  just the row text's gershayim - not the column - changes). Assets is
  *  fetched but not charted on its own: it's identical to liabilities by
  *  definition (a balance sheet balances), so the useful pairing is total
- *  liabilities vs. its own current (short-term) subset instead. */
+ *  liabilities vs. its own current (short-term) subset instead. Years fetch
+ *  concurrently - see fetchAuthorityYearly above for why. */
 async function fetchAuthorityBalance(authority) {
-  const points = []; // { year, assets, liabilities, currentLiabilities }
-  for (const year of YEARS_DESC) {
+  const points = await Promise.all(YEARS_DESC.map(async (year) => {
     const cfg = YEAR_RESOURCES[year];
     const rows = balanceRowsFor(year);
     const filters = {
@@ -641,14 +633,14 @@ async function fetchAuthorityBalance(authority) {
     if (cfg.yearFilter) filters[cfg.yearFilter.field] = cfg.yearFilter.value;
     try {
       const { records } = await dsQuery(cfg.resourceId, filters);
-      if (!records.length) continue;
+      if (!records.length) return null;
       const assets = Number(records.find((r) => r['שורה'] === rows.assets)?.['ערך']) || 0;
       const liabilities = Number(records.find((r) => r['שורה'] === rows.liabilities)?.['ערך']) || 0;
       const currentLiabilities = Number(records.find((r) => r['שורה'] === rows.currentLiabilities)?.['ערך']) || 0;
-      points.push({ year, assets, liabilities, currentLiabilities });
-    } catch { /* one year failing shouldn't hide the rest */ }
-  }
-  return points.sort((a, b) => a.year - b.year);
+      return { year, assets, liabilities, currentLiabilities };
+    } catch { return null; /* one year failing shouldn't hide the rest */ }
+  }));
+  return points.filter(Boolean).sort((a, b) => a.year - b.year);
 }
 
 /** A single population figure for one authority, from CBS's 2022 census (see
@@ -667,26 +659,26 @@ async function fetchPopulation(authority) {
 /** Land-use area breakdown ("נספח א"), every year available - same 5-of-9-
  *  years gap as everywhere else on this page (see finance-data.js), not
  *  fetched via form2RowsFor/balanceRowsFor since this sheet has its own
- *  five fixed row labels rather than a revenue/expense pair. */
+ *  five fixed row labels rather than a revenue/expense pair. Years fetch
+ *  concurrently - see fetchAuthorityYearly above for why. */
 async function fetchAuthorityAreas(authority) {
-  const points = []; // { year, areas: { category: sqmThousands|null } }
-  for (const year of YEARS_DESC) {
+  const points = await Promise.all(YEARS_DESC.map(async (year) => {
     const cfg = YEAR_RESOURCES[year];
     const filters = { שם_רשות: authority, [cfg.sheetField]: AREA_SHEET, שורה: AREA_CATEGORIES, עמודה: areaColumnFor(year) };
     if (cfg.yearFilter) filters[cfg.yearFilter.field] = cfg.yearFilter.value;
     try {
       const { records } = await dsQuery(cfg.resourceId, filters);
-      if (!records.length) continue;
+      if (!records.length) return null;
       const areas = {};
       for (const cat of AREA_CATEGORIES) {
         const rec = records.find((r) => r['שורה'] === cat);
         const v = rec ? Number(rec['ערך']) : null;
         areas[cat] = Number.isFinite(v) ? v : null;
       }
-      points.push({ year, areas });
-    } catch { /* one year failing shouldn't hide the rest */ }
-  }
-  return points.sort((a, b) => a.year - b.year);
+      return { year, areas };
+    } catch { return null; /* one year failing shouldn't hide the rest */ }
+  }));
+  return points.filter(Boolean).sort((a, b) => a.year - b.year);
 }
 
 /** Jurisdiction area (דונם) - a single figure, 2024 only (see
