@@ -1322,8 +1322,13 @@ body.accidents-page header.site h1 { inline-size: 100%; }
         </div>
         <p class="acc-hint">
           קובץ CSV נפתח ישירות ב-Excel/Google Sheets עם כל העמודות והערכים - אין כאן קובץ .xlsx
-          נפרד, כי אין הבדל אמיתי בין השניים עבור טבלה שטוחה כזו.
+          נפרד, כי אין הבדל אמיתי בין השניים עבור טבלה שטוחה כזו. למי שמעדיף לנתח בעצמו - תבנית
+          Python (pandas) לקובץ "כל השנים" שהורדתם, מוכנה להעתקה:
         </p>
+        <div class="cm-script-wrap">
+          <textarea id="finPyTemplate" class="cm-script" readonly rows="16" dir="ltr" spellcheck="false"></textarea>
+          <button type="button" id="finPyTemplateCopy" class="drill-dl">העתקת התבנית ⧉</button>
+        </div>
         <div class="acc-year-pick">
           <label for="finStatementSearch">חיפוש שדה:</label>
           <input id="finStatementSearch" type="text" autocomplete="off" spellcheck="false"
@@ -1698,10 +1703,14 @@ async function dsQuery(resourceId, filters, limit = 10000) {
 // prompt on first load) and doubles as the one this whole data pipeline was
 // hand-verified against earlier, so it's also the safest default to show.
 const DEFAULT_AUTHORITY = 'הוד השרון';
+// רעננה as the default comparison - a similarly-sized neighboring city, so
+// the comparison the page opens with is a meaningful one rather than an
+// empty compare field the visitor has to know to fill in themselves.
+const DEFAULT_COMPARE_AUTHORITY = 'רעננה';
 
 const state = {
   authority: DEFAULT_AUTHORITY,
-  compareAuthority: null, // chart-only backdrop - never touches the table/statement/CSV
+  compareAuthority: DEFAULT_COMPARE_AUTHORITY,
   year: YEARS_DESC[0],
   summaryCache: new Map(), // year -> { totals, byAuthority[] } | 'unsupported'
 };
@@ -1714,17 +1723,22 @@ const state = {
 function readStateFromUrl() {
   const p = new URLSearchParams(location.search);
   const authority = p.get('authority')?.trim();
-  const compare = p.get('compare')?.trim();
   const year = Number(p.get('year'));
   if (authority) state.authority = authority;
-  if (compare) state.compareAuthority = compare;
+  // A `compare` param that's PRESENT but empty means "explicitly no
+  // comparison" (a visitor cleared the field and shared/reloaded that URL)
+  // - distinct from the param being entirely ABSENT (a bare/fresh visit,
+  // where DEFAULT_COMPARE_AUTHORITY, already in `state`, should stand).
+  // Collapsing those two would make a shared "no compare" link silently
+  // grow the default comparison back on open.
+  if (p.has('compare')) state.compareAuthority = p.get('compare').trim() || null;
   if (YEAR_RESOURCES[year]) state.year = year;
 }
 
 function syncUrl() {
   const p = new URLSearchParams();
   if (state.authority) p.set('authority', state.authority);
-  if (state.compareAuthority) p.set('compare', state.compareAuthority);
+  p.set('compare', state.compareAuthority || '');
   p.set('year', String(state.year));
   history.replaceState(null, '', `?${p}`);
 }
@@ -2589,9 +2603,70 @@ el('finAiPromptCopy').addEventListener('click', async () => {
   setTimeout(() => { btn.textContent = original; }, 2000);
 });
 
+/** A ready-to-paste pandas starting point for the multi-year CSV the
+ *  "כל השנים" button produces - same filename and column set
+ *  (שם_רשות/שנה/כיסוי/גיליון/שורה/עמודה/ערך) as downloadAllYearsForAuthority()
+ *  actually writes, so the script runs unmodified against a file the user
+ *  already has. The revenue/expense filter matches the SAME two exact
+ *  row-label spellings form2RowsFor() uses internally (legacy "סה"כ
+ *  תקבולים"/"סה"כ תשלומים" vs. current-era "פעולות רגילות - סהכ תקבולים"/
+ *  "...תשלומים" - see finance-data.js), not a loose substring - a substring
+ *  match on "תקבולים" alone was tried first and verified (by actually
+ *  running this exact script against a real downloaded CSV) to also catch
+ *  every category SUBTOTAL that happens to contain that word
+ *  ("סה"כ מיסים ומענקים - תקבולים" and five others), burying the one grand-
+ *  total row the reader actually wants under a pile of look-alikes. */
+function renderPyTemplate() {
+  const box = el('finPyTemplate');
+  if (!state.authority) { box.value = ''; return; }
+  box.value = `import pandas as pd
+
+# הדוח הכספי המבוקר של ${state.authority} - כל השנים הזמינות
+# מקור: data.gov.il, משרד הפנים (ראו כפתור "הורדת CSV — כל השנים לרשות זו" בעמוד)
+df = pd.read_csv('דוח_כספי_${state.authority}_כל_השנים.csv')
+
+print("מספר שורות:", len(df))
+print("שנים זמינות:", sorted(df['שנה'].unique()))
+print("גיליונות זמינים:", df['גיליון'].unique())
+
+# הכנסות/הוצאות (טופס 2) - שורת הסה"כ הכללית מאויתת אחרת בין שנים: עד 2022
+# "סה"כ תקבולים"/"סה"כ תשלומים" (עם גרשיים), מ-2023 ואילך "פעולות רגילות -
+# סהכ תקבולים"/"פעולות רגילות - סהכ תשלומים" (בלי גרשיים, עם קידומת) -
+# מסננים לפי שני הכינויים המדויקים, לא לפי מחרוזת חלקית, כדי לתפוס רק את
+# שורת הסה"כ עצמה ולא את תתי-הסכומים (מיסים/שירותים/מפעלים וכו') שגם הם
+# מכילים "תקבולים"/"תשלומים" במילה
+form2 = df[df['גיליון'] == 'טופס 2']
+current_col = form2['עמודה'].str.contains('ביצוע', na=False) & form2['עמודה'].str.contains('שנה נוכחית', na=False)
+revenue = form2[current_col & form2['שורה'].isin(['סה"כ תקבולים', 'פעולות רגילות - סהכ תקבולים'])]
+expense = form2[current_col & form2['שורה'].isin(['סה"כ תשלומים', 'פעולות רגילות - סהכ תשלומים'])]
+print("\\n--- הכנסות (טופס 2), לפי שנה ---")
+print(revenue[['שנה', 'ערך']].sort_values('שנה'))
+print("\\n--- הוצאות (טופס 2), לפי שנה ---")
+print(expense[['שנה', 'ערך']].sort_values('שנה'))
+
+# דוח לתושב (קיים רק החל מ-2023) - השנה האחרונה בקובץ
+latest_year = df['שנה'].max()
+resident_report = df[(df['שנה'] == latest_year) & (df['גיליון'] == 'דוח לתושב')]
+print(f"\\n--- דוח לתושב, {latest_year} ---")
+print(resident_report[['שורה', 'עמודה', 'ערך']].head(10))`;
+}
+el('finPyTemplateCopy').addEventListener('click', async () => {
+  const btn = el('finPyTemplateCopy');
+  const original = btn.textContent;
+  try {
+    await navigator.clipboard.writeText(el('finPyTemplate').value);
+    btn.textContent = 'הועתק ✓';
+  } catch {
+    el('finPyTemplate').select();
+    btn.textContent = 'סמנו והעתיקו ידנית (Ctrl+C)';
+  }
+  setTimeout(() => { btn.textContent = original; }, 2000);
+});
+
 async function renderStatement() {
   const box = el('finStatement');
   renderAiPrompt();
+  renderPyTemplate();
   if (!state.authority) {
     box.innerHTML = '<p class="acc-hint">התחילו להקליד שם רשות למעלה כדי לראות את הדוח הכספי המלא שלה.</p>';
     return;

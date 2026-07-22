@@ -175,8 +175,13 @@
         </div>
         <p class="acc-hint">
           קובץ CSV נפתח ישירות ב-Excel/Google Sheets עם כל העמודות והערכים - אין כאן קובץ .xlsx
-          נפרד, כי אין הבדל אמיתי בין השניים עבור טבלה שטוחה כזו.
+          נפרד, כי אין הבדל אמיתי בין השניים עבור טבלה שטוחה כזו. למי שמעדיף לנתח בעצמו - תבנית
+          Python (pandas) לקובץ "כל השנים" שהורדתם, מוכנה להעתקה:
         </p>
+        <div class="cm-script-wrap">
+          <textarea id="finPyTemplate" class="cm-script" readonly rows="16" dir="ltr" spellcheck="false"></textarea>
+          <button type="button" id="finPyTemplateCopy" class="drill-dl">העתקת התבנית ⧉</button>
+        </div>
         <div class="acc-year-pick">
           <label for="finStatementSearch">חיפוש שדה:</label>
           <input id="finStatementSearch" type="text" autocomplete="off" spellcheck="false"
