@@ -313,26 +313,61 @@ async function renderCharts(summary) {
    row in (e.g. a city in 2020/2021, a councils-only year) are skipped, not
    shown as zero - a real gap should look like a gap, not a false zero. ---------- */
 
-// All 9 years are fetched CONCURRENTLY, not one after another - each year
-// lives on its own resource_id, so there's no reason to wait for 2024 to
-// answer before asking 2023. Sequential awaiting inside this loop used to be
-// the single biggest contributor to the "טוען" wait (up to 9x one request's
-// latency, per authority); Promise.all pins it to the slowest single year
-// instead. A year failing (or an authority not covered that year) still
-// resolves to `null` rather than rejecting, so one bad year can't abort the
-// others - `.filter(Boolean)` drops those before sorting.
-async function fetchAuthorityYearly(authority) {
+/** Revenue/expense (Form 2), balance sheet (Form 1) and land-use areas
+ *  (נספח א) in ONE query per year, not three - all three sheets live in the
+ *  same per-year resource, so one request with a wider גיליון/שורה/עמודה
+ *  filter (each an array - CKAN OR-matches within a field, ANDs across
+ *  fields) returns exactly the rows all three needed, split back out
+ *  client-side by row label. Row-label vocabulary never overlaps between
+ *  these three sheets (checked directly - "מגורים"/"סה\"כ מאזן..."/"סה\"כ
+ *  תקבולים..." share no text), and each row's own real עמודה value only
+ *  ever matches the ONE filter value meant for its own sheet, so widening
+ *  the array doesn't pull in a wrong row.
+ *
+ *  This exists because fetching the three separately (27 concurrent
+ *  requests per authority, 9 years x 3 sheets - 54 with a compare
+ *  authority) was the actual bottleneck behind a slow "טוען": each
+ *  individual request answers in well under a second in isolation
+ *  (confirmed directly), but firing dozens of them from one browser at
+ *  once queues up against the browser's/server's own concurrent-connection
+ *  limit rather than truly running in parallel. Cutting the request count
+ *  3x (to 9, 18 with compare) was the fix - the per-year Promise.all
+ *  concurrency (see the comment that used to be here) helps only once the
+ *  count itself isn't the bottleneck.
+ *
+ *  Years fetch concurrently, same reasoning as before: no reason to wait
+ *  for 2024 to answer before asking 2023. A year failing (or the authority
+ *  not being covered that year) resolves to `null` rather than rejecting,
+ *  so one bad year can't hide the rest. */
+async function fetchAuthorityBundle(authority) {
   const points = await Promise.all(YEARS_DESC.map(async (year) => {
     const cfg = YEAR_RESOURCES[year];
-    const rows = form2RowsFor(year);
-    const filters = { שם_רשות: authority, [cfg.sheetField]: 'טופס 2', שורה: [rows.revenue, rows.expense], עמודה: rows.column };
+    const form2 = form2RowsFor(year);
+    const balRows = balanceRowsFor(year);
+    const areaCol = areaColumnFor(year);
+    const filters = {
+      שם_רשות: authority,
+      [cfg.sheetField]: ['טופס 2', 'טופס 1 אקטיב', 'טופס 1 פאסיב', AREA_SHEET],
+      שורה: [form2.revenue, form2.expense, balRows.assets, balRows.liabilities, balRows.currentLiabilities, ...AREA_CATEGORIES],
+      עמודה: [form2.column, BALANCE_COLUMN, areaCol],
+    };
     if (cfg.yearFilter) filters[cfg.yearFilter.field] = cfg.yearFilter.value;
     try {
       const { records } = await dsQuery(cfg.resourceId, filters);
       if (!records.length) return null; // authority not covered this year - a real gap, not an error
-      const revenue = Number(records.find((r) => r['שורה'] === rows.revenue)?.['ערך']) || 0;
-      const expense = Number(records.find((r) => r['שורה'] === rows.expense)?.['ערך']) || 0;
-      return { year, revenue, expense };
+      const val = (row) => Number(records.find((r) => r['שורה'] === row)?.['ערך']) || 0;
+      const areas = {};
+      for (const cat of AREA_CATEGORIES) {
+        const rec = records.find((r) => r['שורה'] === cat);
+        const v = rec ? Number(rec['ערך']) : null;
+        areas[cat] = Number.isFinite(v) ? v : null;
+      }
+      return {
+        year,
+        revenue: val(form2.revenue), expense: val(form2.expense),
+        assets: val(balRows.assets), liabilities: val(balRows.liabilities), currentLiabilities: val(balRows.currentLiabilities),
+        areas,
+      };
     } catch { return null; /* one year failing shouldn't hide the rest */ }
   }));
   return points.filter(Boolean).sort((a, b) => a.year - b.year); // oldest first - a trend reads left-to-right in time
@@ -669,31 +704,36 @@ async function renderAuthorityCharts() {
   el('finChartAuthLiab').innerHTML = '<p class="acc-hint">טוען…</p>';
 
   const hasCompare = !!state.compareAuthority;
-  // All fetches (revenue/balance/population/areas, main+compare) run
-  // together, not one stage after another - each is its own 2-9 year
-  // sequential loop, so chaining several stages one after the other (as this
-  // used to do) roughly tripled the wait once a compare authority was added.
-  // Racing all of them pins the total wait to the single slowest fetch
-  // instead of their sum, and a failure in any one (network hiccup, a
-  // resource that briefly CORS-fails) can no longer take down the stages
-  // after it in the old chain.
+  // Only 4 outer fetches now (2 with no compare authority set): the bundle
+  // (revenue+balance+areas together, see fetchAuthorityBundle), population
+  // and jurisdiction area, each x2 when comparing. Racing them still pins
+  // the wait to the slowest one instead of their sum, and a failure in any
+  // one can't take down the others - but the REAL fix for a slow "טוען" was
+  // cutting how many requests get fired in the first place (27 down to 9
+  // per authority), not just how they're scheduled; see fetchAuthorityBundle.
   const [
-    points, comparePoints, balancePoints, compareBalancePoints, population, comparePopulation,
-    areaPoints, jurisdictionArea, compareAreaPoints, compareJurisdictionArea,
+    bundle, compareBundle, population, comparePopulation, jurisdictionArea, compareJurisdictionArea,
   ] = await Promise.all([
-    fetchAuthorityYearly(state.authority),
-    hasCompare ? fetchAuthorityYearly(state.compareAuthority) : Promise.resolve(null),
-    fetchAuthorityBalance(state.authority),
-    hasCompare ? fetchAuthorityBalance(state.compareAuthority) : Promise.resolve(null),
+    fetchAuthorityBundle(state.authority),
+    hasCompare ? fetchAuthorityBundle(state.compareAuthority) : Promise.resolve(null),
     fetchPopulation(state.authority),
     hasCompare ? fetchPopulation(state.compareAuthority) : Promise.resolve(null),
-    fetchAuthorityAreas(state.authority),
     fetchJurisdictionArea(state.authority),
-    hasCompare ? fetchAuthorityAreas(state.compareAuthority) : Promise.resolve(null),
     hasCompare ? fetchJurisdictionArea(state.compareAuthority) : Promise.resolve(null),
   ]);
 
   renderPopulationStats(population, hasCompare ? state.compareAuthority : null, comparePopulation);
+
+  // Every chart/table below still wants its own narrow shape - deriving
+  // these as plain projections of the one bundled fetch (rather than
+  // reshaping every downstream consumer) keeps this the only place that
+  // needs to know the fetch was merged.
+  const points = bundle.map(({ year, revenue, expense }) => ({ year, revenue, expense }));
+  const comparePoints = compareBundle?.map(({ year, revenue, expense }) => ({ year, revenue, expense })) ?? null;
+  const balancePoints = bundle.map(({ year, assets, liabilities, currentLiabilities }) => ({ year, assets, liabilities, currentLiabilities }));
+  const compareBalancePoints = compareBundle?.map(({ year, assets, liabilities, currentLiabilities }) => ({ year, assets, liabilities, currentLiabilities })) ?? null;
+  const areaPoints = bundle.map(({ year, areas }) => ({ year, areas }));
+  const compareAreaPoints = compareBundle?.map(({ year, areas }) => ({ year, areas })) ?? null;
 
   if (!points.length) {
     el('finChartAuthRevenue').innerHTML = `<p class="acc-hint">לא נמצאו נתוני הכנסות/הוצאות עבור "${esc(state.authority)}" באף שנה זמינה.</p>`;
@@ -800,36 +840,6 @@ async function renderAuthorityCharts() {
   }
 }
 
-/** Form 1's balance-sheet totals - assets/liabilities/current-liabilities,
- *  same 9-year coverage as revenue/expense (both eras confirmed stable,
- *  just the row text's gershayim - not the column - changes). Assets is
- *  fetched but not charted on its own: it's identical to liabilities by
- *  definition (a balance sheet balances), so the useful pairing is total
- *  liabilities vs. its own current (short-term) subset instead. Years fetch
- *  concurrently - see fetchAuthorityYearly above for why. */
-async function fetchAuthorityBalance(authority) {
-  const points = await Promise.all(YEARS_DESC.map(async (year) => {
-    const cfg = YEAR_RESOURCES[year];
-    const rows = balanceRowsFor(year);
-    const filters = {
-      שם_רשות: authority,
-      [cfg.sheetField]: ['טופס 1 אקטיב', 'טופס 1 פאסיב'],
-      שורה: [rows.assets, rows.liabilities, rows.currentLiabilities],
-      עמודה: BALANCE_COLUMN,
-    };
-    if (cfg.yearFilter) filters[cfg.yearFilter.field] = cfg.yearFilter.value;
-    try {
-      const { records } = await dsQuery(cfg.resourceId, filters);
-      if (!records.length) return null;
-      const assets = Number(records.find((r) => r['שורה'] === rows.assets)?.['ערך']) || 0;
-      const liabilities = Number(records.find((r) => r['שורה'] === rows.liabilities)?.['ערך']) || 0;
-      const currentLiabilities = Number(records.find((r) => r['שורה'] === rows.currentLiabilities)?.['ערך']) || 0;
-      return { year, assets, liabilities, currentLiabilities };
-    } catch { return null; /* one year failing shouldn't hide the rest */ }
-  }));
-  return points.filter(Boolean).sort((a, b) => a.year - b.year);
-}
-
 /** A single population figure for one authority, from CBS's 2022 census (see
  *  finance-data.js) - not per-year, so every year's per-resident figure in
  *  the table below reuses this same number; a real limitation, stated on the
@@ -841,31 +851,6 @@ async function fetchPopulation(authority) {
     const n = Number(String(records[0]['Total_Population']).replace(/,/g, ''));
     return Number.isFinite(n) ? n : null;
   } catch { return null; }
-}
-
-/** Land-use area breakdown ("נספח א"), every year available - same 5-of-9-
- *  years gap as everywhere else on this page (see finance-data.js), not
- *  fetched via form2RowsFor/balanceRowsFor since this sheet has its own
- *  five fixed row labels rather than a revenue/expense pair. Years fetch
- *  concurrently - see fetchAuthorityYearly above for why. */
-async function fetchAuthorityAreas(authority) {
-  const points = await Promise.all(YEARS_DESC.map(async (year) => {
-    const cfg = YEAR_RESOURCES[year];
-    const filters = { שם_רשות: authority, [cfg.sheetField]: AREA_SHEET, שורה: AREA_CATEGORIES, עמודה: areaColumnFor(year) };
-    if (cfg.yearFilter) filters[cfg.yearFilter.field] = cfg.yearFilter.value;
-    try {
-      const { records } = await dsQuery(cfg.resourceId, filters);
-      if (!records.length) return null;
-      const areas = {};
-      for (const cat of AREA_CATEGORIES) {
-        const rec = records.find((r) => r['שורה'] === cat);
-        const v = rec ? Number(rec['ערך']) : null;
-        areas[cat] = Number.isFinite(v) ? v : null;
-      }
-      return { year, areas };
-    } catch { return null; /* one year failing shouldn't hide the rest */ }
-  }));
-  return points.filter(Boolean).sort((a, b) => a.year - b.year);
 }
 
 /** Jurisdiction area (דונם) - a single figure, 2024 only (see
@@ -1101,7 +1086,7 @@ async function onAuthorityChange() {
 // to be here claimed - the check was actually still there, silently doing
 // nothing on anything but a perfect match, including a real name typed
 // before loadRoster() had finished). Any non-empty text is accepted as-is;
-// fetchAuthorityYearly() naturally returns zero points for a name that
+// fetchAuthorityBundle() naturally returns zero points for a name that
 // doesn't exist, and renderAuthorityCharts() below now says so explicitly
 // instead of just leaving the chart unchanged with no explanation.
 const compareInput = el('finCompare');
