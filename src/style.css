@@ -455,9 +455,10 @@ button.stat { cursor: pointer; }
   border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border));
 }
 #finChartAuthLiab figcaption {
-  font-size: 1.3rem;
+  font-size: 1.6rem;
   font-weight: 800;
   color: var(--fg);
+  text-align: center;
 }
 #finChartAuthLiab .acc-legend-item,
 #finChartAuthLiab .fin-chart-y,
