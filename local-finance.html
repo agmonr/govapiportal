@@ -123,17 +123,33 @@
           ההתחייבויות (סה"כ מול שוטפות) כבר מראה. ממוצע הארנונה מבוסס על גיליון "דוח לתושב", הקיים
           רק ל-2023-2024 - לכן מוצג לכל היותר עבור שתי שנים אלה. "היקף תב"רים" ו"התחייבויות
           לספקים" נבדקו ואינם כלולים כרגע - הראשון קיים רק בשנים האחרונות, השני אינו מופיע כשורה
-          נפרדת בנתונים כלל.
+          נפרדת בנתונים כלל. הכנסות/הוצאות לתושב (בטבלה שמתחת לגרף הראשון) מבוססות על אוכלוסיית
+          הרשות במפקד האוכלוסין 2022 של הלמ"ס - תמונת מצב חד-פעמית, לא אומדן שנתי מתעדכן, ולכן
+          אותו מספר תושבים משמש לחישוב בכל השנים בטבלה.
         </p>
         <div class="acc-charts">
           <figure id="finChartAuthRevenue" class="acc-chart" role="img"></figure>
           <figure id="finChartAuthArnona" class="acc-chart" role="img"></figure>
         </div>
+        <p id="finPopNote" class="acc-hint" dir="auto" hidden></p>
         <div id="finAuthTable"></div>
         <div class="acc-charts">
           <figure id="finChartAuthLiab" class="acc-chart" role="img"></figure>
         </div>
         <div id="finLiabTable"></div>
+      </section>
+
+      <section class="acc-section" id="finAreas" aria-labelledby="areasH" hidden>
+        <h2 id="areasH">שטחים לפי ייעוד — הרשות שנבחרה</h2>
+        <p class="acc-hint">
+          שטח מגורים/משרדים/תעשיה/בתי מלון/מלאכה מבוסס על "נספח א" בדוח הכספי - קיים לרוב אותן
+          השנים שלרשות יש בהן דוח בכלל, לא פער נוסף משלו. גרף ההתפלגות מציג את השנה העדכנית
+          ביותר שיש בה נתונים; הטבלה שמתחת מציגה את כל השנים הזמינות. שטח השיפוט (בדונם) הוא נתון
+          חד-פעמי שנמצא רק בדוח 2024 - לא מוצג כמגמה, שכן אין נתון מקביל בשנים אחרות להשוואה מולו.
+        </p>
+        <p id="finJurisdictionNote" class="acc-hint" dir="auto" hidden></p>
+        <figure id="finChartAreas" class="acc-chart acc-chart-wide" role="img"></figure>
+        <div id="finAreasTable"></div>
       </section>
 
       <section class="acc-section" aria-labelledby="statementH">

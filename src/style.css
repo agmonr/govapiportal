@@ -381,7 +381,7 @@ button.stat { cursor: pointer; }
 .acc-bar-fill.acc-bar-back, .acc-bar-fill.acc-bar-front { grid-area: 1 / 1; align-self: end; }
 .acc-bar-fill.acc-bar-back { z-index: 1; }
 .acc-bar-fill.acc-bar-front {
-  z-index: 2;
+  z-index: 3;
   max-inline-size: 1.7rem;
   box-shadow: 0 0 0 2px var(--bg);
 }
@@ -391,12 +391,23 @@ button.stat { cursor: pointer; }
   .acc-chart .acc-bar-fill.acc-bar-front { background: #5fce8f; }
 }
 
-/* Optional third layer: another authority's own value, shown purely as a
-   gray backdrop for scale - widest of the three (so it peeks out around
-   both the back and front bars, same "width carries visibility" logic as
-   back/front above) and behind both in z-index, since it's context, not
-   one of the two series this chart is actually about. */
-.acc-bar-fill.acc-bar-compare { grid-area: 1 / 1; align-self: end; z-index: 0; background: color-mix(in srgb, var(--muted) 45%, transparent); }
+/* Optional second front/back pair: the compare authority's OWN two series,
+   in grayed-out versions of the same two colors (see renderComboChart) so
+   "which series" reads the same way for both authorities - only saturation
+   tells main from compare apart. Four concentric widths, each layer 2px+
+   narrower than the one behind it (compare-back > main-back > compare-front
+   > main-front), keep every bar's edges visible regardless of height, same
+   "width carries visibility" logic the original two-bar version relied on -
+   z-index climbs alongside as each layer narrows, so the narrowest (the
+   main authority's own revenue) always draws fully on top. */
+.acc-bar-fill.acc-bar-compare-back {
+  grid-area: 1 / 1; align-self: end; z-index: 0; max-inline-size: 3.4rem;
+  background: color-mix(in srgb, var(--accent) 40%, var(--muted) 60%);
+}
+.acc-bar-fill.acc-bar-compare-front {
+  grid-area: 1 / 1; align-self: end; z-index: 2; max-inline-size: 2.3rem;
+  background: color-mix(in srgb, #1a7f45 40%, var(--muted) 60%);
+}
 
 /* Legend for the two-series chart above - color meaning is never carried by
    hue alone elsewhere on the site either (see .badge), so this pairs a swatch

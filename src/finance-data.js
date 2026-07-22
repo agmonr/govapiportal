@@ -130,3 +130,51 @@ export const BALANCE_ROWS_BY_ERA = {
 };
 export const balanceRowsFor = (year) => (YEAR_RESOURCES[year].hasSummary
   ? BALANCE_ROWS_BY_ERA.current : BALANCE_ROWS_BY_ERA.legacy);
+
+/**
+ * Per-locality population - a single snapshot from CBS's own 2022 Population
+ * and Housing Census ("מפקד האוכלוסין והדיור 2022", package id "2022" on
+ * data.gov.il), not an annual series - CBS has not published a live-
+ * queryable per-locality population dataset for any other year on
+ * data.gov.il, confirmed by search. The resource itself IS live-queryable
+ * via the same DataStore engine every other source on this page already
+ * uses (1,222 rows: localities + statistical sub-areas together).
+ * LocNameHeb matches this page's שם_רשות spelling exactly - confirmed
+ * directly against הוד השרון (both spelled identically, one row returned).
+ * Total_Population arrives as a comma-formatted string ("65,020"), not a
+ * number - callers must strip the comma before parsing.
+ */
+export const CBS_POPULATION_RESOURCE_ID = '38207cf8-afe2-48ed-a3b0-c8f70c796015';
+export const CBS_POPULATION_FIELD = 'LocNameHeb';
+export const CBS_POPULATION_YEAR = 2022;
+
+/**
+ * Land-use area breakdown ("נספח א" in the financial report) - מ"ר by usage
+ * category, confirmed present for every year an authority has ANY data at
+ * all (checked against Hod HaSharon: 2018, 2019, 2022, 2023, 2024 - the same
+ * 5 of 9 years the rest of this page already covers for it, not a narrower
+ * gap of its own). Row text drops the gershayim in the same current era
+ * (2023-2024) as everywhere else on this sheet family - confirmed directly
+ * against real rows in both eras, not assumed.
+ */
+export const AREA_SHEET = 'נספח א';
+export const AREA_CATEGORIES = ['מגורים', 'משרדים', 'תעשיה', 'בתי מלון', 'מלאכה'];
+export const AREA_COLUMN_BY_ERA = {
+  legacy: 'שטחים באלפי מ"ר שנה נוכחית', // 2018-2022
+  current: 'שטחים באלפי מר שנה נוכחית', // 2023-2024
+};
+export const areaColumnFor = (year) => (YEAR_RESOURCES[year].hasSummary
+  ? AREA_COLUMN_BY_ERA.current : AREA_COLUMN_BY_ERA.legacy);
+
+/**
+ * Jurisdiction area ("שטח שיפוט", דונם) - a single whole-authority figure,
+ * not broken down by land-use category like AREA_SHEET above, and NOT a
+ * multi-year series: checked directly against Hod HaSharon and found only
+ * in 2024's "נתונים כלליים" sheet - absent from that same sheet (and from
+ * "נתונים נוספים") in 2019/2022/2023, and the sheet doesn't exist at all in
+ * 2018. Shown as a single current-year figure, not a trend - there is
+ * nothing else to compare it against.
+ */
+export const JURISDICTION_SHEET = 'נתונים כלליים';
+export const JURISDICTION_ROW = 'שטח שיפוט (דונם)  - שנה נוכחית';
+export const JURISDICTION_YEAR = 2024;
