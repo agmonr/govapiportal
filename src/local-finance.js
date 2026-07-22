@@ -358,22 +358,34 @@ async function renderCharts(summary) {
  *  (confirmed directly), but firing dozens of them from one browser at
  *  once queues up against the browser's/server's own concurrent-connection
  *  limit rather than truly running in parallel. Cutting the request count
- *  3x (to 9, 18 with compare) was the fix - the per-year Promise.all
- *  concurrency (see the comment that used to be here) helps only once the
- *  count itself isn't the bottleneck.
+ *  3x (to 9, 18 with compare) was the first fix.
+ *
+ *  Comparing two authorities then doubled that back up to 18: one request
+ *  per (year, authority) pair, even though both authorities' requests hit
+ *  the SAME resource with the SAME גליון/שורה/עמודה filters and differ only
+ *  in שם_רשות. CKAN OR-matches an array value within one field (already
+ *  relied on for גליון/שורה/עמודה above), so שם_רשות: [main, compare] in
+ *  ONE request returns both authorities' rows mixed together, split back out
+ *  client-side by each record's own שם_רשות - down to 9 requests total
+ *  regardless of whether a compare authority is set, not 9 or 18. Measured
+ *  directly against the two-request version: same records, half the
+ *  round-trips, and the one year that happened to be slow/erroring on
+ *  data.gov.il (2017, ~2s to a 503) only pays that cost once instead of
+ *  twice.
  *
  *  Years fetch concurrently, same reasoning as before: no reason to wait
- *  for 2024 to answer before asking 2023. A year failing (or the authority
- *  not being covered that year) resolves to `null` rather than rejecting,
- *  so one bad year can't hide the rest. */
-async function fetchAuthorityBundle(authority) {
-  const points = await Promise.all(YEARS_DESC.map(async (year) => {
+ *  for 2024 to answer before asking 2023. A year failing (or an authority
+ *  not being covered that year) resolves to `null` for that authority rather
+ *  than rejecting, so one bad year - or one authority missing from it -
+ *  can't hide the rest. */
+async function fetchAuthorityBundles(authorities) {
+  const perYear = await Promise.all(YEARS_DESC.map(async (year) => {
     const cfg = YEAR_RESOURCES[year];
     const form2 = form2RowsFor(year);
     const balRows = balanceRowsFor(year);
     const areaCol = areaColumnFor(year);
     const filters = {
-      שם_רשות: authority,
+      שם_רשות: authorities.length === 1 ? authorities[0] : authorities,
       [cfg.sheetField]: ['טופס 2', 'טופס 1 אקטיב', 'טופס 1 פאסיב', AREA_SHEET],
       שורה: [form2.revenue, form2.expense, balRows.assets, balRows.liabilities, balRows.currentLiabilities, ...AREA_CATEGORIES],
       עמודה: [form2.column, BALANCE_COLUMN, areaCol],
@@ -381,23 +393,38 @@ async function fetchAuthorityBundle(authority) {
     if (cfg.yearFilter) filters[cfg.yearFilter.field] = cfg.yearFilter.value;
     try {
       const { records } = await dsQuery(cfg.resourceId, filters);
-      if (!records.length) return null; // authority not covered this year - a real gap, not an error
-      const val = (row) => Number(records.find((r) => r['שורה'] === row)?.['ערך']) || 0;
-      const areas = {};
-      for (const cat of AREA_CATEGORIES) {
-        const rec = records.find((r) => r['שורה'] === cat);
-        const v = rec ? Number(rec['ערך']) : null;
-        areas[cat] = Number.isFinite(v) ? v : null;
+      if (!records.length) return null; // neither authority covered this year - a real gap, not an error
+      const byAuthority = new Map();
+      for (const name of authorities) {
+        const own = records.filter((r) => r['שם_רשות'] === name);
+        if (!own.length) { byAuthority.set(name, null); continue; } // THIS authority not covered this year, even though the other one is
+        const val = (row) => Number(own.find((r) => r['שורה'] === row)?.['ערך']) || 0;
+        const areas = {};
+        for (const cat of AREA_CATEGORIES) {
+          const rec = own.find((r) => r['שורה'] === cat);
+          const v = rec ? Number(rec['ערך']) : null;
+          areas[cat] = Number.isFinite(v) ? v : null;
+        }
+        byAuthority.set(name, {
+          year,
+          revenue: val(form2.revenue), expense: val(form2.expense),
+          assets: val(balRows.assets), liabilities: val(balRows.liabilities), currentLiabilities: val(balRows.currentLiabilities),
+          areas,
+        });
       }
-      return {
-        year,
-        revenue: val(form2.revenue), expense: val(form2.expense),
-        assets: val(balRows.assets), liabilities: val(balRows.liabilities), currentLiabilities: val(balRows.currentLiabilities),
-        areas,
-      };
+      return byAuthority;
     } catch { return null; /* one year failing shouldn't hide the rest */ }
   }));
-  return points.filter(Boolean).sort((a, b) => a.year - b.year); // oldest first - a trend reads left-to-right in time
+  const result = new Map(authorities.map((name) => [name, []]));
+  for (const byAuthority of perYear) {
+    if (!byAuthority) continue;
+    for (const name of authorities) {
+      const p = byAuthority.get(name);
+      if (p) result.get(name).push(p);
+    }
+  }
+  for (const points of result.values()) points.sort((a, b) => a.year - b.year); // oldest first - a trend reads left-to-right in time
+  return result;
 }
 
 /** Revenue (front, narrower, green) layered over expense (back, full-width,
@@ -732,23 +759,27 @@ async function renderAuthorityCharts() {
   el('finChartAuthLiab').innerHTML = '<p class="acc-hint">טוען…</p>';
 
   const hasCompare = !!state.compareAuthority;
-  // Only 4 outer fetches now (2 with no compare authority set): the bundle
-  // (revenue+balance+areas together, see fetchAuthorityBundle), population
-  // and jurisdiction area, each x2 when comparing. Racing them still pins
-  // the wait to the slowest one instead of their sum, and a failure in any
-  // one can't take down the others - but the REAL fix for a slow "טוען" was
-  // cutting how many requests get fired in the first place (27 down to 9
-  // per authority), not just how they're scheduled; see fetchAuthorityBundle.
+  const authorities = hasCompare ? [state.authority, state.compareAuthority] : [state.authority];
+  // 3 outer fetches now (1 fewer with no compare authority set, 3 fewer with
+  // one): the bundle (revenue+balance+areas, BOTH authorities in one request
+  // per year - see fetchAuthorityBundles), population and jurisdiction area,
+  // each x2 when comparing since those two aren't mergeable the same way
+  // (CBS population and the jurisdiction-area row are each already a single
+  // small per-authority request, not 9 - merging them would save 1 request
+  // instead of 9). Racing them still pins the wait to the slowest one
+  // instead of their sum, and a failure in any one can't take down the
+  // others.
   const [
-    bundle, compareBundle, population, comparePopulation, jurisdictionArea, compareJurisdictionArea,
+    bundlesMap, population, comparePopulation, jurisdictionArea, compareJurisdictionArea,
   ] = await Promise.all([
-    fetchAuthorityBundle(state.authority),
-    hasCompare ? fetchAuthorityBundle(state.compareAuthority) : Promise.resolve(null),
+    fetchAuthorityBundles(authorities),
     fetchPopulation(state.authority),
     hasCompare ? fetchPopulation(state.compareAuthority) : Promise.resolve(null),
     fetchJurisdictionArea(state.authority),
     hasCompare ? fetchJurisdictionArea(state.compareAuthority) : Promise.resolve(null),
   ]);
+  const bundle = bundlesMap.get(state.authority) || [];
+  const compareBundle = hasCompare ? (bundlesMap.get(state.compareAuthority) || []) : null;
   // A newer authority/compare/year change already started its own call while
   // this one was awaiting - state.authority etc. have moved on, so anything
   // built from them below would mislabel the data this call actually fetched.
