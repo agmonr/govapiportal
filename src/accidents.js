@@ -13,6 +13,7 @@ import { el, esc, num, probedAt } from './ui.js';
 import { openPortal } from './portal.js';
 import { initThemePicker } from './theme.js';
 import { CITY_ROWS, CITY_YEARS } from './city-stats.js';
+import { renderBarChart } from './charts.js';
 
 initThemePicker(el('themePick'));
 
@@ -228,7 +229,6 @@ cityInput.addEventListener('blur', closeCityMenu);
 // right→left, so time reads the same direction as the Hebrew around it -
 // oldest (2020) on the right, newest (2024) on the left.
 const CHART_YEARS = ['2020', '2021', '2022', '2023', '2024'];
-const CHART_MAX_H = 150; // px height of the tallest bar; the rest scale to it
 
 // Two single-series bar charts side by side, each its own hue (fatalities in
 // the danger red of the "killed" tile, all accidents in the neutral accent) -
@@ -238,26 +238,10 @@ const CHART_MAX_H = 150; // px height of the tallest bar; the rest scale to it
 // dropdown; the two charts stay on the same y-scale is NOT wanted - each is
 // keyed to its own peak, since killed and total counts differ by two orders.
 function renderChart(figId, caption, unit, valueOf, year) {
-  const peak = Math.max(...CHART_YEARS.map(valueOf));
-  const bars = CHART_YEARS.map((y) => {
-    const n = valueOf(y);
-    const h = Math.round((n / peak) * CHART_MAX_H);
-    const active = year !== 'all' && year === y ? ' active' : '';
-    return `
-      <div class="acc-bar${active}" title="${y}: ${num(n)} ${unit}">
-        <div class="acc-bar-track">
-          <span class="acc-bar-v">${num(n)}</span>
-          <div class="acc-bar-fill" style="block-size:${h}px"></div>
-        </div>
-        <span class="acc-bar-y">${y}</span>
-      </div>`;
-  }).join('');
-  const fig = el(figId);
-  fig.setAttribute('aria-label',
-    `${caption}, ${CHART_YEARS[0]}–${CHART_YEARS[CHART_YEARS.length - 1]}`);
-  fig.innerHTML = `
-    <figcaption>${caption}</figcaption>
-    <div class="acc-bars">${bars}</div>`;
+  const entries = CHART_YEARS.map((y) => ({ label: y, value: valueOf(y), active: year !== 'all' && year === y }));
+  renderBarChart(figId, caption, entries, unit, '', {
+    ariaLabel: `${caption}, ${CHART_YEARS[0]}–${CHART_YEARS[CHART_YEARS.length - 1]}`,
+  });
 }
 
 function renderCharts(year) {

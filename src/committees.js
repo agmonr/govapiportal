@@ -27,6 +27,9 @@
 import { el, esc, num, debounce, buildCsv, saveCsv, showError, showLoading } from './ui.js';
 import { initThemePicker } from './theme.js';
 import { COMMITTEE_SITES, MEETING_TYPES } from './committee-sites.js';
+import { renderBarChart } from './charts.js';
+
+const CM_EMPTY_MSG = { emptyMessage: 'אין נתונים להצגה בטווח שנבחר.' };
 
 initThemePicker(el('themePick'));
 
@@ -214,26 +217,7 @@ function renderKpis() {
     </div>`;
 }
 
-/* ---------- charts - reuses accidents.html's .acc-chart/.acc-bars bar look ---------- */
-
-function renderBarChart(figId, caption, entries, colorClass) {
-  const fig = el(figId);
-  if (!entries.length) { fig.innerHTML = `<figcaption>${esc(caption)}</figcaption><p class="acc-hint">אין נתונים להצגה בטווח שנבחר.</p>`; return; }
-  const peak = Math.max(...entries.map((e) => e.value));
-  const bars = entries.map((e) => {
-    const h = Math.round((e.value / peak) * 150);
-    return `
-      <div class="acc-bar" title="${esc(e.label)}: ${num(e.value)}">
-        <div class="acc-bar-track">
-          <span class="acc-bar-v">${num(e.value)}</span>
-          <div class="acc-bar-fill" style="block-size:${h}px"></div>
-        </div>
-        <span class="acc-bar-y">${esc(e.label)}</span>
-      </div>`;
-  }).join('');
-  fig.className = `acc-chart${colorClass ? ` ${colorClass}` : ''}`;
-  fig.innerHTML = `<figcaption>${esc(caption)}</figcaption><div class="acc-bars">${bars}</div>`;
-}
+/* ---------- charts - shared renderBarChart from charts.js ---------- */
 
 function renderCharts() {
   const list = state.filtered;
@@ -245,7 +229,7 @@ function renderCharts() {
   }
   const yearEntries = [...byYear.entries()].sort(([a], [b]) => a.localeCompare(b))
     .map(([label, value]) => ({ label, value }));
-  renderBarChart('cmChartByYear', 'ישיבות לפי שנה', yearEntries, 'total');
+  renderBarChart('cmChartByYear', 'ישיבות לפי שנה', yearEntries, '', 'total', CM_EMPTY_MSG);
 
   const byType = new Map();
   for (const m of list) byType.set(m.committee, (byType.get(m.committee) || 0) + 1);
@@ -255,7 +239,7 @@ function renderCharts() {
     const rest = typeEntries.slice(6).reduce((s, e) => s + e.value, 0);
     typeEntries = [...typeEntries.slice(0, 6), { label: 'אחר', value: rest }];
   }
-  renderBarChart('cmChartByType', 'התפלגות לפי סוג ישיבה', typeEntries);
+  renderBarChart('cmChartByType', 'התפלגות לפי סוג ישיבה', typeEntries, '', '', CM_EMPTY_MSG);
 }
 
 /* ---------- detailed table, with a per-row live doc fetch on expand ---------- */

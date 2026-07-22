@@ -20,6 +20,8 @@
 import { el, esc, num, debounce, buildCsv, saveCsv, showError, showLoading } from './ui.js';
 import { initThemePicker } from './theme.js';
 import { YEAR_RESOURCES, YEARS_DESC, ROSTER_YEAR, ROSTER_FILTERS, SUMMARY_SHEET, SUMMARY_ROWS, SUMMARY_COLUMN, form2RowsFor, BALANCE_COLUMN, balanceRowsFor, CBS_POPULATION_RESOURCE_ID, CBS_POPULATION_FIELD, CBS_POPULATION_YEAR, AREA_SHEET, AREA_CATEGORIES, areaColumnFor, JURISDICTION_SHEET, JURISDICTION_ROW, JURISDICTION_YEAR } from './finance-data.js';
+import { renderBarChart, renderHBarChart, renderGroupedChart, CITY_COLOR_MAIN, CITY_COLOR_COMPARE, citySwatchCell } from './charts.js';
+import { dsFilter } from './datastore.js';
 
 initThemePicker(el('themePick'));
 
@@ -27,18 +29,6 @@ const created = new Date(document.lastModified);
 if (!Number.isNaN(created.getTime())) {
   el('created').textContent = `נוצר: ${created.toLocaleDateString('he-IL')} ${created.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}`;
   el('created').title = created.toISOString();
-}
-
-const DATASTORE = 'https://data.gov.il/api/3/action/datastore_search';
-
-async function dsQuery(resourceId, filters, limit = 10000) {
-  const p = new URLSearchParams({ resource_id: resourceId, limit: String(limit) });
-  if (filters) p.set('filters', JSON.stringify(filters));
-  const res = await fetch(`${DATASTORE}?${p}`);
-  if (!res.ok) throw Object.assign(new Error(`HTTP ${res.status}`), { kind: 'network' });
-  const j = await res.json();
-  if (!j.success) throw new Error(j.error?.__type || 'שגיאת שרת');
-  return j.result;
 }
 
 /* ---------- state ---------- */
@@ -114,7 +104,7 @@ let rosterNames = [];
 async function loadRoster() {
   try {
     const cfg = YEAR_RESOURCES[ROSTER_YEAR];
-    const { records } = await dsQuery(cfg.resourceId, {
+    const { records } = await dsFilter(cfg.resourceId, {
       [cfg.sheetField]: ROSTER_FILTERS.גליון, שורה: ROSTER_FILTERS.שורה, עמודה: ROSTER_FILTERS.עמודה,
     });
     rosterNames = [...new Set(records.map((r) => r['שם_רשות']))].sort((a, b) => a.localeCompare(b, 'he'));
@@ -200,7 +190,7 @@ async function fetchSummary(year) {
   const cfg = YEAR_RESOURCES[year];
   if (!cfg?.hasSummary) { state.summaryCache.set(year, 'unsupported'); return 'unsupported'; }
 
-  const { records } = await dsQuery(cfg.resourceId, {
+  const { records } = await dsFilter(cfg.resourceId, {
     [cfg.sheetField]: SUMMARY_SHEET,
     שורה: Object.values(SUMMARY_ROWS),
     עמודה: SUMMARY_COLUMN,
@@ -271,49 +261,7 @@ async function renderKpis() {
   }
 }
 
-/* ---------- charts - reuses accidents.html's .acc-chart/.acc-bars bar look ---------- */
-
-// Single-series bar chart - only the national YoY chart uses this now (the
-// per-authority ארנונה chart that used to share it, and its own compare-
-// backdrop support, was removed).
-function renderBarChart(figId, caption, entries, unit, colorClass) {
-  const fig = el(figId);
-  if (!entries.length) { fig.innerHTML = `<figcaption>${esc(caption)}</figcaption><p class="acc-hint">אין נתונים להצגה.</p>`; return; }
-  const peak = Math.max(...entries.map((e) => Math.abs(e.value)));
-  const bars = entries.map((e) => {
-    const h = peak ? Math.round((Math.abs(e.value) / peak) * 150) : 0;
-    return `
-      <div class="acc-bar" title="${esc(e.label)}: ${num(e.value)} ${esc(unit)}">
-        <div class="acc-bar-track">
-          <span class="acc-bar-v">${num(e.value)}</span>
-          <div class="acc-bar-fill" style="block-size:${h}px"></div>
-        </div>
-        <span class="acc-bar-y">${esc(e.label)}</span>
-      </div>`;
-  }).join('');
-  fig.className = `acc-chart${colorClass ? ` ${colorClass}` : ''}`;
-  fig.innerHTML = `<figcaption>${esc(caption)}</figcaption><div class="acc-bars">${bars}</div>`;
-}
-
-/** A ranked leaderboard (top-N by value) reads far better as rows stacked
- *  top-to-bottom than as N vertical bars squeezed into one fixed-height row -
- *  a different mark from renderBarChart, not that same one rotated.
- *  An entry may set `compare: true` to render in the same grayed-out accent
- *  used for a compare authority everywhere else on this page - lets two
- *  cities sit as adjacent rows per category, distinguished by that same
- *  color code rather than a legend the reader has to look up. */
-function renderHBarChart(figId, caption, entries, unit) {
-  const fig = el(figId);
-  if (!entries.length) { fig.innerHTML = `<figcaption>${esc(caption)}</figcaption><p class="acc-hint">אין נתונים להצגה.</p>`; return; }
-  const peak = Math.max(...entries.map((e) => e.value));
-  const rows = entries.map((e) => `
-    <div class="acc-hbar${e.compare ? ' acc-hbar-compare' : ''}" title="${esc(e.label)}: ${num(e.value)} ${esc(unit)}">
-      <span class="acc-hbar-y" dir="auto">${esc(e.label)}</span>
-      <div class="acc-hbar-track"><div class="acc-hbar-fill" style="inline-size:${peak ? (e.value / peak) * 100 : 0}%"></div></div>
-      <span class="acc-hbar-v">${num(e.value)}</span>
-    </div>`).join('');
-  fig.innerHTML = `<figcaption>${esc(caption)}</figcaption><div class="acc-hbars">${rows}</div>`;
-}
+/* ---------- charts - renderBarChart/renderHBarChart/renderGroupedChart are shared, see charts.js ---------- */
 
 async function renderCharts(summary) {
   // YoY: the only other year that also has a national summary (2023<->2024
@@ -392,7 +340,7 @@ async function fetchAuthorityBundles(authorities) {
     };
     if (cfg.yearFilter) filters[cfg.yearFilter.field] = cfg.yearFilter.value;
     try {
-      const { records } = await dsQuery(cfg.resourceId, filters);
+      const { records } = await dsFilter(cfg.resourceId, filters);
       if (!records.length) return null; // neither authority covered this year - a real gap, not an error
       const byAuthority = new Map();
       for (const name of authorities) {
@@ -427,173 +375,8 @@ async function fetchAuthorityBundles(authorities) {
   return result;
 }
 
-/** Revenue (front, narrower, green) layered over expense (back, full-width,
- *  accent) sharing one baseline per year - the back bar's edges show on both
- *  sides of the front one regardless of how close the two values are, so
- *  neither series depends on a height gap to stay visible. Peak is taken
- *  across BOTH series together, not per-series, so a year where expense
- *  exceeds revenue (a deficit year) doesn't get its back bar clipped taller
- *  than the chart while the front bar looks artificially short. */
-/** `compare` (optional): another authority's own revenue, per year - shown as
- *  a third, gray, widest-of-the-three backdrop bar purely for scale (per the
- *  request: chart-only context, never touching the table/statement/CSV,
- *  which stay scoped to the main authority alone). Keyed by year, not
- *  assumed to line up positionally with `points` - the compare authority can
- *  easily have data for a different subset of the 9 years (a city vs. a
- *  council-only year, for instance). */
-const FIN_PLOT_PX = 200; // shared by bar heights, gridline spacing and axis labels - must stay one constant so all three line up
-
-/** Rounds a peak value up to a "nice" axis maximum (1/2/2.5/5 x 10^n steps),
- *  the standard chart-axis algorithm - a gridline at 683,417 would tell a
- *  reader nothing an unlabeled bar didn't already; a gridline at 700,000
- *  does. `targetSteps` is a target, not a guarantee - the actual count is
- *  whatever full steps fit under the rounded max. */
-function niceAxisStep(max, targetSteps = 5) {
-  if (!max || max <= 0) return { step: 1, steps: 1, axisMax: 1 };
-  const roughStep = max / targetSteps;
-  const magnitude = 10 ** Math.floor(Math.log10(roughStep));
-  const residual = roughStep / magnitude;
-  const niceResidual = residual <= 1 ? 1 : residual <= 2 ? 2 : residual <= 2.5 ? 2.5 : residual <= 5 ? 5 : 10;
-  const step = niceResidual * magnitude;
-  const steps = Math.ceil(max / step);
-  return { step, steps, axisMax: step * steps };
-}
-
-/** Splits the main authority's own year coverage into real years and gap
- *  runs (e.g. 2020-2021, missing because Hod Hasharon isn't in those two
- *  years' councils-only source) - a gap INSIDE the covered span (between
- *  the earliest and latest year with data) gets its own dashed slot on the
- *  chart; years outside that span (a city not covered before/after) are
- *  simply not shown at all, same as before - there's no "gap" to mark at
- *  the edge of what the chart covers in the first place. */
-function buildYearSlots(points) {
-  const years = points.map((p) => p.year);
-  const minYear = Math.min(...years);
-  const maxYear = Math.max(...years);
-  const present = new Set(years);
-  const slots = [];
-  let gapFrom = null;
-  for (let y = minYear; y <= maxYear; y++) {
-    if (present.has(y)) {
-      if (gapFrom != null) { slots.push({ type: 'gap', from: gapFrom, to: y - 1 }); gapFrom = null; }
-      slots.push({ type: 'year', year: y });
-    } else if (gapFrom == null) {
-      gapFrom = y;
-    }
-  }
-  return slots;
-}
-
-/** Grouped (not overlapping) bar chart with a gridlined y-axis, replacing
- *  the earlier layered/telescoping-bar version - a reader can now read an
- *  exact-ish value straight off a single bar instead of needing the table
- *  underneath. `compare` (optional): { name, points: [{year, revenue,
- *  expense}] } - the compare authority's own two series, drawn as a second,
- *  distinctly-colored bar group right next to the main authority's for the
- *  same year.
- *
- *  Color encodes CITY, not series: the main authority is always --accent,
- *  the compare authority always --fin-compare, identical across all three
- *  finance charts on this page (revenue/expense, per-resident, liabilities)
- *  - a color's meaning here doesn't need re-checking chart to chart. Which
- *  of the two series a bar is (`labels.front` vs `labels.back`) is carried
- *  by POSITION (front's bar always comes first in its city's pair) and a
- *  lighter tint of that same city's color, not a second hue - see the
- *  legend this renders, which states the position rule once per chart.
- *
- *  When `compare` is set, each year gets a small "X% מ-<city>" label above
- *  its bars - the main authority's total (front+back) as a percentage of
- *  the compare authority's same total - so the comparison answers "closer
- *  to or further from the other city than last year", not just "which
- *  city is bigger" from two overlapping bars of very different height. */
-function renderGroupedChart(figId, caption, points, unit, labels = { front: 'הכנסות', back: 'הוצאות' }, compare = null) {
-  const fig = el(figId);
-  if (!points.length) { fig.innerHTML = `<figcaption>${esc(caption)}</figcaption><p class="acc-hint">אין נתונים להצגה.</p>`; return; }
-  const compareByYear = new Map((compare?.points || []).map((p) => [p.year, p]));
-  const peak = Math.max(
-    ...points.flatMap((p) => [p.revenue, p.expense]),
-    ...[...compareByYear.values()].flatMap((p) => [p.revenue, p.expense]),
-  );
-  const { steps, axisMax } = niceAxisStep(peak);
-  const byYear = new Map(points.map((p) => [p.year, p]));
-  const slots = buildYearSlots(points);
-
-  const barH = (v) => (axisMax ? Math.round((v / axisMax) * FIN_PLOT_PX) : 0);
-  const cityBars = (p, mainCity) => `
-    <div class="fin-chart-bars">
-      <div class="fin-chart-bar${mainCity ? '' : ' fin-chart-bar-compare'}" style="block-size:${barH(p.revenue)}px"></div>
-      <div class="fin-chart-bar fin-chart-bar-light${mainCity ? '' : ' fin-chart-bar-compare'}" style="block-size:${barH(p.expense)}px"></div>
-    </div>`;
-
-  // Every group stacks in normal flow - an optional pct label, then a
-  // bars-wrap fixed at EXACTLY FIN_PLOT_PX (never a percentage/flex-fill
-  // height, which under this site's global box-sizing:border-box would
-  // silently shrink by whatever padding sits on an ancestor, throwing off
-  // every height computed against FIN_PLOT_PX elsewhere), then the year
-  // label - so the pct label always sits directly above whatever that
-  // year's tallest bar happens to be, with no separate pixel math to keep
-  // in sync, and every bars-wrap's own 0-line lines up with every other
-  // group's without relying on shared ancestor height tricks.
-  const groups = slots.map((slot) => {
-    if (slot.type === 'gap') {
-      const label = slot.from === slot.to ? String(slot.from) : `${slot.from}-${slot.to}`;
-      return `
-        <div class="fin-chart-group" title="אין נתונים לשנים ${esc(label)}">
-          <div class="fin-chart-gap-box" style="block-size:${FIN_PLOT_PX}px"></div>
-          <span class="fin-chart-y fin-chart-gap-label">${esc(label)}<br>אין נתונים</span>
-        </div>`;
-    }
-    const p = byYear.get(slot.year);
-    const cmp = compareByYear.get(slot.year);
-    const mainTotal = p.revenue + p.expense;
-    const cmpTotal = cmp ? cmp.revenue + cmp.expense : null;
-    const pct = cmp && cmpTotal ? Math.round((mainTotal / cmpTotal) * 100) : null;
-    const title = `${slot.year} — ${esc(state.authority)}: ${esc(labels.front)} ${num(p.revenue)}, ${esc(labels.back)} ${num(p.expense)} ${esc(unit)}`
-      + (cmp ? `; ${esc(compare.name)}: ${esc(labels.front)} ${num(cmp.revenue)}, ${esc(labels.back)} ${num(cmp.expense)} ${esc(unit)}` : '');
-    return `
-      <div class="fin-chart-group" title="${title}">
-        <span class="fin-chart-pct">${pct != null ? `${pct}% מ-${esc(compare.name)}` : ''}</span>
-        <div class="fin-chart-bars-wrap" style="block-size:${FIN_PLOT_PX}px; background-size:100% ${FIN_PLOT_PX / steps}px">
-          ${cityBars(p, true)}
-          ${cmp ? cityBars(cmp, false) : ''}
-        </div>
-        <span class="fin-chart-y">${slot.year}</span>
-      </div>`;
-  }).join('');
-
-  const axisLabels = Array.from({ length: steps + 1 }, (_, i) => axisMax - i * (axisMax / steps))
-    .map((v) => `<span>${num(Math.round(v))}</span>`).join('');
-
-  fig.className = 'acc-chart';
-  fig.innerHTML = `
-    <figcaption>${esc(caption)}</figcaption>
-    <div class="acc-legend">
-      <span class="acc-legend-item"><span class="acc-legend-swatch" style="background:var(--accent)"></span>${esc(state.authority)} - ${esc(labels.front)} (מלא, ראשון) / ${esc(labels.back)} (בהיר, שני)</span>
-      ${compare ? `<span class="acc-legend-item"><span class="acc-legend-swatch" style="background:var(--fin-compare)"></span>${esc(compare.name)} - אותו סדר</span>` : ''}
-    </div>
-    <div class="fin-chart-body">
-      <div class="fin-chart-axis">
-        <span class="fin-chart-pct">&nbsp;</span>
-        <div class="fin-chart-axis-scale" style="block-size:${FIN_PLOT_PX}px">${axisLabels}</div>
-      </div>
-      <div class="fin-chart-plot">${groups}</div>
-    </div>
-    <p class="acc-hint">${esc(unit)}${compare ? ' - האחוז מעל כל שנה: הסה"כ של ' + esc(state.authority) + ' כאחוז מהסה"כ של ' + esc(compare.name) + ' אותה שנה' : ''}</p>`;
-}
-
-// The chart's own values only show on hover (the title attribute) - a plain
-// table underneath makes every year's figures visible at once, newest year
-// first (a table is read top-down, so the most recent row leads). `compare`
-// (optional) adds the second authority's own revenue/expense/surplus as
-// three more columns, keyed by year - not assumed to line up positionally,
-// since the two authorities can have data for different years.
-// Identity color for a city row - solid accent for the main authority,
-// the same grayed-out accent used for its bars elsewhere on this page for
-// the compare authority - so a reader who's already learned "gray = the
-// other city" from the charts above doesn't have to learn a second code.
-const CITY_COLOR_MAIN = 'var(--accent)';
-const CITY_COLOR_COMPARE = 'color-mix(in srgb, var(--accent) 55%, var(--bg) 45%)';
-const citySwatchCell = (name, color) => `<td><span class="acc-legend-swatch" style="background:${color}"></span>${esc(name)}</td>`;
+// renderGroupedChart, niceAxisStep, buildYearSlots, FIN_PLOT_PX,
+// CITY_COLOR_MAIN/COMPARE and citySwatchCell are shared - see charts.js.
 
 /** `population`/`comparePopulation` (optional): each authority's own
  *  resident count from CBS's 2022 census (see fetchPopulation) - one fixed
@@ -808,7 +591,7 @@ async function renderAuthorityCharts() {
     const compare = hasCompare && comparePoints?.length
       ? { name: state.compareAuthority, points: comparePoints } : null;
     renderGroupedChart('finChartAuthRevenue', `הכנסות והוצאות לפי שנה — ${state.authority}`, points, 'אלפי ש"ח',
-      undefined, compare);
+      state.authority, undefined, compare);
     renderAuthorityTable(points, compare, population, comparePopulation);
     // A typed compare-authority that matched nothing needs to say so - silently
     // leaving the chart without a backdrop bar and no explanation looks
@@ -836,7 +619,7 @@ async function renderAuthorityCharts() {
           })),
         } : null;
       renderGroupedChart('finChartAuthPerCapita', `הכנסות והוצאות לתושב, לפי שנה — ${state.authority}`, perCapitaPoints, 'ש"ח',
-        undefined, comparePerCapita);
+        state.authority, undefined, comparePerCapita);
     } else {
       el('finChartAuthPerCapita').innerHTML = `<p class="acc-hint">לא נמצא נתון אוכלוסייה עבור "${esc(state.authority)}" במפקד ${CBS_POPULATION_YEAR}.</p>`;
     }
@@ -858,7 +641,7 @@ async function renderAuthorityCharts() {
       : null;
     renderGroupedChart('finChartAuthLiab', `התחייבויות: סה"כ מול שוטפות — ${state.authority}`,
       balancePoints.map((p) => ({ year: p.year, revenue: p.currentLiabilities, expense: p.liabilities })),
-      'אלפי ש"ח', { front: 'שוטפות', back: 'סה"כ' }, compareBalance);
+      'אלפי ש"ח', state.authority, { front: 'שוטפות', back: 'סה"כ' }, compareBalance);
     // The table's own compare columns use the compare authority's real
     // current-liabilities figure (not the flattened single backdrop value
     // the chart above uses) - a table has room for both numbers plainly.
@@ -910,7 +693,7 @@ async function renderAuthorityCharts() {
  *  page next to the numbers it affects, not hidden in a tooltip. */
 async function fetchPopulation(authority) {
   try {
-    const { records } = await dsQuery(CBS_POPULATION_RESOURCE_ID, { [CBS_POPULATION_FIELD]: authority });
+    const { records } = await dsFilter(CBS_POPULATION_RESOURCE_ID, { [CBS_POPULATION_FIELD]: authority });
     if (!records.length) return null;
     const n = Number(String(records[0]['Total_Population']).replace(/,/g, ''));
     return Number.isFinite(n) ? n : null;
@@ -922,7 +705,7 @@ async function fetchPopulation(authority) {
 async function fetchJurisdictionArea(authority) {
   const cfg = YEAR_RESOURCES[JURISDICTION_YEAR];
   try {
-    const { records } = await dsQuery(cfg.resourceId, { שם_רשות: authority, [cfg.sheetField]: JURISDICTION_SHEET, שורה: JURISDICTION_ROW });
+    const { records } = await dsFilter(cfg.resourceId, { שם_רשות: authority, [cfg.sheetField]: JURISDICTION_SHEET, שורה: JURISDICTION_ROW });
     if (!records.length) return null;
     const n = Number(records[0]['ערך']);
     return Number.isFinite(n) ? n : null;
@@ -1083,7 +866,7 @@ async function renderStatement() {
   try {
     const filters = { שם_רשות: state.authority };
     if (cfg.yearFilter) filters[cfg.yearFilter.field] = cfg.yearFilter.value;
-    const { records, total } = await dsQuery(cfg.resourceId, filters);
+    const { records, total } = await dsFilter(cfg.resourceId, filters);
     // A newer authority/year change already started its own call while this
     // one was awaiting - the fetch above is scoped correctly to what THIS
     // call asked for, but writing it now would show stale data (or overwrite
@@ -1186,7 +969,7 @@ async function downloadAllYearsForAuthority() {
       const filters = { שם_רשות: state.authority };
       if (cfg.yearFilter) filters[cfg.yearFilter.field] = cfg.yearFilter.value;
       try {
-        const { records } = await dsQuery(cfg.resourceId, filters);
+        const { records } = await dsFilter(cfg.resourceId, filters);
         if (records.length) {
           found += 1;
           records.forEach((r) => all.push({

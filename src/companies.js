@@ -26,6 +26,8 @@
 
 import { el, esc, num, debounce, buildCsv, saveCsv, showError, showLoading } from './ui.js';
 import { initThemePicker } from './theme.js';
+import { renderBarChart } from './charts.js';
+import { dsQuery } from './datastore.js';
 
 initThemePicker(el('themePick'));
 
@@ -35,7 +37,6 @@ if (!Number.isNaN(created.getTime())) {
   el('created').title = created.toISOString();
 }
 
-const DATASTORE = 'https://data.gov.il/api/3/action/datastore_search';
 const RESOURCE_ID = 'f004176c-b85f-4542-8901-7b3176f9a054';
 const PAGE_SIZE = 50;
 const F_STATUS = 'סטטוס חברה';
@@ -43,16 +44,9 @@ const F_TYPE = 'סוג תאגיד';
 const F_VIOLATOR = 'מפרה';
 const F_GOV = 'חברה ממשלתית';
 
-async function dsQuery(params) {
-  const p = new URLSearchParams({ resource_id: RESOURCE_ID, ...params });
-  const res = await fetch(`${DATASTORE}?${p}`);
-  if (!res.ok) throw Object.assign(new Error(`HTTP ${res.status}`), { kind: 'network' });
-  const j = await res.json();
-  if (!j.success) throw new Error(j.error?.message || 'שגיאת שרת');
-  return j.result;
-}
+const coQuery = (params) => dsQuery(RESOURCE_ID, params);
 
-const countOf = (filters) => dsQuery({ limit: '1', filters: JSON.stringify(filters) }).then((r) => r.total);
+const countOf = (filters) => coQuery({ limit: '1', filters: JSON.stringify(filters) }).then((r) => r.total);
 
 /* ---------- state ---------- */
 
@@ -85,32 +79,14 @@ function statusClass(status) {
   return 'unknown';
 }
 
-function renderBarChart(figId, caption, entries, colorClass) {
-  const fig = el(figId);
-  if (!entries.length) { fig.innerHTML = `<figcaption>${esc(caption)}</figcaption><p class="acc-hint">אין נתונים להצגה.</p>`; return; }
-  const peak = Math.max(...entries.map((e) => e.value));
-  const bars = entries.map((e) => {
-    const h = peak ? Math.round((e.value / peak) * 150) : 0;
-    return `
-      <div class="acc-bar" title="${esc(e.label)}: ${num(e.value)}">
-        <div class="acc-bar-track">
-          <span class="acc-bar-v">${num(e.value)}</span>
-          <div class="acc-bar-fill" style="block-size:${h}px"></div>
-        </div>
-        <span class="acc-bar-y">${esc(e.label)}</span>
-      </div>`;
-  }).join('');
-  fig.className = `acc-chart${colorClass ? ` ${colorClass}` : ''}`;
-  fig.innerHTML = `<figcaption>${esc(caption)}</figcaption><div class="acc-bars">${bars}</div>`;
-}
 
 async function loadGlobalStats() {
   showLoading(el('coKpis'), 'סופר תאגידים…');
   try {
     const [totalRes, statusFacet, typeFacet, violators, government] = await Promise.all([
-      dsQuery({ limit: '1' }),
-      dsQuery({ fields: F_STATUS, distinct: 'true', limit: '100' }),
-      dsQuery({ fields: F_TYPE, distinct: 'true', limit: '100' }),
+      coQuery({ limit: '1' }),
+      coQuery({ fields: F_STATUS, distinct: 'true', limit: '100' }),
+      coQuery({ fields: F_TYPE, distinct: 'true', limit: '100' }),
       countOf({ [F_VIOLATOR]: 'מפרה' }),
       countOf({ [F_GOV]: 'כן' }),
     ]);
@@ -152,7 +128,7 @@ async function loadGlobalStats() {
     // companies are a single type (חברה פרטית ישראלית), so a bar chart of it
     // is one full-height bar and a row of invisible slivers, not a picture of
     // anything. The counts still drive the coType dropdown below, unchanged.
-    renderBarChart('coChartStatus', 'פילוח לפי סטטוס חברה', statusCounts, 'total');
+    renderBarChart('coChartStatus', 'פילוח לפי סטטוס חברה', statusCounts, '', 'total');
 
     el('coStatus').innerHTML = `<option value="">הכל (${num(total)})</option>`
       + statusCounts.map((s) => `<option value="${esc(s.label)}">${esc(s.label)} (${num(s.value)})</option>`).join('');
@@ -266,7 +242,7 @@ async function loadResults() {
     const filters = activeFilters();
     if (Object.keys(filters).length) params.filters = JSON.stringify(filters);
     if (state.q) params.q = state.q;
-    const r = await dsQuery(params);
+    const r = await coQuery(params);
     state.records = r.records;
     state.total = r.total;
     el('coCount').textContent = r.total
@@ -307,7 +283,7 @@ async function fetchAllFiltered(onProgress) {
     const params = { limit: String(DUMP_PAGE), offset: String(offset) };
     if (Object.keys(filters).length) params.filters = JSON.stringify(filters);
     if (state.q) params.q = state.q;
-    const r = await dsQuery(params);
+    const r = await coQuery(params);
     records.push(...r.records);
     offset += r.records.length;
     onProgress(records.length, r.total);

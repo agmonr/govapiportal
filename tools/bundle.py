@@ -63,7 +63,7 @@ TARGETS = [
         # map.js minus explorer.js - accidents.html has no per-API request
         # panel to attach. Needs apis.json inlined: it looks up the
         # "accidents" app entry the same way map.js looks up portals.
-        "sources": ["src/ui.js", "src/theme.js", "src/portal.js", "src/city-stats.js", "src/accidents.js"],
+        "sources": ["src/ui.js", "src/theme.js", "src/portal.js", "src/city-stats.js", "src/charts.js", "src/accidents.js"],
         "data": True,
     },
     {
@@ -71,8 +71,9 @@ TARGETS = [
         "out": "dist/committees.html",
         "entry": "src/committees.js",
         # Talks to handasi.complot.co.il directly, live - no apis.json lookup,
-        # no shared portal.js machinery (its own filter/KPI/chart/table logic).
-        "sources": ["src/ui.js", "src/theme.js", "src/committee-sites.js", "src/committees.js"],
+        # no shared portal.js machinery (its own filter/KPI/table logic; the
+        # chart renderer itself is shared - see charts.js).
+        "sources": ["src/ui.js", "src/theme.js", "src/committee-sites.js", "src/charts.js", "src/committees.js"],
         "data": False,
     },
     {
@@ -80,9 +81,10 @@ TARGETS = [
         "out": "dist/local-finance.html",
         "entry": "src/local-finance.js",
         # Talks to data.gov.il's DataStore directly, live - no apis.json
-        # lookup, no shared portal.js machinery (its own KPI/chart/statement
-        # logic, over a per-year resource-id config in finance-data.js).
-        "sources": ["src/ui.js", "src/theme.js", "src/finance-data.js", "src/local-finance.js"],
+        # lookup, no shared portal.js machinery (its own KPI/statement logic,
+        # over a per-year resource-id config in finance-data.js). Charts and
+        # the DataStore query wrapper are shared - see charts.js/datastore.js.
+        "sources": ["src/ui.js", "src/theme.js", "src/finance-data.js", "src/charts.js", "src/datastore.js", "src/local-finance.js"],
         "data": False,
     },
     {
@@ -90,9 +92,10 @@ TARGETS = [
         "out": "dist/companies.html",
         "entry": "src/companies.js",
         # Talks to data.gov.il's DataStore directly, live - no apis.json
-        # lookup, no shared portal.js machinery (its own KPI/chart/search/
-        # pager logic, purpose-built for one fixed resource id).
-        "sources": ["src/ui.js", "src/theme.js", "src/companies.js"],
+        # lookup, no shared portal.js machinery (its own KPI/search/pager
+        # logic, purpose-built for one fixed resource id). Chart renderer and
+        # DataStore query wrapper are shared - see charts.js/datastore.js.
+        "sources": ["src/ui.js", "src/theme.js", "src/charts.js", "src/datastore.js", "src/companies.js"],
         "data": False,
     },
     {
@@ -100,12 +103,11 @@ TARGETS = [
         "out": "dist/welfare.html",
         "entry": "src/welfare.js",
         # Talks to data.gov.il's DataStore directly, live - no apis.json
-        # lookup, no shared portal.js/chart machinery (its own copy of the
-        # grouped-bar-chart renderer, same convention as every other page
-        # here). Both source resources are small enough to fetch whole once,
-        # so unlike local-finance.js there is no per-year resource config to
-        # bring in either.
-        "sources": ["src/ui.js", "src/theme.js", "src/welfare-data.js", "src/welfare.js"],
+        # lookup, no shared portal.js machinery. Both source resources are
+        # small enough to fetch whole once, so unlike local-finance.js there
+        # is no per-year resource config to bring in. Chart renderer and
+        # DataStore query wrapper are shared - see charts.js/datastore.js.
+        "sources": ["src/ui.js", "src/theme.js", "src/welfare-data.js", "src/charts.js", "src/datastore.js", "src/welfare.js"],
         "data": False,
     },
 ]

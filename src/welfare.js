@@ -16,6 +16,8 @@
 import { el, esc, num, debounce, buildCsv, saveCsv, showError, showLoading } from './ui.js';
 import { initThemePicker } from './theme.js';
 import { NATIONAL_RESOURCE_ID, NATIONAL_FIELDS, AUTHORITY_RESOURCE_ID, AUTHORITY_FIELDS, CATEGORY_COMMUNITY, CATEGORY_OUT_OF_HOME, normalizeCategory, parseAuthorityField } from './welfare-data.js';
+import { renderGroupedChart, CITY_COLOR_MAIN, CITY_COLOR_COMPARE, citySwatchCell } from './charts.js';
+import { dsQuery } from './datastore.js';
 
 initThemePicker(el('themePick'));
 
@@ -25,15 +27,9 @@ if (!Number.isNaN(created.getTime())) {
   el('created').title = created.toISOString();
 }
 
-const DATASTORE = 'https://data.gov.il/api/3/action/datastore_search';
-
-async function dsQuery(resourceId, limit = 10000) {
-  const res = await fetch(`${DATASTORE}?${new URLSearchParams({ resource_id: resourceId, limit: String(limit) })}`);
-  if (!res.ok) throw Object.assign(new Error(`HTTP ${res.status}`), { kind: 'network' });
-  const j = await res.json();
-  if (!j.success) throw new Error(j.error?.__type || 'שגיאת שרת');
-  return j.result.records;
-}
+// Both source tables are fetched whole (no filters) - the shared dsQuery
+// returns the full result object, so callers destructure .records themselves.
+const dsAll = (resourceId) => dsQuery(resourceId, { limit: '10000' }).then((r) => r.records);
 
 /* ---------- state ---------- */
 
@@ -74,7 +70,7 @@ function syncUrl() {
 /* ---------- loading + processing (once) ---------- */
 
 async function loadNational() {
-  const records = await dsQuery(NATIONAL_RESOURCE_ID);
+  const records = await dsAll(NATIONAL_RESOURCE_ID);
   nationalRows = records.map((r) => ({
     year: Number(r[NATIONAL_FIELDS.year]),
     community: {
@@ -89,7 +85,7 @@ async function loadNational() {
 }
 
 async function loadAuthorities() {
-  const records = await dsQuery(AUTHORITY_RESOURCE_ID);
+  const records = await dsAll(AUTHORITY_RESOURCE_ID);
   const byCode = new Map();
   for (const r of records) {
     const parsed = parseAuthorityField(r[AUTHORITY_FIELDS.authority]);
@@ -177,85 +173,14 @@ function renderNationalChart() {
     year: r.year, revenue: r.community.amount, expense: r.outOfHome.amount,
   }));
   renderGroupedChart('welNatChart', 'תשלומים ארציים לפי שנה וסוג מסגרת', points, '₪',
-    { front: CATEGORY_COMMUNITY, back: CATEGORY_OUT_OF_HOME }, null);
+    null, { front: CATEGORY_COMMUNITY, back: CATEGORY_OUT_OF_HOME }, null);
 }
 
-/* ---------- grouped bar chart with an optional compare backdrop - same
-   visual pattern as local-finance.js's revenue/expense chart, kept as its
-   own copy per this codebase's existing convention (every page owns its
-   chart renderers - see accidents.js/committees.js/companies.js, none of
-   which share one either) rather than a new cross-page shared module for a
-   second consumer. Simplified from local-finance's version: no year-gap
-   slots (this dataset has no missing-year holes within an authority's own
-   span, checked directly), so every point in `points` gets one group. ---------- */
-
-const FIN_PLOT_PX = 200;
-
-function niceAxisStep(max, targetSteps = 5) {
-  if (!max || max <= 0) return { step: 1, steps: 1, axisMax: 1 };
-  const roughStep = max / targetSteps;
-  const magnitude = 10 ** Math.floor(Math.log10(roughStep));
-  const residual = roughStep / magnitude;
-  const niceResidual = residual <= 1 ? 1 : residual <= 2 ? 2 : residual <= 2.5 ? 2.5 : residual <= 5 ? 5 : 10;
-  const step = niceResidual * magnitude;
-  const steps = Math.ceil(max / step);
-  return { step, steps, axisMax: step * steps };
-}
-
-const CITY_COLOR_MAIN = 'var(--accent)';
-const CITY_COLOR_COMPARE = 'color-mix(in srgb, var(--accent) 55%, var(--bg) 45%)';
-const citySwatchCell = (name, color) => `<td><span class="acc-legend-swatch" style="background:${color}"></span>${esc(name)}</td>`;
-
-function renderGroupedChart(figId, caption, points, unit, labels, compare) {
-  const fig = el(figId);
-  if (!points.length) { fig.innerHTML = `<figcaption>${esc(caption)}</figcaption><p class="acc-hint">אין נתונים להצגה.</p>`; return; }
-  const compareByYear = new Map((compare?.points || []).map((p) => [p.year, p]));
-  const peak = Math.max(
-    ...points.flatMap((p) => [p.revenue, p.expense]),
-    ...[...compareByYear.values()].flatMap((p) => [p.revenue, p.expense]),
-  );
-  const { steps, axisMax } = niceAxisStep(peak);
-  const barH = (v) => (axisMax ? Math.round((v / axisMax) * FIN_PLOT_PX) : 0);
-  const cityBars = (p, mainCity) => `
-    <div class="fin-chart-bars">
-      <div class="fin-chart-bar${mainCity ? '' : ' fin-chart-bar-compare'}" style="block-size:${barH(p.revenue)}px"></div>
-      <div class="fin-chart-bar fin-chart-bar-light${mainCity ? '' : ' fin-chart-bar-compare'}" style="block-size:${barH(p.expense)}px"></div>
-    </div>`;
-
-  const groups = points.map((p) => {
-    const cmp = compareByYear.get(p.year);
-    const title = `${p.year}: ${esc(labels.front)} ${num(p.revenue)}, ${esc(labels.back)} ${num(p.expense)} ${esc(unit)}`
-      + (cmp ? `; ${esc(compare.name)}: ${esc(labels.front)} ${num(cmp.revenue)}, ${esc(labels.back)} ${num(cmp.expense)} ${esc(unit)}` : '');
-    return `
-      <div class="fin-chart-group" title="${title}">
-        <span class="fin-chart-pct">&nbsp;</span>
-        <div class="fin-chart-bars-wrap" style="block-size:${FIN_PLOT_PX}px; background-size:100% ${FIN_PLOT_PX / steps}px">
-          ${cityBars(p, true)}
-          ${cmp ? cityBars(cmp, false) : ''}
-        </div>
-        <span class="fin-chart-y">${p.year}</span>
-      </div>`;
-  }).join('');
-
-  const axisLabels = Array.from({ length: steps + 1 }, (_, i) => axisMax - i * (axisMax / steps))
-    .map((v) => `<span>${num(Math.round(v))}</span>`).join('');
-
-  fig.className = 'acc-chart acc-chart-wide';
-  fig.innerHTML = `
-    <figcaption>${esc(caption)}</figcaption>
-    <div class="acc-legend">
-      <span class="acc-legend-item"><span class="acc-legend-swatch" style="background:var(--accent)"></span>${esc(labels.front)} (מלא, ראשון) / ${esc(labels.back)} (בהיר, שני)${compare ? ` — ${esc(state.authority)}` : ''}</span>
-      ${compare ? `<span class="acc-legend-item"><span class="acc-legend-swatch" style="background:var(--fin-compare)"></span>${esc(compare.name)} - אותו סדר</span>` : ''}
-    </div>
-    <div class="fin-chart-body">
-      <div class="fin-chart-axis">
-        <span class="fin-chart-pct">&nbsp;</span>
-        <div class="fin-chart-axis-scale" style="block-size:${FIN_PLOT_PX}px">${axisLabels}</div>
-      </div>
-      <div class="fin-chart-plot">${groups}</div>
-    </div>
-    <p class="acc-hint">${esc(unit)}</p>`;
-}
+// renderGroupedChart, CITY_COLOR_MAIN/COMPARE and citySwatchCell are
+// shared - see charts.js. Note: this page's chart never has internal
+// year-gaps within an authority's own span (checked directly), but the
+// shared renderer's gap-handling is a no-op in that case, not a behavior
+// change from the simpler version this used to have.
 
 /* ---------- per-authority section ---------- */
 
@@ -335,7 +260,7 @@ function renderAuthoritySection() {
 
   el('authChartH').textContent = `תשלומים לפי שנה — ${state.authority}`;
   renderGroupedChart('welAuthChart', `תשלומים למסגרות רווחה, לפי שנה — ${state.authority}`, points, '₪',
-    { front: CATEGORY_COMMUNITY, back: CATEGORY_OUT_OF_HOME }, compare);
+    state.authority, { front: CATEGORY_COMMUNITY, back: CATEGORY_OUT_OF_HOME }, compare);
   renderAuthorityTable(points, compare);
 }
 
