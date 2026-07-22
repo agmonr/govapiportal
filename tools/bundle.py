@@ -95,6 +95,19 @@ TARGETS = [
         "sources": ["src/ui.js", "src/theme.js", "src/companies.js"],
         "data": False,
     },
+    {
+        "html": "welfare.html",
+        "out": "dist/welfare.html",
+        "entry": "src/welfare.js",
+        # Talks to data.gov.il's DataStore directly, live - no apis.json
+        # lookup, no shared portal.js/chart machinery (its own copy of the
+        # grouped-bar-chart renderer, same convention as every other page
+        # here). Both source resources are small enough to fetch whole once,
+        # so unlike local-finance.js there is no per-year resource config to
+        # bring in either.
+        "sources": ["src/ui.js", "src/theme.js", "src/welfare-data.js", "src/welfare.js"],
+        "data": False,
+    },
 ]
 
 IMPORT_RE = re.compile(r"^\s*import\s.*?;\s*$", re.M)

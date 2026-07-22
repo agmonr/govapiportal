@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>תשלומים למסגרות רווחה (משרד הרווחה)</title>
+  <!-- Sets data-theme before the stylesheet is applied, so a returning
+       visitor who picked "fashion" never sees a flash of the clouds theme
+       first. See src/theme.js for the picker itself. -->
+  <script>
+    try {
+      var t = localStorage.getItem('theme');
+      if (t && t !== 'clouds') document.documentElement.setAttribute('data-theme', t);
+    } catch (e) {}
+  </script>
+  <link rel="stylesheet" href="./src/style.css">
+</head>
+<body class="accidents-page welfare-page">
+  <header class="site">
+    <div class="wrap">
+      <h1>תשלומים למסגרות רווחה</h1>
+      <span class="site-by">פרויקט של רם אגמון<span class="site-disclaimer">המידע באתר עלול להיות שגוי</span><a href="https://hod-hasharon.org/" target="_blank" rel="noopener">הירוקים הוד השרון</a></span>
+      <div class="theme-pick" id="themePick" role="group" aria-label="ערכת נושא">
+        <button type="button" data-theme="clouds">עננים</button>
+        <button type="button" data-theme="fashion">אופנה</button>
+      </div>
+      <span class="meta" id="created"></span>
+      <span class="meta"><a href="./index.html">← חזרה למפת ה-API</a></span>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <div id="fileproto" class="notice error" dir="auto" hidden>
+      <strong>הדף נפתח כקובץ מקומי (<code dir="ltr">file://</code>) ולכן אינו יכול לטעון את הנתונים.</strong>
+      <p>
+        הדפדפן חוסם מודולי ES ממקור <code dir="ltr">null</code> — זו הגבלת אבטחה של הדפדפן, לא תקלה באתר.
+        הפעל שרת מקומי מתיקיית הפרויקט:
+      </p>
+      <pre dir="ltr"><code>python3 -m http.server 8000</code></pre>
+      <p>ולאחר מכן פתח <a href="http://localhost:8000/welfare.html" dir="ltr">http://localhost:8000/welfare.html</a>.</p>
+      <p>
+        לחלופין, ללא שרת כלל — <a href="./dist/welfare.html" dir="ltr">dist/welfare.html</a>
+        הוא קובץ יחיד ועצמאי שעובד בפתיחה ישירה מהדיסק, כולל הרצת בקשות חיות.
+      </p>
+    </div>
+
+    <div id="app">
+      <details class="notice info" dir="auto">
+        <summary><strong>מה יש כאן, ומה עדיין לא</strong></summary>
+        <p>
+          תשלומים ששילם משרד הרווחה עבור <strong>מסגרות טיפול</strong> - מעונות קשישים, מוסדות לאנשים
+          עם מוגבלות, משפחות אומנה, מסגרות לאוטיסטים ועוד - לא קצבאות או תמיכה כספית שמשולמת ישירות
+          לאנשים פרטיים. "מדיניות חברתית" היא תחום רחב הרבה יותר; זו פרוסה אחת ממנו, לא כולו.
+          מקור: מאגר "תשלומים" של משרד הרווחה והביטחון החברתי, <code dir="ltr">datastore_search</code>
+          חי מול data.gov.il, בדיוק כמו שאר האפליקציות באתר הזה.
+        </p>
+        <p>
+          <strong>שני סוגי מסגרת:</strong> "בקהילה" - שירותים שניתנים למי שממשיך לגור בביתו; "חוץ-ביתי" -
+          מי שהוצא מביתו והושם במסגרת חלופית (פנימייה, הוסטל, משפחת אומנה וכו'). חוץ-ביתי עולה פי כמה
+          לנפש מבקהילה בכל שנה ובכל רשות שנבדקה.
+        </p>
+        <p>
+          <strong>שינוי פורמט ב-2021:</strong> גם שם הרשות וגם תיוג סוג המסגרת השתנו יחד באותה שנה
+          במקור (למשל "313 תל אביב" הפך ל"313 תל אביב-יפו"; "מסגרות בקהילה" הפך ל"בקהילה") - העמוד
+          מנרמל את שניהם לפי הקוד המספרי היציב של הרשות ולפי שתי הקטגוריות הקבועות, כך שהמגמה
+          לאורך זמן ממשיכה נכון על פני הגבול הזה.
+        </p>
+        <p>
+          <strong>נתוני ₪ קיימים רק ל-18 רשויות</strong> (בערך אלה שמעל 100,000 תושבים) - שאר כ-240
+          הרשויות מופיעות במאגר נפרד עם מספרי מקבלים בלבד, ללא סכום; מאגר זה אינו נכלל כאן.
+        </p>
+      </details>
+
+      <section class="acc-section" aria-labelledby="kpiH">
+        <h2 id="kpiH">מדדים ארציים — <span id="welYearLabel"></span></h2>
+        <div id="welKpis" class="stat-row"></div>
+      </section>
+
+      <section class="acc-section" aria-labelledby="natChartH">
+        <h2 id="natChartH">מגמה ארצית, 2016–2022</h2>
+        <figure id="welNatChart" class="acc-chart acc-chart-wide" role="img"></figure>
+      </section>
+
+      <section class="acc-section" aria-labelledby="filtersH">
+        <h2 id="filtersH">בחירת רשות ושנה</h2>
+        <div class="cm-filters">
+          <div class="acc-year-pick">
+            <label for="welAuthority">רשות מקומית:</label>
+            <input id="welAuthority" type="text" list="welAuthorityList" autocomplete="off"
+                   spellcheck="false" placeholder="התחילו להקליד שם רשות…">
+            <datalist id="welAuthorityList"></datalist>
+          </div>
+          <div class="acc-year-pick">
+            <label for="welYear">שנה:</label>
+            <select id="welYear"></select>
+          </div>
+          <div class="acc-year-pick">
+            <label for="welCompare">השוואה לרשות נוספת (אופציונלי):</label>
+            <input id="welCompare" type="text" list="welAuthorityList" autocomplete="off"
+                   spellcheck="false" placeholder="התחילו להקליד שם רשות…">
+          </div>
+        </div>
+        <p class="acc-hint">
+          הרשימה כוללת רק את 18 הרשויות שיש להן נתוני ₪ (ראו ההסבר למעלה) - לא את כל הרשויות בישראל.
+        </p>
+        <p id="welCompareWarn" class="notice error" dir="auto" hidden></p>
+      </section>
+
+      <section class="acc-section" id="welAuthSection" aria-labelledby="authChartH" hidden>
+        <h2 id="authChartH">תשלומים לפי שנה — הרשות שנבחרה</h2>
+        <figure id="welAuthChart" class="acc-chart acc-chart-wide" role="img"></figure>
+        <div id="welAuthTable"></div>
+      </section>
+
+      <section class="acc-section" aria-labelledby="csvH">
+        <h2 id="csvH">הורדת נתונים</h2>
+        <div class="fin-export-row">
+          <button type="button" id="welCsv" class="drill-dl">הורדת CSV — הרשות שנבחרה, כל השנים ⭳</button>
+        </div>
+        <p class="acc-hint">
+          קובץ CSV שורה לכל שנה/קטגוריה, נבנה מהנתונים המוצגים למעלה - אין קובץ חיצוני להורדה,
+          אותה סיבה שיש לזה בכל אפליקציה אחרת באתר: המאגר המקורי מוגש מאחורי WAF שחוסם בקשות שרת.
+        </p>
+      </section>
+    </div>
+  </main>
+
+  <!--
+    Same guard as index.html/accidents.html: opened from disk nothing below
+    can load, because ES module scripts are refused from origin 'null'. Must
+    be a classic inline script - a module would be the first thing blocked.
+  -->
+  <script>
+    if (location.protocol === 'file:') {
+      document.getElementById('fileproto').hidden = false;
+      document.getElementById('app').hidden = true;
+    }
+  </script>
+  <script type="module" src="./src/welfare.js"></script>
+</body>
+</html>

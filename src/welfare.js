@@ -1,0 +1,410 @@
+/**
+ * Entry point for welfare.html - תשלומים למסגרות רווחה (משרד הרווחה).
+ *
+ * Both source resources are small (7 national rows, 232 per-authority rows) -
+ * fetched WHOLE, once, on load. Every authority/year/compare selection after
+ * that is a client-side filter over the cached rows, not a new request - see
+ * src/welfare-data.js for why this differs from local-finance.js's per-year
+ * fetch pattern.
+ *
+ * Deliberately NOT included: any per-resident (population-normalized) figure.
+ * Unlike local-finance.js, nothing here merges in a population source, so
+ * there is no guarded/ungarded distinction to get wrong - there is simply no
+ * per-capita number anywhere on this page.
+ */
+
+import { el, esc, num, debounce, buildCsv, saveCsv, showError, showLoading } from './ui.js';
+import { initThemePicker } from './theme.js';
+import { NATIONAL_RESOURCE_ID, NATIONAL_FIELDS, AUTHORITY_RESOURCE_ID, AUTHORITY_FIELDS, CATEGORY_COMMUNITY, CATEGORY_OUT_OF_HOME, normalizeCategory, parseAuthorityField } from './welfare-data.js';
+
+initThemePicker(el('themePick'));
+
+const created = new Date(document.lastModified);
+if (!Number.isNaN(created.getTime())) {
+  el('created').textContent = `נוצר: ${created.toLocaleDateString('he-IL')} ${created.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}`;
+  el('created').title = created.toISOString();
+}
+
+const DATASTORE = 'https://data.gov.il/api/3/action/datastore_search';
+
+async function dsQuery(resourceId, limit = 10000) {
+  const res = await fetch(`${DATASTORE}?${new URLSearchParams({ resource_id: resourceId, limit: String(limit) })}`);
+  if (!res.ok) throw Object.assign(new Error(`HTTP ${res.status}`), { kind: 'network' });
+  const j = await res.json();
+  if (!j.success) throw new Error(j.error?.__type || 'שגיאת שרת');
+  return j.result.records;
+}
+
+/* ---------- state ---------- */
+
+const DEFAULT_AUTHORITY = 'ירושלים';
+const DEFAULT_COMPARE_AUTHORITY = 'תל אביב-יפו';
+
+const state = {
+  authority: DEFAULT_AUTHORITY,
+  compareAuthority: DEFAULT_COMPARE_AUTHORITY,
+  year: null, // set once national data loads and the real max year is known
+};
+
+// code -> { name, byYear: Map<year, { קהילה: {recipients,amount}|null, 'חוץ-ביתי': {...}|null }> }
+let authorityByCode = new Map();
+// display name -> code, covering BOTH historical spellings (see welfare-data.js)
+let nameToCode = new Map();
+let nationalRows = []; // [{year, community:{recipients,amount}, outOfHome:{recipients,amount}}], ascending
+
+/* ---------- URL state - same shareable-link pattern as local-finance.html ---------- */
+
+function readStateFromUrl() {
+  const p = new URLSearchParams(location.search);
+  const authority = p.get('authority')?.trim();
+  const year = Number(p.get('year'));
+  if (authority) state.authority = authority;
+  if (p.has('compare')) state.compareAuthority = p.get('compare').trim() || null;
+  if (nationalRows.some((r) => r.year === year)) state.year = year;
+}
+
+function syncUrl() {
+  const p = new URLSearchParams();
+  if (state.authority) p.set('authority', state.authority);
+  p.set('compare', state.compareAuthority || '');
+  p.set('year', String(state.year));
+  history.replaceState(null, '', `?${p}`);
+}
+
+/* ---------- loading + processing (once) ---------- */
+
+async function loadNational() {
+  const records = await dsQuery(NATIONAL_RESOURCE_ID);
+  nationalRows = records.map((r) => ({
+    year: Number(r[NATIONAL_FIELDS.year]),
+    community: {
+      recipients: Number(String(r[NATIONAL_FIELDS.community.recipients]).replace(/,/g, '')) || 0,
+      amount: Number(String(r[NATIONAL_FIELDS.community.amount]).replace(/,/g, '')) || 0,
+    },
+    outOfHome: {
+      recipients: Number(String(r[NATIONAL_FIELDS.outOfHome.recipients]).replace(/,/g, '')) || 0,
+      amount: Number(String(r[NATIONAL_FIELDS.outOfHome.amount]).replace(/,/g, '')) || 0,
+    },
+  })).sort((a, b) => a.year - b.year);
+}
+
+async function loadAuthorities() {
+  const records = await dsQuery(AUTHORITY_RESOURCE_ID);
+  const byCode = new Map();
+  for (const r of records) {
+    const parsed = parseAuthorityField(r[AUTHORITY_FIELDS.authority]);
+    const category = normalizeCategory(r[AUTHORITY_FIELDS.category]);
+    const year = Number(r[AUTHORITY_FIELDS.year]);
+    if (!parsed || !category || !Number.isFinite(year)) continue; // unrecognized row shape - skip rather than misfile it
+    let entry = byCode.get(parsed.code);
+    if (!entry) { entry = { name: parsed.name, latestYear: year, byYear: new Map() }; byCode.set(parsed.code, entry); }
+    // Prefer the NEWEST spelling as the display name ("תל אביב-יפו" over
+    // "תל אביב") - rows arrive in no guaranteed order, so this is compared
+    // per row rather than assumed from fetch order.
+    if (year >= entry.latestYear) { entry.name = parsed.name; entry.latestYear = year; }
+    let yearEntry = entry.byYear.get(year);
+    if (!yearEntry) { yearEntry = {}; entry.byYear.set(year, yearEntry); }
+    yearEntry[category] = {
+      recipients: Number(String(r[AUTHORITY_FIELDS.recipients]).replace(/,/g, '')) || 0,
+      amount: Number(String(r[AUTHORITY_FIELDS.amount]).replace(/,/g, '')) || 0,
+    };
+  }
+  authorityByCode = byCode;
+  nameToCode = new Map();
+  for (const [code, entry] of byCode) {
+    nameToCode.set(entry.name, code); // canonical (newest) spelling
+  }
+  // Older spelling(s) also resolve, so a shared link or typed-in old name
+  // still finds the right authority instead of silently matching nothing.
+  for (const r of records) {
+    const parsed = parseAuthorityField(r[AUTHORITY_FIELDS.authority]);
+    if (parsed && !nameToCode.has(parsed.name)) nameToCode.set(parsed.name, parsed.code);
+  }
+}
+
+function authorityYears(code) {
+  const entry = authorityByCode.get(code);
+  if (!entry) return [];
+  return [...entry.byYear.keys()].sort((a, b) => a - b)
+    .map((year) => ({ year, ...entry.byYear.get(year) }));
+}
+
+/* ---------- authority roster (datalist) ---------- */
+
+function populateRoster() {
+  const names = [...authorityByCode.values()].map((e) => e.name).sort((a, b) => a.localeCompare(b, 'he'));
+  el('welAuthorityList').innerHTML = names.map((n) => `<option value="${esc(n)}"></option>`).join('');
+}
+
+/* ---------- year select ---------- */
+
+function populateYearSelect() {
+  const years = nationalRows.map((r) => r.year).sort((a, b) => b - a);
+  el('welYear').innerHTML = years.map((y) => `<option value="${y}">${y}</option>`).join('');
+  el('welYear').value = String(state.year);
+}
+
+/* ---------- national KPIs + trend chart ---------- */
+
+function renderKpis() {
+  const row = nationalRows.find((r) => r.year === state.year);
+  el('welYearLabel').textContent = state.year;
+  const box = el('welKpis');
+  if (!row) { box.innerHTML = '<p class="acc-hint">אין נתונים לשנה זו.</p>'; return; }
+  const totalRecipients = row.community.recipients + row.outOfHome.recipients;
+  const totalAmount = row.community.amount + row.outOfHome.amount;
+  box.innerHTML = `
+    <div class="stat">
+      <span class="stat-n">${num(totalAmount)}</span>
+      <span class="stat-l">סה"כ תשלומים (₪)</span>
+    </div>
+    <div class="stat">
+      <span class="stat-n">${num(totalRecipients)}</span>
+      <span class="stat-l">סה"כ מקבלי שירות</span>
+    </div>
+    <div class="stat">
+      <span class="stat-n">${num(row.community.amount)}</span>
+      <span class="stat-l">${CATEGORY_COMMUNITY} (₪) — ${num(row.community.recipients)} מקבלים</span>
+    </div>
+    <div class="stat warn">
+      <span class="stat-n">${num(row.outOfHome.amount)}</span>
+      <span class="stat-l">${CATEGORY_OUT_OF_HOME} (₪) — ${num(row.outOfHome.recipients)} מקבלים</span>
+    </div>`;
+}
+
+function renderNationalChart() {
+  const points = nationalRows.map((r) => ({
+    year: r.year, revenue: r.community.amount, expense: r.outOfHome.amount,
+  }));
+  renderGroupedChart('welNatChart', 'תשלומים ארציים לפי שנה וסוג מסגרת', points, '₪',
+    { front: CATEGORY_COMMUNITY, back: CATEGORY_OUT_OF_HOME }, null);
+}
+
+/* ---------- grouped bar chart with an optional compare backdrop - same
+   visual pattern as local-finance.js's revenue/expense chart, kept as its
+   own copy per this codebase's existing convention (every page owns its
+   chart renderers - see accidents.js/committees.js/companies.js, none of
+   which share one either) rather than a new cross-page shared module for a
+   second consumer. Simplified from local-finance's version: no year-gap
+   slots (this dataset has no missing-year holes within an authority's own
+   span, checked directly), so every point in `points` gets one group. ---------- */
+
+const FIN_PLOT_PX = 200;
+
+function niceAxisStep(max, targetSteps = 5) {
+  if (!max || max <= 0) return { step: 1, steps: 1, axisMax: 1 };
+  const roughStep = max / targetSteps;
+  const magnitude = 10 ** Math.floor(Math.log10(roughStep));
+  const residual = roughStep / magnitude;
+  const niceResidual = residual <= 1 ? 1 : residual <= 2 ? 2 : residual <= 2.5 ? 2.5 : residual <= 5 ? 5 : 10;
+  const step = niceResidual * magnitude;
+  const steps = Math.ceil(max / step);
+  return { step, steps, axisMax: step * steps };
+}
+
+const CITY_COLOR_MAIN = 'var(--accent)';
+const CITY_COLOR_COMPARE = 'color-mix(in srgb, var(--accent) 55%, var(--bg) 45%)';
+const citySwatchCell = (name, color) => `<td><span class="acc-legend-swatch" style="background:${color}"></span>${esc(name)}</td>`;
+
+function renderGroupedChart(figId, caption, points, unit, labels, compare) {
+  const fig = el(figId);
+  if (!points.length) { fig.innerHTML = `<figcaption>${esc(caption)}</figcaption><p class="acc-hint">אין נתונים להצגה.</p>`; return; }
+  const compareByYear = new Map((compare?.points || []).map((p) => [p.year, p]));
+  const peak = Math.max(
+    ...points.flatMap((p) => [p.revenue, p.expense]),
+    ...[...compareByYear.values()].flatMap((p) => [p.revenue, p.expense]),
+  );
+  const { steps, axisMax } = niceAxisStep(peak);
+  const barH = (v) => (axisMax ? Math.round((v / axisMax) * FIN_PLOT_PX) : 0);
+  const cityBars = (p, mainCity) => `
+    <div class="fin-chart-bars">
+      <div class="fin-chart-bar${mainCity ? '' : ' fin-chart-bar-compare'}" style="block-size:${barH(p.revenue)}px"></div>
+      <div class="fin-chart-bar fin-chart-bar-light${mainCity ? '' : ' fin-chart-bar-compare'}" style="block-size:${barH(p.expense)}px"></div>
+    </div>`;
+
+  const groups = points.map((p) => {
+    const cmp = compareByYear.get(p.year);
+    const title = `${p.year}: ${esc(labels.front)} ${num(p.revenue)}, ${esc(labels.back)} ${num(p.expense)} ${esc(unit)}`
+      + (cmp ? `; ${esc(compare.name)}: ${esc(labels.front)} ${num(cmp.revenue)}, ${esc(labels.back)} ${num(cmp.expense)} ${esc(unit)}` : '');
+    return `
+      <div class="fin-chart-group" title="${title}">
+        <span class="fin-chart-pct">&nbsp;</span>
+        <div class="fin-chart-bars-wrap" style="block-size:${FIN_PLOT_PX}px; background-size:100% ${FIN_PLOT_PX / steps}px">
+          ${cityBars(p, true)}
+          ${cmp ? cityBars(cmp, false) : ''}
+        </div>
+        <span class="fin-chart-y">${p.year}</span>
+      </div>`;
+  }).join('');
+
+  const axisLabels = Array.from({ length: steps + 1 }, (_, i) => axisMax - i * (axisMax / steps))
+    .map((v) => `<span>${num(Math.round(v))}</span>`).join('');
+
+  fig.className = 'acc-chart acc-chart-wide';
+  fig.innerHTML = `
+    <figcaption>${esc(caption)}</figcaption>
+    <div class="acc-legend">
+      <span class="acc-legend-item"><span class="acc-legend-swatch" style="background:var(--accent)"></span>${esc(labels.front)} (מלא, ראשון) / ${esc(labels.back)} (בהיר, שני)${compare ? ` — ${esc(state.authority)}` : ''}</span>
+      ${compare ? `<span class="acc-legend-item"><span class="acc-legend-swatch" style="background:var(--fin-compare)"></span>${esc(compare.name)} - אותו סדר</span>` : ''}
+    </div>
+    <div class="fin-chart-body">
+      <div class="fin-chart-axis">
+        <span class="fin-chart-pct">&nbsp;</span>
+        <div class="fin-chart-axis-scale" style="block-size:${FIN_PLOT_PX}px">${axisLabels}</div>
+      </div>
+      <div class="fin-chart-plot">${groups}</div>
+    </div>
+    <p class="acc-hint">${esc(unit)}</p>`;
+}
+
+/* ---------- per-authority section ---------- */
+
+function renderAuthorityTable(points, compare) {
+  const compareByYear = new Map((compare?.points || []).map((p) => [p.year, p]));
+  const rows = [...points].sort((a, b) => b.year - a.year).map((p) => {
+    const cmp = compareByYear.get(p.year);
+    const mainRow = `
+      <tr>
+        <th scope="row"${cmp ? ' rowspan="2"' : ''}>${p.year}</th>
+        ${compare ? citySwatchCell(state.authority, CITY_COLOR_MAIN) : ''}
+        <td>${num(p.revenue)}</td>
+        <td>${num(p.communityRecipients)}</td>
+        <td>${num(p.expense)}</td>
+        <td>${num(p.outOfHomeRecipients)}</td>
+      </tr>`;
+    if (!cmp) return mainRow;
+    const cmpRow = `
+      <tr class="fin-row-compare">
+        ${citySwatchCell(compare.name, CITY_COLOR_COMPARE)}
+        <td>${num(cmp.revenue)}</td>
+        <td>${num(cmp.communityRecipients)}</td>
+        <td>${num(cmp.expense)}</td>
+        <td>${num(cmp.outOfHomeRecipients)}</td>
+      </tr>`;
+    return mainRow + cmpRow;
+  }).join('');
+  el('welAuthTable').innerHTML = `
+    <div class="matrix-wrap">
+      <table class="matrix">
+        <thead>
+          <tr>
+            <th scope="col">שנה</th>
+            ${compare ? '<th scope="col">רשות</th>' : ''}
+            <th scope="col">${esc(CATEGORY_COMMUNITY)} (₪)</th>
+            <th scope="col">${esc(CATEGORY_COMMUNITY)} — מקבלים</th>
+            <th scope="col">${esc(CATEGORY_OUT_OF_HOME)} (₪)</th>
+            <th scope="col">${esc(CATEGORY_OUT_OF_HOME)} — מקבלים</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+}
+
+function pointsFor(code) {
+  return authorityYears(code).map((y) => ({
+    year: y.year,
+    revenue: y[CATEGORY_COMMUNITY]?.amount ?? 0,
+    communityRecipients: y[CATEGORY_COMMUNITY]?.recipients ?? 0,
+    expense: y[CATEGORY_OUT_OF_HOME]?.amount ?? 0,
+    outOfHomeRecipients: y[CATEGORY_OUT_OF_HOME]?.recipients ?? 0,
+  }));
+}
+
+function renderAuthoritySection() {
+  const section = el('welAuthSection');
+  const code = state.authority ? nameToCode.get(state.authority) : null;
+  if (!state.authority || !code) {
+    section.hidden = true;
+    el('welCompareWarn').hidden = true;
+    return;
+  }
+  section.hidden = false;
+
+  const compareCode = state.compareAuthority ? nameToCode.get(state.compareAuthority) : null;
+  const compareWarn = el('welCompareWarn');
+  compareWarn.hidden = !(state.compareAuthority && !compareCode);
+  if (state.compareAuthority && !compareCode) {
+    compareWarn.textContent = `לא נמצאו נתונים עבור "${state.compareAuthority}" לצורך השוואה - הרשימה כוללת רק את 18 הרשויות שיש להן נתוני ₪.`;
+  }
+
+  const points = pointsFor(code);
+  const compare = compareCode
+    ? { name: authorityByCode.get(compareCode).name, points: pointsFor(compareCode) }
+    : null;
+
+  el('authChartH').textContent = `תשלומים לפי שנה — ${state.authority}`;
+  renderGroupedChart('welAuthChart', `תשלומים למסגרות רווחה, לפי שנה — ${state.authority}`, points, '₪',
+    { front: CATEGORY_COMMUNITY, back: CATEGORY_OUT_OF_HOME }, compare);
+  renderAuthorityTable(points, compare);
+}
+
+/* ---------- CSV export ---------- */
+
+el('welCsv').addEventListener('click', () => {
+  if (!state.authority) return;
+  const code = nameToCode.get(state.authority);
+  if (!code) return;
+  const fields = ['רשות', 'שנה', 'קטגוריה', 'סכום', 'מספר_מקבלים'];
+  const records = [];
+  for (const y of authorityYears(code)) {
+    for (const cat of [CATEGORY_COMMUNITY, CATEGORY_OUT_OF_HOME]) {
+      if (!y[cat]) continue;
+      records.push({
+        רשות: state.authority, שנה: y.year, קטגוריה: cat,
+        סכום: y[cat].amount, מספר_מקבלים: y[cat].recipients,
+      });
+    }
+  }
+  saveCsv(buildCsv(fields, records), `תשלומי_רווחה_${state.authority}.csv`);
+});
+
+/* ---------- wiring ---------- */
+
+const authorityInput = el('welAuthority');
+const compareInput = el('welCompare');
+
+function onAuthorityChange() {
+  const name = authorityInput.value.trim();
+  state.authority = name || null;
+  syncUrl();
+  renderAuthoritySection();
+}
+authorityInput.addEventListener('input', debounce(onAuthorityChange, 300));
+
+function onCompareChange() {
+  const name = compareInput.value.trim();
+  state.compareAuthority = name || null;
+  syncUrl();
+  renderAuthoritySection();
+}
+compareInput.addEventListener('input', debounce(onCompareChange, 300));
+
+el('welYear').addEventListener('change', (e) => {
+  state.year = Number(e.target.value);
+  syncUrl();
+  renderKpis();
+});
+
+(async function start() {
+  const box = el('welKpis');
+  showLoading(box, 'טוען נתונים ארציים…');
+  try {
+    await Promise.all([loadNational(), loadAuthorities()]);
+  } catch (err) {
+    showError(box, err);
+    return;
+  }
+
+  state.year = Math.max(...nationalRows.map((r) => r.year));
+  readStateFromUrl();
+  populateYearSelect();
+  populateRoster();
+  authorityInput.value = state.authority || '';
+  compareInput.value = state.compareAuthority || '';
+  syncUrl();
+
+  renderKpis();
+  renderNationalChart();
+  renderAuthoritySection();
+})();

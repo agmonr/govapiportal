@@ -142,7 +142,7 @@ function renderMatrix() {
 // so the icon carries it rather than a URL or an arrow-hint line.
 const APP_ICON = {
   accidents: '🚦', trees: '🌳', committees: '🏛️', 'local-finance': '💰', agriculture: '🌾',
-  companies: '🏢',
+  companies: '🏢', welfare: '🤝',
 };
 
 function appCard(a) {

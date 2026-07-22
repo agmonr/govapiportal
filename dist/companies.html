@@ -1131,6 +1131,19 @@ body.companies-page { --accent: #a89400; }
   body.companies-page { --accent: #e8d34a; }
 }
 
+/* welfare.html: a muted sand/terracotta - "light desert" per request -
+ * distinct from accidents' more saturated warning-orange and finance's
+ * cooler gold, its own mood for a page about care and welfare rather than
+ * caution or money. Same specificity story as the rules above; source
+ * order (this one last) is what wins here. Reuses --fin-compare (the
+ * compare-authority identity color) the same way local-finance.html does,
+ * for the same reason: this page also has a main/compare grouped chart.
+ */
+body.welfare-page { --accent: #b8794a; --fin-compare: #6b8e6f; }
+@media (prefers-color-scheme: dark) {
+  body.welfare-page { --accent: #e0a875; --fin-compare: #8fbf94; }
+}
+
 /* Centered on this page specifically - the map's header stays a normal
    start-aligned row with a byline/theme-pick/probed-stamp cluster; this
    page's header only has the title and controls, so a centered title reads

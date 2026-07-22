@@ -45,6 +45,16 @@
       "computed_at": "2026-07-21T17:46+03:00"
     },
     {
+      "id": "welfare",
+      "name": "Welfare Framework Payments (Ministry of Social Affairs)",
+      "name_he": "תשלומים למסגרות רווחה",
+      "kind": "אפליקציה",
+      "about": "תשלומי משרד הרווחה למסגרות טיפול (זקנה, נכות, ילדים בסיכון, ניצולי שואה) - לא קצבאות אישיות. נשלף חי מ-DataStore של data.gov.il, שני מאגרים קטנים (7 שורות ארציות, 232 שורות רשויות) שנטענים פעם אחת ומסוננים בדפדפן. נתוני ₪ קיימים ל-18 רשויות בלבד (מעל כ-100,000 תושבים); שאר הרשויות מופיעות במאגר נפרד עם מספרי מקבלים בלבד, לא נכלל כאן.",
+      "href": "./welfare.html",
+      "external": false,
+      "home": "https://data.gov.il/dataset/payments-to-welfare-frameworks"
+    },
+    {
       "id": "agriculture",
       "name": "Ministry of Agriculture Open Data (ArcGIS Hub)",
       "name_he": "משרד החקלאות — אתר מידע גיאוגרפי פתוח",
