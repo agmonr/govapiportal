@@ -182,23 +182,39 @@ async function renderKpis() {
 
 /* ---------- charts - reuses accidents.html's .acc-chart/.acc-bars bar look ---------- */
 
-function renderBarChart(figId, caption, entries, unit, colorClass) {
+/** `compare` (optional): { name, entries: [{label, value}] } - another
+ *  authority's own value per matching label, as the same gray backdrop bar
+ *  renderComboChart uses. Reuses that same grid track (.acc-bar-track-combo)
+ *  and .acc-bar-compare/.acc-bar-front classes rather than inventing a
+ *  second stacking mechanism for what's structurally the same "widest bar
+ *  behind, main series in front" layout with one series instead of two. */
+function renderBarChart(figId, caption, entries, unit, colorClass, compare = null) {
   const fig = el(figId);
   if (!entries.length) { fig.innerHTML = `<figcaption>${esc(caption)}</figcaption><p class="acc-hint">אין נתונים להצגה.</p>`; return; }
-  const peak = Math.max(...entries.map((e) => Math.abs(e.value)));
+  const compareByLabel = new Map((compare?.entries || []).map((e) => [e.label, e.value]));
+  const peak = Math.max(...entries.map((e) => Math.abs(e.value)), ...compareByLabel.values());
   const bars = entries.map((e) => {
     const h = peak ? Math.round((Math.abs(e.value) / peak) * 150) : 0;
+    const cmpVal = compareByLabel.get(e.label);
+    const cmpH = cmpVal != null && peak ? Math.round((Math.abs(cmpVal) / peak) * 150) : 0;
+    const cmpTitle = cmpVal != null ? `, ${esc(compare.name)}: ${num(cmpVal)} ${esc(unit)}` : '';
     return `
-      <div class="acc-bar" title="${esc(e.label)}: ${num(e.value)} ${esc(unit)}">
-        <div class="acc-bar-track">
-          <span class="acc-bar-v">${num(e.value)}</span>
-          <div class="acc-bar-fill" style="block-size:${h}px"></div>
+      <div class="acc-bar" title="${esc(e.label)}: ${num(e.value)} ${esc(unit)}${cmpTitle}">
+        <div class="acc-bar-track${compare ? ' acc-bar-track-combo' : ''}">
+          ${!compare ? `<span class="acc-bar-v">${num(e.value)}</span>` : ''}
+          ${cmpVal != null ? `<div class="acc-bar-fill acc-bar-compare" style="block-size:${cmpH}px"></div>` : ''}
+          <div class="acc-bar-fill${compare ? ' acc-bar-front' : ''}" style="block-size:${h}px"></div>
         </div>
         <span class="acc-bar-y">${esc(e.label)}</span>
       </div>`;
   }).join('');
   fig.className = `acc-chart${colorClass ? ` ${colorClass}` : ''}`;
-  fig.innerHTML = `<figcaption>${esc(caption)}</figcaption><div class="acc-bars">${bars}</div>`;
+  const legend = compare ? `
+    <div class="acc-legend">
+      <span class="acc-legend-item"><span class="acc-legend-swatch" style="background:${colorClass === 'total' ? 'var(--accent)' : colorClass === 'ok-chart' ? '#1a7f45' : 'var(--danger)'}"></span>${esc(state.authority)}</span>
+      <span class="acc-legend-item"><span class="acc-legend-swatch" style="background:color-mix(in srgb, var(--muted) 45%, transparent)"></span>${esc(compare.name)} (השוואה)</span>
+    </div>` : '';
+  fig.innerHTML = `<figcaption>${esc(caption)}</figcaption>${legend}<div class="acc-bars">${bars}</div>`;
 }
 
 /** A ranked leaderboard (top-N by value) reads far better as rows stacked
@@ -308,19 +324,30 @@ function renderComboChart(figId, caption, points, unit, labels = { front: 'הכ�
 
 // The chart's own values only show on hover (the title attribute) - a plain
 // table underneath makes every year's figures visible at once, newest year
-// first (a table is read top-down, so the most recent row leads).
-function renderAuthorityTable(points) {
+// first (a table is read top-down, so the most recent row leads). `compare`
+// (optional) adds the second authority's own revenue/expense/surplus as
+// three more columns, keyed by year - not assumed to line up positionally,
+// since the two authorities can have data for different years.
+function renderAuthorityTable(points, compare = null) {
+  const compareByYear = new Map((compare?.points || []).map((p) => [p.year, p]));
   const rows = [...points].sort((a, b) => b.year - a.year).map((p) => {
     const surplus = p.revenue - p.expense;
     // A subtle text-color flag, not a full row/cell fill - visible on a
     // glance down the column without turning a deficit year into an alarm.
     const color = surplus >= 0 ? 'var(--fin-ok)' : 'var(--fin-bad)';
+    const cmp = compareByYear.get(p.year);
+    const cmpSurplus = cmp ? cmp.revenue - cmp.expense : null;
+    const cmpColor = cmpSurplus != null ? (cmpSurplus >= 0 ? 'var(--fin-ok)' : 'var(--fin-bad)') : null;
     return `
       <tr>
         <th scope="row">${p.year}</th>
         <td>${num(p.revenue)}</td>
         <td>${num(p.expense)}</td>
         <td dir="ltr" style="color:${color}; font-weight:600">${surplus >= 0 ? '+' : ''}${num(surplus)}</td>
+        ${compare ? `
+          <td>${cmp ? num(cmp.revenue) : '—'}</td>
+          <td>${cmp ? num(cmp.expense) : '—'}</td>
+          <td dir="ltr"${cmpColor ? ` style="color:${cmpColor}; font-weight:600"` : ''}>${cmpSurplus != null ? `${cmpSurplus >= 0 ? '+' : ''}${num(cmpSurplus)}` : '—'}</td>` : ''}
       </tr>`;
   }).join('');
   el('finAuthTable').innerHTML = `
@@ -332,6 +359,47 @@ function renderAuthorityTable(points) {
             <th scope="col">הכנסות (אלפי ש"ח)</th>
             <th scope="col">הוצאות (אלפי ש"ח)</th>
             <th scope="col">עודף (גרעון)</th>
+            ${compare ? `
+              <th scope="col">הכנסות — ${esc(compare.name)}</th>
+              <th scope="col">הוצאות — ${esc(compare.name)}</th>
+              <th scope="col">עודף (גרעון) — ${esc(compare.name)}</th>` : ''}
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+}
+
+// Same plain-values-underneath-the-chart pattern as renderAuthorityTable
+// above, for the liabilities combo chart. `compare` (optional) here carries
+// the compare authority's own balance points directly ({year, liabilities,
+// currentLiabilities}) - not the single flattened backdrop value the chart
+// itself uses, since a table has room to show both real figures plainly.
+function renderLiabilityTable(points, compare = null) {
+  const compareByYear = new Map((compare?.points || []).map((p) => [p.year, p]));
+  const rows = [...points].sort((a, b) => b.year - a.year).map((p) => {
+    const cmp = compareByYear.get(p.year);
+    return `
+      <tr>
+        <th scope="row">${p.year}</th>
+        <td>${num(p.liabilities)}</td>
+        <td>${num(p.currentLiabilities)}</td>
+        ${compare ? `
+          <td>${cmp ? num(cmp.liabilities) : '—'}</td>
+          <td>${cmp ? num(cmp.currentLiabilities) : '—'}</td>` : ''}
+      </tr>`;
+  }).join('');
+  el('finLiabTable').innerHTML = `
+    <div class="matrix-wrap">
+      <table class="matrix">
+        <thead>
+          <tr>
+            <th scope="col">שנה</th>
+            <th scope="col">סה"כ התחייבויות (אלפי ש"ח)</th>
+            <th scope="col">התחייבויות שוטפות (אלפי ש"ח)</th>
+            ${compare ? `
+              <th scope="col">סה"כ — ${esc(compare.name)}</th>
+              <th scope="col">שוטפות — ${esc(compare.name)}</th>` : ''}
           </tr>
         </thead>
         <tbody>${rows}</tbody>
@@ -347,51 +415,79 @@ async function renderAuthorityCharts() {
   }
   wrap.hidden = false;
   el('finChartAuthRevenue').innerHTML = '<p class="acc-hint">טוען…</p>';
-  // The compare authority reuses fetchAuthorityYearly() as-is (same function,
-  // different name) - it's a chart-only backdrop, so its own revenue series
-  // is enough; nothing from it reaches the table/statement/CSV below.
-  const [points, comparePoints] = await Promise.all([
+  el('finChartAuthArnona').innerHTML = '<p class="acc-hint">טוען…</p>';
+  el('finChartAuthLiab').innerHTML = '<p class="acc-hint">טוען…</p>';
+
+  const hasCompare = !!state.compareAuthority;
+  // All six fetches (revenue/arnona/balance, main+compare) run together, not
+  // one stage after another - each is its own 2-9 year sequential loop, so
+  // chaining three stages one after the other (as this used to do) roughly
+  // tripled the wait once a compare authority was added. Racing all of them
+  // pins the total wait to the single slowest fetch instead of their sum, and
+  // a failure in any one (network hiccup, a resource that briefly CORS-fails)
+  // can no longer take down the stages after it in the old chain.
+  const [
+    points, comparePoints, arnonaPoints, compareArnonaPoints, balancePoints, compareBalancePoints,
+  ] = await Promise.all([
     fetchAuthorityYearly(state.authority),
-    state.compareAuthority ? fetchAuthorityYearly(state.compareAuthority) : Promise.resolve(null),
+    hasCompare ? fetchAuthorityYearly(state.compareAuthority) : Promise.resolve(null),
+    fetchAuthorityArnona(state.authority),
+    hasCompare ? fetchAuthorityArnona(state.compareAuthority) : Promise.resolve(null),
+    fetchAuthorityBalance(state.authority),
+    hasCompare ? fetchAuthorityBalance(state.compareAuthority) : Promise.resolve(null),
   ]);
+
   if (!points.length) {
     el('finChartAuthRevenue').innerHTML = `<p class="acc-hint">לא נמצאו נתוני הכנסות/הוצאות עבור "${esc(state.authority)}" באף שנה זמינה.</p>`;
-    return;
+  } else {
+    const compare = hasCompare && comparePoints?.length
+      ? { name: state.compareAuthority, points: comparePoints } : null;
+    renderComboChart('finChartAuthRevenue', `הכנסות והוצאות לפי שנה — ${state.authority}`, points, 'אלפי ש"ח',
+      undefined, compare);
+    renderAuthorityTable(points, compare);
+    // A typed compare-authority that matched nothing needs to say so - silently
+    // leaving the chart without a backdrop bar and no explanation looks
+    // identical to the feature simply not having run.
+    const compareWarn = el('finCompareWarn');
+    compareWarn.hidden = !(hasCompare && !compare);
+    if (!compare && hasCompare) {
+      compareWarn.textContent = `לא נמצאו נתונים עבור "${state.compareAuthority}" לצורך השוואה.`;
+    }
   }
-  const compare = state.compareAuthority && comparePoints?.length
-    ? { name: state.compareAuthority, points: comparePoints } : null;
-  renderComboChart('finChartAuthRevenue', `הכנסות והוצאות לפי שנה — ${state.authority}`, points, 'אלפי ש"ח',
-    undefined, compare);
-  // A typed compare-authority that matched nothing needs to say so - silently
-  // leaving the chart without a backdrop bar and no explanation looks
-  // identical to the feature simply not having run.
-  const compareWarn = el('finCompareWarn');
-  compareWarn.hidden = !(state.compareAuthority && !compare);
-  if (!compare && state.compareAuthority) {
-    compareWarn.textContent = `לא נמצאו נתונים עבור "${state.compareAuthority}" לצורך השוואה.`;
-  }
-  renderAuthorityTable(points);
 
   // ממוצע ארנונה למגורים למ"ר: same sheet as the national summary above, so
   // the same 2023-2024-only limit applies (confirmed absent from every
   // earlier year checked) - a separate, smaller fetch, not part of the
   // Form 2 loop above, since it lives on a different sheet entirely.
-  el('finChartAuthArnona').innerHTML = '<p class="acc-hint">טוען…</p>';
-  const arnonaPoints = await fetchAuthorityArnona(state.authority);
+  const compareArnona = hasCompare && compareArnonaPoints?.length
+    ? { name: state.compareAuthority, entries: compareArnonaPoints.map((p) => ({ label: String(p.year), value: p.value })) }
+    : null;
   renderBarChart('finChartAuthArnona', `ממוצע ארנונה למגורים למ"ר, לפי שנה — ${state.authority}`,
-    arnonaPoints.map((p) => ({ label: String(p.year), value: p.value })), 'ש"ח למ"ר', 'ok-chart');
+    arnonaPoints.map((p) => ({ label: String(p.year), value: p.value })), 'ש"ח למ"ר', 'ok-chart', compareArnona);
 
   // Balance sheet: only the total-vs-current liabilities combo chart - the
   // total-size-alone chart was removed (assets == liabilities exactly, so it
   // just duplicated this chart's own "back" bar with no new information).
-  el('finChartAuthLiab').innerHTML = '<p class="acc-hint">טוען…</p>';
-  const balancePoints = await fetchAuthorityBalance(state.authority);
+  // The compare authority's own TOTAL liabilities is what's shown as the
+  // backdrop here - its current-liabilities figure isn't part of this
+  // particular chart's two series, so there's nothing else meaningful of
+  // its to layer in a third time.
   if (!balancePoints.length) {
     el('finChartAuthLiab').innerHTML = `<p class="acc-hint">לא נמצאו נתוני מאזן עבור "${esc(state.authority)}" באף שנה זמינה.</p>`;
+    el('finLiabTable').innerHTML = '';
   } else {
+    const compareBalance = hasCompare && compareBalancePoints?.length
+      ? { name: state.compareAuthority, points: compareBalancePoints.map((p) => ({ year: p.year, revenue: p.liabilities, expense: p.liabilities })) }
+      : null;
     renderComboChart('finChartAuthLiab', `התחייבויות: סה"כ מול שוטפות — ${state.authority}`,
       balancePoints.map((p) => ({ year: p.year, revenue: p.currentLiabilities, expense: p.liabilities })),
-      'אלפי ש"ח', { front: 'שוטפות', back: 'סה"כ' });
+      'אלפי ש"ח', { front: 'שוטפות', back: 'סה"כ' }, compareBalance);
+    // The table's own compare columns use the compare authority's real
+    // current-liabilities figure (not the flattened single backdrop value
+    // the chart above uses) - a table has room for both numbers plainly.
+    const compareBalanceTable = hasCompare && compareBalancePoints?.length
+      ? { name: state.compareAuthority, points: compareBalancePoints } : null;
+    renderLiabilityTable(balancePoints, compareBalanceTable);
   }
 }
 
