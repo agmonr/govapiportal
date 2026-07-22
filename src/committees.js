@@ -367,8 +367,19 @@ function sanitizeFilename(name) {
 }
 
 /** POSIX single-quoting: wraps in '...', escaping any embedded ' as '"'"'.
- *  Safe for any text - not just the ASCII curl expects most arguments to be. */
+ *  Safe for any text - not just the ASCII curl expects most arguments to be.
+ *  Used only for the shell-level mkdir/cd lines now - the per-file url/
+ *  output pairs live inside a curl -K config file instead (see below), a
+ *  different syntax the shell never parses, so shell-quoting them would be
+ *  the wrong protection for the wrong parser. */
 const shQuote = (s) => `'${String(s).replace(/'/g, "'\"'\"'")}'`;
+
+/** curl -K config-file quoting: wrap in "...", escaping \ and " per curl's
+ *  own config-file syntax (see `man curl` "-K/--config"). This text lives
+ *  inside a `<<'DOCLIST' ... DOCLIST` heredoc with a quoted delimiter, so
+ *  the shell passes it through untouched - curl's own parser is the only
+ *  one that ever reads it, hence a different quoting rule than shQuote. */
+const curlQuote = (s) => `"${String(s).replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
 
 // `gen` lets an auto-triggered run (from typing in the quick filter) abandon
 // itself the moment a newer keystroke changes the filter again, instead of
@@ -404,11 +415,12 @@ async function buildDownloadScript(gen = state.filterGen) {
         const fname = sanitizeFilename(
           `${meeting.date.replace(/\//g, '-')}_${meeting.meetingNumber}_${doc.title || doc.subject}.pdf`,
         );
-        lines.push(
-          `curl -sS --retry 2 --retry-delay 3 -o ${shQuote(fname)} ${shQuote(doc.url)} `
-          + `&& echo "הורד: ${fname}" || echo "נכשל: ${fname}"`,
-        );
-        lines.push('sleep 0.5'); // politeness pacing on the archive host itself, run at the visitor's own pace, not this page's
+        // Two config-file lines instead of a full curl invocation - see
+        // renderDownloadScript() for the single curl -K call that reads all
+        // of these at once. Pacing on the archive host moved from a
+        // per-file `sleep 0.5` to curl's own --rate flag on that one call.
+        lines.push(`url = ${curlQuote(doc.url)}`);
+        lines.push(`output = ${curlQuote(fname)}`);
       }
     }
     if (gen === state.filterGen) renderDownloadScript(lines, docCount, failedMeetings); // stale otherwise - a newer run owns the panel now
@@ -424,20 +436,34 @@ function renderDownloadScript(lines, docCount, failedMeetings) {
     return;
   }
   const folder = sanitizeFilename(`ועדה_${state.siteid}_${el('cmFrom').value}_${el('cmTo').value}`);
+  // One curl invocation reads the whole file list from a -K config file (fed
+  // via heredoc, never touching disk) instead of one full curl command per
+  // document - the old version repeated `curl -sS --retry 2 --retry-delay 3`
+  // and the filename three times (once in -o, twice in the echo lines) for
+  // EVERY file; this repeats it once, total, regardless of list length.
+  // --retry-all-errors matters here specifically because -K feeds multiple
+  // transfers through one curl process - without it, curl's default retry
+  // policy only retries transient/transport errors, not an archive-host 4xx/
+  // 5xx on one file in the middle of the batch, which would otherwise just
+  // move on silently instead of giving that one file a second chance.
+  // --rate 120/m (one request per 0.5s) replaces the old per-file `sleep
+  // 0.5` - the same pacing, but as one flag instead of N shell lines.
   const script = [
     '#!/usr/bin/env bash',
     'set -uo pipefail',
     `mkdir -p ${shQuote(folder)}`,
     `cd ${shQuote(folder)}`,
     '',
+    "curl -sS --retry 2 --retry-delay 3 --retry-all-errors --rate 120/m -K - <<'DOCLIST'",
     ...lines,
+    'DOCLIST',
     '',
     'echo "הסתיים."',
   ].join('\n') + '\n';
 
   box.innerHTML = `
     <p class="acc-hint">
-      ${num(docCount)} קבצים.${failedMeetings ? ` (${failedMeetings} ישיבות נכשלו בטעינת רשימת המסמכים)` : ''}
+      ${num(docCount)} קבצים, curl אחת לרשימה כולה.${failedMeetings ? ` (${failedMeetings} ישיבות נכשלו בטעינת רשימת המסמכים)` : ''}
       הריצו בטרמינל (למשל <code dir="ltr">bash script.sh</code>) - יוצר תיקייה משלו ומוריד לתוכה, קובץ אחר קובץ.
     </p>
     <div class="cm-script-wrap">
