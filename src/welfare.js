@@ -17,8 +17,8 @@
 
 import { el, esc, num, debounce, buildCsv, saveCsv, showError, showLoading } from './ui.js';
 import { initThemePicker } from './theme.js';
-import { NATIONAL_RESOURCE_ID, NATIONAL_FIELDS, AUTHORITY_RESOURCE_ID, AUTHORITY_FIELDS, CATEGORY_COMMUNITY, CATEGORY_OUT_OF_HOME, normalizeCategory, parseAuthorityField, RECIPIENTS_RESOURCE_ID, RECIPIENTS_AUTHORITY_FIELD, parseRecipientsYearField } from './welfare-data.js';
-import { renderGroupedChart, CITY_COLOR_MAIN, CITY_COLOR_COMPARE, citySwatchCell } from './charts.js';
+import { NATIONAL_RESOURCE_ID, NATIONAL_FIELDS, AUTHORITY_RESOURCE_ID, AUTHORITY_FIELDS, CATEGORY_COMMUNITY, CATEGORY_OUT_OF_HOME, normalizeCategory, parseAuthorityField, RECIPIENTS_RESOURCE_ID, RECIPIENTS_AUTHORITY_FIELD, parseRecipientsYearField, TARGET_BREAKDOWN_RESOURCES, targetBreakdownFields, parseTargetLabel } from './welfare-data.js';
+import { renderGroupedChart, renderHBarChart, CITY_COLOR_MAIN, CITY_COLOR_COMPARE, citySwatchCell } from './charts.js';
 import { dsQuery } from './datastore.js';
 import { fetchPopulation, CBS_POPULATION_YEAR } from './population.js';
 
@@ -65,6 +65,11 @@ let smallAuthorityByCode = new Map();
 // visitor actually picks from.
 let nameToCode = new Map();
 let nationalRows = []; // [{year, community:{recipients,amount}, outOfHome:{recipients,amount}}], ascending
+// year -> [{code, name, maleCount, maleAmount, femaleCount, femaleAmount, totalCount, totalAmount}], only 2020-2022 (see welfare-data.js)
+let targetsByYear = new Map();
+// Pinned to the front of the leaderboard/table regardless of ₪ rank, per
+// request - every other row stays sorted by ₪ descending.
+const PINNED_TARGET_NAME = 'ילדים במעונות יום';
 
 /* ---------- URL state - same shareable-link pattern as local-finance.html ---------- */
 
@@ -153,6 +158,32 @@ async function loadRecipientsOnly() {
   smallAuthorityByCode = byCode;
 }
 
+/** All three target-breakdown years fetched whole, once - each is ~107-109
+ *  rows, same "small enough to cache" reasoning as the two tables above.
+ *  A row that doesn't parse as a real target (parseTargetLabel returning
+ *  null - 2020's "סכום כולל" grand-total row) is skipped rather than
+ *  stored, so nothing downstream has to re-filter it. */
+async function loadTargetBreakdowns() {
+  const entries = await Promise.all(Object.entries(TARGET_BREAKDOWN_RESOURCES).map(async ([yearStr, resourceId]) => {
+    const year = Number(yearStr);
+    const f = targetBreakdownFields(year);
+    const records = await dsAll(resourceId);
+    const num2 = (v) => Number(String(v ?? '0').replace(/,/g, '')) || 0;
+    const rows = records.map((r) => {
+      const parsed = parseTargetLabel(r[f.label]);
+      if (!parsed) return null;
+      return {
+        code: parsed.code, name: parsed.name,
+        maleCount: num2(r[f.maleCount]), maleAmount: num2(r[f.maleAmount]),
+        femaleCount: num2(r[f.femaleCount]), femaleAmount: num2(r[f.femaleAmount]),
+        totalCount: num2(r[f.totalCount]), totalAmount: num2(r[f.totalAmount]),
+      };
+    }).filter(Boolean);
+    return [year, rows];
+  }));
+  targetsByYear = new Map(entries);
+}
+
 /** Builds the single name->code index every input/URL lookup uses, covering
  *  both authority tiers and every historical spelling. Run once both loads
  *  are done, not inside either loader - loadAuthorities() must finish
@@ -229,6 +260,51 @@ function renderNationalChart() {
   }));
   renderGroupedChart('welNatChart', 'תשלומים ארציים לפי שנה וסוג מסגרת', points, '₪',
     null, { front: CATEGORY_COMMUNITY, back: CATEGORY_OUT_OF_HOME }, null);
+}
+
+/* ---------- target breakdown - national only, 2020-2022, see welfare-data.js ---------- */
+
+function renderTargetsTable(rows) {
+  const trs = rows.map((r) => `
+    <tr>
+      <td dir="ltr">${esc(r.code)}</td>
+      <td dir="auto">${esc(r.name)}</td>
+      <td>${num(r.totalAmount)}</td>
+      <td>${num(r.maleAmount)}</td>
+      <td>${num(r.femaleAmount)}</td>
+      <td>${num(r.totalCount)}</td>
+    </tr>`).join('');
+  el('welTargetsTable').innerHTML = `
+    <div class="matrix-wrap scroll">
+      <table class="matrix">
+        <thead>
+          <tr>
+            <th scope="col">קוד</th>
+            <th scope="col">יעד</th>
+            <th scope="col">סה"כ (₪)</th>
+            <th scope="col">זכר (₪)</th>
+            <th scope="col">נקבה (₪)</th>
+            <th scope="col">סה"כ מקבלים</th>
+          </tr>
+        </thead>
+        <tbody>${trs}</tbody>
+      </table>
+    </div>`;
+}
+
+// state.year covers 2016-2022; this breakdown only exists for 2020-2022 (see
+// welfare-data.js), so a year outside that range falls back to 2022 rather
+// than showing an empty section - stated in the caption, not left silent.
+function renderTargetsSection() {
+  const year = targetsByYear.has(state.year) ? state.year : 2022;
+  el('welTargetsYearLabel').textContent = year === state.year ? String(year) : `${year} (${state.year} אינה זמינה לפילוח זה)`;
+  const rows = targetsByYear.get(year) || [];
+  const sorted = [...rows].sort((a, b) => b.totalAmount - a.totalAmount);
+  const pinnedIdx = sorted.findIndex((r) => r.name === PINNED_TARGET_NAME);
+  if (pinnedIdx > 0) sorted.unshift(sorted.splice(pinnedIdx, 1)[0]);
+  const top = sorted.slice(0, 15).map((r) => ({ label: r.name, value: r.totalAmount }));
+  renderHBarChart('welTargetsChart', `15 יעדי התשלום המובילים, ${year}`, top, '₪');
+  renderTargetsTable(sorted);
 }
 
 // renderGroupedChart, CITY_COLOR_MAIN/COMPARE and citySwatchCell are
@@ -506,6 +582,7 @@ el('welYear').addEventListener('change', (e) => {
   state.year = Number(e.target.value);
   syncUrl();
   renderKpis();
+  renderTargetsSection();
 });
 
 (async function start() {
@@ -515,7 +592,9 @@ el('welYear').addEventListener('change', (e) => {
     // loadRecipientsOnly() must run AFTER loadAuthorities() - it checks
     // authorityByCode to skip any code the richer resource already covers,
     // so it needs that map already populated, not raced against it.
-    const [, bigRecords] = await Promise.all([loadNational(), loadAuthorities()]);
+    // loadTargetBreakdowns() is independent of both, so it just joins the
+    // first Promise.all rather than waiting its turn.
+    const [, bigRecords] = await Promise.all([loadNational(), loadAuthorities(), loadTargetBreakdowns()]);
     await loadRecipientsOnly();
     buildNameIndex(bigRecords);
   } catch (err) {
@@ -533,5 +612,6 @@ el('welYear').addEventListener('change', (e) => {
 
   renderKpis();
   renderNationalChart();
+  renderTargetsSection();
   renderAuthoritySection();
 })();
