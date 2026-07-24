@@ -262,6 +262,14 @@ button.stat { cursor: pointer; }
 .fin-sheet .matrix-wrap { margin-block-start: .6rem; }
 .fin-export-row { display: flex; flex-wrap: wrap; gap: .5rem; margin-block-end: .5rem; }
 
+/* local-finance.html: the whole national block (KPIs + national charts) in
+   one <details>, styled as a section heading rather than a boxed sheet. It
+   ships `open` and only starts collapsed on a phone - the inline script in
+   the page closes it under the mobile breakpoint, one-shot on load. */
+.fin-national > summary { cursor: pointer; font-size: 1.05rem; font-weight: 600; color: var(--muted); margin-block-end: 1rem; }
+.fin-national > summary:hover { color: var(--accent); }
+.fin-national[open] > summary { margin-block-end: 1.5rem; }
+
 /* ---------- page sections (ערים / כלל הארץ) ---------- */
 
 .acc-section { margin-block-end: 2.5rem; }
@@ -986,10 +994,58 @@ a:focus-visible, button:focus-visible {
      narrower bars and tighter gaps so a full compare-mode chart has a real
      chance of fitting without .fin-chart-plot's own overflow-x:auto kicking
      in and silently scrolling part of it out of view. */
-  .fin-chart-bar { inline-size: 9px; }
+  .fin-chart-bar { inline-size: 6px; }
   .fin-chart-bars { gap: 2px; }
   .fin-chart-bars-wrap { gap: .3rem; }
   .fin-chart-plot { gap: .8rem; }
+
+  /* The per-year "64% מ-רעננה" header doesn't fit above a narrowed bar
+     group, so the compare-name half drops to its own line. The pct row is
+     what keeps every column's plot zone aligned (see .fin-chart-pct's
+     desktop comment), so ALL pct rows - including the empty ones and the
+     axis placeholder - get the two-line height, not just columns that
+     actually have a compare label. */
+  .fin-chart-pct { block-size: 2.2rem; }
+  .fin-chart-pct-name { display: block; }
+
+  /* local-finance's per-authority data tables: the identity columns (שנה,
+     plus רשות in compare mode - both carry .fin-city-cell / the row th) stay
+     pinned while the value columns scroll under them, and the type drops
+     below the site-wide mobile .92rem so more columns fit before scrolling
+     starts at all. Pinned cells need OPAQUE backgrounds - the tint
+     tr.fin-row-compare uses is over `transparent`, and scrolled columns
+     would ghost straight through it. */
+  #finAuthTable .matrix th, #finAuthTable .matrix td,
+  #finLiabTable .matrix th, #finLiabTable .matrix td,
+  #finAreasTable .matrix th, #finAreasTable .matrix td {
+    font-size: .8rem;
+    padding: .5rem .55rem;
+  }
+  #finAuthTable .matrix tbody th, #finAuthTable .matrix thead th:first-child,
+  #finLiabTable .matrix tbody th, #finLiabTable .matrix thead th:first-child,
+  #finAreasTable .matrix tbody th, #finAreasTable .matrix thead th:first-child {
+    position: sticky; inset-inline-start: 0; z-index: 2;
+    /* fixed width so the city column's own sticky offset below lines up */
+    inline-size: 3.2rem; min-inline-size: 3.2rem;
+    background: var(--bg);
+  }
+  #finAuthTable .matrix .fin-city-cell,
+  #finLiabTable .matrix .fin-city-cell,
+  #finAreasTable .matrix .fin-city-cell {
+    position: sticky; inset-inline-start: 3.2rem; z-index: 2;
+    background: var(--bg);
+  }
+  #finAuthTable .matrix thead th:first-child, #finAuthTable .matrix thead th.fin-city-cell,
+  #finLiabTable .matrix thead th:first-child, #finLiabTable .matrix thead th.fin-city-cell,
+  #finAreasTable .matrix thead th:first-child, #finAreasTable .matrix thead th.fin-city-cell {
+    z-index: 3;
+    background: var(--surface);
+  }
+  #finAuthTable .matrix tr.fin-row-compare .fin-city-cell,
+  #finLiabTable .matrix tr.fin-row-compare .fin-city-cell,
+  #finAreasTable .matrix tr.fin-row-compare .fin-city-cell {
+    background: color-mix(in srgb, var(--muted) 16%, var(--bg));
+  }
 
   /* The one button on the page meant to be found without scrolling first -
      filled rather than outlined, so it reads as the next step rather than
@@ -1348,31 +1404,39 @@ body.accidents-page header.site h1 { inline-size: 100%; }
         </p>
       </details>
 
-      <section class="acc-section" aria-labelledby="kpiH">
-        <h2 id="kpiH">מדדים ארציים — <span id="kpiYearLabel"></span></h2>
-        <div id="finKpis" class="stat-row"></div>
-      </section>
+      <!-- The national summary (KPIs + national charts). On a phone this is
+           a long scroll standing between the reader and the year/authority
+           picker, so it starts collapsed there - see the inline script at the
+           bottom, which only removes `open` under the mobile breakpoint. -->
+      <details id="finNational" class="fin-national" open>
+        <summary>נתונים ארציים — מדדים וגרפים</summary>
 
-      <section class="acc-section" aria-labelledby="chartsH">
-        <h2 id="chartsH">ויזואליזציה</h2>
-        <div class="acc-charts">
-          <figure id="finChartYoY" class="acc-chart" role="img"></figure>
-        </div>
-        <figure id="finChartTop" class="acc-chart total acc-chart-wide" role="img"></figure>
-      </section>
+        <section class="acc-section" aria-labelledby="kpiH">
+          <h2 id="kpiH">מדדים ארציים — <span id="kpiYearLabel"></span></h2>
+          <div id="finKpis" class="stat-row"></div>
+        </section>
+
+        <section class="acc-section" aria-labelledby="chartsH">
+          <h2 id="chartsH">ויזואליזציה</h2>
+          <div class="acc-charts">
+            <figure id="finChartYoY" class="acc-chart" role="img"></figure>
+          </div>
+          <figure id="finChartTop" class="acc-chart total acc-chart-wide" role="img"></figure>
+        </section>
+      </details>
 
       <section class="acc-section" aria-labelledby="filtersH">
-        <h2 id="filtersH">בחירת רשות ושנה</h2>
+        <h2 id="filtersH">בחירת שנה ורשות</h2>
         <div class="cm-filters">
+          <div class="acc-year-pick">
+            <label for="finYear">שנה:</label>
+            <select id="finYear"></select>
+          </div>
           <div class="acc-year-pick">
             <label for="finAuthority">רשות מקומית:</label>
             <input id="finAuthority" type="text" list="finAuthorityList" autocomplete="off"
                    spellcheck="false" placeholder="התחילו להקליד שם רשות…">
             <datalist id="finAuthorityList"></datalist>
-          </div>
-          <div class="acc-year-pick">
-            <label for="finYear">שנה:</label>
-            <select id="finYear"></select>
           </div>
           <div class="acc-year-pick">
             <label for="finCompare">השוואה לרשות נוספת (אופציונלי):</label>
@@ -1865,7 +1929,7 @@ function renderHBarChart(figId, caption, entries, unit) {
 // without a legend the reader has to look up chart-to-chart.
 const CITY_COLOR_MAIN = 'var(--accent)';
 const CITY_COLOR_COMPARE = 'color-mix(in srgb, var(--accent) 55%, var(--bg) 45%)';
-const citySwatchCell = (name, color) => `<td><span class="acc-legend-swatch" style="background:${color}"></span>${esc(name)}</td>`;
+const citySwatchCell = (name, color) => `<td class="fin-city-cell"><span class="acc-legend-swatch" style="background:${color}"></span>${esc(name)}</td>`;
 
 const FIN_PLOT_PX_DESKTOP = 200;
 const FIN_PLOT_PX_MOBILE = 130; // shorter too, not just narrower - "smaller" on mobile means both axes, not just fitting the width
@@ -1983,7 +2047,7 @@ function renderGroupedChart(figId, caption, points, unit, mainName, labels = { f
       + (cmp ? `; ${esc(compare.name)}: ${esc(labels.front)} ${num(cmp.revenue)}${labels.back ? `, ${esc(labels.back)} ${num(cmp.expense)}` : ''} ${esc(unit)}` : '');
     return `
       <div class="fin-chart-group" title="${title}">
-        <span class="fin-chart-pct">${pct != null ? `${pct}% מ-${esc(compare.name)}` : ''}</span>
+        <span class="fin-chart-pct">${pct != null ? `${pct}%<span class="fin-chart-pct-name"> מ-${esc(compare.name)}</span>` : ''}</span>
         <div class="fin-chart-bars-wrap" style="block-size:${plotHeight}px; background-size:100% ${plotHeight / steps}px">
           ${cityBars(p, true)}
           ${cmp ? cityBars(cmp, false) : ''}
@@ -2547,7 +2611,7 @@ function renderAuthorityTable(points, compare = null, population = null, compare
         <thead>
           <tr>
             <th scope="col">שנה</th>
-            ${compare ? '<th scope="col">רשות</th>' : ''}
+            ${compare ? '<th scope="col" class="fin-city-cell">רשות</th>' : ''}
             <th scope="col">הכנסות (אלפי ש"ח)</th>
             <th scope="col">הוצאות (אלפי ש"ח)</th>
             <th scope="col">עודף (גרעון)</th>
@@ -2594,7 +2658,7 @@ function renderLiabilityTable(points, compare = null) {
         <thead>
           <tr>
             <th scope="col">שנה</th>
-            ${compare ? '<th scope="col">רשות</th>' : ''}
+            ${compare ? '<th scope="col" class="fin-city-cell">רשות</th>' : ''}
             <th scope="col">סה"כ התחייבויות (אלפי ש"ח)</th>
             <th scope="col">התחייבויות שוטפות (אלפי ש"ח)</th>
           </tr>
@@ -2831,7 +2895,7 @@ function renderAreasTable(points, compare = null) {
         <thead>
           <tr>
             <th scope="col">שנה</th>
-            ${compare ? '<th scope="col">רשות</th>' : ''}
+            ${compare ? '<th scope="col" class="fin-city-cell">רשות</th>' : ''}
             ${AREA_CATEGORIES.map((cat) => `<th scope="col">${esc(cat)} (אלפי מ"ר)</th>`).join('')}
           </tr>
         </thead>
