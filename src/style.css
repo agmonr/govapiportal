@@ -241,6 +241,14 @@ button.stat { cursor: pointer; }
 .fin-sheet .matrix-wrap { margin-block-start: .6rem; }
 .fin-export-row { display: flex; flex-wrap: wrap; gap: .5rem; margin-block-end: .5rem; }
 
+/* local-finance.html: the whole national block (KPIs + national charts) in
+   one <details>, styled as a section heading rather than a boxed sheet. It
+   ships `open` and only starts collapsed on a phone - the inline script in
+   the page closes it under the mobile breakpoint, one-shot on load. */
+.fin-national > summary { cursor: pointer; font-size: 1.05rem; font-weight: 600; color: var(--muted); margin-block-end: 1rem; }
+.fin-national > summary:hover { color: var(--accent); }
+.fin-national[open] > summary { margin-block-end: 1.5rem; }
+
 /* ---------- page sections (ערים / כלל הארץ) ---------- */
 
 .acc-section { margin-block-end: 2.5rem; }
@@ -965,10 +973,58 @@ a:focus-visible, button:focus-visible {
      narrower bars and tighter gaps so a full compare-mode chart has a real
      chance of fitting without .fin-chart-plot's own overflow-x:auto kicking
      in and silently scrolling part of it out of view. */
-  .fin-chart-bar { inline-size: 9px; }
+  .fin-chart-bar { inline-size: 6px; }
   .fin-chart-bars { gap: 2px; }
   .fin-chart-bars-wrap { gap: .3rem; }
   .fin-chart-plot { gap: .8rem; }
+
+  /* The per-year "64% מ-רעננה" header doesn't fit above a narrowed bar
+     group, so the compare-name half drops to its own line. The pct row is
+     what keeps every column's plot zone aligned (see .fin-chart-pct's
+     desktop comment), so ALL pct rows - including the empty ones and the
+     axis placeholder - get the two-line height, not just columns that
+     actually have a compare label. */
+  .fin-chart-pct { block-size: 2.2rem; }
+  .fin-chart-pct-name { display: block; }
+
+  /* local-finance's per-authority data tables: the identity columns (שנה,
+     plus רשות in compare mode - both carry .fin-city-cell / the row th) stay
+     pinned while the value columns scroll under them, and the type drops
+     below the site-wide mobile .92rem so more columns fit before scrolling
+     starts at all. Pinned cells need OPAQUE backgrounds - the tint
+     tr.fin-row-compare uses is over `transparent`, and scrolled columns
+     would ghost straight through it. */
+  #finAuthTable .matrix th, #finAuthTable .matrix td,
+  #finLiabTable .matrix th, #finLiabTable .matrix td,
+  #finAreasTable .matrix th, #finAreasTable .matrix td {
+    font-size: .8rem;
+    padding: .5rem .55rem;
+  }
+  #finAuthTable .matrix tbody th, #finAuthTable .matrix thead th:first-child,
+  #finLiabTable .matrix tbody th, #finLiabTable .matrix thead th:first-child,
+  #finAreasTable .matrix tbody th, #finAreasTable .matrix thead th:first-child {
+    position: sticky; inset-inline-start: 0; z-index: 2;
+    /* fixed width so the city column's own sticky offset below lines up */
+    inline-size: 3.2rem; min-inline-size: 3.2rem;
+    background: var(--bg);
+  }
+  #finAuthTable .matrix .fin-city-cell,
+  #finLiabTable .matrix .fin-city-cell,
+  #finAreasTable .matrix .fin-city-cell {
+    position: sticky; inset-inline-start: 3.2rem; z-index: 2;
+    background: var(--bg);
+  }
+  #finAuthTable .matrix thead th:first-child, #finAuthTable .matrix thead th.fin-city-cell,
+  #finLiabTable .matrix thead th:first-child, #finLiabTable .matrix thead th.fin-city-cell,
+  #finAreasTable .matrix thead th:first-child, #finAreasTable .matrix thead th.fin-city-cell {
+    z-index: 3;
+    background: var(--surface);
+  }
+  #finAuthTable .matrix tr.fin-row-compare .fin-city-cell,
+  #finLiabTable .matrix tr.fin-row-compare .fin-city-cell,
+  #finAreasTable .matrix tr.fin-row-compare .fin-city-cell {
+    background: color-mix(in srgb, var(--muted) 16%, var(--bg));
+  }
 
   /* The one button on the page meant to be found without scrolling first -
      filled rather than outlined, so it reads as the next step rather than

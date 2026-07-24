@@ -240,6 +240,34 @@
         "planning",
         "geo"
       ]
+    },
+    {
+      "id": "osm",
+      "name": "OpenStreetMap",
+      "name_he": "OpenStreetMap",
+      "home": "https://www.openstreetmap.org",
+      "docs": "https://wiki.openstreetmap.org/wiki/API",
+      "kind": "קהילתי עולמי",
+      "about": "מפת העולם החופשית, נערכת בידי מתנדבים. לא ממשלתי ולא ישראלי — אבל כיסוי ישראל מפורט, כולל שמות בעברית. שני ממשקי קריאה: Nominatim לגאוקודינג ו-Overpass לשאילתות על ישויות מפה.",
+      "api_count": 2,
+      "browser_count": 2,
+      "domains": [
+        "geo"
+      ]
+    },
+    {
+      "id": "budgetkey",
+      "name": "BudgetKey (מפתח התקציב)",
+      "name_he": "מפתח התקציב",
+      "home": "https://next.obudget.org",
+      "docs": "https://github.com/OpenBudget/budgetkey",
+      "kind": "פרויקט עצמאי - לא רשמי",
+      "about": "פרויקט עצמאי (לא ממשלתי) שמנגיש את תקציב המדינה, תמיכות, התקשרויות ומכרזים. שני ממשקים פתוחים: שאילתת SQL ישירה על בסיס הנתונים וחיפוש טקסטואלי. שניהם עונים לדפדפן (CORS משקף את ה-Origin).",
+      "api_count": 2,
+      "browser_count": 2,
+      "domains": [
+        "budget"
+      ]
     }
   ],
   "apis": [
@@ -563,6 +591,70 @@
       "notes": "שני מאגרי CKAN נפרדים: local-authorities (כלל סוגי הרשויות: 2018/2019/2022/2023/2024, resource_id שונה לכל שנה) ו-local-council-1 (מועצות מקומיות בלבד: 2016/2017/2020/2021, ממלא פערי שנים ב-local-authorities). שם שדה ה'גיליון' משתנה בין שנים - מאוית 'גיליון' עד 2022, 'גליון' (ללא י נוספת) ב-2023-2024. 2022 בלבד: 1,024,770 שורות למאגר local-authorities 2024 - סעיף בודד לשורה, לא מסוכם. סינון לפי שם_רשות (טקסט, יציב בין שנים) עדיף על פני קוד_רשות, ששדה הקוד/הטיפוס שלו מתחלף בין משאבים (לעתים מספר, לעתים טקסט עם '.0' בסוף, ולעתים מוחלף עם קוד_למס). רק 2023-2024 כוללים גיליון סיכום מוכן ('דוח לתושב') עם שורות כמו 'סה\"כ הכנסות'/'סה\"כ הוצאות' - נבדק ונעדר בכל שנה מוקדמת יותר; שורות הסיכום המקבילות בטופס 2 גם הן אינן יציבות בין שנים. 2014-2015 קיימים אך מפוצלים למספר קבצים לפי טווח אלף-בית של שם הרשות - לא נבדק.",
       "example": "https://data.gov.il/api/3/action/datastore_search?resource_id=6e153ddd-d4d4-4450-a78c-20f594a7986a&filters=%7B%22%D7%A9%D7%9D_%D7%A8%D7%A9%D7%95%D7%AA%22%3A%22%D7%90%D7%91%D7%95%20%D7%92%D7%95%D7%A9%22%7D&limit=10",
       "portal": "datagov"
+    },
+    {
+      "source": "OpenStreetMap",
+      "source_he": "OpenStreetMap",
+      "name": "Nominatim — גאוקודינג (חיפוש כתובות ומקומות)",
+      "endpoint": "https://nominatim.openstreetmap.org/search",
+      "method": "GET",
+      "auth": "none",
+      "cors": "*",
+      "browser": true,
+      "format": "JSON",
+      "status": 200,
+      "domain": "geo",
+      "notes": "חיפוש חופשי בעברית עובד — נבדק (2026-07-24): 'הוד השרון' מחזיר את גבול העיר (osm relation 1383629). מדיניות שימוש: עד בקשה אחת בשנייה, חובה User-Agent מזהה. גאוקודינג הפוך בנקודת קצה נפרדת (/reverse).",
+      "example": "https://nominatim.openstreetmap.org/search?q=%D7%94%D7%95%D7%93%20%D7%94%D7%A9%D7%A8%D7%95%D7%9F&format=jsonv2&limit=3",
+      "portal": "osm"
+    },
+    {
+      "source": "OpenStreetMap",
+      "source_he": "OpenStreetMap",
+      "name": "Overpass API — שאילתות על ישויות מפה",
+      "endpoint": "https://overpass-api.de/api/interpreter",
+      "method": "GET",
+      "auth": "none",
+      "cors": "*",
+      "browser": true,
+      "format": "JSON",
+      "status": 200,
+      "domain": "geo",
+      "notes": "שפת שאילתות (Overpass QL) על כל ישות במפה לפי תג ומיקום — נבדק (2026-07-24): בתי ספר ברדיוס 1.5 ק\"מ במרכז הוד השרון, כולל שמות בעברית. מופע ציבורי עמוס: 2 בקשות במקביל לכל משתמש, ו-504 תחת עומס הוא שגרה (3 מתוך 6 ניסיונות בבדיקה) — כדאי פשוט לנסות שוב.",
+      "example": "https://overpass-api.de/api/interpreter?data=%5Bout%3Ajson%5D%5Btimeout%3A10%5D%3Bnode%28around%3A1500%2C32.15%2C34.89%29%5Bamenity%3Dschool%5D%3Bout%203%3B",
+      "portal": "osm"
+    },
+    {
+      "source": "מפתח התקציב",
+      "source_he": "מפתח התקציב",
+      "name": "שאילתת SQL — בסיס הנתונים המלא",
+      "endpoint": "https://next.obudget.org/api/query",
+      "method": "GET",
+      "auth": "none",
+      "cors": "origin",
+      "browser": true,
+      "format": "JSON",
+      "status": 200,
+      "domain": "budget",
+      "notes": "SELECT חופשי (PostgreSQL) בפרמטר query. נבדק (2026-07-24) על raw_budget — סעיפי תקציב מאז 1997: שורש ההיררכיה הוא depth=0 עם code='00' ('המדינה'), 709.4 מיליארד ₪ נטו מעודכן ל-2026; code='TOTAL' מחזיר 0 שורות בטבלה זו, בניגוד למתואר בשרת ה-MCP שלהם. זהירות בסכימה: כל סעיף כבר כולל את הסעיפים שמתחתיו, אז SUM לפי קידומת קוד סופר כפול. התשובה כוללת download_url מוכן ל-CSV.",
+      "example": "https://next.obudget.org/api/query?query=SELECT%20code%2Ctitle%2Cyear%2Cnet_revised%20FROM%20raw_budget%20WHERE%20depth%3D0%20ORDER%20BY%20year%20DESC%20LIMIT%205",
+      "portal": "budgetkey"
+    },
+    {
+      "source": "מפתח התקציב",
+      "source_he": "מפתח התקציב",
+      "name": "חיפוש — תקציב, תמיכות, התקשרויות",
+      "endpoint": "https://next.obudget.org/search/budget",
+      "method": "GET",
+      "auth": "none",
+      "cors": "origin",
+      "browser": true,
+      "format": "JSON",
+      "status": 200,
+      "domain": "budget",
+      "notes": "חיפוש טקסט חופשי בעברית; סוג המסמך בנתיב (budget נבדק ב-2026-07-24: 'חינוך' מחזיר 4,658 סעיפים עם ניקוד רלוונטיות). פרמטר size שולט בכמות התוצאות.",
+      "example": "https://next.obudget.org/search/budget?q=%D7%97%D7%99%D7%A0%D7%95%D7%9A&size=3",
+      "portal": "budgetkey"
     }
   ]
 }

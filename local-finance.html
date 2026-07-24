@@ -76,31 +76,39 @@
         </p>
       </details>
 
-      <section class="acc-section" aria-labelledby="kpiH">
-        <h2 id="kpiH">מדדים ארציים — <span id="kpiYearLabel"></span></h2>
-        <div id="finKpis" class="stat-row"></div>
-      </section>
+      <!-- The national summary (KPIs + national charts). On a phone this is
+           a long scroll standing between the reader and the year/authority
+           picker, so it starts collapsed there - see the inline script at the
+           bottom, which only removes `open` under the mobile breakpoint. -->
+      <details id="finNational" class="fin-national" open>
+        <summary>נתונים ארציים — מדדים וגרפים</summary>
 
-      <section class="acc-section" aria-labelledby="chartsH">
-        <h2 id="chartsH">ויזואליזציה</h2>
-        <div class="acc-charts">
-          <figure id="finChartYoY" class="acc-chart" role="img"></figure>
-        </div>
-        <figure id="finChartTop" class="acc-chart total acc-chart-wide" role="img"></figure>
-      </section>
+        <section class="acc-section" aria-labelledby="kpiH">
+          <h2 id="kpiH">מדדים ארציים — <span id="kpiYearLabel"></span></h2>
+          <div id="finKpis" class="stat-row"></div>
+        </section>
+
+        <section class="acc-section" aria-labelledby="chartsH">
+          <h2 id="chartsH">ויזואליזציה</h2>
+          <div class="acc-charts">
+            <figure id="finChartYoY" class="acc-chart" role="img"></figure>
+          </div>
+          <figure id="finChartTop" class="acc-chart total acc-chart-wide" role="img"></figure>
+        </section>
+      </details>
 
       <section class="acc-section" aria-labelledby="filtersH">
-        <h2 id="filtersH">בחירת רשות ושנה</h2>
+        <h2 id="filtersH">בחירת שנה ורשות</h2>
         <div class="cm-filters">
+          <div class="acc-year-pick">
+            <label for="finYear">שנה:</label>
+            <select id="finYear"></select>
+          </div>
           <div class="acc-year-pick">
             <label for="finAuthority">רשות מקומית:</label>
             <input id="finAuthority" type="text" list="finAuthorityList" autocomplete="off"
                    spellcheck="false" placeholder="התחילו להקליד שם רשות…">
             <datalist id="finAuthorityList"></datalist>
-          </div>
-          <div class="acc-year-pick">
-            <label for="finYear">שנה:</label>
-            <select id="finYear"></select>
           </div>
           <div class="acc-year-pick">
             <label for="finCompare">השוואה לרשות נוספת (אופציונלי):</label>
@@ -217,6 +225,12 @@
     if (location.protocol === 'file:') {
       document.getElementById('fileproto').hidden = false;
       document.getElementById('app').hidden = true;
+    }
+    /* Starting state only - same one-shot matchMedia check as index.html's
+       "#more": read once on load, not kept in sync on resize, so it never
+       fights a reader who opened the section and then rotated their phone. */
+    if (matchMedia('(max-width: 640px)').matches) {
+      document.getElementById('finNational').removeAttribute('open');
     }
   </script>
   <script type="module" src="./src/local-finance.js"></script>

@@ -444,7 +444,7 @@ function renderAuthorityTable(points, compare = null, population = null, compare
         <thead>
           <tr>
             <th scope="col">שנה</th>
-            ${compare ? '<th scope="col">רשות</th>' : ''}
+            ${compare ? '<th scope="col" class="fin-city-cell">רשות</th>' : ''}
             <th scope="col">הכנסות (אלפי ש"ח)</th>
             <th scope="col">הוצאות (אלפי ש"ח)</th>
             <th scope="col">עודף (גרעון)</th>
@@ -491,7 +491,7 @@ function renderLiabilityTable(points, compare = null) {
         <thead>
           <tr>
             <th scope="col">שנה</th>
-            ${compare ? '<th scope="col">רשות</th>' : ''}
+            ${compare ? '<th scope="col" class="fin-city-cell">רשות</th>' : ''}
             <th scope="col">סה"כ התחייבויות (אלפי ש"ח)</th>
             <th scope="col">התחייבויות שוטפות (אלפי ש"ח)</th>
           </tr>
@@ -728,7 +728,7 @@ function renderAreasTable(points, compare = null) {
         <thead>
           <tr>
             <th scope="col">שנה</th>
-            ${compare ? '<th scope="col">רשות</th>' : ''}
+            ${compare ? '<th scope="col" class="fin-city-cell">רשות</th>' : ''}
             ${AREA_CATEGORIES.map((cat) => `<th scope="col">${esc(cat)} (אלפי מ"ר)</th>`).join('')}
           </tr>
         </thead>

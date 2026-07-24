@@ -87,7 +87,7 @@ export function renderHBarChart(figId, caption, entries, unit) {
 // without a legend the reader has to look up chart-to-chart.
 export const CITY_COLOR_MAIN = 'var(--accent)';
 export const CITY_COLOR_COMPARE = 'color-mix(in srgb, var(--accent) 55%, var(--bg) 45%)';
-export const citySwatchCell = (name, color) => `<td><span class="acc-legend-swatch" style="background:${color}"></span>${esc(name)}</td>`;
+export const citySwatchCell = (name, color) => `<td class="fin-city-cell"><span class="acc-legend-swatch" style="background:${color}"></span>${esc(name)}</td>`;
 
 const FIN_PLOT_PX_DESKTOP = 200;
 const FIN_PLOT_PX_MOBILE = 130; // shorter too, not just narrower - "smaller" on mobile means both axes, not just fitting the width
@@ -205,7 +205,7 @@ export function renderGroupedChart(figId, caption, points, unit, mainName, label
       + (cmp ? `; ${esc(compare.name)}: ${esc(labels.front)} ${num(cmp.revenue)}${labels.back ? `, ${esc(labels.back)} ${num(cmp.expense)}` : ''} ${esc(unit)}` : '');
     return `
       <div class="fin-chart-group" title="${title}">
-        <span class="fin-chart-pct">${pct != null ? `${pct}% מ-${esc(compare.name)}` : ''}</span>
+        <span class="fin-chart-pct">${pct != null ? `${pct}%<span class="fin-chart-pct-name"> מ-${esc(compare.name)}</span>` : ''}</span>
         <div class="fin-chart-bars-wrap" style="block-size:${plotHeight}px; background-size:100% ${plotHeight / steps}px">
           ${cityBars(p, true)}
           ${cmp ? cityBars(cmp, false) : ''}
