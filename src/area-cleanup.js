@@ -150,13 +150,43 @@ function renderResult(displayName, { muni, basin }) {
 // Holds what the last successful lookup found - only what copyResult() needs
 // to build its text (lat/lon/timestamp), not a full re-derivation of the
 // render above it.
-const state = { lat: null, lon: null, displayName: '' };
+const state = { lat: null, displayName: '' };
+
+/** A location/date caption baked directly into the image itself (a banner
+ * strip at the top, not just a DOM label) - WhatsApp/Mail each decide for
+ * themselves which clipboard representation to paste (image vs. text), so
+ * there's no reliable way to guarantee the plain-text representation
+ * (copyResult() below) tags along with the image every time. Baking the
+ * location into the picture means whichever one a paste target picks, the
+ * info that matters (where, when) is still readable in it. */
+function drawLocationCaption(ctx, size, text) {
+  ctx.save();
+  // The canvas inherits the page's dir="rtl" as its own CSS 'direction',
+  // which Canvas2D's default direction:"inherit" picks up too - left
+  // unset, textAlign 'start' anchors at the RIGHT edge instead and the text
+  // (measured/boxed as if LTR below) draws mostly off-canvas to the left.
+  // Forcing both explicitly makes "draw left-to-right from x=pad" true
+  // regardless of the page's own direction.
+  ctx.direction = 'ltr';
+  ctx.textAlign = 'left';
+  ctx.font = 'bold 13px sans-serif';
+  const pad = 6;
+  const lineH = 16;
+  const lines = text.split('\n');
+  const tw = Math.max(...lines.map((l) => ctx.measureText(l).width));
+  ctx.fillStyle = 'rgba(0,0,0,0.65)';
+  ctx.fillRect(0, 0, tw + pad * 2, lineH * lines.length + pad * 2);
+  ctx.fillStyle = '#fff';
+  ctx.textBaseline = 'top';
+  lines.forEach((line, i) => ctx.fillText(line, pad, pad + i * lineH));
+  ctx.restore();
+}
 
 /** Draws the OSM basemap (±MAP_RADIUS around the point, MAP_SIZE px square)
  * with a pin at centre - same fetchBasemapCanvas/drawAddressPin blue-lines.js
  * uses, just a plain always-1km view here rather than a user-adjustable
  * radius, since this app's own question ("who do I call") doesn't need one. */
-async function renderMap(itmX, itmY) {
+async function renderMap(itmX, itmY, displayName) {
   const canvasWrap = el('acMapWrap');
   canvasWrap.hidden = false;
   const bbox = bboxAround(itmX, itmY, MAP_RADIUS);
@@ -167,7 +197,9 @@ async function renderMap(itmX, itmY) {
   const ctx = canvas.getContext('2d');
   ctx.drawImage(basemap, 0, 0);
   drawAddressPin(ctx, MAP_SIZE);
+  drawLocationCaption(ctx, MAP_SIZE, `${displayName}\n${new Date().toLocaleString('he-IL')}`);
   el('acCopy').disabled = false;
+  el('acShare').disabled = false;
 }
 
 async function runFor(lon, lat, displayName) {
@@ -175,15 +207,15 @@ async function runFor(lon, lat, displayName) {
   el('acResult').hidden = true;
   el('acMapWrap').hidden = true;
   el('acCopy').disabled = true;
+  el('acShare').disabled = true;
   showLoading(status, 'בודק אחריות...');
   const result = await lookup(lon, lat);
   status.innerHTML = '';
   state.lat = lat;
-  state.lon = lon;
   state.displayName = displayName;
   renderResult(displayName, result);
   showLoading(status, 'טוען מפה...');
-  await renderMap(result.itmX, result.itmY);
+  await renderMap(result.itmX, result.itmY, displayName);
   status.innerHTML = '';
 }
 
@@ -199,12 +231,27 @@ async function runMyLocation() {
   await runFor(geo.lon, geo.lat, `${geo.lat.toFixed(5)}, ${geo.lon.toFixed(5)}`);
 }
 
+/** The map PNG + its caption text, built fresh each time (canvas.toBlob is
+ * cheap and the canvas may have re-rendered since the last export) - shared
+ * by copyResult() and shareResult() below so both send the exact same
+ * content out, just through a different channel. */
+async function exportResult() {
+  const canvas = el('acCanvas');
+  const pngBlob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+  const text = `${state.displayName}\nנבדק בתאריך: ${new Date().toLocaleString('he-IL')}`;
+  return { pngBlob, text };
+}
+
 /** Copies BOTH the map image and the location/timestamp text in one action,
  * as two representations of the same ClipboardItem - not two separate
  * copies. Pasting into an image target (WhatsApp, an email body, an image
- * field) gets the map; pasting into a plain text field gets the
- * coordinates/timestamp instead - whichever the paste target actually
- * accepts, without the user having to choose which to copy first. */
+ * field) gets the map; pasting into a plain text field gets the location/
+ * timestamp text instead - whichever the paste target actually accepts,
+ * without the user having to choose which to copy first. The map image
+ * itself also carries this same text baked in (drawLocationCaption in
+ * renderMap), since WhatsApp/Mail each pick their own representation and
+ * there's no way to force both to show up in a single paste - so an
+ * image-only paste still isn't missing the location/date. */
 async function copyResult() {
   if (state.lat == null) return;
   const btn = el('acCopy');
@@ -212,11 +259,7 @@ async function copyResult() {
   btn.disabled = true;
   btn.textContent = 'מעתיק…';
   try {
-    const canvas = el('acCanvas');
-    const pngBlob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
-    const text = `מיקום: ${state.displayName}\n`
-      + `קואורדינטות: ${state.lat.toFixed(6)}, ${state.lon.toFixed(6)}\n`
-      + `נבדק בתאריך: ${new Date().toLocaleString('he-IL')}`;
+    const { pngBlob, text } = await exportResult();
     await navigator.clipboard.write([
       new ClipboardItem({ 'image/png': pngBlob, 'text/plain': new Blob([text], { type: 'text/plain' }) }),
     ]);
@@ -226,6 +269,37 @@ async function copyResult() {
     showError(el('acStatus'), err);
     btn.textContent = prevLabel;
     btn.disabled = false;
+  }
+}
+
+/** Sends the map+text out through the OS's own share sheet (Mail, Gmail,
+ * WhatsApp, whatever the device offers) - the only web-platform way to hand
+ * a real image FILE to an outgoing email, since mailto: URIs carry only a
+ * subject/body string and can't attach anything. No recipient is set here
+ * by design - the share sheet/app the user picks is where they choose who
+ * it goes to (themselves, a neighbor, the city), same as sharing a photo
+ * from any other app. Falls back to a plain mailto: (text only, no image -
+ * a real capability gap on file:// or older browsers, not hidden) when the
+ * Share API or file-sharing isn't available at all. */
+async function shareResult() {
+  if (state.lat == null) return;
+  const btn = el('acShare');
+  const prevLabel = btn.textContent;
+  btn.disabled = true;
+  try {
+    const { pngBlob, text } = await exportResult();
+    const file = new File([pngBlob], 'מיקום.png', { type: 'image/png' });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({ files: [file], title: 'מי אחראי על ניקיון האזור?', text });
+    } else {
+      const params = new URLSearchParams({ subject: 'מי אחראי על ניקיון האזור?', body: text });
+      window.location.href = `mailto:?${params}`.replace(/\+/g, '%20');
+    }
+  } catch (err) {
+    if (err.name !== 'AbortError') showError(el('acStatus'), err); // AbortError: the user closed the share sheet - not a failure
+  } finally {
+    btn.disabled = false;
+    btn.textContent = prevLabel;
   }
 }
 
@@ -250,6 +324,10 @@ function start() {
 
   el('acCopy').addEventListener('click', () => {
     copyResult().catch((err) => showError(el('acStatus'), err));
+  });
+
+  el('acShare').addEventListener('click', () => {
+    shareResult().catch((err) => showError(el('acStatus'), err));
   });
 
   if (urlAddress) runAddress(urlAddress).catch((err) => showError(el('acStatus'), err));

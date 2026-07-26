@@ -191,6 +191,15 @@ button:disabled { opacity: .5; cursor: default; }
 .notice { padding: .8rem 1rem; border-radius: var(--radius); margin-block-end: 1rem; }
 .notice.error { background: color-mix(in srgb, var(--danger) 12%, transparent); border: 1px solid var(--danger); }
 .notice.info  { background: var(--surface); border: 1px solid var(--border); color: var(--muted); }
+/* Links inside result text (area-cleanup's "who to call" links, etc.) -
+   left unstyled these fall back to the browser's default blue, which reads
+   fine on the light themes but goes muddy/illegible on fashion's black
+   surface. var(--accent) is already the site's own "this is clickable"
+   colour everywhere else (card titles, doc links), and stays readable on
+   every theme including zebra's intentional monochrome. */
+.notice a, .acc-hint a { color: var(--accent); font-weight: 600; }
+.notice a:visited, .acc-hint a:visited { color: var(--accent); }
+.notice a:hover, .acc-hint a:hover { text-decoration: none; }
 
 .skeleton { color: var(--muted); padding: 2rem 0; }
 
