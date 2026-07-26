@@ -21,8 +21,9 @@
       <h1>קווים כחולים</h1>
       <span class="site-by">פרויקט של רם אגמון<span class="site-disclaimer">המידע באתר עלול להיות שגוי</span></span>
       <div class="theme-pick" id="themePick" role="group" aria-label="ערכת נושא">
-        <button type="button" data-theme="clouds">עננים</button>
+        <button type="button" data-theme="clouds">יום</button>
         <button type="button" data-theme="fashion">לילה</button>
+        <button type="button" data-theme="zebra">זברה</button>
       </div>
       <span class="meta" id="created"></span>
       <span class="meta"><a href="./index.html">← חזרה למפת ה-API</a></span>
@@ -48,7 +49,8 @@
       <details class="notice info" dir="auto">
         <summary><strong>מה יש כאן</strong></summary>
         <p>
-          מזינים כתובת, ומקבלים: מפה חיה של השכבות התכנוניות של מנהל התכנון (<code dir="ltr">Xplan</code>) —
+          מזינים כתובת (או, לחלופין, מספר תכנית - מרכז את המפה סביב שטח התכנית עצמה), ומקבלים: מפה חיה
+          של השכבות התכנוניות של מנהל התכנון (<code dir="ltr">Xplan</code>) —
           קווים כחולים (גבולות תכניות), ובאופן אופציונלי גם ייעודי קרקע וישויות נקודתיות — על בסיס מפה
           אמיתי (מבנים ורחובות, OpenStreetMap); בדיקה האם הכתובת נמצאת בתחום ההשפעה של תחנת מטרו מתוכננת
           (תמ"א 70), הרלוונטי לחיוב בהיטל השבחה מוגבר לפי חוק המטרו ("מס מטרו"); וקובץ PDF להורדה עם המפה
@@ -68,40 +70,48 @@
         </p>
       </details>
 
-      <section class="acc-section" aria-labelledby="formH">
-        <h2 id="formH">כתובת</h2>
+      <section class="acc-section">
         <form id="blForm" class="cm-filters">
-          <div class="acc-year-pick">
+          <div class="acc-year-pick" role="radiogroup" aria-label="חיפוש לפי">
+            <label>
+              <input type="radio" name="blSearchMode" id="blModeAddress" value="address" checked>
+              חיפוש לפי כתובת
+            </label>
+            <label>
+              <input type="radio" name="blSearchMode" id="blModePlan" value="plan">
+              חיפוש לפי מספר תכנית
+            </label>
+          </div>
+          <div class="acc-year-pick" id="blAddressField">
             <label for="blAddress">כתובת:</label>
             <input id="blAddress" type="text" autocomplete="off" spellcheck="false"
-                   placeholder="למשל: רוטשילד 1, תל אביב" required>
+                   placeholder="למשל: רוטשילד 1, תל אביב">
+          </div>
+          <div class="acc-year-pick" id="blPlanField" hidden>
+            <label for="blPlanNumber">מספר תכנית:</label>
+            <input id="blPlanNumber" type="text" autocomplete="off" spellcheck="false"
+                   placeholder="למשל: 507-0177683">
           </div>
           <div class="acc-year-pick">
             <label for="blRadius">רדיוס (מטר):</label>
             <input id="blRadius" type="number" min="100" max="3000" step="50">
           </div>
-          <div class="acc-year-pick">
+          <div class="acc-year-pick" id="blDisplayOpts">
             <label for="blShowLabels">
               <input id="blShowLabels" type="checkbox">
-              הצג מספרי תכניות על המפה
+              מספרי תכניות על המפה
             </label>
-          </div>
-          <div class="acc-year-pick">
             <label for="blShowLandUse">
               <input id="blShowLandUse" type="checkbox">
-              הצג ייעודי קרקע
+              ייעודי קרקע
             </label>
-          </div>
-          <div class="acc-year-pick">
             <label for="blShowPoints">
               <input id="blShowPoints" type="checkbox" checked>
-              הצג ישויות נקודתיות
+              ישויות נקודתיות
             </label>
-          </div>
-          <div class="acc-year-pick">
             <label for="blShowMetroZone">
               <input id="blShowMetroZone" type="checkbox" checked>
-              הצג תחום השפעת מטרו (תמ"א 70) על המפה
+              תחום השפעת מטרו (תמ"א 70) על המפה
             </label>
           </div>
           <button type="submit" class="drill-dl">הצג מפה ⭳</button>

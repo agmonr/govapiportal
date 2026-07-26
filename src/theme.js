@@ -1,9 +1,10 @@
 /**
- * The theme picker. Two looks: "clouds" (default, calm blue, unset
- * data-theme) and "fashion" (opt-in, black/gold - see [data-theme="fashion"]
- * in style.css). The choice is applied to <html> before first paint by an
- * inline script in <head> - see index.html/datagov.html - so switching pages
- * or reloading never flashes the other theme first.
+ * The theme picker. Three looks, labeled יום/לילה/זברה in the markup: "clouds"
+ * (יום, default, unset data-theme), "fashion" (לילה, opt-in black/gold - see
+ * [data-theme="fashion"] in style.css) and "zebra" (זברה, opt-in black/white
+ * - see [data-theme="zebra"]). The choice is applied to <html> before first
+ * paint by an inline script in <head> - see index.html/datagov.html - so
+ * switching pages or reloading never flashes another theme first.
  */
 const KEY = 'theme';
 const DEFAULT = 'clouds';

@@ -4,7 +4,9 @@
  * Browser port of tools/iplan_snapshot.py's pipeline (see that file's own
  * docstring for the full reasoning behind each step - summarised here):
  *
- *   1. Geocode the address (OSM Nominatim).
+ *   1. Locate the centre point - either geocode an address (OSM Nominatim),
+ *      or look up a plan by its exact number (fetchPlanCenter) and use its
+ *      own extent, sized to fit it.
  *   2. Project WGS84 -> the Xplan MapServer's native ITM (EPSG:2039) via
  *      iplan's own Utilities/Geometry service, rather than letting /export
  *      reproject a WGS84 bbox itself - that shortcut measurably does NOT
@@ -14,15 +16,18 @@
  *      checkbox, layer 0 (ישויות נקודתיות, point entities) and layer 4
  *      (יעודי קרקע, land use - off by default, matching the real site's own
  *      layer panel and confirmed live via its network traffic: it never
- *      fetches this layer until a user opts in). When land use is shown,
- *      two catch-all/regional codes are still excluded (see
+ *      fetches this layer until a user opts in). When land use is shown, two
+ *      catch-all/regional codes are still excluded (see
  *      EXCLUDE_LANDUSE_CODES) so it isn't buried under one giant background
- *      hatch even then.
+ *      hatch even then, and it's drawn at reduced opacity
+ *      (LAND_USE_OPACITY) - even a single legitimate polygon can span
+ *      several km2 (a heritage conservation zone, say) and at full strength
+ *      reads as foreground noise over the basemap/boundaries.
  *   4. Stitch a real basemap (buildings/streets) from OSM's standard raster
  *      tiles - iplan's MapServer has none of its own - aligned by projecting
  *      the bbox's own corners ITM->WGS84 through the same trusted Geometry
  *      service, then to Web Mercator with the exact formula OSM tiles use.
- *   5. Check whether the address falls inside a metro station's core/first-
+ *   5. Check whether the centre point falls inside a metro station's core/first-
  *      ring influence zone (תמ"א 70, layer 4, MAVAT_CODE 6011/6012) - the
  *      area subject to the increased betterment levy ("מס מטרו") under the
  *      Metro Law. See METRO_ZONE_CODES below for how this was found and
@@ -59,6 +64,7 @@ const MAX_TILES = 64;
 
 const DEFAULT_RADIUS = 300;
 const IMAGE_SIZE = 800;
+const LAND_USE_OPACITY = 0.3;
 
 // The three layers checked by default in iplan's own layer panel.
 const LAYERS = [1, 4, 0];
@@ -82,7 +88,7 @@ const EXCLUDE_LANDUSE_CODES = [995, 996];
 // service's legend/renderer but has zero features - not used here.
 const METRO_ZONE_CODES = [6011, 6012];
 
-const state = { bbox: null, planLinks: [], address: '' };
+const state = { bbox: null, planLinks: [], label: '' };
 
 function fetchJson(url, opts) {
   return fetch(url, opts).then((r) => {
@@ -330,6 +336,40 @@ async function fetchPlanLinks(bbox) {
     .map((f) => ({ url: f.attributes.pl_url, rings: f.geometry.rings }));
 }
 
+/** Looks up a plan by its exact pl_number (layer 1) and returns its centre
+ * (ITM), a display name, and a radius sized to fit the plan's own extent -
+ * so "search by plan" lands on the plan itself rather than an arbitrary
+ * default-radius box that might not even overlap it. Two lightweight
+ * queries (attributes, extent) rather than one fetch of the full geometry -
+ * a plan's boundary can run to thousands of vertices (see
+ * tools/iplan_snapshot.py's build_pdf() docstring) and none of them are
+ * needed just to centre and size the view. */
+async function fetchPlanCenter(planNumber) {
+  const where = `pl_number='${planNumber.replace(/'/g, "''")}'`;
+  const [attrs, extentResult] = await Promise.all([
+    fetchJson(`${MAPSERVER}/1/query?${new URLSearchParams({
+      where, outFields: 'pl_number,pl_name', returnGeometry: 'false', f: 'json',
+    })}`),
+    fetchJson(`${MAPSERVER}/1/query?${new URLSearchParams({
+      where, returnGeometry: 'false', returnExtentOnly: 'true', f: 'json',
+    })}`),
+  ]);
+  const feat = attrs.features && attrs.features[0];
+  const extent = extentResult.extent;
+  if (!feat || !extent) throw new Error(`לא נמצאה תכנית "${planNumber}"`);
+
+  const { xmin, ymin, xmax, ymax } = extent;
+  const x = (xmin + xmax) / 2;
+  const y = (ymin + ymax) / 2;
+  // Half the plan's longer side, padded 30% for margin around it, clamped
+  // to the radius field's own min/max (100-3000) so neither a tiny plan nor
+  // a whole-district one produces a degenerate or absurd request.
+  const half = Math.max(xmax - xmin, ymax - ymin) / 2;
+  const radius = Math.min(3000, Math.max(100, Math.round(half * 1.3)));
+
+  return { x, y, radius, displayName: `${feat.attributes.pl_name || planNumber} (${feat.attributes.pl_number})` };
+}
+
 /**
  * Traces `points` (already in output pixel space) as a sequence of small
  * rects, each grown until adding the next point would push it past
@@ -432,18 +472,24 @@ function downloadBlob(blob, name) {
   setTimeout(() => URL.revokeObjectURL(href), 10000);
 }
 
-function safeFilename(address) {
-  return address.replace(/[^\p{L}\p{N}]+/gu, '_').replace(/^_+|_+$/g, '').slice(0, 60) || 'blue-lines';
+function safeFilename(label) {
+  return label.replace(/[^\p{L}\p{N}]+/gu, '_').replace(/^_+|_+$/g, '').slice(0, 60) || 'blue-lines';
 }
 
-/** Puts the current search in the URL (?address=...&radius=...&labels=1) via
- * replaceState - no new history entry per search, but the address bar is a
- * link someone can copy, bookmark or send, and reloading it re-runs the same
- * search (see start()). radius/labels are only added when they differ from
- * the default, so a plain address search keeps a plain, short URL. */
-function syncUrl(address, radius, showLabels, showLandUse, showPoints, showMetroZone) {
+/** Puts the current search in the URL (?address=...&radius=...&labels=1, or
+ * ?mode=plan&plan=...) via replaceState - no new history entry per search,
+ * but the address bar is a link someone can copy, bookmark or send, and
+ * reloading it re-runs the same search (see start()). radius/labels are
+ * only added when they differ from the default, so a plain address search
+ * keeps a plain, short URL. */
+function syncUrl(query, radius, showLabels, showLandUse, showPoints, showMetroZone) {
   const params = new URLSearchParams();
-  params.set('address', address);
+  if (query.mode === 'plan') {
+    params.set('mode', 'plan');
+    params.set('plan', query.value);
+  } else {
+    params.set('address', query.value);
+  }
   if (radius !== DEFAULT_RADIUS) params.set('radius', String(radius));
   if (showLabels) params.set('labels', '1');
   if (showLandUse) params.set('landUse', '1');
@@ -452,18 +498,32 @@ function syncUrl(address, radius, showLabels, showLandUse, showPoints, showMetro
   history.replaceState(null, '', `?${params}`);
 }
 
-async function run(address, radius, showLabels, showLandUse, showPoints, showMetroZone) {
-  syncUrl(address, radius, showLabels, showLandUse, showPoints, showMetroZone);
+/** @param {{mode: 'address'|'plan', value: string}} query */
+async function run(query, radius, showLabels, showLandUse, showPoints, showMetroZone) {
   const status = el('blStatus');
   const resultBox = el('blResult');
   resultBox.hidden = true;
   el('blMetro').hidden = true;
-  showLoading(status, `מאתר כתובת: ${address}…`);
 
-  const { lon, lat, displayName } = await geocode(address);
-  showLoading(status, `נמצא: ${displayName} — מטיל מפה...`);
+  let x;
+  let y;
+  let displayName;
+  if (query.mode === 'plan') {
+    showLoading(status, `מאתר תכנית: ${query.value}…`);
+    const found = await fetchPlanCenter(query.value);
+    ({ x, y, displayName } = found);
+    radius = found.radius; // sized to the plan's own extent - see fetchPlanCenter
+    el('blRadius').value = String(radius); // reflect it in the form, not just silently used
+    showLoading(status, `נמצאה: ${displayName} — מטיל מפה...`);
+  } else {
+    showLoading(status, `מאתר כתובת: ${query.value}…`);
+    const geo = await geocode(query.value);
+    displayName = geo.displayName;
+    showLoading(status, `נמצא: ${displayName} — מטיל מפה...`);
+    [[x, y]] = await projectPoints([[geo.lon, geo.lat]], WGS84_WKID, ITM_WKID);
+  }
 
-  const [[x, y]] = await projectPoints([[lon, lat]], WGS84_WKID, ITM_WKID);
+  syncUrl(query, radius, showLabels, showLandUse, showPoints, showMetroZone);
   const bbox = bboxAround(x, y, radius);
 
   showLoading(status, 'שולף שכבות תכנוניות ובסיס מפה...');
@@ -497,7 +557,15 @@ async function run(address, radius, showLabels, showLandUse, showPoints, showMet
   canvas.height = IMAGE_SIZE;
   const ctx = canvas.getContext('2d');
   ctx.drawImage(basemap, 0, 0);
-  if (landUse) ctx.drawImage(landUse, 0, 0);
+  if (landUse) {
+    // Shown at reduced opacity when opted in - the real site renders it at
+    // full strength, but even a single land-use polygon can span several
+    // km2 (a heritage conservation zone, say), and at full strength that
+    // reads as foreground noise burying the basemap/boundaries under it.
+    ctx.globalAlpha = LAND_USE_OPACITY;
+    ctx.drawImage(landUse, 0, 0);
+    ctx.globalAlpha = 1;
+  }
   ctx.drawImage(planBoundaries, 0, 0);
   if (showMetroZone) drawMetroZones(ctx, bbox, IMAGE_SIZE, metroZoneRings);
   if (points) ctx.drawImage(points, 0, 0);
@@ -505,18 +573,31 @@ async function run(address, radius, showLabels, showLandUse, showPoints, showMet
 
   state.bbox = bbox;
   state.planLinks = planLinks;
-  state.address = address;
+  state.label = displayName;
 
+  const subject = query.mode === 'plan' ? 'התכנית' : 'הכתובת';
   const metroBox = el('blMetro');
   metroBox.hidden = false;
   if (metro.inZone) {
     metroBox.className = 'notice error';
-    metroBox.innerHTML = `<strong>הכתובת בתחום ההשפעה של תחנת מטרו</strong>
+    // A ready-made search query, not a bare "תמ"א 70" link - names the
+    // actual address/plan so the results (and Google's AI tab, which reads
+    // the query itself) address this specific location, not the plan in
+    // the abstract.
+    const aiQuery = `הסבר בקצרה על תמ"א 70, הסבר את ההשפעות על ${displayName}. `
+      + 'הסבר על ההשפעות הכלכליות הצפויות בכתובת. '
+      + 'הסבר בקצרה כיצד תמ"א 70 גוברת על תוכנית המתאר המאושרת באזור';
+    const aiUrl = `https://www.google.com/search?q=${encodeURIComponent(aiQuery)}`;
+    metroBox.innerHTML = `<strong>${esc(subject)} בתחום ההשפעה של תחנת מטרו</strong>
       (${esc(metro.zones.join(', '))}) — לפי חוק המטרו, בעלי נכסים באזור זה
-      עשויים לחוב בהיטל השבחה מוגבר ("מס מטרו").`;
+      עשויים לחוב בהיטל השבחה מוגבר ("מס מטרו").
+      <p class="acc-hint">
+        <a href="${esc(aiUrl)}" target="_blank" rel="noopener">הסבר על תמ"א 70 ועל ההשפעה כאן ↗</a>
+        — בתוצאות החיפוש של Google, לחצו על הלשונית <strong>AI</strong> לקבלת סיכום.
+      </p>`;
   } else {
     metroBox.className = 'notice info';
-    metroBox.textContent = 'הכתובת מחוץ לתחום ההשפעה הידוע של תחנות מטרו (תמ״א 70).';
+    metroBox.textContent = `${subject} מחוץ לתחום ההשפעה הידוע של תחנות מטרו (תמ״א 70).`;
   }
 
   el('blPlanCount').textContent = String(planLinks.length);
@@ -536,22 +617,35 @@ async function downloadPdf() {
     const jpegBytes = new Uint8Array(await jpegBlob.arrayBuffer());
     const links = planLinkRects(state.planLinks, state.bbox, IMAGE_SIZE);
     const pdfBlob = buildPdf({ jpegBytes, width: IMAGE_SIZE, height: IMAGE_SIZE, links });
-    downloadBlob(pdfBlob, `${safeFilename(state.address)}.pdf`);
+    downloadBlob(pdfBlob, `${safeFilename(state.label)}.pdf`);
   } finally {
     btn.disabled = false;
     btn.textContent = prevLabel;
   }
 }
 
+/** Which of the two search-mode inputs is currently selected/relevant. */
+function currentQuery() {
+  const mode = el('blModePlan').checked ? 'plan' : 'address';
+  const value = (mode === 'plan' ? el('blPlanNumber') : el('blAddress')).value.trim();
+  return { mode, value };
+}
+
+function updateSearchModeFields() {
+  const isPlan = el('blModePlan').checked;
+  el('blAddressField').hidden = isPlan;
+  el('blPlanField').hidden = !isPlan;
+}
+
 function submitForm() {
-  const address = el('blAddress').value.trim();
-  if (!address) return;
+  const query = currentQuery();
+  if (!query.value) return;
   const radius = Number(el('blRadius').value) || DEFAULT_RADIUS;
   const showLabels = el('blShowLabels').checked;
   const showLandUse = el('blShowLandUse').checked;
   const showPoints = el('blShowPoints').checked;
   const showMetroZone = el('blShowMetroZone').checked;
-  run(address, radius, showLabels, showLandUse, showPoints, showMetroZone)
+  run(query, radius, showLabels, showLandUse, showPoints, showMetroZone)
     .catch((err) => showError(el('blStatus'), err));
 }
 
@@ -559,12 +653,18 @@ function start() {
   initThemePicker(el('themePick'));
   el('created').textContent = document.lastModified;
 
-  // A linked search (?address=...&radius=...&labels=1&landUse=1&points=0&metroZone=0)
-  // prefills the form and runs immediately, so the URL someone shares is the
-  // result they saw, not just an empty form - same shape as syncUrl() writes
-  // on every search.
+  // A linked search (?address=...&radius=...&labels=1&landUse=1&points=0&metroZone=0,
+  // or ?mode=plan&plan=...) prefills the form and runs immediately, so the
+  // URL someone shares is the result they saw, not just an empty form - same
+  // shape as syncUrl() writes on every search.
+  const urlIsPlan = param('mode') === 'plan';
   const urlAddress = param('address');
+  const urlPlan = param('plan');
+  el('blModePlan').checked = urlIsPlan;
+  el('blModeAddress').checked = !urlIsPlan;
   el('blAddress').value = urlAddress || '';
+  el('blPlanNumber').value = urlPlan || '';
+  updateSearchModeFields();
   el('blRadius').value = param('radius') || String(DEFAULT_RADIUS);
   el('blShowLabels').checked = param('labels') === '1';
   el('blShowLandUse').checked = param('landUse') === '1';
@@ -577,13 +677,17 @@ function start() {
     submitForm();
   });
 
+  [el('blModeAddress'), el('blModePlan')].forEach((radio) => {
+    radio.addEventListener('change', updateSearchModeFields);
+  });
+
   // Re-runs the search immediately on a checkbox flip, rather than making
   // someone toggle it and then separately press "הצג מפה" again - only once
-  // there's already an address to search for, so this does nothing on first
+  // there's already something to search for, so this does nothing on first
   // load before any search has run.
   ['blShowLabels', 'blShowLandUse', 'blShowPoints', 'blShowMetroZone'].forEach((id) => {
     el(id).addEventListener('change', () => {
-      if (el('blAddress').value.trim()) submitForm();
+      if (currentQuery().value) submitForm();
     });
   });
 
@@ -591,7 +695,7 @@ function start() {
     downloadPdf().catch((err) => showError(el('blStatus'), err));
   });
 
-  if (urlAddress) submitForm();
+  if (urlIsPlan ? urlPlan : urlAddress) submitForm();
 }
 
 start();

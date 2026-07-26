@@ -24,33 +24,69 @@
  * not margin-left) so the whole sheet works unchanged if dir flips to ltr.
  */
 
-/* Default theme: "Clouds" - calm blue, the same on mobile and desktop. There
-   used to be a second, unrelated look forced onto small screens only; that
-   split is gone; the only other look now is an explicit opt-in, see
-   [data-theme="fashion"] near the end of this file. */
+/* Default theme: one scheme, site-wide, matching
+   https://agmonr.github.io/yeela-license-tracker/statics/reports/open_for_objection.html
+   exactly (forest-green chrome, mint page background, white raised cards,
+   sun/sky/berry as the secondary palette) - by explicit request, every page
+   now shares this single scheme instead of its own accent mood. The only
+   other look is still the explicit opt-in [data-theme="fashion"] near the
+   end of this file. */
 :root {
-  --bg: #f5f9fd;
-  --fg: #182634;
-  --muted: #4c6178;
-  --border: #d7e4f0;
-  --accent: #2f7bc4;
-  --surface: #eaf3fb;
-  --danger: #b3261e;
-  --radius: 8px;
+  --bg: #f2f7ee;
+  --fg: #24331f;
+  --muted: #5b6f56;
+  --border: #dfe9d8;
+  --accent: #2e7d46;
+  --surface: #eaf3e6;
+  --danger: #e05353;
+  --card: #ffffff;
+  --radius: 10px;
   --maxw: 1100px;
+
+  /* The reference page's full named palette, not just the tokens above -
+     used for the header gradient and the finance/welfare two-series charts
+     (--fin-ok/--fin-bad/--fin-compare below), so those keep distinguishable
+     hues instead of collapsing onto one green --accent. */
+  --forest-dark: #1b5e34;
+  --forest: #2e7d46;
+  --leaf: #4caf50;
+  --leaf-light: #a5d6a7;
+  --sun: #f5a623;
+  --sky: #2ba8e0;
+  --berry: #e05353;
+  --bark: #a1725c;
+  --terracotta: #e08130;
+  --shadow: rgba(27, 94, 52, 0.16);
+  --shadow-soft: rgba(27, 94, 52, 0.10);
+
+  --fin-ok: var(--leaf);
+  --fin-bad: var(--danger);
+  --fin-compare: var(--sky);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    /* Night sky, not black - kept dark mode from feeling like an unrelated
-       theme of its own. */
-    --bg: #111927;
-    --fg: #e8eff7;
-    --muted: #a9bccf;
-    --border: #263a4a;
-    --accent: #7fb8ee;
-    --surface: #17212f;
+    /* Same forest scheme, deepened rather than swapped for an unrelated dark
+       theme - the reference page has no dark mode of its own, so this is an
+       extension of it, not a copy of one. */
+    --bg: #0f1c13;
+    --fg: #e6f0e1;
+    --muted: #9db393;
+    --border: #24382a;
+    --accent: #5fce8f;
+    --surface: #17251b;
     --danger: #f2766b;
+    --card: #142018;
+
+    --forest-dark: #123a24;
+    --forest: #1d5c34;
+    --leaf: #3f9a5c;
+    --leaf-light: #4f7a5a;
+    --sun: #e0a83f;
+    --sky: #4fb8e8;
+    --berry: #e0736b;
+    --bark: #b88a6e;
+    --terracotta: #e0985a;
   }
 }
 
@@ -66,21 +102,43 @@ body {
 .wrap { max-width: var(--maxw); margin-inline: auto; padding: 1.5rem 1rem 4rem; }
 
 header.site {
-  border-block-end: 1px solid var(--border);
-  /* A calm sky, not a flat fill - the one "shine" the default theme gets,
-     quiet enough to still read as calm rather than decorative. */
-  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 8%, var(--surface)), var(--surface));
+  border-block-end: none;
+  border-radius: 18px;
+  margin-block-end: 1.25rem;
+  /* The reference page's own header: a diagonal forest-to-leaf gradient,
+     not a flat fill or a quiet tint - this is the single most visually
+     distinctive piece of "the reference's color scheme" and every page now
+     shares it. */
+  background: linear-gradient(135deg, var(--forest-dark), var(--forest) 60%, var(--leaf));
+  box-shadow: 0 8px 20px var(--shadow);
+  color: #fff;
 }
 /* wrap, not nowrap: three items (title, byline, meta) plus a long Hebrew
    h1 in uppercase tracking on a narrow phone would otherwise overflow the
    header sideways instead of dropping to a second line. */
-header.site .wrap { padding-block: 1rem; display: flex; align-items: baseline; flex-wrap: wrap; gap: .4rem 1rem; }
-header.site h1 { font-size: 1.15rem; margin: 0; }
-header.site a { color: var(--accent); text-decoration: none; font-size: .9rem; }
+header.site .wrap { padding-block: 1.1rem; display: flex; align-items: baseline; flex-wrap: wrap; gap: .4rem 1rem; }
+header.site h1 { font-size: 1.15rem; margin: 0; color: #fff; }
+header.site a { color: #eafbe7; text-decoration: none; font-size: .9rem; }
+header.site a:hover { color: #fff; }
 /* An attribution line, not a headline - kept quiet on purpose. */
-header.site .site-by { display: flex; flex-direction: column; font-size: .78rem; color: var(--muted); }
+header.site .site-by { display: flex; flex-direction: column; font-size: .78rem; color: #d7ecd2; }
 /* Quieter still than the byline it sits under - a caveat, not a warning. */
-header.site .site-disclaimer { font-size: .7rem; opacity: .8; }
+header.site .site-disclaimer { font-size: .7rem; opacity: .85; }
+
+/* Light pills on the dark green header, not the plain button treatment
+   (which would render as a same-hue-on-same-hue green pill and lose the
+   pressed/unpressed contrast). */
+header.site .theme-pick button {
+  background: rgba(255, 255, 255, .15);
+  color: #eafbe7;
+  border-color: rgba(255, 255, 255, .35);
+}
+header.site .theme-pick button[aria-pressed="true"] {
+  background: #fff;
+  color: var(--forest-dark);
+  border-color: #fff;
+}
+header.site .meta { color: #d7ecd2; }
 
 /* Pushes itself (and the probed-timestamp span after it) to the far end of
    the header row, away from the title cluster. */
@@ -127,9 +185,13 @@ button:disabled { opacity: .5; cursor: default; }
 
 .card {
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: 16px;
   padding: .9rem 1rem;
   margin-block-end: .75rem;
+  /* White, raised off the mint page background - the reference's own card
+     look, not a bordered box the same colour as the page around it. */
+  background: var(--card);
+  box-shadow: 0 6px 16px var(--shadow-soft);
 }
 .card h3 { margin: 0 0 .3rem; font-size: 1rem; }
 .card h3 a { color: var(--accent); text-decoration: none; }
@@ -210,8 +272,9 @@ button:disabled { opacity: .5; cursor: default; }
   padding: .7rem .85rem;
   border: 1px solid var(--border);
   border-inline-start-width: 3px;
-  border-radius: var(--radius);
-  background: var(--bg);
+  border-radius: 16px;
+  background: var(--card);
+  box-shadow: 0 6px 16px var(--shadow-soft);
 }
 button.stat { cursor: pointer; }
 .stat-n { font-size: 1.6rem; font-weight: 600; line-height: 1.1; font-variant-numeric: tabular-nums; }
@@ -606,8 +669,9 @@ button.stat { cursor: pointer; }
   text-align: start;
   padding: .85rem;
   border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--bg);
+  border-radius: 14px;
+  background: var(--card);
+  box-shadow: 0 6px 16px var(--shadow-soft);
   cursor: pointer;
 }
 .portal:hover { border-color: var(--accent); }
@@ -756,7 +820,7 @@ button.stat { cursor: pointer; }
 .ck-card {
   display: flex; flex-direction: column; gap: .3rem; text-align: start; cursor: pointer;
   padding: .7rem .8rem; font: inherit;
-  background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
   /* A `1fr` track floors at min-content, so one long unbroken string in a title
      or description widens the track past the viewport and scrolls the whole
      page - measured at 85px over on a 380px screen. These two lines are what
@@ -1126,15 +1190,38 @@ a:focus-visible, button:focus-visible {
   font-size: 1.8rem;
   font-weight: 700;
 }
-[data-theme="fashion"] header.site a { text-transform: uppercase; font-size: .72rem; letter-spacing: .08em; }
+[data-theme="fashion"] header.site a {
+  text-transform: uppercase;
+  font-size: .72rem;
+  letter-spacing: .08em;
+  /* Fashion's gold accent, not the light-green the default header now uses -
+     header.site a's own color rule is (0,1,2), higher than the plain .meta
+     rule below, so this needs to declare color explicitly to win it back. */
+  color: var(--accent);
+}
 [data-theme="fashion"] header.site .site-by { color: #ffd54f; font-size: 1.1rem; }
 [data-theme="fashion"] .meta { color: #b0bec5; }
+[data-theme="fashion"] header.site .meta { color: #b0bec5; }
 [data-theme="fashion"] .theme-pick button {
   background: #333333;
   color: #ffffff;
   border: 1px solid #555555;
   border-radius: 16px;
   padding: 4px 12px;
+}
+/* Wins back the fashion look inside the header specifically - the light
+   header.site .theme-pick rules above are (0,2,2)/(0,3,2), higher than the
+   plain fashion rules here, so without this fashion's dark pill would get
+   overridden by the light-header treatment while this theme is active. */
+[data-theme="fashion"] header.site .theme-pick button {
+  background: #333333;
+  color: #ffffff;
+  border-color: #555555;
+}
+[data-theme="fashion"] header.site .theme-pick button[aria-pressed="true"] {
+  background: var(--accent);
+  color: var(--bg);
+  border-color: var(--accent);
 }
 
 [data-theme="fashion"] .section {
@@ -1224,92 +1311,100 @@ a:focus-visible, button:focus-visible {
 
 [data-theme="fashion"] .lead { font-family: var(--font-display); line-height: 1.7; }
 
-/* ---------- accidents.html: a distinct, sober mood ----------
-   Its own page gets its own design, not a filtered variant of the other
-   two - fatal-accident data doesn't suit calm blue or gold shine either
-   one. A warning amber/red accent, overriding whichever base theme (clouds
-   or fashion) is picked - deliberately higher specificity than
-   [data-theme], so the mood here holds regardless of theme choice. Nearly
-   every component (cards, buttons, badges, the pager) just inherits this
-   through --accent already; nothing else needed rewriting. */
-body.accidents-page {
-  --accent: #b3541c;
-}
-@media (prefers-color-scheme: dark) {
-  body.accidents-page { --accent: #e0913f; }
-}
-body.accidents-page header.site {
-  border-block-end: 3px solid var(--accent);
-  background:
-    repeating-linear-gradient(135deg,
-      color-mix(in srgb, var(--accent) 14%, transparent) 0 14px, transparent 14px 28px),
-    var(--surface);
+/* ---------- theme: zebra (opt-in) ----------
+   Third theme picker option, alongside the default "יום" (day - unset
+   data-theme) and "לילה" (night - [data-theme="fashion"]) above: a strict
+   black/white/gray look, no hue anywhere - even --danger is a plain red-gray
+   rather than the forest theme's berry, since a coloured accent would break
+   the monochrome premise. Status colour (badge ok/warn/bad/limited, chart
+   bars) is deliberately left alone here too, same reasoning as the fashion
+   theme above: it carries meaning, not mood, so every theme leaves it as-is. */
+[data-theme="zebra"] {
+  --bg: #ffffff;
+  --fg: #111111;
+  --muted: #5c5c5c;
+  --border: #cfcfcf;
+  --accent: #111111;
+  --surface: #f0f0f0;
+  --danger: #a30000;
+  --card: #ffffff;
+  --radius: 6px;
 }
 
-/* committees.html reuses accidents-page's whole header treatment (striped
-   background, centered title) but with its own neutral-gray mood instead of
-   the accidents page's orange - a separate topic, not a severity/warning
-   color, so it shouldn't borrow that page's caution tone. Same specificity
-   as the rule above (one class + one element), so source order alone is
-   what makes this win on pages carrying both classes. */
-body.committees-page { --accent: #6b7280; }
-@media (prefers-color-scheme: dark) {
-  body.committees-page { --accent: #9ca3af; }
+/* The literal zebra stripe, as a band under an otherwise flat black header -
+   the whole header can't be striped edge-to-edge (text over alternating
+   black/white would be unreadable), so the stripe is confined to a band via
+   a positioned ::after rather than the header's own background. */
+[data-theme="zebra"] header.site {
+  position: relative;
+  border-radius: 0;
+  background: #000;
+  box-shadow: none;
+  padding-block-end: calc(1.1rem + 10px);
+}
+[data-theme="zebra"] header.site::after {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  inset-block-end: 0;
+  block-size: 10px;
+  background: repeating-linear-gradient(135deg, #fff 0 14px, #000 14px 28px);
+}
+[data-theme="zebra"] header.site h1 { color: #fff; }
+[data-theme="zebra"] header.site a { color: #fff; text-decoration: underline; }
+[data-theme="zebra"] header.site a:hover { color: #ccc; }
+[data-theme="zebra"] header.site .site-by { color: #cccccc; }
+[data-theme="zebra"] header.site .meta { color: #cccccc; }
+[data-theme="zebra"] header.site .theme-pick button {
+  background: rgba(255, 255, 255, .12);
+  color: #fff;
+  border-color: rgba(255, 255, 255, .4);
+}
+[data-theme="zebra"] header.site .theme-pick button[aria-pressed="true"] {
+  background: #fff;
+  color: #000;
+  border-color: #fff;
 }
 
-/* local-finance.html: same header treatment again, this time in gold - money/
-   finance, its own mood distinct from both the accidents page's caution
-   orange and the committees page's neutral gray. Same specificity story as
-   the two rules above; source order (this one last) is what wins here. */
-body.finance-page {
-  --accent: #a9820c;
-  /* Same green/red the combo chart and .stat.ok/.stat.bad already use
-     elsewhere on this page - a surplus/deficit table cell borrows that same
-     vocabulary rather than inventing a third color pairing. */
-  --fin-ok: #1a7f45;
-  --fin-bad: var(--danger);
-  /* The compare authority's identity color, used identically everywhere it
-     appears (grouped-bar charts, table city-swatch column) - a hue clearly
-     distinct from --accent (gold/main), --fin-ok/--fin-bad (surplus/deficit)
-     and --danger, so "which city" never gets confused with "which series"
-     or "good/bad". */
-  --fin-compare: #2f6f9e;
+[data-theme="zebra"] .card,
+[data-theme="zebra"] .portal,
+[data-theme="zebra"] .stat,
+[data-theme="zebra"] .ck-card {
+  box-shadow: none;
+  border-width: 1px;
+  border-color: #000;
 }
-@media (prefers-color-scheme: dark) {
-  body.finance-page { --accent: #e0b93a; --fin-ok: #5fce8f; --fin-compare: #6fa8d6; }
+[data-theme="zebra"] .card h3 a,
+[data-theme="zebra"] .p-open,
+[data-theme="zebra"] .drill-home,
+[data-theme="zebra"] .cm-doclist a {
+  text-decoration: underline;
 }
 
-/* companies.html: light yellow, deliberately a cooler lemon/olive tone
-   rather than finance-page's warmer amber-gold above - the two sit next to
-   each other in the same yellow family (both are registry/records-of-money-
-   adjacent government data), so this leans away from finance's hue rather
-   than toward it. Same specificity story as the rules above. */
-body.companies-page { --accent: #a89400; }
-@media (prefers-color-scheme: dark) {
-  body.companies-page { --accent: #e8d34a; }
+[data-theme="zebra"] button,
+[data-theme="zebra"] .ex-method,
+[data-theme="zebra"] .ck-crumb {
+  border-color: #000;
+}
+[data-theme="zebra"] button:hover:not(:disabled),
+[data-theme="zebra"] button:focus-visible {
+  background: #000;
+  color: #fff;
+  border-color: #000;
+}
+[data-theme="zebra"] .ck-open,
+[data-theme="zebra"] .ck-dl,
+[data-theme="zebra"] .drill-dl,
+[data-theme="zebra"] .pager .pg.cur {
+  border-color: #000;
 }
 
-/* welfare.html: a muted sand/terracotta - "light desert" per request -
- * distinct from accidents' more saturated warning-orange and finance's
- * cooler gold, its own mood for a page about care and welfare rather than
- * caution or money. Same specificity story as the rules above; source
- * order (this one last) is what wins here. Reuses --fin-compare (the
- * compare-authority identity color) the same way local-finance.html does,
- * for the same reason: this page also has a main/compare grouped chart.
- */
-body.welfare-page { --accent: #b8794a; --fin-compare: #6b8e6f; }
-@media (prefers-color-scheme: dark) {
-  body.welfare-page { --accent: #e0a875; --fin-compare: #8fbf94; }
-}
-
-/* blue-lines.html: literally "blue lines" (קווים כחולים, iplan's own
- * nickname for its plan-boundary layer) - the obvious accent for this page
- * is blue, distinct from every hue used above. Same specificity story as
- * the rules above; source order (this one last) is what wins here. */
-body.blue-lines-page { --accent: #1d5fd6; }
-@media (prefers-color-scheme: dark) {
-  body.blue-lines-page { --accent: #6ea3ff; }
-}
+/* ---------- accidents/committees/finance/companies/welfare/blue-lines ----------
+   These pages each used to carry their own --accent mood (warning orange,
+   neutral gray, gold, lemon, terracotta, blue) plus, for accidents and
+   committees, a striped header background. Removed by explicit request: the
+   whole site now shares one scheme (see :root and header.site above),
+   matching the reference page exactly rather than varying per page. */
 
 /* Centered on this page specifically - the map's header stays a normal
    start-aligned row with a byline/theme-pick/probed-stamp cluster; this
@@ -1319,9 +1414,19 @@ body.accidents-page header.site .wrap { justify-content: center; text-align: cen
 body.accidents-page header.site h1 { inline-size: 100%; }
 
 .acc-year-pick { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; margin-block-end: 1.25rem; }
-.acc-year-pick label { font-size: .9rem; color: var(--muted); }
+/* inline-flex, not the default inline flow: a checkbox/radio followed by its
+   label text needs the checkbox to land first (the RTL start edge) with the
+   text immediately after it - relying on plain bidi reordering of a replaced
+   form control next to text is inconsistent across engines. This also keeps
+   a lone text label (blAddress/blRadius, no nested input) unaffected, since
+   inline-flex with a single child renders identically to inline. */
+.acc-year-pick label { font-size: .9rem; color: var(--muted); display: inline-flex; align-items: center; gap: .4rem; }
 .acc-year-pick select,
-.acc-year-pick input {
+/* Text/number inputs only - a checkbox/radio must keep its native intrinsic
+   size, not the 16rem search-field width below (that rule used to apply to
+   every input here, forcing each checkbox's own flex item to claim a
+   256px-wide box and pushing every option onto its own line). */
+.acc-year-pick input:not([type="checkbox"]):not([type="radio"]) {
   font: inherit;
   font-size: .9rem;
   padding: .35rem .6rem;
@@ -1330,7 +1435,15 @@ body.accidents-page header.site h1 { inline-size: 100%; }
   border: 1px solid var(--border);
   border-radius: var(--radius);
 }
-.acc-year-pick input { min-inline-size: 16rem; }
+.acc-year-pick input:not([type="checkbox"]):not([type="radio"]) { min-inline-size: 16rem; }
+
+/* blue-lines.html's four display-option checkboxes, grouped into one row
+   (see .cm-filters .acc-year-pick's flex-wrap:nowrap) instead of one row
+   each - narrower than the combined label widths on a phone screen, so it
+   scrolls horizontally in place rather than wrapping or clipping, the same
+   pattern .matrix-wrap already uses for a too-wide table. */
+#blDisplayOpts { flex-wrap: nowrap; overflow-x: auto; padding-block-end: .3rem; }
+#blDisplayOpts label { white-space: nowrap; }
 
 /* The city field's own suggestion dropdown (accidents.js), standing in for a
    native <datalist> - that popup is OS/browser-drawn and ignores dir="rtl"
@@ -1384,8 +1497,9 @@ body.accidents-page header.site h1 { inline-size: 100%; }
       <h1>המאגר הממשלתי הפתוח</h1>
       <span class="site-by">פרויקט של רם אגמון<span class="site-disclaimer">המידע באתר עלול להיות שגוי</span><a href="https://hod-hasharon.org/" target="_blank" rel="noopener">הירוקים הוד השרון</a></span>
       <div class="theme-pick" id="themePick" role="group" aria-label="ערכת נושא">
-        <button type="button" data-theme="clouds">עננים</button>
+        <button type="button" data-theme="clouds">יום</button>
         <button type="button" data-theme="fashion">לילה</button>
+        <button type="button" data-theme="zebra">זברה</button>
       </div>
       <span class="meta"><a href="./index.html">← חזרה למפת ה-API</a></span>
     </div>
@@ -1510,11 +1624,12 @@ function saveCsv(text, name) {
 }
 
 /**
- * The theme picker. Two looks: "clouds" (default, calm blue, unset
- * data-theme) and "fashion" (opt-in, black/gold - see [data-theme="fashion"]
- * in style.css). The choice is applied to <html> before first paint by an
- * inline script in <head> - see index.html/datagov.html - so switching pages
- * or reloading never flashes the other theme first.
+ * The theme picker. Three looks, labeled יום/לילה/זברה in the markup: "clouds"
+ * (יום, default, unset data-theme), "fashion" (לילה, opt-in black/gold - see
+ * [data-theme="fashion"] in style.css) and "zebra" (זברה, opt-in black/white
+ * - see [data-theme="zebra"]). The choice is applied to <html> before first
+ * paint by an inline script in <head> - see index.html/datagov.html - so
+ * switching pages or reloading never flashes another theme first.
  */
 const KEY = 'theme';
 const DEFAULT = 'clouds';
