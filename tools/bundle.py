@@ -110,6 +110,17 @@ TARGETS = [
         "sources": ["src/ui.js", "src/theme.js", "src/welfare-data.js", "src/charts.js", "src/datastore.js", "src/population.js", "src/welfare.js"],
         "data": False,
     },
+    {
+        "html": "blue-lines.html",
+        "out": "dist/blue-lines.html",
+        "entry": "src/blue-lines.js",
+        # Talks to iplan (Xplan MapServer, tma_70 MapServer, GeometryServer)
+        # and OSM tiles directly, live - no apis.json lookup, no shared
+        # portal.js machinery. pdf.js is its own hand-rolled PDF writer, no
+        # third-party library.
+        "sources": ["src/ui.js", "src/theme.js", "src/pdf.js", "src/blue-lines.js"],
+        "data": False,
+    },
 ]
 
 IMPORT_RE = re.compile(r"^\s*import\s.*?;\s*$", re.M)

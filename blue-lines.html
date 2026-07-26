@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>קווים כחולים — כתובת ← תכניות ומס מטרו</title>
+  <!-- Sets data-theme before the stylesheet is applied, so a returning
+       visitor who picked "fashion" never sees a flash of the clouds theme
+       first. See src/theme.js for the picker itself. -->
+  <script>
+    try {
+      var t = localStorage.getItem('theme');
+      if (t && t !== 'clouds') document.documentElement.setAttribute('data-theme', t);
+    } catch (e) {}
+  </script>
+  <link rel="stylesheet" href="./src/style.css">
+</head>
+<body class="accidents-page blue-lines-page">
+  <header class="site">
+    <div class="wrap">
+      <h1>קווים כחולים</h1>
+      <span class="site-by">פרויקט של רם אגמון<span class="site-disclaimer">המידע באתר עלול להיות שגוי</span></span>
+      <div class="theme-pick" id="themePick" role="group" aria-label="ערכת נושא">
+        <button type="button" data-theme="clouds">עננים</button>
+        <button type="button" data-theme="fashion">לילה</button>
+      </div>
+      <span class="meta" id="created"></span>
+      <span class="meta"><a href="./index.html">← חזרה למפת ה-API</a></span>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <div id="fileproto" class="notice error" dir="auto" hidden>
+      <strong>הדף נפתח כקובץ מקומי (<code dir="ltr">file://</code>) ולכן אינו יכול לטעון את הנתונים.</strong>
+      <p>
+        הדפדפן חוסם מודולי ES ממקור <code dir="ltr">null</code> — זו הגבלת אבטחה של הדפדפן, לא תקלה באתר.
+        הפעל שרת מקומי מתיקיית הפרויקט:
+      </p>
+      <pre dir="ltr"><code>python3 -m http.server 8000</code></pre>
+      <p>ולאחר מכן פתח <a href="http://localhost:8000/blue-lines.html" dir="ltr">http://localhost:8000/blue-lines.html</a>.</p>
+      <p>
+        לחלופין, ללא שרת כלל — <a href="./dist/blue-lines.html" dir="ltr">dist/blue-lines.html</a>
+        הוא קובץ יחיד ועצמאי שעובד בפתיחה ישירה מהדיסק, כולל הרצת בקשות חיות.
+      </p>
+    </div>
+
+    <div id="app">
+      <details class="notice info" dir="auto">
+        <summary><strong>מה יש כאן</strong></summary>
+        <p>
+          מזינים כתובת, ומקבלים: מפה חיה של השכבות התכנוניות של מנהל התכנון (<code dir="ltr">Xplan</code>) —
+          קווים כחולים (גבולות תכניות), ייעודי קרקע וישויות נקודתיות — על בסיס מפה אמיתי (מבנים ורחובות,
+          OpenStreetMap); בדיקה האם הכתובת נמצאת בתחום ההשפעה של תחנת מטרו מתוכננת (תמ"א 70), הרלוונטי
+          לחיוב בהיטל השבחה מוגבר לפי חוק המטרו ("מס מטרו"); וקובץ PDF להורדה עם המפה וקישורים חיים
+          לדף התכנית המלא של כל תכנית מוצגת באתר מבא"ת.
+        </p>
+        <p>
+          רדיוס ברירת המחדל 300 מ' — ניתן להגדיל עד 3,000 מ' כדי לבדוק תחום השפעה רחב יותר של תחנת מטרו.
+          מספרי התכניות על גבי המפה מוסתרים כברירת מחדל (יש בהם עומס בקלות) — ניתן להציגם דרך תיבת
+          הסימון בטופס. כל הנתונים נשלפים חי מ-iplan (מנהל התכנון) ומ-OpenStreetMap; שום דבר לא מחושב
+          מראש או נשמר באתר.
+        </p>
+        <p>
+          <strong>מה אין כאן:</strong> סימון גוש/חלקה (יש בכלי המקביל <code dir="ltr">tools/iplan_snapshot.py</code>
+          בריפו הזה); ובדיקת תחום ההשפעה מוגבלת לקידוד שנמצא בפועל בשכבת תמ"א 70 (קודי MAVAT_CODE‏ 6011/6012,
+          "מרחב ליבה" ו"תחום טבעת ראשונה") — אינה ייעוץ משפטי, ואינה מחליפה בדיקה מול הרשות המקומית.
+        </p>
+      </details>
+
+      <section class="acc-section" aria-labelledby="formH">
+        <h2 id="formH">כתובת</h2>
+        <form id="blForm" class="cm-filters">
+          <div class="acc-year-pick">
+            <label for="blAddress">כתובת:</label>
+            <input id="blAddress" type="text" autocomplete="off" spellcheck="false"
+                   placeholder="למשל: רוטשילד 1, תל אביב" required>
+          </div>
+          <div class="acc-year-pick">
+            <label for="blRadius">רדיוס (מטר):</label>
+            <input id="blRadius" type="number" min="100" max="3000" step="50">
+          </div>
+          <div class="acc-year-pick">
+            <label for="blShowLabels">
+              <input id="blShowLabels" type="checkbox">
+              הצג מספרי תכניות על המפה
+            </label>
+          </div>
+          <div class="acc-year-pick">
+            <label for="blShowPoints">
+              <input id="blShowPoints" type="checkbox" checked>
+              הצג ישויות נקודתיות
+            </label>
+          </div>
+          <div class="acc-year-pick">
+            <label for="blShowMetroZone">
+              <input id="blShowMetroZone" type="checkbox">
+              הצג תחום השפעת מטרו (תמ"א 70) על המפה
+            </label>
+          </div>
+          <button type="submit" class="drill-dl">הצג מפה ⭳</button>
+        </form>
+        <div id="blStatus" aria-live="polite"></div>
+      </section>
+
+      <section id="blResult" class="acc-section" aria-labelledby="mapH" hidden>
+        <h2 id="mapH">המפה</h2>
+
+        <div id="blMetro" class="notice" dir="auto"></div>
+
+        <p class="acc-hint">
+          <span id="blPlanCount">0</span> תכניות מוצגות במסגרת הרדיוס שנבחר.
+        </p>
+        <div class="fin-export-row">
+          <button type="button" id="blDownload" class="drill-dl" disabled>הורדת PDF עם קישורים לתכניות ⭳</button>
+        </div>
+        <p class="acc-hint">
+          ה-PDF נבנה בדפדפן ללא שרת ביניים — תמונת המפה כפי שמוצגת למטה, עם קישור לחיץ מעל כל תכנית
+          אל דף התכנית המלא באתר מבא"ת (<code dir="ltr">mavat.iplan.gov.il</code>).
+        </p>
+
+        <div class="bl-map-wrap">
+          <canvas id="blCanvas" width="800" height="800"></canvas>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!--
+    Same guard as index.html/accidents.html: opened from disk nothing below
+    can load, because ES module scripts are refused from origin 'null'. Must
+    be a classic inline script - a module would be the first thing blocked.
+  -->
+  <script>
+    if (location.protocol === 'file:') {
+      document.getElementById('fileproto').hidden = false;
+      document.getElementById('app').hidden = true;
+    }
+  </script>
+  <script type="module" src="./src/blue-lines.js"></script>
+</body>
+</html>

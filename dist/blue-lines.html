@@ -8,7 +8,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>ישיבות ועדות תכנון ובנייה — מקומיות ומרחביות</title>
+  <title>קווים כחולים — כתובת ← תכניות ומס מטרו</title>
   <!-- Sets data-theme before the stylesheet is applied, so a returning
        visitor who picked "fashion" never sees a flash of the clouds theme
        first. See src/theme.js for the picker itself. -->
@@ -1378,11 +1378,11 @@ body.accidents-page header.site h1 { inline-size: 100%; }
 }
 </style>
 </head>
-<body class="accidents-page committees-page">
+<body class="accidents-page blue-lines-page">
   <header class="site">
     <div class="wrap">
-      <h1>ישיבות ועדות תכנון ובנייה</h1>
-      <span class="site-by">פרויקט של רם אגמון<span class="site-disclaimer">המידע באתר עלול להיות שגוי</span><a href="https://hod-hasharon.org/" target="_blank" rel="noopener">הירוקים הוד השרון</a></span>
+      <h1>קווים כחולים</h1>
+      <span class="site-by">פרויקט של רם אגמון<span class="site-disclaimer">המידע באתר עלול להיות שגוי</span></span>
       <div class="theme-pick" id="themePick" role="group" aria-label="ערכת נושא">
         <button type="button" data-theme="clouds">עננים</button>
         <button type="button" data-theme="fashion">לילה</button>
@@ -1395,86 +1395,81 @@ body.accidents-page header.site h1 { inline-size: 100%; }
   <main class="wrap">
     <div id="app">
       <details class="notice info" dir="auto">
-        <summary><strong>מה יש כאן, ומה עדיין לא</strong></summary>
+        <summary><strong>מה יש כאן</strong></summary>
         <p>
-          כל מספר בעמוד הזה נשלף <strong>חי</strong>, בזמן אמת, ישירות מהדפדפן מול
-          <code dir="ltr">handasi.complot.co.il</code> — מנוע ציבורי, ללא הרשאה, המפעיל את
-          אתרי "איתור ישיבות" של כ-68 ועדות מקומיות ומרחביות. ישיבות, סוגי דיון,
-          תאריכים וקישורים לפרוטוקולים עצמם — אמיתיים ועדכניים.
+          מזינים כתובת, ומקבלים: מפה חיה של השכבות התכנוניות של מנהל התכנון (<code dir="ltr">Xplan</code>) —
+          קווים כחולים (גבולות תכניות), ייעודי קרקע וישויות נקודתיות — על בסיס מפה אמיתי (מבנים ורחובות,
+          OpenStreetMap); בדיקה האם הכתובת נמצאת בתחום ההשפעה של תחנת מטרו מתוכננת (תמ"א 70), הרלוונטי
+          לחיוב בהיטל השבחה מוגבר לפי חוק המטרו ("מס מטרו"); וקובץ PDF להורדה עם המפה וקישורים חיים
+          לדף התכנית המלא של כל תכנית מוצגת באתר מבא"ת.
         </p>
         <p>
-          <strong>לא קיים כאן</strong> (ודורש פענוח טקסטואלי של קובצי הפרוטוקול עצמם, שלא בוצע):
-          מספר תכנית, סטטוס תכנית, ייעודי קרקע, יח"ד, מ"ר, אחוזי אישורים, זמן טיפול ממוצע,
-          פילוח החלטות, וענן מילים. ועדות מחוזיות/ארציות אינן זמינות דרך מקור הנתונים הזה —
-          הפרוטוקולים שלהן יושבים במערכת מבא"ת של מינהל התכנון, החסומה מאחורי reCAPTCHA.
+          רדיוס ברירת המחדל 300 מ' — ניתן להגדיל עד 3,000 מ' כדי לבדוק תחום השפעה רחב יותר של תחנת מטרו.
+          מספרי התכניות על גבי המפה מוסתרים כברירת מחדל (יש בהם עומס בקלות) — ניתן להציגם דרך תיבת
+          הסימון בטופס. כל הנתונים נשלפים חי מ-iplan (מנהל התכנון) ומ-OpenStreetMap; שום דבר לא מחושב
+          מראש או נשמר באתר.
+        </p>
+        <p>
+          <strong>מה אין כאן:</strong> סימון גוש/חלקה (יש בכלי המקביל <code dir="ltr">tools/iplan_snapshot.py</code>
+          בריפו הזה); ובדיקת תחום ההשפעה מוגבלת לקידוד שנמצא בפועל בשכבת תמ"א 70 (קודי MAVAT_CODE‏ 6011/6012,
+          "מרחב ליבה" ו"תחום טבעת ראשונה") — אינה ייעוץ משפטי, ואינה מחליפה בדיקה מול הרשות המקומית.
         </p>
       </details>
 
-      <section class="acc-section" aria-labelledby="filtersH">
-        <h2 id="filtersH">סינון</h2>
-        <div class="cm-filters">
+      <section class="acc-section" aria-labelledby="formH">
+        <h2 id="formH">כתובת</h2>
+        <form id="blForm" class="cm-filters">
           <div class="acc-year-pick">
-            <label for="cmSite">ועדה / ישוב:</label>
-            <input id="cmSite" type="text" list="cmSiteList" autocomplete="off"
-                   spellcheck="false" placeholder="הקלידו שם ישוב…">
-            <datalist id="cmSiteList"></datalist>
+            <label for="blAddress">כתובת:</label>
+            <input id="blAddress" type="text" autocomplete="off" spellcheck="false"
+                   placeholder="למשל: רוטשילד 1, תל אביב" required>
           </div>
           <div class="acc-year-pick">
-            <label for="cmType">סוג ישיבה:</label>
-            <select id="cmType"></select>
+            <label for="blRadius">רדיוס (מטר):</label>
+            <input id="blRadius" type="number" min="100" max="3000" step="50">
           </div>
           <div class="acc-year-pick">
-            <label for="cmFrom">מתאריך:</label>
-            <input id="cmFrom" type="date">
+            <label for="blShowLabels">
+              <input id="blShowLabels" type="checkbox">
+              הצג מספרי תכניות על המפה
+            </label>
           </div>
           <div class="acc-year-pick">
-            <label for="cmTo">עד תאריך:</label>
-            <input id="cmTo" type="date">
+            <label for="blShowPoints">
+              <input id="blShowPoints" type="checkbox" checked>
+              הצג ישויות נקודתיות
+            </label>
           </div>
           <div class="acc-year-pick">
-            <label for="cmSearch">סינון חופשי:</label>
-            <input id="cmSearch" type="text" autocomplete="off" spellcheck="false"
-                   placeholder="לפי מספר ישיבה / סוג / תאריך…">
+            <label for="blShowMetroZone">
+              <input id="blShowMetroZone" type="checkbox">
+              הצג תחום השפעת מטרו (תמ"א 70) על המפה
+            </label>
           </div>
+          <button type="submit" class="drill-dl">הצג מפה ⭳</button>
+        </form>
+        <div id="blStatus" aria-live="polite"></div>
+      </section>
+
+      <section id="blResult" class="acc-section" aria-labelledby="mapH" hidden>
+        <h2 id="mapH">המפה</h2>
+
+        <div id="blMetro" class="notice" dir="auto"></div>
+
+        <p class="acc-hint">
+          <span id="blPlanCount">0</span> תכניות מוצגות במסגרת הרדיוס שנבחר.
+        </p>
+        <div class="fin-export-row">
+          <button type="button" id="blDownload" class="drill-dl" disabled>הורדת PDF עם קישורים לתכניות ⭳</button>
         </div>
         <p class="acc-hint">
-          הסינון החופשי בודק רק את מספר הישיבה, סוג הישיבה והתאריך — לא את תוכן הפרוטוקול.
+          ה-PDF נבנה בדפדפן ללא שרת ביניים — תמונת המפה כפי שמוצגת למטה, עם קישור לחיץ מעל כל תכנית
+          אל דף התכנית המלא באתר מבא"ת (<code dir="ltr">mavat.iplan.gov.il</code>).
         </p>
-      </section>
 
-      <section class="acc-section" aria-labelledby="kpiH">
-        <h2 id="kpiH">מדדים</h2>
-        <div id="cmKpis" class="stat-row"></div>
-      </section>
-
-      <section class="acc-section" aria-labelledby="chartsH">
-        <h2 id="chartsH">ויזואליזציה</h2>
-        <div class="acc-charts">
-          <figure id="cmChartByYear" class="acc-chart" role="img"></figure>
-          <figure id="cmChartByType" class="acc-chart" role="img"></figure>
+        <div class="bl-map-wrap">
+          <canvas id="blCanvas" width="800" height="800"></canvas>
         </div>
-      </section>
-
-      <section class="acc-section" aria-labelledby="tableH">
-        <h2 id="tableH">ריכוז ישיבות ופרוטוקולים</h2>
-        <button type="button" id="cmCsv" class="drill-dl">הורדת CSV של הרשימה המסוננת ⭳</button>
-        <div id="cmTableWrap"></div>
-      </section>
-
-      <section class="acc-section" aria-labelledby="allDocsH">
-        <h2 id="allDocsH">סקריפט הורדה לכל המסמכים ברשימה המסוננת</h2>
-        <p class="acc-hint">
-          במקום להוריד דרך הדפדפן - הכפתור בונה סקריפט <code dir="ltr">bash</code>, מוכן להעתקה
-          ולהרצה בטרמינל. פקודת <code dir="ltr">curl</code> <strong>אחת בלבד</strong> קוראת רשימת
-          קבצים (<code dir="ltr">-K</code>, קובץ תצורה של curl עצמו - כתובת ושם קובץ לכל שורה) ומורידה
-          את כולם ברצף, בקצב מתון (<code dir="ltr">--rate</code>) במקום השהיה נפרדת אחרי כל קובץ -
-          כך שהסקריפט נשאר קטן גם לרשימה ארוכה, לא שורת curl מלאה לכל קובץ. אין כאן הורדה מרוכזת
-          כ-ZIP: ארכיון הפרוטוקולים (<code dir="ltr">archive.gis-net.co.il</code>) חוסם גישה
-          אוטומטית (<code dir="ltr">robots.txt: Disallow: /</code>) - הרצה כסקריפט, קובץ בכל פעם,
-          היא בדיוק אותה פעולה כמו לחיצה ידנית על כל קישור בתורו, רק ממוכנת.
-        </p>
-        <button type="button" id="cmLoadAllDocs" class="drill-dl">בניית סקריפט ההורדה</button>
-        <div id="cmAllDocs"></div>
       </section>
     </div>
   </main>
@@ -1624,857 +1619,654 @@ function initThemePicker(root) {
 }
 
 /**
- * Local & regional planning-committee sites reachable through the Complot
- * engine (handasi.complot.co.il) - the same public, no-auth, CORS-open API a
- * scraper mapped by sweeping siteid 1-120 and recording which ones served a
- * document archive (see /home/ram/Documents/scrapers/FINDINGS.md). 68 sites
- * responded; siteid > 120 was never swept, so this is a floor, not a claim of
- * completeness.
+ * A minimal, hand-rolled single-page PDF writer: one JPEG image filling the
+ * page, plus clickable Link annotations over it. No library, no CDN - the
+ * one thing this site has never needed until now is genuinely small enough
+ * to write by hand: a PDF page is just text-format objects plus one binary
+ * stream, and DCTDecode lets a JPEG's own bytes go in as-is, with no need to
+ * implement JPEG or Flate compression ourselves.
  *
- * Every site only carries what was actually verified: the siteid, its archive
- * folder slug (the one string the API itself exposes), and a real meeting
- * count from one probed 2024 H1 window - never a total. name_he is filled in
- * only where the slug unambiguously names a real Israeli municipality or
- * regional council; where it doesn't, name_he is null and the UI falls back
- * to the slug rather than guess at a civic institution's name.
- *
- * kind is best-effort from the slug/known geography, 'local' (municipal) or
- * 'regional' (מועצה אזורית - multiple settlements under one planning
- * committee) - not from any field the API returns.
+ * Verified against pypdf (Python) while developing this: image decodes to
+ * the exact source pixels, annotation Rects and URIs round-trip exactly,
+ * including URLs containing '(', ')' or '\' (escaped per the PDF string
+ * spec below).
  */
-const COMMITTEE_SITES = [
-  { siteid: 1, slug: 'Amakim', name_he: 'עמקים', kind: 'regional' },
-  { siteid: 2, slug: 'Maale-Naftali', name_he: 'מעלה נפתלי', kind: 'regional' },
-  { siteid: 3, slug: 'RamatGan', name_he: 'רמת גן', kind: 'local' },
-  { siteid: 4, slug: 'metar', name_he: 'מיתר', kind: 'local' },
-  { siteid: 5, slug: 'Modiin_ilit', name_he: 'מודיעין עילית', kind: 'local' },
-  { siteid: 6, slug: 'GushEtzion', name_he: 'גוש עציון', kind: 'regional' },
-  { siteid: 7, slug: 'Hevel_Eilot', name_he: 'חבל אילות', kind: 'regional' },
-  { siteid: 8, slug: 'Migdal_Haemek', name_he: 'מגדל העמק', kind: 'local' },
-  { siteid: 9, slug: 'K_Shomron', name_he: null, kind: 'unknown' },
-  { siteid: 10, slug: 'Galil-Tachton', name_he: 'הגליל התחתון', kind: 'regional' },
-  { siteid: 11, slug: 'Dimona', name_he: 'דימונה', kind: 'local' },
-  { siteid: 12, slug: 'Eyarden', name_he: 'עמק הירדן', kind: 'regional' },
-  { siteid: 13, slug: 'Ksaba', name_he: null, kind: 'unknown' },
-  { siteid: 14, slug: 'Shomron', name_he: 'שומרון', kind: 'regional' },
-  { siteid: 15, slug: 'Raanana', name_he: 'רעננה', kind: 'local' },
-  { siteid: 16, slug: 'Haifa', name_he: 'חיפה', kind: 'local' },
-  { siteid: 20, slug: 'GalilMerkazi', name_he: 'הגליל המרכזי', kind: 'regional' },
-  { siteid: 22, slug: 'Rehovot', name_he: 'רחובות', kind: 'local' },
-  { siteid: 24, slug: 'Tira', name_he: 'טירה', kind: 'local' },
-  { siteid: 25, slug: 'Bet-Hakerem', name_he: 'בית הכרם', kind: 'regional' },
-  { siteid: 27, slug: 'Aloneem', name_he: 'אלונים', kind: 'regional' },
-  { siteid: 31, slug: 'Emek_lod', name_he: 'עמק לוד', kind: 'regional' },
-  { siteid: 32, slug: 'Kiryat_Ata', name_he: 'קריית אתא', kind: 'local' },
-  { siteid: 33, slug: 'HadHasharon', name_he: 'הוד השרון', kind: 'local' },
-  { siteid: 34, slug: 'Holon', name_he: 'חולון', kind: 'local' },
-  { siteid: 35, slug: 'Beitar-Ilit', name_he: 'ביתר עילית', kind: 'local' },
-  { siteid: 38, slug: 'sderot', name_he: 'שדרות', kind: 'local' },
-  { siteid: 43, slug: 'LevHasharon', name_he: 'לב השרון', kind: 'regional' },
-  { siteid: 46, slug: 'k-gat', name_he: 'קריית גת', kind: 'local' },
-  { siteid: 49, slug: 'Sharonim', name_he: 'שרונים', kind: 'regional' },
-  { siteid: 54, slug: 'BeitShean', name_he: 'בית שאן', kind: 'local' },
-  { siteid: 55, slug: 'Kfar-Yona', name_he: 'כפר יונה', kind: 'local' },
-  { siteid: 56, slug: 'Eilat', name_he: 'אילת', kind: 'local' },
-  { siteid: 57, slug: 'Iron', name_he: 'עירון', kind: 'regional' },
-  { siteid: 61, slug: 'MordotHacarmel', name_he: 'מורדות הכרמל', kind: 'regional' },
-  { siteid: 63, slug: 'Yoqneam', name_he: 'יקנעם עילית', kind: 'local' },
-  { siteid: 66, slug: 'Tiberias', name_he: 'טבריה', kind: 'local' },
-  { siteid: 67, slug: 'Ofakim', name_he: 'אופקים', kind: 'local' },
-  { siteid: 70, slug: 'MaaleHagalil', name_he: 'מעלה הגליל', kind: 'regional' },
-  { siteid: 73, slug: 'Or-Yehuda', name_he: 'אור יהודה', kind: 'local' },
-  { siteid: 75, slug: 'bneybrak', name_he: 'בני ברק', kind: 'local' },
-  { siteid: 77, slug: 'M_Sharon', name_he: null, kind: 'unknown' },
-  { siteid: 78, slug: 'Ashdod', name_he: 'אשדוד', kind: 'local' },
-  { siteid: 80, slug: 'Nahariya', name_he: 'נהריה', kind: 'local' },
-  { siteid: 81, slug: 'BatYam', name_he: 'בת ים', kind: 'local' },
-  { siteid: 82, slug: 'Modiin', name_he: 'מודיעין-מכבים-רעות', kind: 'local' },
-  { siteid: 83, slug: 'Emanuel', name_he: 'עמנואל', kind: 'local' },
-  { siteid: 84, slug: 'pt', name_he: 'פתח תקווה', kind: 'local' },
-  { siteid: 86, slug: 'Maale-Hermon', name_he: 'מעלה החרמון', kind: 'regional' },
-  { siteid: 87, slug: 'Yavne', name_he: 'יבנה', kind: 'local' },
-  { siteid: 88, slug: 'Tzfat', name_he: 'צפת', kind: 'local' },
-  { siteid: 89, slug: 'Shfelat-hagalil', name_he: 'שפלת הגליל', kind: 'regional' },
-  { siteid: 90, slug: 'Gilboa', name_he: 'גלבוע', kind: 'regional' },
-  { siteid: 93, slug: 'bshemesh', name_he: 'בית שמש', kind: 'local' },
-  { siteid: 94, slug: 'recheshacarmel', name_he: 'רכס הכרמל', kind: 'regional' },
-  { siteid: 95, slug: 'Ashkelon', name_he: 'אשקלון', kind: 'local' },
-  { siteid: 97, slug: 'rahat', name_he: 'רהט', kind: 'local' },
-  { siteid: 98, slug: 'Givatayim', name_he: 'גבעתיים', kind: 'local' },
-  { siteid: 100, slug: 'Yeruham', name_he: 'ירוחם', kind: 'local' },
-  { siteid: 102, slug: 'omer', name_he: 'עומר', kind: 'local' },
-  { siteid: 103, slug: 'GalilMiz', name_he: 'הגליל המזרחי', kind: 'regional' },
-  { siteid: 104, slug: 'GaneyTickva', name_he: 'גני תקווה', kind: 'local' },
-  { siteid: 105, slug: 'Beer-Sheva', name_he: 'באר שבע', kind: 'local' },
-  { siteid: 106, slug: 'M_Adumim', name_he: 'מעלה אדומים', kind: 'local' },
-  { siteid: 107, slug: 'kmalachi', name_he: 'קריית מלאכי', kind: 'local' },
-  { siteid: 108, slug: 'Rishon', name_he: 'ראשון לציון', kind: 'local' },
-  { siteid: 118, slug: 'RamatHasharon', name_he: 'רמת השרון', kind: 'local' },
-  { siteid: 120, slug: 'Maalot', name_he: 'מעלות-תרשיחא', kind: 'local' },
-];
 
 /**
- * MEETING_TYPES ('v' parameter): every code the scraper found by directly
- * probing the engine, not a documented enum - a code missing here still works
- * as a filter value, it just has no Hebrew label to show.
+ * @param {Object} args
+ * @param {Uint8Array} args.jpegBytes - raw JPEG file bytes (e.g. from canvas.convertToBlob)
+ * @param {number} args.width
+ * @param {number} args.height
+ * @param {{url: string, x0: number, y0: number, x1: number, y1: number}[]} args.links
+ *   Rects in the same pixel space as the image, origin top-left - this
+ *   function flips to PDF's bottom-up convention internally.
+ * @returns {Blob} application/pdf
  */
-const MEETING_TYPES = {
-  0: 'הכל', 1: 'רשות רישוי', 2: 'מליאת הועדה המקומית', 3: 'הועדה המחוזית',
-  4: 'מכינה למליאה', 5: 'ועדת הקצאות', 6: 'ועדת משנה', 7: 'ועדת השבחה',
-  9: 'סדר יום לישיבת צוות היטל השבחה', 15: 'ועדת ערר',
-};
+function buildPdf({ jpegBytes, width, height, links }) {
+  const chunks = [];
+  let offset = 0;
+  const enc = new TextEncoder();
 
-/**
- * Shared chart-rendering primitives, used by accidents.js, committees.js,
- * companies.js, local-finance.js and welfare.js.
- *
- * Until today each page kept its own copy (renderBarChart existed nearly
- * verbatim in three files; renderGroupedChart + its axis/color helpers were
- * copy-pasted whole from local-finance.js into welfare.js). That was a
- * deliberate choice early on, mirroring portal.js's per-API renderers
- * ("each returns a completely different shape") - but these three functions
- * were never actually different shapes, just different call sites. Sharing
- * them means a visual/behavioral fix (the peak-zero NaN guard below, for
- * instance - present in some copies, missing in others) now has one place
- * to land instead of three-to-five.
- *
- * What's deliberately NOT here: any page's own data-fetching or business
- * logic (what counts as "revenue", which resource to query, how to filter a
- * table row) - that part really does differ per page and stays in each
- * page's own file.
- */
+  const push = (bytes) => { chunks.push(bytes); offset += bytes.length; };
+  const pushText = (s) => push(enc.encode(s));
 
-/* ---------- single-series vertical bar chart -------------------------------
- * Used for: accidents.html (killed/total per year, with an active-year
- * highlight), committees.html (meetings by year/type), companies.html
- * (status/type distribution), local-finance.html (national YoY surplus).
- *
- * `entries`: [{ label, value, active? }]. `unit` is optional - the tooltip
- * only appends it when non-empty, so callers with no natural unit (a plain
- * count) don't get a trailing space. `opts.ariaLabel` and
- * `opts.emptyMessage` cover the two things that varied between the original
- * per-page copies (accidents.js set an aria-label; committees.js had a more
- * specific "no data in the selected range" empty message). */
-function renderBarChart(figId, caption, entries, unit = '', colorClass = '', opts = {}) {
-  const { ariaLabel, emptyMessage = 'אין נתונים להצגה.' } = opts;
-  const fig = el(figId);
-  if (!entries.length) { fig.innerHTML = `<figcaption>${esc(caption)}</figcaption><p class="acc-hint">${esc(emptyMessage)}</p>`; return; }
-  // abs() so a signed series (local-finance's deficit years) scales the same
-  // way an unsigned one does; a no-op for callers that never have negatives.
-  const peak = Math.max(...entries.map((e) => Math.abs(e.value)));
-  const bars = entries.map((e) => {
-    const h = peak ? Math.round((Math.abs(e.value) / peak) * 150) : 0; // guards a peak of 0 -> NaN height, missing from some of the original copies
-    return `
-      <div class="acc-bar${e.active ? ' active' : ''}" title="${esc(e.label)}: ${num(e.value)}${unit ? ` ${esc(unit)}` : ''}">
-        <div class="acc-bar-track">
-          <span class="acc-bar-v">${num(e.value)}</span>
-          <div class="acc-bar-fill" style="block-size:${h}px"></div>
-        </div>
-        <span class="acc-bar-y">${esc(e.label)}</span>
-      </div>`;
-  }).join('');
-  fig.className = `acc-chart${colorClass ? ` ${colorClass}` : ''}`;
-  if (ariaLabel) fig.setAttribute('aria-label', ariaLabel);
-  else fig.removeAttribute('aria-label');
-  fig.innerHTML = `<figcaption>${esc(caption)}</figcaption><div class="acc-bars">${bars}</div>`;
-}
+  const offsets = [];
+  const beginObj = (n) => { offsets[n] = offset; pushText(`${n} 0 obj\n`); };
+  const endObj = () => pushText('endobj\n');
 
-/* ---------- horizontal leaderboard ------------------------------------------
- * A ranked top-N reads far better as rows stacked top-to-bottom than as N
- * vertical bars squeezed into one fixed-height row - a different mark from
- * renderBarChart, not that same one rotated. `entries`: [{ label, value,
- * compare? }] - `compare: true` renders a row in the same grayed-out accent
- * used for a compare authority everywhere else, so two authorities can sit
- * as adjacent rows per category without a legend to look up. */
-function renderHBarChart(figId, caption, entries, unit) {
-  const fig = el(figId);
-  if (!entries.length) { fig.innerHTML = `<figcaption>${esc(caption)}</figcaption><p class="acc-hint">אין נתונים להצגה.</p>`; return; }
-  const peak = Math.max(...entries.map((e) => e.value));
-  const rows = entries.map((e) => `
-    <div class="acc-hbar${e.compare ? ' acc-hbar-compare' : ''}" title="${esc(e.label)}: ${num(e.value)} ${esc(unit)}">
-      <span class="acc-hbar-y" dir="auto">${esc(e.label)}</span>
-      <div class="acc-hbar-track"><div class="acc-hbar-fill" style="inline-size:${peak ? (e.value / peak) * 100 : 0}%"></div></div>
-      <span class="acc-hbar-v">${num(e.value)}</span>
-    </div>`).join('');
-  fig.innerHTML = `<figcaption>${esc(caption)}</figcaption><div class="acc-hbars">${rows}</div>`;
-}
+  const nAnnots = links.length;
+  // Object numbering: 1 catalog, 2 pages, 3 page, 4 image, 5 content stream,
+  // 6..(5+nAnnots) link annotations.
+  const annotRefs = links.map((_, i) => `${6 + i} 0 R`).join(' ');
 
-/* ---------- grouped bar chart with an optional "compare" backdrop ----------
- * Two series (labels.front/back) per x-axis point, plus an optional second
- * entity's own two series drawn as a third, distinctly-colored bar group -
- * local-finance.html's revenue/expense-per-authority chart, reused as-is by
- * welfare.html's payments-per-authority chart. */
+  pushText('%PDF-1.4\n');
 
-// Identity color for the "main" vs "compare" entity - solid accent for main,
-// a grayed-out tint of the same accent for compare, used identically in
-// every chart AND table row that needs to say "which city/entity is this"
-// without a legend the reader has to look up chart-to-chart.
-const CITY_COLOR_MAIN = 'var(--accent)';
-const CITY_COLOR_COMPARE = 'color-mix(in srgb, var(--accent) 55%, var(--bg) 45%)';
-const citySwatchCell = (name, color) => `<td class="fin-city-cell"><span class="acc-legend-swatch" style="background:${color}"></span>${esc(name)}</td>`;
+  beginObj(1);
+  pushText('<< /Type /Catalog /Pages 2 0 R >>\n');
+  endObj();
 
-const FIN_PLOT_PX_DESKTOP = 200;
-const FIN_PLOT_PX_MOBILE = 130; // shorter too, not just narrower - "smaller" on mobile means both axes, not just fitting the width
-/** Checked once per render, same convention as index.html's own
- *  matchMedia('(max-width: 640px)') check for the "#more" section - not a
- *  live-updating listener, so a mid-session resize/rotation only takes
- *  effect on the NEXT re-render (a new authority/year/compare pick), not
- *  instantly. Consistent with the rest of this site rather than a special
- *  case for charts. */
-const plotPx = () => (window.matchMedia('(max-width: 640px)').matches ? FIN_PLOT_PX_MOBILE : FIN_PLOT_PX_DESKTOP);
+  beginObj(2);
+  pushText('<< /Type /Pages /Kids [3 0 R] /Count 1 >>\n');
+  endObj();
 
-/** Rounds a peak value up to a "nice" axis maximum (1/2/2.5/5 x 10^n steps) -
- *  a gridline at 683,417 would tell a reader nothing an unlabeled bar didn't
- *  already; a gridline at 700,000 does. */
-function niceAxisStep(max, targetSteps = 5) {
-  if (!max || max <= 0) return { step: 1, steps: 1, axisMax: 1 };
-  const roughStep = max / targetSteps;
-  const magnitude = 10 ** Math.floor(Math.log10(roughStep));
-  const residual = roughStep / magnitude;
-  const niceResidual = residual <= 1 ? 1 : residual <= 2 ? 2 : residual <= 2.5 ? 2.5 : residual <= 5 ? 5 : 10;
-  const step = niceResidual * magnitude;
-  const steps = Math.ceil(max / step);
-  return { step, steps, axisMax: step * steps };
-}
-
-/** Splits a point series into real years and internal gap runs (a year
- *  between the earliest and latest point that has no data of its own) - a
- *  gap gets its own dashed slot on the chart; years outside the covered span
- *  simply don't appear, since there's no "gap" to mark at the edge of what
- *  the series covers in the first place. A series with no internal gaps
- *  (welfare.html's authority data, checked directly) just returns one slot
- *  per point, same as not having this step at all. */
-function buildYearSlots(points) {
-  const years = points.map((p) => p.year);
-  const minYear = Math.min(...years);
-  const maxYear = Math.max(...years);
-  const present = new Set(years);
-  const slots = [];
-  let gapFrom = null;
-  for (let y = minYear; y <= maxYear; y++) {
-    if (present.has(y)) {
-      if (gapFrom != null) { slots.push({ type: 'gap', from: gapFrom, to: y - 1 }); gapFrom = null; }
-      slots.push({ type: 'year', year: y });
-    } else if (gapFrom == null) {
-      gapFrom = y;
-    }
-  }
-  return slots;
-}
-
-/**
- * `points`: [{ year, revenue, expense }] for the main entity (`revenue`/
- * `expense` are just the front/back series' values - the names are
- * historical, from local-finance.html's original use, and don't imply money
- * on every page: welfare.html plots recipient-category ₪ through the same
- * two fields).
- *
- * `mainName` (nullable): the main entity's own label, shown in the legend
- * and every group's hover title. Null when the chart has no single named
- * subject (welfare.html's national trend, summed across all authorities) -
- * the legend then shows just the series labels with no name prefix.
- *
- * `compare` (optional): { name, points } - a second entity's own two
- * series, drawn as a third, distinctly-colored bar group per year purely
- * for scale/comparison. Keyed by year, not assumed to line up positionally
- * with `points` - the two entities can easily cover different years.
- *
- * Color encodes WHICH ENTITY (main vs compare), not which series - which of
- * the two series a bar is (front vs back) is carried by position (front
- * always first) and a lighter tint of that entity's own color, not a second
- * hue. When `compare` is set, each year also gets a small "X% מ-<name>"
- * label: the main entity's total (front+back) as a percentage of compare's
- * same total.
- */
-function renderGroupedChart(figId, caption, points, unit, mainName, labels = { front: 'הכנסות', back: 'הוצאות' }, compare = null) {
-  const fig = el(figId);
-  if (!points.length) { fig.innerHTML = `<figcaption>${esc(caption)}</figcaption><p class="acc-hint">אין נתונים להצגה.</p>`; return; }
-  const compareByYear = new Map((compare?.points || []).map((p) => [p.year, p]));
-  const peak = Math.max(
-    ...points.flatMap((p) => [p.revenue, p.expense]),
-    ...[...compareByYear.values()].flatMap((p) => [p.revenue, p.expense]),
+  beginObj(3);
+  pushText(
+    `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${width} ${height}] `
+    + `/Resources << /XObject << /Im0 4 0 R >> >> /Contents 5 0 R `
+    + `/Annots [ ${annotRefs} ] >>\n`,
   );
-  const { steps, axisMax } = niceAxisStep(peak);
-  const byYear = new Map(points.map((p) => [p.year, p]));
-  const slots = buildYearSlots(points);
-  const plotHeight = plotPx();
+  endObj();
 
-  const barH = (v) => (axisMax ? Math.round((v / axisMax) * plotHeight) : 0);
-  const cityBars = (p, mainEntity) => `
-    <div class="fin-chart-bars">
-      <div class="fin-chart-bar${mainEntity ? '' : ' fin-chart-bar-compare'}" style="block-size:${barH(p.revenue)}px"></div>
-      <div class="fin-chart-bar fin-chart-bar-light${mainEntity ? '' : ' fin-chart-bar-compare'}" style="block-size:${barH(p.expense)}px"></div>
-    </div>`;
+  beginObj(4);
+  pushText(
+    `<< /Type /XObject /Subtype /Image /Width ${width} /Height ${height} `
+    + `/ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpegBytes.length} >>\nstream\n`,
+  );
+  push(jpegBytes);
+  pushText('\nendstream\n');
+  endObj();
 
-  const groups = slots.map((slot) => {
-    if (slot.type === 'gap') {
-      const label = slot.from === slot.to ? String(slot.from) : `${slot.from}-${slot.to}`;
-      return `
-        <div class="fin-chart-group" title="אין נתונים לשנים ${esc(label)}">
-          <div class="fin-chart-gap-box" style="block-size:${plotHeight}px"></div>
-          <span class="fin-chart-y fin-chart-gap-label">${esc(label)}<br>אין נתונים</span>
-        </div>`;
-    }
-    const p = byYear.get(slot.year);
-    const cmp = compareByYear.get(slot.year);
-    const mainTotal = p.revenue + p.expense;
-    const cmpTotal = cmp ? cmp.revenue + cmp.expense : null;
-    const pct = cmp && cmpTotal ? Math.round((mainTotal / cmpTotal) * 100) : null;
-    // A falsy labels.back means a genuine single-series chart (welfare.js's
-    // recipients-only comparison, where `expense` is always 0 by
-    // construction, not a real second series) - the back half of every
-    // title/legend line is dropped rather than describing a series that
-    // was never real.
-    const title = `${slot.year}${mainName ? ` — ${esc(mainName)}` : ''}: ${esc(labels.front)} ${num(p.revenue)}${labels.back ? `, ${esc(labels.back)} ${num(p.expense)}` : ''} ${esc(unit)}`
-      + (cmp ? `; ${esc(compare.name)}: ${esc(labels.front)} ${num(cmp.revenue)}${labels.back ? `, ${esc(labels.back)} ${num(cmp.expense)}` : ''} ${esc(unit)}` : '');
-    return `
-      <div class="fin-chart-group" title="${title}">
-        <span class="fin-chart-pct">${pct != null ? `${pct}%<span class="fin-chart-pct-name"> מ-${esc(compare.name)}</span>` : ''}</span>
-        <div class="fin-chart-bars-wrap" style="block-size:${plotHeight}px; background-size:100% ${plotHeight / steps}px">
-          ${cityBars(p, true)}
-          ${cmp ? cityBars(cmp, false) : ''}
-        </div>
-        <span class="fin-chart-y">${slot.year}</span>
-      </div>`;
-  }).join('');
+  // cm scales the default 1x1 image space to the full page, positioned at
+  // the origin - the standard "one image, whole page" content stream.
+  const content = `q\n${width} 0 0 ${height} 0 0 cm\n/Im0 Do\nQ\n`;
+  beginObj(5);
+  pushText(`<< /Length ${enc.encode(content).length} >>\nstream\n${content}endstream\n`);
+  endObj();
 
-  const axisLabels = Array.from({ length: steps + 1 }, (_, i) => axisMax - i * (axisMax / steps))
-    .map((v) => `<span>${num(Math.round(v))}</span>`).join('');
+  links.forEach((link, i) => {
+    beginObj(6 + i);
+    // PDF literal-string escaping: backslash and parens are the only
+    // characters that must be escaped for a URI to round-trip safely.
+    const uri = link.url.replace(/[()\\]/g, (c) => `\\${c}`);
+    // PDF y is bottom-up; the caller's rect is in top-down pixel space.
+    const y0 = height - link.y1;
+    const y1 = height - link.y0;
+    pushText(
+      `<< /Type /Annot /Subtype /Link /Rect [${link.x0.toFixed(2)} ${y0.toFixed(2)} `
+      + `${link.x1.toFixed(2)} ${y1.toFixed(2)}] /Border [0 0 0] `
+      + `/A << /Type /Action /S /URI /URI (${uri}) >> >>\n`,
+    );
+    endObj();
+  });
 
-  fig.className = 'acc-chart acc-chart-wide';
-  fig.innerHTML = `
-    <figcaption>${esc(caption)}</figcaption>
-    <div class="acc-legend">
-      <span class="acc-legend-item"><span class="acc-legend-swatch" style="background:var(--accent)"></span>${mainName ? `${esc(mainName)} - ` : ''}${esc(labels.front)}${labels.back ? ` (מלא, ראשון) / ${esc(labels.back)} (בהיר, שני)` : ''}</span>
-      ${compare ? `<span class="acc-legend-item"><span class="acc-legend-swatch" style="background:var(--fin-compare)"></span>${esc(compare.name)} - אותו סדר</span>` : ''}
-    </div>
-    <div class="fin-chart-body">
-      <div class="fin-chart-axis">
-        <span class="fin-chart-pct">&nbsp;</span>
-        <div class="fin-chart-axis-scale" style="block-size:${plotHeight}px">${axisLabels}</div>
-      </div>
-      <div class="fin-chart-plot">${groups}</div>
-    </div>
-    <p class="acc-hint">${esc(unit)}${compare && mainName ? ` - האחוז מעל כל שנה: הסה"כ של ${esc(mainName)} כאחוז מהסה"כ של ${esc(compare.name)} אותה שנה` : ''}</p>`;
+  const xrefStart = offset;
+  const totalObjs = 5 + nAnnots;
+  pushText(`xref\n0 ${totalObjs + 1}\n`);
+  pushText('0000000000 65535 f \n');
+  for (let i = 1; i <= totalObjs; i++) {
+    pushText(`${String(offsets[i]).padStart(10, '0')} 00000 n \n`);
+  }
+  pushText(`trailer\n<< /Size ${totalObjs + 1} /Root 1 0 R >>\nstartxref\n${xrefStart}\n%%EOF`);
+
+  return new Blob(chunks, { type: 'application/pdf' });
 }
 
 /**
- * Entry point for committees.html - ישיבות ועדות תכנון ובנייה (מקומיות/מרחביות).
+ * קווים כחולים - address in, live-linked plans PDF out.
  *
- * Everything here is a LIVE browser fetch against handasi.complot.co.il, the
- * same public, no-auth, CORS-open engine ~68 municipal/regional planning
- * committees run their "meeting locator" pages on (verified by sweeping
- * siteid 1-120 - see /home/ram/Documents/scrapers/FINDINGS.md). It returns
- * HTML fragments, not JSON, so the two parse* functions below are a straight
- * port of that scraper's regexes - re-verified against live responses before
- * porting, not just translated blind.
+ * Browser port of tools/iplan_snapshot.py's pipeline (see that file's own
+ * docstring for the full reasoning behind each step - summarised here):
  *
- * Deliberately NOT included, and NOT faked: plan number, decision outcome,
- * יח"ד, מ"ר, land-use, or any text pulled from inside a protocol. All of that
- * lives only inside the protocol PDFs themselves, which nothing here parses -
- * doing that honestly needs OCR/NLP over each PDF, not a page like this one.
- * See the notice at the top of committees.html for the full list of what the
- * original request asked for that isn't here yet.
+ *   1. Geocode the address (OSM Nominatim).
+ *   2. Project WGS84 -> the Xplan MapServer's native ITM (EPSG:2039) via
+ *      iplan's own Utilities/Geometry service, rather than letting /export
+ *      reproject a WGS84 bbox itself - that shortcut measurably does NOT
+ *      centre the address (a ~40-70m offset, verified against this same
+ *      Geometry service). Build the bbox directly in ITM metres.
+ *   3. Export layers 1 (קווים כחולים, plan boundaries), 4 (יעודי קרקע, land
+ *      use) and 0 (ישויות נקודתיות, point entities) - the three checked by
+ *      default in iplan's own layer panel. Two catch-all/regional land-use
+ *      codes are excluded (see EXCLUDE_LANDUSE_CODES) so the image isn't
+ *      buried under one giant background hatch.
+ *   4. Stitch a real basemap (buildings/streets) from OSM's standard raster
+ *      tiles - iplan's MapServer has none of its own - aligned by projecting
+ *      the bbox's own corners ITM->WGS84 through the same trusted Geometry
+ *      service, then to Web Mercator with the exact formula OSM tiles use.
+ *   5. Check whether the address falls inside a metro station's core/first-
+ *      ring influence zone (תמ"א 70, layer 4, MAVAT_CODE 6011/6012) - the
+ *      area subject to the increased betterment levy ("מס מטרו") under the
+ *      Metro Law. See METRO_ZONE_CODES below for how this was found and
+ *      verified. Optionally drawn on the map too (fetchMetroZoneShapes).
+ *   6. Build a one-page PDF (src/pdf.js - hand-rolled, no library) with a
+ *      clickable Link annotation over every visible plan, pointing at its
+ *      real page on mavat.iplan.gov.il (pl_url) - same fix as the Python
+ *      tool's build_pdf(): each ring is traced as a sequence of small rects,
+ *      not one bbox per plan, or an elongated/whole-district plan's box
+ *      would swallow most of the page and every overlapping click would
+ *      resolve to it.
  *
- * District/national committees (הועדה המחוזית) are asked for by meeting-type
- * code 3 the same as any other - the engine simply returns zero rows for it
- * on every site checked, because district-level protocols live on a
- * different system (mavat.iplan.gov.il) that gates its search behind
- * reCAPTCHA v3. Not circumvented; also not silently hidden - the filter stays
- * choosable and empty results say so.
+ * No CDN dependency, matching the rest of this site - OSM tiles and the
+ * iplan/GovMap APIs are fetched directly, and the PDF is written by hand.
  */
 
 
 
+const NOMINATIM = 'https://nominatim.openstreetmap.org/search';
+const GEOMETRY = 'https://ags.iplan.gov.il/arcgisiplan/rest/services/Utilities/Geometry/GeometryServer';
+const MAPSERVER = 'https://ags.iplan.gov.il/arcgisiplan/rest/services/PlanningPublic/Xplan/MapServer';
+// תמ"א 70 (Metro master plan) - see METRO_ZONE_CODES below.
+const METRO_MAPSERVER = 'https://ags.iplan.gov.il/arcgisiplan/rest/services/PlanningPublic/tma_70/MapServer';
+const OSM_TILE = (z, x, y) => `https://tile.openstreetmap.org/${z}/${x}/${y}.png`;
 
-const CM_EMPTY_MSG = { emptyMessage: 'אין נתונים להצגה בטווח שנבחר.' };
+const ITM_WKID = 2039;
+const WGS84_WKID = 4326;
+const MERCATOR_R = 6378137.0;
+const TILE_PX = 256;
+const MAX_ZOOM = 19;
+const MAX_TILES = 64;
 
-initThemePicker(el('themePick'));
+const DEFAULT_RADIUS = 300;
+const IMAGE_SIZE = 800;
 
-const created = new Date(document.lastModified);
-if (!Number.isNaN(created.getTime())) {
-  el('created').textContent = `נוצר: ${created.toLocaleDateString('he-IL')} ${created.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}`;
-  el('created').title = created.toISOString();
+// The three layers checked by default in iplan's own layer panel.
+const LAYERS = [1, 4, 0];
+
+// יעוד עפ"י תכנית מאושרת אחרת / מגבלות בניה ופיתוח - catch-all/regional
+// land-use codes whose polygons can be enormous (one traced back to National
+// Master Plan 60, ~29km across), burying the actually-local parcels under a
+// full-frame hatch. Same finding as tools/iplan_snapshot.py's
+// EXCLUDE_LANDUSE_CODES.
+const EXCLUDE_LANDUSE_CODES = [995, 996];
+
+// tma_70 layer 4 (ישויות פוליגונליות), MAVAT_CODE values for the two rings
+// that make up a metro station's influence area under the Metro Law
+// (רכבת תחתית (מטרו), תשפ"ב-2021): 6012 "מרחב ליבה" (core) and 6011 "תחום
+// טבעת ראשונה" (first ring) - together the area subject to the increased
+// betterment levy near a station, colloquially "מס מטרו". Found by querying
+// every MAVAT_CODE actually present on that layer (312 features total: 105
+// core-zone + 103 first-ring + 73 "תחום חיפוש למעבר ציבורי" + 31 "הנחיות
+// מיוחדות") and confirmed with a live point-in-polygon test against a known
+// core-zone centroid. A third code, 20440 "תחום השפעה", appears in the
+// service's legend/renderer but has zero features - not used here.
+const METRO_ZONE_CODES = [6011, 6012];
+
+const state = { bbox: null, planLinks: [], address: '' };
+
+function fetchJson(url, opts) {
+  return fetch(url, opts).then((r) => {
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    return r.json();
+  });
 }
 
-const ENGINE = 'https://handasi.complot.co.il/magicscripts/mgrqispi.dll';
+async function geocode(address) {
+  const params = new URLSearchParams({ q: address, format: 'jsonv2', limit: 1, countrycodes: 'il' });
+  const results = await fetchJson(`${NOMINATIM}?${params}`);
+  if (!results.length) throw new Error(`לא נמצאה כתובת תואמת ל"${address}"`);
+  const r = results[0];
+  return { lon: Number(r.lon), lat: Number(r.lat), displayName: r.display_name };
+}
 
-/* ---------- date helpers: native <input type=date> (YYYY-MM-DD) <-> the
-   engine's DD/MM/YYYY ---------- */
-const isoToApi = (iso) => { const [y, m, d] = iso.split('-'); return `${d}/${m}/${y}`; };
-const todayIso = (offsetDays = 0) => {
-  const t = new Date(); t.setDate(t.getDate() + offsetDays);
-  return t.toISOString().slice(0, 10);
-};
+/** Points (list of [x,y]) -> the same points in outSR, via iplan's own
+ * GeometryServer - see module docstring for why this beats bboxSR on /export. */
+async function projectPoints(points, inSR, outSR) {
+  const body = new URLSearchParams({
+    geometries: JSON.stringify({
+      geometryType: 'esriGeometryPoint',
+      geometries: points.map(([x, y]) => ({ x, y })),
+    }),
+    inSR: String(inSR),
+    outSR: String(outSR),
+    f: 'json',
+  });
+  const result = await fetchJson(`${GEOMETRY}/project`, { method: 'POST', body });
+  if (!result.geometries) throw new Error(`בקשת ה-project נכשלה: ${JSON.stringify(result)}`);
+  return result.geometries.map((p) => [p.x, p.y]);
+}
 
-/* ---------- HTML-fragment parsing: ported 1:1 from
-   scrape_hodhasharon_meetings.py, re-verified against live responses. ---------- */
+const bboxAround = (x, y, radius) => [x - radius, y - radius, x + radius, y + radius];
 
-function parseMeetingList(html) {
-  const rowRe = /<tr>\s*<td class="hidden-on-mobile">[\s\S]*?<\/tr>/g;
-  const numRe = /showMeetingDocs\((\d+),\s*(\d+)/;
-  const cellRe = /<td[^>]*>\s*(?:<a[^>]*>)?([^<]*)(?:<\/a>)?\s*<\/td>/g;
-  const meetings = [];
-  for (const row of html.match(rowRe) || []) {
-    const m = numRe.exec(row);
-    if (!m) continue; // no document archive button -> nothing to show
-    // The icon cell (leading <td class="hidden-on-mobile"><a><span/></a></td>)
-    // and the trailing archive-button cell both fail cellRe outright (their
-    // content isn't plain text or a single wrapped <a>text</a>), so matchAll
-    // skips both silently - cells[0] here really is the meeting number, not a
-    // placeholder for the icon.
-    const cells = [...row.matchAll(cellRe)].map((c) => c[1].trim());
-    meetings.push({
-      vaadaId: m[1],
-      meetingNumber: m[2],
-      committee: cells[1] || MEETING_TYPES[m[1]] || '—',
-      date: cells[2] || '',
-      day: cells[3] || '',
+/** ITM point -> pixel coords for a size x size image covering `bbox` exactly -
+ * both the iplan export and the aligned basemap crop are built to that. */
+function itmToPx([xmin, ymin, xmax, ymax], size, x, y) {
+  return [(x - xmin) / (xmax - xmin) * size, (ymax - y) / (ymax - ymin) * size];
+}
+
+function lonLatToMercator(lon, lat) {
+  const mx = (lon * Math.PI) / 180 * MERCATOR_R;
+  const my = Math.log(Math.tan(Math.PI / 4 + (lat * Math.PI) / 360)) * MERCATOR_R;
+  return [mx, my];
+}
+
+function mercatorToPixel(mx, my, zoom) {
+  const worldPx = TILE_PX * 2 ** zoom;
+  const px = (mx + Math.PI * MERCATOR_R) / (2 * Math.PI * MERCATOR_R) * worldPx;
+  const py = (Math.PI * MERCATOR_R - my) / (2 * Math.PI * MERCATOR_R) * worldPx;
+  return [px, py];
+}
+
+async function fetchTileBitmap(z, x, y) {
+  const res = await fetch(OSM_TILE(z, x, y));
+  if (!res.ok) throw new Error(`tile ${z}/${x}/${y}: HTTP ${res.status}`);
+  return createImageBitmap(await res.blob());
+}
+
+/** A basemap canvas (size x size), stitched from OSM tiles and aligned to
+ * `bbox` - see module docstring, step 4. */
+async function fetchBasemapCanvas(bbox, size) {
+  const [xmin, ymin, xmax, ymax] = bbox;
+  const cornersItm = [[xmin, ymin], [xmax, ymin], [xmax, ymax], [xmin, ymax]];
+  const cornersWgs84 = await projectPoints(cornersItm, ITM_WKID, WGS84_WKID);
+  const cornersMerc = cornersWgs84.map(([lon, lat]) => lonLatToMercator(lon, lat));
+
+  const mxs = cornersMerc.map((c) => c[0]);
+  const mercWidth = Math.max(...mxs) - Math.min(...mxs);
+  let zoom = Math.round(Math.log2((2 * Math.PI * MERCATOR_R) / (TILE_PX * mercWidth / size)));
+  zoom = Math.max(0, Math.min(MAX_ZOOM, zoom));
+
+  const pxPts = cornersMerc.map(([mx, my]) => mercatorToPixel(mx, my, zoom));
+  const pxMin = Math.min(...pxPts.map((p) => p[0]));
+  const pxMax = Math.max(...pxPts.map((p) => p[0]));
+  const pyMin = Math.min(...pxPts.map((p) => p[1]));
+  const pyMax = Math.max(...pxPts.map((p) => p[1]));
+
+  const txMin = Math.floor(pxMin / TILE_PX);
+  const txMax = Math.floor(pxMax / TILE_PX);
+  const tyMin = Math.floor(pyMin / TILE_PX);
+  const tyMax = Math.floor(pyMax / TILE_PX);
+  const tiles = [];
+  for (let tx = txMin; tx <= txMax; tx += 1) {
+    for (let ty = tyMin; ty <= tyMax; ty += 1) tiles.push([tx, ty]);
+  }
+  if (tiles.length > MAX_TILES) throw new Error(`רדיוס גדול מדי לבסיס מפה (${tiles.length} אריחים)`);
+
+  const canvas = document.createElement('canvas');
+  canvas.width = (txMax - txMin + 1) * TILE_PX;
+  canvas.height = (tyMax - tyMin + 1) * TILE_PX;
+  const ctx = canvas.getContext('2d');
+
+  // OSM's tile usage policy: no more than 2 simultaneous connections.
+  const queue = tiles.slice();
+  async function worker() {
+    let next;
+    // eslint-disable-next-line no-cond-assign
+    while ((next = queue.shift())) {
+      const [tx, ty] = next;
+      const bmp = await fetchTileBitmap(zoom, tx, ty);
+      ctx.drawImage(bmp, (tx - txMin) * TILE_PX, (ty - tyMin) * TILE_PX);
+    }
+  }
+  await Promise.all([worker(), worker()]);
+
+  const out = document.createElement('canvas');
+  out.width = size;
+  out.height = size;
+  const octx = out.getContext('2d');
+  octx.drawImage(
+    canvas,
+    pxMin - txMin * TILE_PX, pyMin - tyMin * TILE_PX, pxMax - pxMin, pyMax - pyMin,
+    0, 0, size, size,
+  );
+  octx.font = '11px sans-serif';
+  const label = '© OpenStreetMap contributors';
+  const tw = octx.measureText(label).width;
+  octx.fillStyle = 'rgba(255,255,255,0.75)';
+  octx.fillRect(0, size - 16, tw + 8, 16);
+  octx.fillStyle = '#000';
+  octx.fillText(label, 4, size - 4);
+  return out;
+}
+
+/** iplan Xplan export, transparent, as an ImageBitmap. `showLabels` controls
+ * layer 1's own plan-number boxes (e.g. "507-0220277") - off by default:
+ * even at a modest radius there can be dozens of plans, and the labels
+ * alone cover most of the map, obscuring the actual boundary lines/basemap
+ * underneath - worse still at a larger radius (100+ plans at 1000m).
+ * Suppressed via dynamicLayers rather than dropping layer 1 outright, so
+ * the boundary lines (and this app's whole reason to exist, the plan
+ * links) stay exactly the same either way - only the on-image text goes.
+ * `showPoints` toggles layer 0 (ישויות נקודתיות) on/off entirely - on by
+ * default, matching iplan's own layer panel. */
+async function fetchOverlay(bbox, size, showLabels, showPoints) {
+  const layers = showPoints ? LAYERS : LAYERS.filter((id) => id !== 0);
+  const layerDefs = { 4: `mavat_code NOT IN (${EXCLUDE_LANDUSE_CODES.join(',')})` };
+  const params = new URLSearchParams({
+    bbox: bbox.map((v) => v.toFixed(3)).join(','),
+    bboxSR: String(ITM_WKID),
+    size: `${size},${size}`,
+    layers: `show:${layers.join(',')}`,
+    format: 'png32',
+    transparent: 'true',
+    layerDefs: JSON.stringify(layerDefs),
+    f: 'json',
+  });
+  if (!showLabels) {
+    params.set('dynamicLayers', JSON.stringify([
+      { id: 1, source: { type: 'mapLayer', mapLayerId: 1 }, drawingInfo: { showLabels: false } },
+    ]));
+  }
+  const result = await fetchJson(`${MAPSERVER}/export?${params}`);
+  if (!result.href) throw new Error(`בקשת ה-export נכשלה: ${JSON.stringify(result)}`);
+  const res = await fetch(result.href);
+  return createImageBitmap(await res.blob());
+}
+
+/** Whether (x,y) in ITM falls inside a metro station's core/first-ring
+ * influence zone - see METRO_ZONE_CODES above. */
+async function checkMetroZone(x, y) {
+  const params = new URLSearchParams({
+    geometry: `${x},${y}`,
+    geometryType: 'esriGeometryPoint',
+    inSR: String(ITM_WKID),
+    spatialRel: 'esriSpatialRelIntersects',
+    where: `MAVAT_CODE IN (${METRO_ZONE_CODES.join(',')})`,
+    outFields: 'MAVAT_CODE,MAVAT_NAME',
+    returnGeometry: 'false',
+    f: 'json',
+  });
+  const result = await fetchJson(`${METRO_MAPSERVER}/4/query?${params}`);
+  const feats = result.features || [];
+  return { inZone: feats.length > 0, zones: feats.map((f) => f.attributes.MAVAT_NAME) };
+}
+
+/** Core/first-ring metro zone polygons intersecting `bbox` (not just the
+ * address point), for drawing the actual zone shape on the map - opt-in via
+ * a checkbox, since checkMetroZone() above already answers the yes/no
+ * question this app exists to answer without needing the geometry at all. */
+async function fetchMetroZoneShapes(bbox) {
+  const params = new URLSearchParams({
+    where: `MAVAT_CODE IN (${METRO_ZONE_CODES.join(',')})`,
+    geometry: bbox.map((v) => v.toFixed(3)).join(','),
+    geometryType: 'esriGeometryEnvelope',
+    inSR: String(ITM_WKID),
+    outFields: 'MAVAT_CODE',
+    returnGeometry: 'true',
+    geometryPrecision: '1',
+    f: 'json',
+  });
+  const result = await fetchJson(`${METRO_MAPSERVER}/4/query?${params}`);
+  return (result.features || []).map((f) => f.geometry?.rings || []).flat();
+}
+
+/** Draws metro-zone rings (already ITM) onto the canvas, in the same
+ * itmToPx pixel space as everything else composited there. */
+function drawMetroZones(ctx, bbox, size, rings) {
+  ctx.save();
+  ctx.fillStyle = 'rgba(224, 48, 30, 0.16)';
+  ctx.strokeStyle = 'rgba(180, 30, 15, 0.9)';
+  ctx.lineWidth = 2;
+  for (const ring of rings) {
+    ctx.beginPath();
+    ring.forEach(([x, y], i) => {
+      const [px, py] = itmToPx(bbox, size, x, y);
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
     });
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
   }
-  return meetings;
+  ctx.restore();
 }
 
-function parseMeetingDocs(html) {
-  const rows = html.match(/<tr>\s*<td>[\s\S]*?<\/tr>/g) || [];
-  const docs = [];
-  for (const row of rows) {
-    const href = /<a href="([^"]+)"/.exec(row);
-    if (!href) continue;
-    const titleM = /<a href="[^"]+"[^>]*>(?:<span[^>]*><\/span>)?\s*([^<]*)<\/a>/.exec(row);
-    const cells = [...row.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)].map((c) => c[1].replace(/<[^>]+>/g, '').trim());
-    docs.push({
-      url: href[1],
-      title: (titleM ? titleM[1] : '').trim(),
-      subject: cells[1] || '',
-      date: cells[2] || '',
-    });
-  }
-  return docs;
-}
-
-/* ---------- state ---------- */
-
-const state = {
-  siteid: '33', // הוד השרון - the one this data source was verified against end-to-end
-  meetings: [],   // last fetch, unfiltered
-  filtered: [],   // after the free-text quick filter
-  docsCache: new Map(), // docsKeyFor(meeting) -> docs[]
-  docsLoaded: 0,  // running count, across this session, of doc-lists fetched
-  filterGen: 0,   // bumped on every quick-filter change; lets a stale bulk-doc loop abandon itself
-};
-
-/* ---------- filter bar: committee/settlement is type-to-search, same
-   pattern as accidents.html's ישוב field - a <datalist> autocompletes over
-   all 68 sites, and only an exact label resolves to a siteid. ---------- */
-
-const siteLabel = (s) => (s.name_he
-  ? `${s.name_he} (${s.kind === 'regional' ? 'מרחבית' : 'מקומית'})`
-  : `${s.slug} (שם לא מזוהה)`);
-const SITE_BY_LABEL = new Map(COMMITTEE_SITES.map((s) => [siteLabel(s), s.siteid]));
-
-const cmSite = el('cmSite');
-el('cmSiteList').innerHTML = [...COMMITTEE_SITES]
-  .sort((a, b) => (a.name_he || a.slug).localeCompare(b.name_he || b.slug, 'he'))
-  .map((s) => `<option value="${esc(siteLabel(s))}"></option>`).join('');
-cmSite.value = siteLabel(COMMITTEE_SITES.find((s) => s.siteid === Number(state.siteid)));
-
-function onSiteInput() {
-  const id = SITE_BY_LABEL.get(cmSite.value.trim());
-  if (id == null || String(id) === state.siteid) return;
-  state.siteid = String(id);
-  loadMeetings();
-}
-
-const typeSelect = el('cmType');
-typeSelect.innerHTML = Object.entries(MEETING_TYPES)
-  .map(([code, label]) => `<option value="${code}">${esc(label)}</option>`).join('');
-typeSelect.value = '0';
-
-el('cmFrom').value = todayIso(-365 * 3);
-el('cmTo').value = todayIso(60);
-
-/* ---------- fetch + render ---------- */
-
-async function loadMeetings() {
-  const siteid = state.siteid;
-  const v = typeSelect.value;
-  const fd = isoToApi(el('cmFrom').value);
-  const td = isoToApi(el('cmTo').value);
-
-  showLoading(el('cmTableWrap'), 'טוען ישיבות…');
-  el('cmKpis').innerHTML = '';
-  el('cmChartByYear').innerHTML = '';
-  el('cmChartByType').innerHTML = '';
-  el('cmAllDocs').innerHTML = ''; // stale docs from the previous list would mislead otherwise
-
-  const p = new URLSearchParams({
-    appname: 'cixpa', prgname: 'GetMeetingByDate', siteid, v, fd, td, l: 'false',
-    arguments: 'siteid,v,fd,td,l',
+/** Every plan (layer 1) intersecting bbox, with its pl_url - see module
+ * docstring step 6 / tools/iplan_snapshot.py's fetch_plan_links(). */
+async function fetchPlanLinks(bbox) {
+  const params = new URLSearchParams({
+    where: '1=1',
+    geometry: bbox.map((v) => v.toFixed(3)).join(','),
+    geometryType: 'esriGeometryEnvelope',
+    inSR: String(ITM_WKID),
+    outFields: 'pl_number,pl_url',
+    returnGeometry: 'true',
+    geometryPrecision: '1',
+    f: 'json',
   });
-  try {
-    const res = await fetch(`${ENGINE}?${p}`);
-    if (!res.ok) throw Object.assign(new Error(`HTTP ${res.status}`), { kind: 'network' });
-    const html = await res.text();
-    state.meetings = parseMeetingList(html);
-    applyQuickFilter();
-  } catch (err) {
-    showError(el('cmTableWrap'), err);
-    state.meetings = [];
-    applyQuickFilter();
+  const result = await fetchJson(`${MAPSERVER}/1/query?${params}`);
+  return (result.features || [])
+    .filter((f) => f.attributes.pl_url && f.geometry?.rings)
+    .map((f) => ({ url: f.attributes.pl_url, rings: f.geometry.rings }));
+}
+
+/**
+ * Traces `points` (already in output pixel space) as a sequence of small
+ * rects, each grown until adding the next point would push it past
+ * MAX_CHUNK_PX on a side, then restarted from that same point so
+ * consecutive chunks touch rather than gap. See tools/iplan_snapshot.py's
+ * build_pdf() docstring: one bbox per whole ring (let alone per whole,
+ * possibly multi-ring plan) let an elongated or whole-district plan's
+ * boundary produce a rect spanning the entire page, so every overlapping
+ * click resolved to the same plan. Chunking in output pixels rather than by
+ * a fixed vertex count is what actually fixes it - a sparsely-vertexed long
+ * boundary stretch (no denser than an ordinary plan's, just covering more
+ * ground per vertex) still failed under vertex-count chunking.
+ */
+const MAX_CHUNK_PX = 200;
+function* traceRing(points) {
+  if (points.length < 2) return;
+  let prev = points[0];
+  let [cx0, cy0, cx1, cy1] = [prev[0], prev[1], prev[0], prev[1]];
+  let hasChunk = false;
+  for (let i = 1; i < points.length; i += 1) {
+    const [x, y] = points[i];
+    const nx0 = Math.min(cx0, x); const ny0 = Math.min(cy0, y);
+    const nx1 = Math.max(cx1, x); const ny1 = Math.max(cy1, y);
+    if (hasChunk && (nx1 - nx0 > MAX_CHUNK_PX || ny1 - ny0 > MAX_CHUNK_PX)) {
+      yield [cx0, cy0, cx1, cy1];
+      cx0 = Math.min(prev[0], x); cy0 = Math.min(prev[1], y);
+      cx1 = Math.max(prev[0], x); cy1 = Math.max(prev[1], y);
+    } else {
+      [cx0, cy0, cx1, cy1] = [nx0, ny0, nx1, ny1];
+    }
+    hasChunk = true;
+    prev = [x, y];
   }
+  if (hasChunk) yield [cx0, cy0, cx1, cy1];
 }
 
-function applyQuickFilter() {
-  const q = el('cmSearch').value.trim();
-  state.filtered = q
-    ? state.meetings.filter((m) => `${m.meetingNumber} ${m.committee} ${m.date}`.includes(q))
-    : state.meetings;
-  renderKpis();
-  renderCharts();
-  renderTable();
-  state.filterGen += 1; // any earlier script build still running now belongs to a stale filter
-
-  // Auto-build the script only once an actual filter narrows things down
-  // (the free-text box) - not on the raw, possibly hundreds-strong default
-  // list, where fetching every meeting's document list unasked would be a
-  // much heavier hit than a visitor asked for. Committee/type/date-range
-  // changes still require the explicit "הורדת כל המסמכים" button for the
-  // same reason.
-  if (q) buildDownloadScript(state.filterGen);
-  else el('cmAllDocs').innerHTML = '';
-}
-
-/* ---------- KPI tiles - same visual vocabulary as accidents.html's .stat-row ---------- */
-
-function renderKpis() {
-  const list = state.filtered;
-  const dates = list.map((m) => m.date).filter(Boolean).sort((a, b) => {
-    const [da, ma, ya] = a.split('/'); const [db, mb, yb] = b.split('/');
-    return `${ya}${ma}${da}`.localeCompare(`${yb}${mb}${db}`);
-  });
-  const types = new Set(list.map((m) => m.committee));
-  const span = dates.length ? `${dates[0]} — ${dates[dates.length - 1]}` : '—';
-
-  el('cmKpis').innerHTML = `
-    <div class="stat">
-      <span class="stat-n">${num(list.length)}</span>
-      <span class="stat-l">סה"כ ישיבות (בסינון הנוכחי)</span>
-    </div>
-    <div class="stat ok">
-      <span class="stat-n">${num(types.size)}</span>
-      <span class="stat-l">סוגי ישיבה שונים</span>
-    </div>
-    <div class="stat">
-      <span class="stat-n" style="font-size:1.05rem">${esc(span)}</span>
-      <span class="stat-l">טווח תאריכים בפועל</span>
-    </div>
-    <div class="stat warn">
-      <span class="stat-n">${num(state.docsLoaded)}</span>
-      <span class="stat-l">רשימות מסמכים שנטענו (הפעלה זו)</span>
-    </div>`;
-}
-
-/* ---------- charts - shared renderBarChart from charts.js ---------- */
-
-function renderCharts() {
-  const list = state.filtered;
-
-  const byYear = new Map();
-  for (const m of list) {
-    const y = m.date.split('/')[2];
-    if (y) byYear.set(y, (byYear.get(y) || 0) + 1);
-  }
-  const yearEntries = [...byYear.entries()].sort(([a], [b]) => a.localeCompare(b))
-    .map(([label, value]) => ({ label, value }));
-  renderBarChart('cmChartByYear', 'ישיבות לפי שנה', yearEntries, '', 'total', CM_EMPTY_MSG);
-
-  const byType = new Map();
-  for (const m of list) byType.set(m.committee, (byType.get(m.committee) || 0) + 1);
-  let typeEntries = [...byType.entries()].sort(([, a], [, b]) => b - a)
-    .map(([label, value]) => ({ label, value }));
-  if (typeEntries.length > 7) {
-    const rest = typeEntries.slice(6).reduce((s, e) => s + e.value, 0);
-    typeEntries = [...typeEntries.slice(0, 6), { label: 'אחר', value: rest }];
-  }
-  renderBarChart('cmChartByType', 'התפלגות לפי סוג ישיבה', typeEntries, '', '', CM_EMPTY_MSG);
-}
-
-/* ---------- detailed table, with a per-row live doc fetch on expand ---------- */
-
-// Same has-files/files-row/x-mark convention as portal.js's own expandable
-// table (see table()/bindRows() there) - visual consistency with the rest of
-// the site. It differs underneath: portal.js's _files are pre-fetched with
-// the row, these are fetched lazily on first expand, so 565 meetings never
-// means 565 requests up front - only the ones a visitor actually opens.
-function renderTable() {
-  const list = state.filtered;
-  if (!list.length) {
-    el('cmTableWrap').innerHTML = '<p class="acc-hint">לא נמצאו ישיבות עבור הסינון הנוכחי.</p>';
-    return;
-  }
-  const rows = list.map((m, i) => `
-    <tr class="has-files" data-row="${i}" tabindex="0" role="button">
-      <td class="c-x"><span class="x-mark">▾</span></td>
-      <td dir="auto" class="ident">${esc(m.meetingNumber)}</td>
-      <td dir="auto">${esc(m.committee)}</td>
-      <td dir="auto">${esc(m.date)}</td>
-      <td dir="auto">${esc(m.day)}</td>
-    </tr>
-    <tr class="files-row" data-files="${i}" hidden><td colspan="5"></td></tr>`).join('');
-  el('cmTableWrap').innerHTML = `
-    <div class="matrix-wrap">
-      <table class="matrix preview expandable">
-        <thead>
-          <tr>
-            <th class="c-x"></th>
-            <th scope="col">מספר ישיבה</th>
-            <th scope="col">סוג ישיבה</th>
-            <th scope="col">תאריך</th>
-            <th scope="col">יום</th>
-          </tr>
-        </thead>
-        <tbody>${rows}</tbody>
-      </table>
-    </div>`;
-  bindRows();
-}
-
-function bindRows() {
-  document.querySelectorAll('#cmTableWrap tr.has-files').forEach((tr) => {
-    const toggle = () => toggleDocs(Number(tr.dataset.row), tr);
-    tr.addEventListener('click', toggle);
-    tr.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
-    });
-  });
-}
-
-const docsKeyFor = (meeting) => `${state.siteid}_${meeting.vaadaId}_${meeting.meetingNumber}`;
-
-/** Shared by the per-row expand and the "load all" bulk action below, so a
- *  document list can never come out differently fetched one-by-one than in
- *  bulk. Caches on success; throws on failure rather than swallowing it, so
- *  each caller decides how to show that failure. */
-async function fetchDocsFor(meeting) {
-  const key = docsKeyFor(meeting);
-  if (state.docsCache.has(key)) return state.docsCache.get(key);
-  const p = new URLSearchParams({
-    appname: 'cixpa', prgname: 'GetMeetingDocs', siteid: state.siteid,
-    v: meeting.vaadaId, m: meeting.meetingNumber, arguments: 'siteid,v,m',
-  });
-  const res = await fetch(`${ENGINE}?${p}`);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const docs = parseMeetingDocs(await res.text());
-  state.docsCache.set(key, docs);
-  state.docsLoaded += 1;
-  renderKpis();
-  return docs;
-}
-
-async function toggleDocs(i, tr) {
-  const target = document.querySelector(`#cmTableWrap tr[data-files="${i}"]`);
-  const mark = tr.querySelector('.x-mark');
-  if (!target.hidden) { target.hidden = true; mark.textContent = '▾'; return; }
-  target.hidden = false;
-  mark.textContent = '▴';
-
-  const meeting = state.filtered[i];
-  const cell = target.querySelector('td');
-  const cached = state.docsCache.get(docsKeyFor(meeting));
-  if (cached) { renderDocsCell(cell, cached); return; }
-
-  cell.innerHTML = '<span class="acc-hint">טוען מסמכים…</span>';
-  try {
-    renderDocsCell(cell, await fetchDocsFor(meeting));
-  } catch (err) {
-    cell.innerHTML = `<span class="acc-hint">שגיאה בטעינת המסמכים (${esc(err.message)}).</span>`;
-  }
-}
-
-function renderDocsCell(cell, docs) {
-  if (!docs.length) { cell.innerHTML = '<span class="acc-hint">לא נמצאו מסמכים לישיבה זו.</span>'; return; }
-  cell.innerHTML = `<ul class="cm-doclist">${docs.map((d) => `
-    <li><a href="${esc(d.url)}" target="_blank" rel="noopener">${esc(d.title || d.subject || 'מסמך')}</a>
-        <span class="acc-hint">(${esc(d.subject)}${d.date ? `, ${esc(d.date)}` : ''})</span></li>`).join('')}</ul>`;
-}
-
-/* ---------- "download all documents" - not a browser download at all, but a
-   generated shell script: one curl call per document in the current filter,
-   ready to copy into a terminal. This sidesteps every browser-side wall the
-   earlier approaches ran into - curl is a separate program, so none of it
-   applies: no popup blocker (nothing opens a tab), no CORS (that's a
-   browser-fetch/XHR restriction on reading a cross-origin *response in JS*,
-   irrelevant to a standalone process making its own request), and no
-   "did it finish downloading" ambiguity (curl writes the file and exits).
-   Fetching the per-meeting document *lists* to build the script still goes
-   through handasi.complot.co.il (the listing engine) exactly as everywhere
-   else on this page - only the resulting script's curl calls hit
-   archive.gis-net.co.il, the same one-file-at-a-time act as clicking each
-   link by hand, just batched into a paste. */
-const sleep = (ms) => new Promise((r) => { setTimeout(r, ms); });
-
-/** Strips characters that break either a shell command or a filesystem path
- *  - mirrors sanitize_filename() in scrape_hodhasharon_meetings.py. */
-function sanitizeFilename(name) {
-  return String(name || 'מסמך')
-    .replace(/[\\/:*?"<>|\r\n\t]+/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .slice(0, 120) || 'מסמך';
-}
-
-/** POSIX single-quoting: wraps in '...', escaping any embedded ' as '"'"'.
- *  Safe for any text - not just the ASCII curl expects most arguments to be.
- *  Used only for the shell-level mkdir/cd lines now - the per-file url/
- *  output pairs live inside a curl -K config file instead (see below), a
- *  different syntax the shell never parses, so shell-quoting them would be
- *  the wrong protection for the wrong parser. */
-const shQuote = (s) => `'${String(s).replace(/'/g, "'\"'\"'")}'`;
-
-/** curl -K config-file quoting: wrap in "...", escaping \ and " per curl's
- *  own config-file syntax (see `man curl` "-K/--config"). This text lives
- *  inside a `<<'DOCLIST' ... DOCLIST` heredoc with a quoted delimiter, so
- *  the shell passes it through untouched - curl's own parser is the only
- *  one that ever reads it, hence a different quoting rule than shQuote. */
-const curlQuote = (s) => `"${String(s).replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
-
-// `gen` lets an auto-triggered run (from typing in the quick filter) abandon
-// itself the moment a newer keystroke changes the filter again, instead of
-// two runs racing to overwrite the script panel - see applyQuickFilter().
-async function buildDownloadScript(gen = state.filterGen) {
-  const list = state.filtered;
-  if (!list.length) return;
-  if (list.length > 150 && !confirm(`הרשימה כוללת ${list.length} ישיבות - בניית הסקריפט תשלח כ-${list.length} בקשות לרשימת המסמכים בזו אחר זו ותימשך זמן מה. להמשיך?`)) return;
-
-  const btn = el('cmLoadAllDocs');
-  const box = el('cmAllDocs');
-  btn.disabled = true;
-  try {
-    const lines = [];
-    let failedMeetings = 0;
-    let docCount = 0;
-    for (let i = 0; i < list.length; i += 1) {
-      if (gen !== state.filterGen) return; // a newer filter took over mid-loop
-      const meeting = list[i];
-      box.innerHTML = `<p class="acc-hint">בונה רשימת קבצים… (ישיבה ${i + 1}/${list.length})</p>`;
-      let docs = state.docsCache.get(docsKeyFor(meeting));
-      if (!docs) {
-        try {
-          docs = await fetchDocsFor(meeting);
-        } catch {
-          failedMeetings += 1;
-          continue;
-        }
-        await sleep(150); // politeness pacing on the listing engine, same spirit as the original scraper's rate limiter
-      }
-      for (const doc of docs) {
-        docCount += 1;
-        const fname = sanitizeFilename(
-          `${meeting.date.replace(/\//g, '-')}_${meeting.meetingNumber}_${doc.title || doc.subject}.pdf`,
-        );
-        // Two config-file lines instead of a full curl invocation - see
-        // renderDownloadScript() for the single curl -K call that reads all
-        // of these at once. Pacing on the archive host moved from a
-        // per-file `sleep 0.5` to curl's own --rate flag on that one call.
-        lines.push(`url = ${curlQuote(doc.url)}`);
-        lines.push(`output = ${curlQuote(fname)}`);
+function planLinkRects(planLinks, bbox, size) {
+  const rects = [];
+  for (const plan of planLinks) {
+    for (const ring of plan.rings) {
+      const points = ring.map(([x, y]) => itmToPx(bbox, size, x, y));
+      for (const [x0, y0, x1, y1] of traceRing(points)) {
+        const cx0 = Math.max(x0, 0); const cy0 = Math.max(y0, 0);
+        const cx1 = Math.min(x1, size); const cy1 = Math.min(y1, size);
+        if (cx1 > cx0 && cy1 > cy0) rects.push({ url: plan.url, x0: cx0, y0: cy0, x1: cx1, y1: cy1 });
       }
     }
-    if (gen === state.filterGen) renderDownloadScript(lines, docCount, failedMeetings); // stale otherwise - a newer run owns the panel now
+  }
+  // Larger rects first, smaller/more-precise ones last, so a canvas drawn
+  // in this order (and a PDF whose viewer resolves overlapping clicks to
+  // the last-added annotation) both favour the fine-grained one.
+  rects.sort((a, b) => ((b.x1 - b.x0) * (b.y1 - b.y0)) - ((a.x1 - a.x0) * (a.y1 - a.y0)));
+  return rects;
+}
+
+/** A map-pin marker at the image centre - the requested address, by
+ * construction: bbox is built symmetrically around it (bboxAround), so it
+ * always lands at (size/2, size/2) regardless of radius. Drawn onto the
+ * canvas itself (not as a DOM overlay) so it's baked into the downloaded
+ * PDF too, not just the on-page view. */
+function drawAddressPin(ctx, size) {
+  const cx = size / 2;
+  const cy = size / 2;
+  const r = 9;
+  const tipY = cy + 6; // point of the pin sits slightly below the circle,
+  // marking the exact address point rather than the circle's own centre.
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(cx - r * 0.85, cy - r * 0.4);
+  ctx.arc(cx, cy - r * 0.4, r, Math.PI, 0, false);
+  ctx.lineTo(cx + r * 0.85, cy - r * 0.4);
+  ctx.lineTo(cx, tipY);
+  ctx.closePath();
+  ctx.fillStyle = '#e0301e';
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 2;
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.arc(cx, cy - r * 0.4, r * 0.4, 0, Math.PI * 2);
+  ctx.fillStyle = '#fff';
+  ctx.fill();
+  ctx.restore();
+}
+
+function canvasToJpeg(canvas, quality = 0.85) {
+  return new Promise((resolve) => canvas.toBlob((blob) => resolve(blob), 'image/jpeg', quality));
+}
+
+function downloadBlob(blob, name) {
+  const href = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = href;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(href), 10000);
+}
+
+function safeFilename(address) {
+  return address.replace(/[^\p{L}\p{N}]+/gu, '_').replace(/^_+|_+$/g, '').slice(0, 60) || 'blue-lines';
+}
+
+/** Puts the current search in the URL (?address=...&radius=...&labels=1) via
+ * replaceState - no new history entry per search, but the address bar is a
+ * link someone can copy, bookmark or send, and reloading it re-runs the same
+ * search (see start()). radius/labels are only added when they differ from
+ * the default, so a plain address search keeps a plain, short URL. */
+function syncUrl(address, radius, showLabels, showPoints, showMetroZone) {
+  const params = new URLSearchParams();
+  params.set('address', address);
+  if (radius !== DEFAULT_RADIUS) params.set('radius', String(radius));
+  if (showLabels) params.set('labels', '1');
+  if (!showPoints) params.set('points', '0');
+  if (showMetroZone) params.set('metroZone', '1');
+  history.replaceState(null, '', `?${params}`);
+}
+
+async function run(address, radius, showLabels, showPoints, showMetroZone) {
+  syncUrl(address, radius, showLabels, showPoints, showMetroZone);
+  const status = el('blStatus');
+  const resultBox = el('blResult');
+  resultBox.hidden = true;
+  showLoading(status, `מאתר כתובת: ${address}…`);
+
+  const { lon, lat, displayName } = await geocode(address);
+  showLoading(status, `נמצא: ${displayName} — מטיל מפה...`);
+
+  const [[x, y]] = await projectPoints([[lon, lat]], WGS84_WKID, ITM_WKID);
+  const bbox = bboxAround(x, y, radius);
+
+  showLoading(status, 'שולף שכבות תכנוניות ובסיס מפה...');
+  const [overlay, basemap, metro, planLinks, metroZoneRings] = await Promise.all([
+    fetchOverlay(bbox, IMAGE_SIZE, showLabels, showPoints),
+    fetchBasemapCanvas(bbox, IMAGE_SIZE),
+    checkMetroZone(x, y),
+    fetchPlanLinks(bbox),
+    showMetroZone ? fetchMetroZoneShapes(bbox) : Promise.resolve([]),
+  ]);
+
+  const canvas = el('blCanvas');
+  canvas.width = IMAGE_SIZE;
+  canvas.height = IMAGE_SIZE;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(basemap, 0, 0);
+  ctx.drawImage(overlay, 0, 0);
+  if (showMetroZone) drawMetroZones(ctx, bbox, IMAGE_SIZE, metroZoneRings);
+  drawAddressPin(ctx, IMAGE_SIZE);
+
+  state.bbox = bbox;
+  state.planLinks = planLinks;
+  state.address = address;
+
+  const metroBox = el('blMetro');
+  if (metro.inZone) {
+    metroBox.className = 'notice error';
+    metroBox.innerHTML = `<strong>הכתובת בתחום ההשפעה של תחנת מטרו</strong>
+      (${esc(metro.zones.join(', '))}) — לפי חוק המטרו, בעלי נכסים באזור זה
+      עשויים לחוב בהיטל השבחה מוגבר ("מס מטרו").`;
+  } else {
+    metroBox.className = 'notice info';
+    metroBox.textContent = 'הכתובת מחוץ לתחום ההשפעה הידוע של תחנות מטרו (תמ״א 70).';
+  }
+
+  el('blPlanCount').textContent = String(planLinks.length);
+  el('blDownload').disabled = false;
+  status.innerHTML = '';
+  resultBox.hidden = false;
+}
+
+async function downloadPdf() {
+  const btn = el('blDownload');
+  btn.disabled = true;
+  const prevLabel = btn.textContent;
+  btn.textContent = 'בונה PDF…';
+  try {
+    const canvas = el('blCanvas');
+    const jpegBlob = await canvasToJpeg(canvas);
+    const jpegBytes = new Uint8Array(await jpegBlob.arrayBuffer());
+    const links = planLinkRects(state.planLinks, state.bbox, IMAGE_SIZE);
+    const pdfBlob = buildPdf({ jpegBytes, width: IMAGE_SIZE, height: IMAGE_SIZE, links });
+    downloadBlob(pdfBlob, `${safeFilename(state.address)}.pdf`);
   } finally {
     btn.disabled = false;
+    btn.textContent = prevLabel;
   }
 }
 
-function renderDownloadScript(lines, docCount, failedMeetings) {
-  const box = el('cmAllDocs');
-  if (!docCount) {
-    box.innerHTML = `<p class="acc-hint">לא נמצאו מסמכים לרשימה הנוכחית.${failedMeetings ? ` (${failedMeetings} ישיבות נכשלו בטעינת רשימת המסמכים)` : ''}</p>`;
-    return;
-  }
-  const folder = sanitizeFilename(`ועדה_${state.siteid}_${el('cmFrom').value}_${el('cmTo').value}`);
-  // One curl invocation reads the whole file list from a -K config file (fed
-  // via heredoc, never touching disk) instead of one full curl command per
-  // document - the old version repeated `curl -sS --retry 2 --retry-delay 3`
-  // and the filename three times (once in -o, twice in the echo lines) for
-  // EVERY file; this repeats it once, total, regardless of list length.
-  // --retry-all-errors matters here specifically because -K feeds multiple
-  // transfers through one curl process - without it, curl's default retry
-  // policy only retries transient/transport errors, not an archive-host 4xx/
-  // 5xx on one file in the middle of the batch, which would otherwise just
-  // move on silently instead of giving that one file a second chance.
-  // --rate 120/m (one request per 0.5s) replaces the old per-file `sleep
-  // 0.5` - the same pacing, but as one flag instead of N shell lines.
-  const script = [
-    '#!/usr/bin/env bash',
-    'set -uo pipefail',
-    `mkdir -p ${shQuote(folder)}`,
-    `cd ${shQuote(folder)}`,
-    '',
-    "curl -sS --retry 2 --retry-delay 3 --retry-all-errors --rate 120/m -K - <<'DOCLIST'",
-    ...lines,
-    'DOCLIST',
-    '',
-    'echo "הסתיים."',
-  ].join('\n') + '\n';
+function submitForm() {
+  const address = el('blAddress').value.trim();
+  if (!address) return;
+  const radius = Number(el('blRadius').value) || DEFAULT_RADIUS;
+  const showLabels = el('blShowLabels').checked;
+  const showPoints = el('blShowPoints').checked;
+  const showMetroZone = el('blShowMetroZone').checked;
+  run(address, radius, showLabels, showPoints, showMetroZone).catch((err) => showError(el('blStatus'), err));
+}
 
-  box.innerHTML = `
-    <p class="acc-hint">
-      ${num(docCount)} קבצים, curl אחת לרשימה כולה.${failedMeetings ? ` (${failedMeetings} ישיבות נכשלו בטעינת רשימת המסמכים)` : ''}
-      הריצו בטרמינל (למשל <code dir="ltr">bash script.sh</code>) - יוצר תיקייה משלו ומוריד לתוכה, קובץ אחר קובץ.
-    </p>
-    <div class="cm-script-wrap">
-      <textarea id="cmScript" class="cm-script" readonly rows="10" dir="ltr" spellcheck="false">${esc(script)}</textarea>
-      <button type="button" id="cmCopyScript" class="drill-dl">העתקת הסקריפט ⧉</button>
-    </div>`;
+function start() {
+  initThemePicker(el('themePick'));
+  el('created').textContent = document.lastModified;
 
-  el('cmCopyScript').addEventListener('click', async () => {
-    const copyBtn = el('cmCopyScript');
-    const original = copyBtn.textContent;
-    try {
-      await navigator.clipboard.writeText(script);
-      copyBtn.textContent = 'הועתק ✓';
-    } catch {
-      el('cmScript').select(); // clipboard API unavailable/denied - at least select it for manual Ctrl+C
-      copyBtn.textContent = 'סמנו והעתיקו ידנית (Ctrl+C)';
-    }
-    setTimeout(() => { copyBtn.textContent = original; }, 2000);
+  // A linked search (?address=...&radius=...&labels=1&points=0&metroZone=1)
+  // prefills the form and runs immediately, so the URL someone shares is the
+  // result they saw, not just an empty form - same shape as syncUrl() writes
+  // on every search.
+  const urlAddress = param('address');
+  el('blAddress').value = urlAddress || '';
+  el('blRadius').value = param('radius') || String(DEFAULT_RADIUS);
+  el('blShowLabels').checked = param('labels') === '1';
+  el('blShowPoints').checked = param('points') !== '0';
+  el('blShowMetroZone').checked = param('metroZone') === '1';
+
+  const form = el('blForm');
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    submitForm();
   });
+
+  el('blDownload').addEventListener('click', () => {
+    downloadPdf().catch((err) => showError(el('blStatus'), err));
+  });
+
+  if (urlAddress) submitForm();
 }
 
-// Not `buildDownloadScript` directly - addEventListener would pass the click
-// Event as `gen`, clobbering the default parameter.
-el('cmLoadAllDocs').addEventListener('click', () => buildDownloadScript());
-
-/* ---------- CSV export - exactly the filtered rows on screen ---------- */
-
-el('cmCsv').addEventListener('click', () => {
-  const csv = buildCsv(
-    ['קוד_ועדה', 'מספר_ישיבה', 'סוג_ישיבה', 'תאריך', 'יום'],
-    state.filtered.map((m) => ({
-      קוד_ועדה: state.siteid,
-      מספר_ישיבה: m.meetingNumber,
-      סוג_ישיבה: m.committee,
-      תאריך: m.date,
-      יום: m.day,
-    })),
-  );
-  saveCsv(csv, `ישיבות_ועדת_תכנון_${state.siteid}.csv`);
-});
-
-/* ---------- wiring ---------- */
-
-cmSite.addEventListener('input', debounce(onSiteInput, 300));
-
-['change'].forEach((evt) => {
-  typeSelect.addEventListener(evt, loadMeetings);
-  el('cmFrom').addEventListener(evt, loadMeetings);
-  el('cmTo').addEventListener(evt, loadMeetings);
-});
-el('cmSearch').addEventListener('input', debounce(applyQuickFilter, 250));
-
-loadMeetings();
+start();
 
 </script>
 </body>

@@ -55,6 +55,16 @@
       "home": "https://data.gov.il/dataset/payments-to-welfare-frameworks"
     },
     {
+      "id": "blue-lines",
+      "name": "Blue Lines — Address to Plans & Metro Levy Check",
+      "name_he": "קווים כחולים",
+      "kind": "אפליקציה",
+      "about": "כתובת בישראל -> מפה חיה (שכבות Xplan של מנהל התכנון על בסיס מפה אמיתי מ-OpenStreetMap), בדיקה האם הכתובת בתחום ההשפעה של תחנת מטרו מתוכננת (תמ\"א 70, קודי MAVAT_CODE 6011/6012 - \"מרחב ליבה\"/\"תחום טבעת ראשונה\", הרלוונטי לחיוב בהיטל השבחה מוגבר לפי חוק המטרו), והורדת PDF עם קישורים חיים לדף המלא של כל תכנית באתר מבא\"ת. רדיוס ברירת מחדל 300 מ', ניתן להגדיל עד 3,000. ה-PDF נבנה בדפדפן, בלי ספריה חיצונית - אובייקטי PDF נכתבים ביד, עם JPEG מוטמע כ-DCTDecode.",
+      "href": "./blue-lines.html",
+      "external": false,
+      "home": "https://ags.iplan.gov.il/xplan/"
+    },
+    {
       "id": "agriculture",
       "name": "Ministry of Agriculture Open Data (ArcGIS Hub)",
       "name_he": "משרד החקלאות — אתר מידע גיאוגרפי פתוח",

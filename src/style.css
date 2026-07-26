@@ -1281,6 +1281,15 @@ body.welfare-page { --accent: #b8794a; --fin-compare: #6b8e6f; }
   body.welfare-page { --accent: #e0a875; --fin-compare: #8fbf94; }
 }
 
+/* blue-lines.html: literally "blue lines" (קווים כחולים, iplan's own
+ * nickname for its plan-boundary layer) - the obvious accent for this page
+ * is blue, distinct from every hue used above. Same specificity story as
+ * the rules above; source order (this one last) is what wins here. */
+body.blue-lines-page { --accent: #1d5fd6; }
+@media (prefers-color-scheme: dark) {
+  body.blue-lines-page { --accent: #6ea3ff; }
+}
+
 /* Centered on this page specifically - the map's header stays a normal
    start-aligned row with a byline/theme-pick/probed-stamp cluster; this
    page's header only has the title and controls, so a centered title reads
@@ -1333,4 +1342,16 @@ body.accidents-page header.site h1 { inline-size: 100%; }
   text-transform: uppercase;
   letter-spacing: .1em;
   font-weight: 400;
+}
+
+/* blue-lines.html: the composited map canvas. Native pixel size is fixed
+   (matches the export/basemap resolution), scaled down responsively via CSS
+   rather than re-rendered - a canvas's CSS size and its drawing-buffer size
+   are independent, so this never blurs the pixels that matter. */
+.bl-map-wrap { text-align: center; margin-block-end: 1rem; }
+#blCanvas {
+  max-inline-size: 100%;
+  block-size: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
 }
