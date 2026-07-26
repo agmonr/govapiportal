@@ -2,10 +2,14 @@
 """
 Downloads a map image for an Israeli address from iplan's Xplan service
 (the "קווים כחולים" MapServer, already catalogued in apis.json under the
-"iplan" portal), showing the two layers requested:
+"iplan" portal), showing the three layers checked by default in the site's
+own layer panel, under "תוכניות מקוונות":
 
-    - layer 4: יעודי קרקע            (land use designations)
-    - layer 0: ישויות נקודתיות        (point entities, under "ישויות נוספות")
+    - layer 1: קווים כחולים-תכניות מקוונות  (plan boundary lines - this is
+      its own checked layer in the site's UI, not just the site's nickname;
+      it's what draws the small labelled plan-number boxes, e.g. 416-xxxxx)
+    - layer 4: יעודי קרקע                    (land use designations)
+    - layer 0: ישויות נקודתיות                (point entities, under "ישויות נוספות")
 
 Pipeline:
     1. Geocode the address with OSM Nominatim (WGS84 lon/lat).
@@ -39,7 +43,7 @@ Stdlib only, no dependencies - same convention as tools/probe.py.
 Usage:
     ./tools/iplan_snapshot.py "רוטשילד 1, תל אביב"
     ./tools/iplan_snapshot.py "הרצל 50, חיפה" -o herzl50.png --radius 400
-    ./tools/iplan_snapshot.py "יפו 1, ירושלים" --layers 0,1,4  # add plan boundary
+    ./tools/iplan_snapshot.py "יפו 1, ירושלים" --layers 4,0  # land use + points only
 """
 
 import argparse
@@ -56,10 +60,10 @@ UA = "govapiportal-iplan-snapshot/1.0 (+https://github.com/agmonr/govapiportal)"
 ITM_WKID = 2039
 TIMEOUT = 25
 
-# The two layers named in the request. Kept as the default rather than the
-# only option - --layers lets a caller add layer 1 (plan boundary lines) or
-# any other id this MapServer exposes.
-DEFAULT_LAYERS = [4, 0]
+# The three layers checked by default in iplan's own layer panel (see module
+# docstring). Kept as the default rather than the only option - --layers lets
+# a caller pick any other id this MapServer exposes.
+DEFAULT_LAYERS = [1, 4, 0]
 
 # Layer 4 (יעודי קרקע) codes that are catch-all/regional designations rather
 # than a specific local land use - excluded from the fill by default so a
@@ -170,7 +174,8 @@ def main():
     ap.add_argument("--size", type=int, default=1024, help="גודל התמונה בפיקסלים, ריבועית (ברירת מחדל 1024)")
     ap.add_argument("--format", default="png32", help="פורמט התמונה (ברירת מחדל png32)")
     ap.add_argument("--layers", default=",".join(str(i) for i in DEFAULT_LAYERS),
-                     help="מזהי שכבות מופרדים בפסיק (ברירת מחדל: 4=יעודי קרקע, 0=ישויות נקודתיות)")
+                     help="מזהי שכבות מופרדים בפסיק "
+                          "(ברירת מחדל: 1=קווים כחולים-תכניות מקוונות, 4=יעודי קרקע, 0=ישויות נקודתיות)")
     ap.add_argument("--include-background", action="store_true",
                      help="אל תסנן את קודי הרקע האזוריים (995/996) משכבת יעודי הקרקע")
     ap.add_argument("--transparent", action="store_true",
