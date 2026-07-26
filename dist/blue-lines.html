@@ -1398,16 +1398,17 @@ body.accidents-page header.site h1 { inline-size: 100%; }
         <summary><strong>מה יש כאן</strong></summary>
         <p>
           מזינים כתובת, ומקבלים: מפה חיה של השכבות התכנוניות של מנהל התכנון (<code dir="ltr">Xplan</code>) —
-          קווים כחולים (גבולות תכניות), ייעודי קרקע וישויות נקודתיות — על בסיס מפה אמיתי (מבנים ורחובות,
-          OpenStreetMap); בדיקה האם הכתובת נמצאת בתחום ההשפעה של תחנת מטרו מתוכננת (תמ"א 70), הרלוונטי
-          לחיוב בהיטל השבחה מוגבר לפי חוק המטרו ("מס מטרו"); וקובץ PDF להורדה עם המפה וקישורים חיים
-          לדף התכנית המלא של כל תכנית מוצגת באתר מבא"ת.
+          קווים כחולים (גבולות תכניות), ובאופן אופציונלי גם ייעודי קרקע וישויות נקודתיות — על בסיס מפה
+          אמיתי (מבנים ורחובות, OpenStreetMap); בדיקה האם הכתובת נמצאת בתחום ההשפעה של תחנת מטרו מתוכננת
+          (תמ"א 70), הרלוונטי לחיוב בהיטל השבחה מוגבר לפי חוק המטרו ("מס מטרו"); וקובץ PDF להורדה עם המפה
+          וקישורים חיים לדף התכנית המלא של כל תכנית מוצגת באתר מבא"ת.
         </p>
         <p>
           רדיוס ברירת המחדל 300 מ' — ניתן להגדיל עד 3,000 מ' כדי לבדוק תחום השפעה רחב יותר של תחנת מטרו.
-          מספרי התכניות על גבי המפה מוסתרים כברירת מחדל (יש בהם עומס בקלות) — ניתן להציגם דרך תיבת
-          הסימון בטופס. כל הנתונים נשלפים חי מ-iplan (מנהל התכנון) ומ-OpenStreetMap; שום דבר לא מחושב
-          מראש או נשמר באתר.
+          מספרי התכניות וייעודי הקרקע על גבי המפה מוסתרים כברירת מחדל, כמו באתר המקור (יש בהם עומס
+          בקלות במיוחד ייעודי קרקע, שיכולים לכלול אזורי שימור שלמים על פני קילומטרים) — ניתן להציגם
+          דרך תיבות הסימון בטופס. כל הנתונים נשלפים חי מ-iplan (מנהל התכנון) ומ-OpenStreetMap; שום דבר
+          לא מחושב מראש או נשמר באתר.
         </p>
         <p>
           <strong>מה אין כאן:</strong> סימון גוש/חלקה (יש בכלי המקביל <code dir="ltr">tools/iplan_snapshot.py</code>
@@ -1432,6 +1433,12 @@ body.accidents-page header.site h1 { inline-size: 100%; }
             <label for="blShowLabels">
               <input id="blShowLabels" type="checkbox">
               הצג מספרי תכניות על המפה
+            </label>
+          </div>
+          <div class="acc-year-pick">
+            <label for="blShowLandUse">
+              <input id="blShowLandUse" type="checkbox">
+              הצג ייעודי קרקע
             </label>
           </div>
           <div class="acc-year-pick">
@@ -1732,11 +1739,14 @@ function buildPdf({ jpegBytes, width, height, links }) {
  *      reproject a WGS84 bbox itself - that shortcut measurably does NOT
  *      centre the address (a ~40-70m offset, verified against this same
  *      Geometry service). Build the bbox directly in ITM metres.
- *   3. Export layers 1 (קווים כחולים, plan boundaries), 4 (יעודי קרקע, land
- *      use) and 0 (ישויות נקודתיות, point entities) - the three checked by
- *      default in iplan's own layer panel. Two catch-all/regional land-use
- *      codes are excluded (see EXCLUDE_LANDUSE_CODES) so the image isn't
- *      buried under one giant background hatch.
+ *   3. Export layer 1 (קווים כחולים, plan boundaries) and, if opted in via
+ *      checkbox, layer 0 (ישויות נקודתיות, point entities) and layer 4
+ *      (יעודי קרקע, land use - off by default, matching the real site's own
+ *      layer panel and confirmed live via its network traffic: it never
+ *      fetches this layer until a user opts in). When land use is shown,
+ *      two catch-all/regional codes are still excluded (see
+ *      EXCLUDE_LANDUSE_CODES) so it isn't buried under one giant background
+ *      hatch even then.
  *   4. Stitch a real basemap (buildings/streets) from OSM's standard raster
  *      tiles - iplan's MapServer has none of its own - aligned by projecting
  *      the bbox's own corners ITM->WGS84 through the same trusted Geometry
@@ -2158,18 +2168,19 @@ function safeFilename(address) {
  * link someone can copy, bookmark or send, and reloading it re-runs the same
  * search (see start()). radius/labels are only added when they differ from
  * the default, so a plain address search keeps a plain, short URL. */
-function syncUrl(address, radius, showLabels, showPoints, showMetroZone) {
+function syncUrl(address, radius, showLabels, showLandUse, showPoints, showMetroZone) {
   const params = new URLSearchParams();
   params.set('address', address);
   if (radius !== DEFAULT_RADIUS) params.set('radius', String(radius));
   if (showLabels) params.set('labels', '1');
+  if (showLandUse) params.set('landUse', '1');
   if (!showPoints) params.set('points', '0');
   if (!showMetroZone) params.set('metroZone', '0');
   history.replaceState(null, '', `?${params}`);
 }
 
-async function run(address, radius, showLabels, showPoints, showMetroZone) {
-  syncUrl(address, radius, showLabels, showPoints, showMetroZone);
+async function run(address, radius, showLabels, showLandUse, showPoints, showMetroZone) {
+  syncUrl(address, radius, showLabels, showLandUse, showPoints, showMetroZone);
   const status = el('blStatus');
   const resultBox = el('blResult');
   resultBox.hidden = true;
@@ -2184,15 +2195,18 @@ async function run(address, radius, showLabels, showPoints, showMetroZone) {
 
   showLoading(status, 'שולף שכבות תכנוניות ובסיס מפה...');
   const [landUse, planBoundaries, points, basemap, metro, planLinks, metroZoneRings] = await Promise.all([
-    // Fetched separately from the plan boundaries below, and drawn at
-    // reduced opacity - land use (even with the truly-meaningless 995/996
-    // catch-alls excluded) still includes real, large area-wide
-    // designations, e.g. a heritage conservation zone spanning several km2
-    // over central Tel Aviv. That's genuine information, not a bug to
-    // filter out - but at full strength it reads as foreground noise
-    // burying the basemap and the plan boundaries underneath it, so it's
-    // pushed toward the background instead: still visible, not dominant.
-    fetchXplanImage(bbox, IMAGE_SIZE, [4], showLabels),
+    // Off by default - checked directly against the real site
+    // (ags.iplan.gov.il/xplan): its own layer panel ships with יעודי קרקע
+    // unchecked, and confirmed live (network trace, not guessed) that it
+    // never fetches this layer at all until a user opts in. Matched here
+    // rather than the earlier approach of always showing it dimmed - the
+    // real site doesn't dim it either, it just doesn't default to showing
+    // it, because even with the truly-meaningless 995/996 catch-alls
+    // excluded, land use still includes large area-wide designations (e.g.
+    // a heritage conservation zone spanning several km2) that read as
+    // foreground noise over the basemap unless someone actually asked for
+    // land use specifically.
+    showLandUse ? fetchXplanImage(bbox, IMAGE_SIZE, [4], showLabels) : Promise.resolve(null),
     fetchXplanImage(bbox, IMAGE_SIZE, [1], showLabels),
     // Fetched and drawn separately, always last/topmost - see drawing order
     // below - rather than in the same combined export as layers 1/4, so
@@ -2210,9 +2224,7 @@ async function run(address, radius, showLabels, showPoints, showMetroZone) {
   canvas.height = IMAGE_SIZE;
   const ctx = canvas.getContext('2d');
   ctx.drawImage(basemap, 0, 0);
-  ctx.globalAlpha = 0.45;
-  ctx.drawImage(landUse, 0, 0);
-  ctx.globalAlpha = 1;
+  if (landUse) ctx.drawImage(landUse, 0, 0);
   ctx.drawImage(planBoundaries, 0, 0);
   if (showMetroZone) drawMetroZones(ctx, bbox, IMAGE_SIZE, metroZoneRings);
   if (points) ctx.drawImage(points, 0, 0);
@@ -2263,16 +2275,18 @@ function submitForm() {
   if (!address) return;
   const radius = Number(el('blRadius').value) || DEFAULT_RADIUS;
   const showLabels = el('blShowLabels').checked;
+  const showLandUse = el('blShowLandUse').checked;
   const showPoints = el('blShowPoints').checked;
   const showMetroZone = el('blShowMetroZone').checked;
-  run(address, radius, showLabels, showPoints, showMetroZone).catch((err) => showError(el('blStatus'), err));
+  run(address, radius, showLabels, showLandUse, showPoints, showMetroZone)
+    .catch((err) => showError(el('blStatus'), err));
 }
 
 function start() {
   initThemePicker(el('themePick'));
   el('created').textContent = document.lastModified;
 
-  // A linked search (?address=...&radius=...&labels=1&points=0&metroZone=0)
+  // A linked search (?address=...&radius=...&labels=1&landUse=1&points=0&metroZone=0)
   // prefills the form and runs immediately, so the URL someone shares is the
   // result they saw, not just an empty form - same shape as syncUrl() writes
   // on every search.
@@ -2280,6 +2294,7 @@ function start() {
   el('blAddress').value = urlAddress || '';
   el('blRadius').value = param('radius') || String(DEFAULT_RADIUS);
   el('blShowLabels').checked = param('labels') === '1';
+  el('blShowLandUse').checked = param('landUse') === '1';
   el('blShowPoints').checked = param('points') !== '0';
   el('blShowMetroZone').checked = param('metroZone') !== '0';
 
@@ -2293,7 +2308,7 @@ function start() {
   // someone toggle it and then separately press "הצג מפה" again - only once
   // there's already an address to search for, so this does nothing on first
   // load before any search has run.
-  ['blShowLabels', 'blShowPoints', 'blShowMetroZone'].forEach((id) => {
+  ['blShowLabels', 'blShowLandUse', 'blShowPoints', 'blShowMetroZone'].forEach((id) => {
     el(id).addEventListener('change', () => {
       if (el('blAddress').value.trim()) submitForm();
     });
