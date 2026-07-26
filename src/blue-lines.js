@@ -230,9 +230,19 @@ async function fetchOverlay(bbox, size, showLabels, showPoints) {
     f: 'json',
   });
   if (!showLabels) {
-    params.set('dynamicLayers', JSON.stringify([
-      { id: 1, source: { type: 'mapLayer', mapLayerId: 1 }, drawingInfo: { showLabels: false } },
-    ]));
+    // ArcGIS quirk found while testing this: once dynamicLayers is present
+    // at all, it takes over deciding which layers render - a layer left out
+    // of it stops appearing even though `layers=show:` still lists it (that
+    // was this bug: with only layer 1 in dynamicLayers, layers 4 and 0
+    // silently dropped, so ישויות נקודתיות/יעודי קרקע stopped rendering the
+    // moment labels were turned off - which is by default). Every active
+    // layer needs its own entry here, with drawingInfo only where an
+    // override is actually wanted.
+    params.set('dynamicLayers', JSON.stringify(
+      layers.map((id) => (id === 1
+        ? { id, source: { type: 'mapLayer', mapLayerId: id }, drawingInfo: { showLabels: false } }
+        : { id, source: { type: 'mapLayer', mapLayerId: id } })),
+    ));
   }
   const result = await fetchJson(`${MAPSERVER}/export?${params}`);
   if (!result.href) throw new Error(`בקשת ה-export נכשלה: ${JSON.stringify(result)}`);
@@ -442,6 +452,7 @@ async function run(address, radius, showLabels, showPoints, showMetroZone) {
   const status = el('blStatus');
   const resultBox = el('blResult');
   resultBox.hidden = true;
+  el('blMetro').hidden = true;
   showLoading(status, `מאתר כתובת: ${address}…`);
 
   const { lon, lat, displayName } = await geocode(address);
@@ -473,6 +484,7 @@ async function run(address, radius, showLabels, showPoints, showMetroZone) {
   state.address = address;
 
   const metroBox = el('blMetro');
+  metroBox.hidden = false;
   if (metro.inZone) {
     metroBox.className = 'notice error';
     metroBox.innerHTML = `<strong>הכתובת בתחום ההשפעה של תחנת מטרו</strong>
