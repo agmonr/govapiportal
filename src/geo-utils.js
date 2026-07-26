@@ -1,0 +1,171 @@
+/**
+ * Shared ITM<->WGS84 reprojection and OSM-tile basemap stitching - originally
+ * built for blue-lines.js (see that file's own docstring, steps 2 and 4),
+ * extracted here once area-cleanup.js needed the exact same "draw a basemap
+ * aligned to an ITM bbox, with a pin at its centre" piece. Both pages
+ * genuinely need the identical math (Xplan layers and GovMap's WFS layers
+ * are both ITM-native), not just similar-looking code.
+ */
+
+const GEOMETRY = 'https://ags.iplan.gov.il/arcgisiplan/rest/services/Utilities/Geometry/GeometryServer';
+const OSM_TILE = (z, x, y) => `https://tile.openstreetmap.org/${z}/${x}/${y}.png`;
+
+export const ITM_WKID = 2039;
+export const WGS84_WKID = 4326;
+const MERCATOR_R = 6378137.0;
+const TILE_PX = 256;
+const MAX_ZOOM = 19;
+const MAX_TILES = 64;
+
+function fetchGeoJson(url, opts) {
+  return fetch(url, opts).then((r) => {
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    return r.json();
+  });
+}
+
+/** Points (list of [x,y]) -> the same points in outSR, via iplan's own
+ * GeometryServer - a generic coordinate-transform service, not iplan-
+ * specific data, so reusing it for GovMap layers (area-cleanup.js) is
+ * legitimate, not a layering violation. Beats letting a WFS/MapServer's own
+ * bboxSR reproject a WGS84 bbox itself - that shortcut measurably does NOT
+ * centre an address (a ~40-70m offset, verified directly against this same
+ * Geometry service when this was first built for blue-lines.js). */
+export async function projectPoints(points, inSR, outSR) {
+  const body = new URLSearchParams({
+    geometries: JSON.stringify({
+      geometryType: 'esriGeometryPoint',
+      geometries: points.map(([x, y]) => ({ x, y })),
+    }),
+    inSR: String(inSR),
+    outSR: String(outSR),
+    f: 'json',
+  });
+  const result = await fetchGeoJson(`${GEOMETRY}/project`, { method: 'POST', body });
+  if (!result.geometries) throw new Error(`בקשת ה-project נכשלה: ${JSON.stringify(result)}`);
+  return result.geometries.map((p) => [p.x, p.y]);
+}
+
+export const bboxAround = (x, y, radius) => [x - radius, y - radius, x + radius, y + radius];
+
+/** ITM point -> pixel coords for a size x size image covering `bbox` exactly. */
+export function itmToPx([xmin, ymin, xmax, ymax], size, x, y) {
+  return [(x - xmin) / (xmax - xmin) * size, (ymax - y) / (ymax - ymin) * size];
+}
+
+function lonLatToMercator(lon, lat) {
+  const mx = (lon * Math.PI) / 180 * MERCATOR_R;
+  const my = Math.log(Math.tan(Math.PI / 4 + (lat * Math.PI) / 360)) * MERCATOR_R;
+  return [mx, my];
+}
+
+function mercatorToPixel(mx, my, zoom) {
+  const worldPx = TILE_PX * 2 ** zoom;
+  const px = (mx + Math.PI * MERCATOR_R) / (2 * Math.PI * MERCATOR_R) * worldPx;
+  const py = (Math.PI * MERCATOR_R - my) / (2 * Math.PI * MERCATOR_R) * worldPx;
+  return [px, py];
+}
+
+async function fetchTileBitmap(z, x, y) {
+  const res = await fetch(OSM_TILE(z, x, y));
+  if (!res.ok) throw new Error(`tile ${z}/${x}/${y}: HTTP ${res.status}`);
+  return createImageBitmap(await res.blob());
+}
+
+/** A basemap canvas (size x size), stitched from OSM tiles and aligned to
+ * `bbox` (ITM). */
+export async function fetchBasemapCanvas(bbox, size) {
+  const [xmin, ymin, xmax, ymax] = bbox;
+  const cornersItm = [[xmin, ymin], [xmax, ymin], [xmax, ymax], [xmin, ymax]];
+  const cornersWgs84 = await projectPoints(cornersItm, ITM_WKID, WGS84_WKID);
+  const cornersMerc = cornersWgs84.map(([lon, lat]) => lonLatToMercator(lon, lat));
+
+  const mxs = cornersMerc.map((c) => c[0]);
+  const mercWidth = Math.max(...mxs) - Math.min(...mxs);
+  let zoom = Math.round(Math.log2((2 * Math.PI * MERCATOR_R) / (TILE_PX * mercWidth / size)));
+  zoom = Math.max(0, Math.min(MAX_ZOOM, zoom));
+
+  const pxPts = cornersMerc.map(([mx, my]) => mercatorToPixel(mx, my, zoom));
+  const pxMin = Math.min(...pxPts.map((p) => p[0]));
+  const pxMax = Math.max(...pxPts.map((p) => p[0]));
+  const pyMin = Math.min(...pxPts.map((p) => p[1]));
+  const pyMax = Math.max(...pxPts.map((p) => p[1]));
+
+  const txMin = Math.floor(pxMin / TILE_PX);
+  const txMax = Math.floor(pxMax / TILE_PX);
+  const tyMin = Math.floor(pyMin / TILE_PX);
+  const tyMax = Math.floor(pyMax / TILE_PX);
+  const tiles = [];
+  for (let tx = txMin; tx <= txMax; tx += 1) {
+    for (let ty = tyMin; ty <= tyMax; ty += 1) tiles.push([tx, ty]);
+  }
+  if (tiles.length > MAX_TILES) throw new Error(`רדיוס גדול מדי לבסיס מפה (${tiles.length} אריחים)`);
+
+  const canvas = document.createElement('canvas');
+  canvas.width = (txMax - txMin + 1) * TILE_PX;
+  canvas.height = (tyMax - tyMin + 1) * TILE_PX;
+  const ctx = canvas.getContext('2d');
+
+  // OSM's tile usage policy: no more than 2 simultaneous connections.
+  const queue = tiles.slice();
+  async function worker() {
+    let next;
+    // eslint-disable-next-line no-cond-assign
+    while ((next = queue.shift())) {
+      const [tx, ty] = next;
+      const bmp = await fetchTileBitmap(zoom, tx, ty);
+      ctx.drawImage(bmp, (tx - txMin) * TILE_PX, (ty - tyMin) * TILE_PX);
+    }
+  }
+  await Promise.all([worker(), worker()]);
+
+  const out = document.createElement('canvas');
+  out.width = size;
+  out.height = size;
+  const octx = out.getContext('2d');
+  octx.drawImage(
+    canvas,
+    pxMin - txMin * TILE_PX, pyMin - tyMin * TILE_PX, pxMax - pxMin, pyMax - pyMin,
+    0, 0, size, size,
+  );
+  octx.font = '11px sans-serif';
+  const label = '© OpenStreetMap contributors';
+  const tw = octx.measureText(label).width;
+  octx.fillStyle = 'rgba(255,255,255,0.75)';
+  octx.fillRect(0, size - 16, tw + 8, 16);
+  octx.fillStyle = '#000';
+  octx.fillText(label, 4, size - 4);
+  return out;
+}
+
+/** A map-pin marker at the image centre - the requested address/location, by
+ * construction: bbox is built symmetrically around it (bboxAround), so it
+ * always lands at (size/2, size/2) regardless of radius. Drawn onto the
+ * canvas itself (not as a DOM overlay) so it survives a copy/export of the
+ * canvas too, not just the on-page view. */
+export function drawAddressPin(ctx, size) {
+  const cx = size / 2;
+  const cy = size / 2;
+  const r = 9;
+  const tipY = cy + 6; // point of the pin sits slightly below the circle,
+  // marking the exact address point rather than the circle's own centre.
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(cx - r * 0.85, cy - r * 0.4);
+  ctx.arc(cx, cy - r * 0.4, r, Math.PI, 0, false);
+  ctx.lineTo(cx + r * 0.85, cy - r * 0.4);
+  ctx.lineTo(cx, tipY);
+  ctx.closePath();
+  ctx.fillStyle = '#e0301e';
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 2;
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.arc(cx, cy - r * 0.4, r * 0.4, 0, Math.PI * 2);
+  ctx.fillStyle = '#fff';
+  ctx.fill();
+  ctx.restore();
+}

@@ -151,3 +151,24 @@ export const areaColumnFor = (year) => (YEAR_RESOURCES[year].hasSummary
 export const JURISDICTION_SHEET = 'נתונים כלליים';
 export const JURISDICTION_ROW = 'שטח שיפוט (דונם)  - שנה נוכחית';
 export const JURISDICTION_YEAR = 2024;
+
+/**
+ * ארנונה (property-tax) collection rate split by residential vs. everything
+ * else ("נספח 2 לטופס 1" in the financial report) - confirmed present with
+ * this EXACT row/column spelling in every year this page covers, 2018-2024
+ * AND the legacy local-council-1 years (checked directly: 2018, 2019, 2020,
+ * 2022, 2023 samples), a genuinely wider reach than AREA_SHEET above (which
+ * only starts at 2018 and even then only for the 5 years already noted).
+ *
+ * The two rows ("ארנונה למגורים" / "ארנונה אחרת") each carry their OWN ratio
+ * column already computed by the ministry's own export, unlike the
+ * liabilities ratio elsewhere in this file which is derived here from two
+ * separate figures. "אחרת" ("other") is the source's own umbrella term for
+ * every non-residential property (offices, industry, hotels, banks, etc.) -
+ * checked directly (data.gov.il full-text search) for a finer "עסקית"
+ * (business-only) row and confirmed there isn't one; "אחרת" is as granular
+ * as this data gets.
+ */
+export const ARNONA_COLLECTION_SHEET = 'נספח 2 לטופס 1';
+export const ARNONA_COLLECTION_ROWS = { residential: 'ארנונה למגורים', other: 'ארנונה אחרת' };
+export const ARNONA_COLLECTION_COLUMN = 'יחס גביה ב - % לכלל החיובים';

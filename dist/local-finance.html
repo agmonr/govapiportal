@@ -1739,12 +1739,16 @@ body.accidents-page header.site h1 { inline-size: 100%; }
       <section class="acc-section" id="finAreas" aria-labelledby="areasH" hidden>
         <h2 id="areasH">שטחים לפי ייעוד — הרשות שנבחרה</h2>
         <p class="acc-hint">
-          שטח מגורים/משרדים/תעשיה/בתי מלון/מלאכה מבוסס על "נספח א" בדוח הכספי - קיים לרוב אותן
-          השנים שלרשות יש בהן דוח בכלל, לא פער נוסף משלו. גרף ההתפלגות מציג את השנה העדכנית
-          ביותר שיש בה נתונים; הטבלה שמתחת מציגה את כל השנים הזמינות. שטח השיפוט (בדונם) הוא נתון
-          חד-פעמי שנמצא רק בדוח 2024 - לא מוצג כמגמה, שכן אין נתון מקביל בשנים אחרות להשוואה מולו.
+          אחוז גביית הארנונה (למגורים מול לא-למגורים) ושטח מגורים/משרדים/תעשיה/בתי מלון/מלאכה
+          מבוססים על "נספח 2 לטופס 1" ו"נספח א" בדוח הכספי בהתאמה - קיימים לרוב אותן השנים
+          שלרשות יש בהן דוח בכלל, לא פער נוסף משלהם. "לא למגורים" הוא המונח שהמקור עצמו משתמש
+          בו לכל מה שאינו מגורים (משרדים, תעשייה, מלונות וכו') - אין פירוט נפרד ל"עסקית" בלבד.
+          שני הגרפים מציגים את השנה העדכנית ביותר שיש בה נתונים; הטבלה שמתחת מציגה את כל השנים
+          הזמינות לשטחים. שטח השיפוט (בדונם) הוא נתון חד-פעמי שנמצא רק בדוח 2024 - לא מוצג כמגמה,
+          שכן אין נתון מקביל בשנים אחרות להשוואה מולו.
         </p>
         <p id="finJurisdictionNote" class="acc-hint" dir="auto" hidden></p>
+        <figure id="finChartArnonaCollection" class="acc-chart acc-chart-wide" role="img"></figure>
         <figure id="finChartAreas" class="acc-chart acc-chart-wide" role="img"></figure>
         <details class="acc-hint">
           <summary>שטחים לפי שנה — כל השנים הזמינות</summary>
@@ -2101,6 +2105,27 @@ const areaColumnFor = (year) => (YEAR_RESOURCES[year].hasSummary
 const JURISDICTION_SHEET = 'נתונים כלליים';
 const JURISDICTION_ROW = 'שטח שיפוט (דונם)  - שנה נוכחית';
 const JURISDICTION_YEAR = 2024;
+
+/**
+ * ארנונה (property-tax) collection rate split by residential vs. everything
+ * else ("נספח 2 לטופס 1" in the financial report) - confirmed present with
+ * this EXACT row/column spelling in every year this page covers, 2018-2024
+ * AND the legacy local-council-1 years (checked directly: 2018, 2019, 2020,
+ * 2022, 2023 samples), a genuinely wider reach than AREA_SHEET above (which
+ * only starts at 2018 and even then only for the 5 years already noted).
+ *
+ * The two rows ("ארנונה למגורים" / "ארנונה אחרת") each carry their OWN ratio
+ * column already computed by the ministry's own export, unlike the
+ * liabilities ratio elsewhere in this file which is derived here from two
+ * separate figures. "אחרת" ("other") is the source's own umbrella term for
+ * every non-residential property (offices, industry, hotels, banks, etc.) -
+ * checked directly (data.gov.il full-text search) for a finer "עסקית"
+ * (business-only) row and confirmed there isn't one; "אחרת" is as granular
+ * as this data gets.
+ */
+const ARNONA_COLLECTION_SHEET = 'נספח 2 לטופס 1';
+const ARNONA_COLLECTION_ROWS = { residential: 'ארנונה למגורים', other: 'ארנונה אחרת' };
+const ARNONA_COLLECTION_COLUMN = 'יחס גביה ב - % לכלל החיובים';
 
 /**
  * Shared chart-rendering primitives, used by accidents.js, committees.js,
@@ -2786,6 +2811,14 @@ function tierLabelFor(tier) {
   }[tier];
 }
 
+// Display labels for the two ARNONA_COLLECTION_ROWS keys - kept beside the
+// tier helpers above since both are small shared lookup tables consumed by
+// renderAuthorityCharts below.
+const ARNONA_COLLECTION_LABELS = [
+  { key: 'residential', label: 'למגורים' },
+  { key: 'other', label: 'לא למגורים (עסקים ואחר)' },
+];
+
 /* ---------- KPI tiles - same visual vocabulary as accidents.html's .stat-row ---------- */
 
 async function renderKpis() {
@@ -2988,9 +3021,9 @@ async function fetchAuthorityBundles(authorities) {
     const areaCol = areaColumnFor(year);
     const filters = {
       שם_רשות: authorities.length === 1 ? authorities[0] : authorities,
-      [cfg.sheetField]: ['טופס 2', 'טופס 1 אקטיב', 'טופס 1 פאסיב', AREA_SHEET],
-      שורה: [form2.revenue, form2.expense, balRows.assets, balRows.liabilities, balRows.currentLiabilities, ...AREA_CATEGORIES],
-      עמודה: [form2.column, BALANCE_COLUMN, areaCol],
+      [cfg.sheetField]: ['טופס 2', 'טופס 1 אקטיב', 'טופס 1 פאסיב', AREA_SHEET, ARNONA_COLLECTION_SHEET],
+      שורה: [form2.revenue, form2.expense, balRows.assets, balRows.liabilities, balRows.currentLiabilities, ...AREA_CATEGORIES, ...Object.values(ARNONA_COLLECTION_ROWS)],
+      עמודה: [form2.column, BALANCE_COLUMN, areaCol, ARNONA_COLLECTION_COLUMN],
     };
     if (cfg.yearFilter) filters[cfg.yearFilter.field] = cfg.yearFilter.value;
     try {
@@ -3007,11 +3040,21 @@ async function fetchAuthorityBundles(authorities) {
           const v = rec ? Number(rec['ערך']) : null;
           areas[cat] = Number.isFinite(v) ? v : null;
         }
+        // Ratio column is already a 0-1 fraction in the source - ×100 and
+        // round to 1 decimal, same convention liabRatiosFor uses, so this
+        // chart's numbers read on the same scale as every other % chart here.
+        const arnona = {};
+        for (const [key, row] of Object.entries(ARNONA_COLLECTION_ROWS)) {
+          const rec = own.find((r) => r['שורה'] === row);
+          const v = rec ? Number(rec['ערך']) : null;
+          arnona[key] = Number.isFinite(v) ? Math.round(v * 1000) / 10 : null;
+        }
         byAuthority.set(name, {
           year,
           revenue: val(form2.revenue), expense: val(form2.expense),
           assets: val(balRows.assets), liabilities: val(balRows.liabilities), currentLiabilities: val(balRows.currentLiabilities),
           areas,
+          arnona,
         });
       }
       return byAuthority;
@@ -3275,8 +3318,8 @@ async function renderAuthorityCharts() {
   const comparePoints = compareBundle?.map(({ year, revenue, expense }) => ({ year, revenue, expense })) ?? null;
   const balancePoints = bundle.map(({ year, assets, liabilities, currentLiabilities }) => ({ year, assets, liabilities, currentLiabilities }));
   const compareBalancePoints = compareBundle?.map(({ year, assets, liabilities, currentLiabilities }) => ({ year, assets, liabilities, currentLiabilities })) ?? null;
-  const areaPoints = bundle.map(({ year, areas }) => ({ year, areas }));
-  const compareAreaPoints = compareBundle?.map(({ year, areas }) => ({ year, areas })) ?? null;
+  const areaPoints = bundle.map(({ year, areas, arnona }) => ({ year, areas, arnona }));
+  const compareAreaPoints = compareBundle?.map(({ year, areas, arnona }) => ({ year, areas, arnona })) ?? null;
 
   if (!points.length) {
     el('finChartAuthRevenue').innerHTML = `<p class="acc-hint">לא נמצאו נתוני הכנסות/הוצאות עבור "${esc(state.authority)}" באף שנה זמינה.</p>`;
@@ -3377,6 +3420,26 @@ async function renderAuthorityCharts() {
     // "הרשות שנבחרה" placeholder - matters once a compare authority is set,
     // same reasoning as the chart's own caption below.
     el('areasH').textContent = `שטחים לפי ייעוד — ${state.authority}${compareAreas ? ` / ${compareAreas.name}` : ''}`;
+
+    // אחוז גביית ארנונה, למגורים מול לא-למגורים - shown right before the
+    // land-use areas chart below since both characterize the same physical
+    // tax base and compare the same one-or-two authorities; see
+    // ARNONA_COLLECTION_ROWS in finance-data.js for why "לא למגורים" (not a
+    // finer "עסקית") is as granular as the source data gets.
+    const arnonaEntries = ARNONA_COLLECTION_LABELS.filter((c) => latest.arnona?.[c.key] != null).flatMap((c) => {
+      const cmpValue = compareAreas && compareLatest?.arnona?.[c.key] != null ? compareLatest.arnona[c.key] : null;
+      return [
+        { label: `${state.authority} — ${c.label}`, value: latest.arnona[c.key] },
+        ...(cmpValue != null ? [{ label: `${compareAreas.name} — ${c.label}`, value: cmpValue, compare: true }] : []),
+      ];
+    });
+    if (arnonaEntries.length) {
+      renderHBarChart('finChartArnonaCollection',
+        `אחוז גביית ארנונה — למגורים / לא למגורים, ${latest.year} — ${state.authority}${compareAreas ? ` / ${compareAreas.name}` : ''}`,
+        arnonaEntries, '%');
+    } else {
+      el('finChartArnonaCollection').innerHTML = '';
+    }
 
     const areaEntries = AREA_CATEGORIES.filter((cat) => latest.areas[cat] != null).flatMap((cat) => {
       const cmpValue = compareAreas && compareLatest?.areas[cat] != null ? compareLatest.areas[cat] : null;

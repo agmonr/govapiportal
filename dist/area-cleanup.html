@@ -8,7 +8,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>קווים כחולים — כתובת ← תכניות ומס מטרו</title>
+  <title>מי אחראי על ניקיון האזור?</title>
   <!-- Sets data-theme before the stylesheet is applied, so a returning
        visitor who picked "fashion" never sees a flash of the clouds theme
        first. See src/theme.js for the picker itself. -->
@@ -1548,7 +1548,7 @@ body.accidents-page header.site h1 { inline-size: 100%; }
 <body class="accidents-page blue-lines-page">
   <header class="site">
     <div class="wrap">
-      <h1>קווים כחולים</h1>
+      <h1>מי אחראי על ניקיון האזור?</h1>
       <span class="site-by">פרויקט של רם אגמון<span class="site-disclaimer">המידע באתר עלול להיות שגוי</span></span>
       <div class="theme-pick" id="themePick" role="group" aria-label="ערכת נושא">
         <button type="button" data-theme="clouds">יום</button>
@@ -1565,83 +1565,49 @@ body.accidents-page header.site h1 { inline-size: 100%; }
       <details class="notice info" dir="auto">
         <summary><strong>מה יש כאן</strong></summary>
         <p>
-          מזינים כתובת (או, לחלופין, מספר תכנית - מרכז את המפה סביב שטח התכנית עצמה), ומקבלים: מפה חיה
-          של השכבות התכנוניות של מנהל התכנון (<code dir="ltr">Xplan</code>) —
-          קווים כחולים (גבולות תכניות), ובאופן אופציונלי גם ייעודי קרקע וישויות נקודתיות — על בסיס מפה
-          אמיתי (מבנים ורחובות, OpenStreetMap); בדיקה האם הכתובת נמצאת בתחום ההשפעה של תחנת מטרו מתוכננת
-          (תמ"א 70), הרלוונטי לחיוב בהיטל השבחה מוגבר לפי חוק המטרו ("מס מטרו"); וקובץ PDF להורדה עם המפה
-          וקישורים חיים לדף התכנית המלא של כל תכנית מוצגת באתר מבא"ת.
+          מזינים כתובת, או לוחצים על "המיקום שלי" (באישור הדפדפן), ומקבלים מי אחראי לנקות את האזור -
+          לא תמיד אותו גורם. לניקיון כללי (רחובות, מדרכות, פחי אשפה) אחראית הרשות המקומית עצמה
+          (המוקד העירוני); אבל זיהום או פסולת בתוך נחל או תעלת ניקוז הם באחריות רשות ניקוז ונחלים
+          אזורית נפרדת, לא העירייה - שתי תשובות שונות, שנקבעות לפי המיקום המדויק, לא לפי ניחוש.
         </p>
         <p>
-          רדיוס ברירת המחדל 300 מ' — ניתן להגדיל עד 3,000 מ' כדי לבדוק תחום השפעה רחב יותר של תחנת מטרו.
-          מספרי התכניות וייעודי הקרקע על גבי המפה מוסתרים כברירת מחדל, כמו באתר המקור (יש בהם עומס
-          בקלות במיוחד ייעודי קרקע, שיכולים לכלול אזורי שימור שלמים על פני קילומטרים) — ניתן להציגם
-          דרך תיבות הסימון בטופס. כל הנתונים נשלפים חי מ-iplan (מנהל התכנון) ומ-OpenStreetMap; שום דבר
-          לא מחושב מראש או נשמר באתר.
+          שני הזיהויים מבוססים על שאילתת "האם הנקודה בתוך פוליגון X" חיה מול שכבות פומביות של GovMap
+          (גבולות רשויות מקומיות, ואגני ניקוז) - לא על טבלה סטטית של עיר מול נהר. שיוך אגן ניקוז ספציפי
+          לרשות הניקוז הרשמית האחראית עליו נבדק ישירות (לא נוחש) רק עבור מספר מצומצם של אגנים -
+          ראו את הערת <code dir="ltr">BASIN_TO_AUTHORITY</code> ב-<code dir="ltr">src/area-cleanup.js</code>;
+          אגן שלא אומת מוצג בשמו הגולמי בלבד, עם קישור לאיגוד הארצי.
         </p>
       </details>
 
       <section class="acc-section">
-        <form id="blForm" class="cm-filters">
-          <div class="acc-year-pick" id="blSearchRow" role="radiogroup" aria-label="חיפוש לפי">
-            <label>
-              <input type="radio" name="blSearchMode" id="blModeAddress" value="address" checked>
-              חיפוש לפי כתובת
-            </label>
-            <input id="blAddress" type="text" autocomplete="off" spellcheck="false"
-                   placeholder="למשל: רוטשילד 1, תל אביב">
-            <label>
-              <input type="radio" name="blSearchMode" id="blModePlan" value="plan">
-              חיפוש לפי מספר תכנית
-            </label>
-            <input id="blPlanNumber" type="text" autocomplete="off" spellcheck="false"
-                   placeholder="למשל: 507-0177683" disabled>
-          </div>
+        <form id="acForm" class="cm-filters">
           <div class="acc-year-pick">
-            <label for="blRadius">רדיוס (מטר):</label>
-            <input id="blRadius" type="number" min="100" max="3000" step="50">
+            <input id="acAddress" type="text" autocomplete="off" spellcheck="false"
+                   placeholder="למשל: רוטשילד 1, תל אביב" style="flex:1 1 20rem">
+            <button type="submit" class="drill-dl">בדיקה ⭳</button>
+            <button type="button" id="acMyLocation" class="drill-dl">📍 המיקום שלי</button>
           </div>
-          <div class="acc-year-pick" id="blDisplayOpts">
-            <label for="blShowLabels">
-              <input id="blShowLabels" type="checkbox">
-              מספרי תכניות על המפה
-            </label>
-            <label for="blShowLandUse">
-              <input id="blShowLandUse" type="checkbox">
-              ייעודי קרקע
-            </label>
-            <label for="blShowPoints">
-              <input id="blShowPoints" type="checkbox" checked>
-              ישויות נקודתיות
-            </label>
-            <label for="blShowMetroZone">
-              <input id="blShowMetroZone" type="checkbox" checked>
-              תחום השפעת מטרו (תמ"א 70) על המפה
-            </label>
-          </div>
-          <button type="submit" class="drill-dl">הצג מפה ⭳</button>
         </form>
-        <div id="blStatus" aria-live="polite"></div>
-        <div id="blMetro" class="notice" dir="auto" hidden></div>
+        <div id="acStatus" aria-live="polite"></div>
       </section>
 
-      <section id="blResult" class="acc-section" aria-labelledby="mapH" hidden>
-        <h2 id="mapH">המפה</h2>
+      <section id="acResultWrap" class="acc-section">
+        <div id="acResult" class="notice info" dir="auto" hidden></div>
+      </section>
 
-        <p class="acc-hint">
-          <span id="blPlanCount">0</span> תכניות מוצגות במסגרת הרדיוס שנבחר.
-        </p>
-        <div class="fin-export-row">
-          <button type="button" id="blDownload" class="drill-dl" disabled>הורדת PDF עם קישורים לתכניות ⭳</button>
-        </div>
-        <p class="acc-hint">
-          ה-PDF נבנה בדפדפן ללא שרת ביניים — תמונת המפה כפי שמוצגת למטה, עם קישור לחיץ מעל כל תכנית
-          אל דף התכנית המלא באתר מבא"ת (<code dir="ltr">mavat.iplan.gov.il</code>).
-        </p>
-
+      <section id="acMapWrap" class="acc-section" hidden>
+        <h2>מפה — כ-1 ק"מ סביב המיקום</h2>
+        <p class="acc-hint">בסיס המפה מ-OpenStreetMap; הסימון האדום מציין את המיקום המדויק שנבדק.</p>
         <div class="bl-map-wrap">
-          <canvas id="blCanvas" width="800" height="800"></canvas>
+          <canvas id="acCanvas" width="640" height="640"></canvas>
         </div>
+        <div class="fin-export-row">
+          <button type="button" id="acCopy" class="drill-dl" disabled>העתקת תמונת המפה + מיקום ⧉</button>
+        </div>
+        <p class="acc-hint">
+          מעתיק בבת אחת גם את תמונת המפה וגם טקסט עם הקואורדינטות והתאריך - הדבקה (Ctrl+V) בשדה שמקבל
+          תמונה תדביק את המפה, הדבקה בשדה טקסט תדביק את הקואורדינטות.
+        </p>
       </section>
     </div>
   </main>
@@ -1964,189 +1930,61 @@ function drawAddressPin(ctx, size) {
 }
 
 /**
- * A minimal, hand-rolled single-page PDF writer: one JPEG image filling the
- * page, plus clickable Link annotations over it. No library, no CDN - the
- * one thing this site has never needed until now is genuinely small enough
- * to write by hand: a PDF page is just text-format objects plus one binary
- * stream, and DCTDecode lets a JPEG's own bytes go in as-is, with no need to
- * implement JPEG or Flate compression ourselves.
+ * "מי אחראי על ניקיון האזור?" - a location (browser geolocation or a typed
+ * address) in, the RIGHT body to call out - not always the city.
  *
- * Verified against pypdf (Python) while developing this: image decodes to
- * the exact source pixels, annotation Rects and URIs round-trip exactly,
- * including URLs containing '(', ')' or '\' (escaped per the PDF string
- * spec below).
+ * Two separate, genuinely different bodies can be responsible for the same
+ * spot: the city's own מוקד for ordinary streets/sidewalks/bins, but a
+ * regional רשות ניקוז ונחלים (drainage authority) instead for an actual
+ * river/stream/drainage channel - a citizen calling the city about pollution
+ * IN a stream is calling the wrong number, since the stream itself sits
+ * outside every municipal מוקד's remit by law (חוק הניקוז וההגנה מפני
+ * שיטפונות, תשי"ח-1957). Both answers are looked up from the SAME point via
+ * two independent live point-in-polygon queries - not a static "which city
+ * is near which river" guess.
+ *
+ * Both queries reuse the exact pattern blue-lines.js's checkMetroZone()
+ * already proved out on the same iplan GeometryServer this session: project
+ * the address's WGS84 point into whatever the target layer's own SRS is,
+ * then ask "does any polygon here contain this point" via a live query - no
+ * offline shapefile, no precomputed lookup of coordinates to city/basin.
+ *
+ * Layers, found via GovMap's own public WFS GetCapabilities (no official
+ * doc page links these two together - found this workspace lists both a
+ * municipal-boundary layer AND a drainage-basin layer, confirmed against a
+ * real point: Hod HaSharon's centroid resolves to muni "הוד השרון" AND
+ * Nikuz basin "ירקון", both correct):
+ *   - opendata:muni_il  - כל רשויות ישראל, גבולות שיפוט (Muni_Heb, Sug_Muni)
+ *   - opendata:Nikuz    - אגני ניקוז טבעיים (FNAME) - הבסיס הגאוגרפי לחלוקה
+ *     בין 11 רשויות הניקוז הארציות, אך אינו זהה לה: השכבה עצמה היא
+ *     חלוקה הידרולוגית עדינה (191 אגנים), לא שכבה מנהלית של 11 הרשויות.
+ *     BASIN_TO_AUTHORITY למטה ממפה רק אגנים שנבדקו ישירות (ראו הערה שם) -
+ *     לא ניחוש. אגן שלא מופיע שם מוצג כשמו הגולמי, בלי לשייך אותו לרשות
+ *     בניחוש.
  */
-
-/**
- * @param {Object} args
- * @param {Uint8Array} args.jpegBytes - raw JPEG file bytes (e.g. from canvas.convertToBlob)
- * @param {number} args.width
- * @param {number} args.height
- * @param {{url: string, x0: number, y0: number, x1: number, y1: number}[]} args.links
- *   Rects in the same pixel space as the image, origin top-left - this
- *   function flips to PDF's bottom-up convention internally.
- * @returns {Blob} application/pdf
- */
-function buildPdf({ jpegBytes, width, height, links }) {
-  const chunks = [];
-  let offset = 0;
-  const enc = new TextEncoder();
-
-  const push = (bytes) => { chunks.push(bytes); offset += bytes.length; };
-  const pushText = (s) => push(enc.encode(s));
-
-  const offsets = [];
-  const beginObj = (n) => { offsets[n] = offset; pushText(`${n} 0 obj\n`); };
-  const endObj = () => pushText('endobj\n');
-
-  const nAnnots = links.length;
-  // Object numbering: 1 catalog, 2 pages, 3 page, 4 image, 5 content stream,
-  // 6..(5+nAnnots) link annotations.
-  const annotRefs = links.map((_, i) => `${6 + i} 0 R`).join(' ');
-
-  pushText('%PDF-1.4\n');
-
-  beginObj(1);
-  pushText('<< /Type /Catalog /Pages 2 0 R >>\n');
-  endObj();
-
-  beginObj(2);
-  pushText('<< /Type /Pages /Kids [3 0 R] /Count 1 >>\n');
-  endObj();
-
-  beginObj(3);
-  pushText(
-    `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${width} ${height}] `
-    + `/Resources << /XObject << /Im0 4 0 R >> >> /Contents 5 0 R `
-    + `/Annots [ ${annotRefs} ] >>\n`,
-  );
-  endObj();
-
-  beginObj(4);
-  pushText(
-    `<< /Type /XObject /Subtype /Image /Width ${width} /Height ${height} `
-    + `/ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpegBytes.length} >>\nstream\n`,
-  );
-  push(jpegBytes);
-  pushText('\nendstream\n');
-  endObj();
-
-  // cm scales the default 1x1 image space to the full page, positioned at
-  // the origin - the standard "one image, whole page" content stream.
-  const content = `q\n${width} 0 0 ${height} 0 0 cm\n/Im0 Do\nQ\n`;
-  beginObj(5);
-  pushText(`<< /Length ${enc.encode(content).length} >>\nstream\n${content}endstream\n`);
-  endObj();
-
-  links.forEach((link, i) => {
-    beginObj(6 + i);
-    // PDF literal-string escaping: backslash and parens are the only
-    // characters that must be escaped for a URI to round-trip safely.
-    const uri = link.url.replace(/[()\\]/g, (c) => `\\${c}`);
-    // PDF y is bottom-up; the caller's rect is in top-down pixel space.
-    const y0 = height - link.y1;
-    const y1 = height - link.y0;
-    pushText(
-      `<< /Type /Annot /Subtype /Link /Rect [${link.x0.toFixed(2)} ${y0.toFixed(2)} `
-      + `${link.x1.toFixed(2)} ${y1.toFixed(2)}] /Border [0 0 0] `
-      + `/A << /Type /Action /S /URI /URI (${uri}) >> >>\n`,
-    );
-    endObj();
-  });
-
-  const xrefStart = offset;
-  const totalObjs = 5 + nAnnots;
-  pushText(`xref\n0 ${totalObjs + 1}\n`);
-  pushText('0000000000 65535 f \n');
-  for (let i = 1; i <= totalObjs; i++) {
-    pushText(`${String(offsets[i]).padStart(10, '0')} 00000 n \n`);
-  }
-  pushText(`trailer\n<< /Size ${totalObjs + 1} /Root 1 0 R >>\nstartxref\n${xrefStart}\n%%EOF`);
-
-  return new Blob(chunks, { type: 'application/pdf' });
-}
-
-/**
- * קווים כחולים - address in, live-linked plans PDF out.
- *
- * Browser port of tools/iplan_snapshot.py's pipeline (see that file's own
- * docstring for the full reasoning behind each step - summarised here):
- *
- *   1. Locate the centre point - either geocode an address (OSM Nominatim),
- *      or look up a plan by its exact number (fetchPlanCenter) and use its
- *      own extent, sized to fit it.
- *   2. Project WGS84 -> the Xplan MapServer's native ITM (EPSG:2039) via
- *      iplan's own Utilities/Geometry service, rather than letting /export
- *      reproject a WGS84 bbox itself - that shortcut measurably does NOT
- *      centre the address (a ~40-70m offset, verified against this same
- *      Geometry service). Build the bbox directly in ITM metres.
- *   3. Export layer 1 (קווים כחולים, plan boundaries) and, if opted in via
- *      checkbox, layer 0 (ישויות נקודתיות, point entities) and layer 4
- *      (יעודי קרקע, land use - off by default, matching the real site's own
- *      layer panel and confirmed live via its network traffic: it never
- *      fetches this layer until a user opts in). When land use is shown, two
- *      catch-all/regional codes are still excluded (see
- *      EXCLUDE_LANDUSE_CODES) so it isn't buried under one giant background
- *      hatch even then, and it's drawn at reduced opacity
- *      (LAND_USE_OPACITY) - even a single legitimate polygon can span
- *      several km2 (a heritage conservation zone, say) and at full strength
- *      reads as foreground noise over the basemap/boundaries.
- *   4. Stitch a real basemap (buildings/streets) from OSM's standard raster
- *      tiles - iplan's MapServer has none of its own - aligned by projecting
- *      the bbox's own corners ITM->WGS84 through the same trusted Geometry
- *      service, then to Web Mercator with the exact formula OSM tiles use.
- *   5. Check whether the centre point falls inside a metro station's core/first-
- *      ring influence zone (תמ"א 70, layer 4, MAVAT_CODE 6011/6012) - the
- *      area subject to the increased betterment levy ("מס מטרו") under the
- *      Metro Law. See METRO_ZONE_CODES below for how this was found and
- *      verified. Optionally drawn on the map too (fetchMetroZoneShapes).
- *   6. Build a one-page PDF (src/pdf.js - hand-rolled, no library) with a
- *      clickable Link annotation over every visible plan, pointing at its
- *      real page on mavat.iplan.gov.il (pl_url) - same fix as the Python
- *      tool's build_pdf(): each ring is traced as a sequence of small rects,
- *      not one bbox per plan, or an elongated/whole-district plan's box
- *      would swallow most of the page and every overlapping click would
- *      resolve to it.
- *
- * No CDN dependency, matching the rest of this site - OSM tiles and the
- * iplan/GovMap APIs are fetched directly, and the PDF is written by hand.
- */
-
 
 
 
 const NOMINATIM = 'https://nominatim.openstreetmap.org/search';
-const MAPSERVER = 'https://ags.iplan.gov.il/arcgisiplan/rest/services/PlanningPublic/Xplan/MapServer';
-// תמ"א 70 (Metro master plan) - see METRO_ZONE_CODES below.
-const METRO_MAPSERVER = 'https://ags.iplan.gov.il/arcgisiplan/rest/services/PlanningPublic/tma_70/MapServer';
+const GOVMAP_WFS = 'https://open.govmap.gov.il/geoserver/opendata/wfs';
+const MAP_RADIUS = 500; // metres - "1 ק"מ סביב" means ±500m from centre, a 1km-wide box
+const MAP_SIZE = 640;
 
-const DEFAULT_RADIUS = 300;
-const IMAGE_SIZE = 800;
-const LAND_USE_OPACITY = 0.3;
-
-// The three layers checked by default in iplan's own layer panel.
-const LAYERS = [1, 4, 0];
-
-// יעוד עפ"י תכנית מאושרת אחרת / מגבלות בניה ופיתוח - catch-all/regional
-// land-use codes whose polygons can be enormous (one traced back to National
-// Master Plan 60, ~29km across), burying the actually-local parcels under a
-// full-frame hatch. Same finding as tools/iplan_snapshot.py's
-// EXCLUDE_LANDUSE_CODES.
-const EXCLUDE_LANDUSE_CODES = [995, 996];
-
-// tma_70 layer 4 (ישויות פוליגונליות), MAVAT_CODE values for the two rings
-// that make up a metro station's influence area under the Metro Law
-// (רכבת תחתית (מטרו), תשפ"ב-2021): 6012 "מרחב ליבה" (core) and 6011 "תחום
-// טבעת ראשונה" (first ring) - together the area subject to the increased
-// betterment levy near a station, colloquially "מס מטרו". Found by querying
-// every MAVAT_CODE actually present on that layer (312 features total: 105
-// core-zone + 103 first-ring + 73 "תחום חיפוש למעבר ציבורי" + 31 "הנחיות
-// מיוחדות") and confirmed with a live point-in-polygon test against a known
-// core-zone centroid. A third code, 20440 "תחום השפעה", appears in the
-// service's legend/renderer but has zero features - not used here.
-const METRO_ZONE_CODES = [6011, 6012];
-
-const state = { bbox: null, planLinks: [], label: '' };
+/** NOT the full ~191-basin national catalogue - just the basins this app has
+ * actually needed to resolve so far, each checked directly rather than
+ * assumed: ירקון/קישון are the basin's own name matching the authority's
+ * name exactly (both officially named after that exact river); בשור/שקמה/
+ * אבטח are confirmed from רשות ניקוז שקמה-בשור's own site, which lists all
+ * three as rivers under its jurisdiction. A basin missing here still gets an
+ * honest answer (its raw name, no authority guess) rather than blocking the
+ * feature on a complete table that doesn't exist anywhere as one source. */
+const BASIN_TO_AUTHORITY = {
+  ירקון: 'רשות ניקוז ונחלים ירקון',
+  קישון: 'רשות ניקוז קישון',
+  בשור: 'רשות ניקוז ונחלים שקמה-בשור',
+  שקמה: 'רשות ניקוז ונחלים שקמה-בשור',
+  אבטח: 'רשות ניקוז ונחלים שקמה-בשור',
+};
 
 function fetchJson(url, opts) {
   return fetch(url, opts).then((r) => {
@@ -2163,460 +2001,187 @@ async function geocode(address) {
   return { lon: Number(r.lon), lat: Number(r.lat), displayName: r.display_name };
 }
 
-/** One iplan Xplan export (whichever `layerIds` are given), transparent, as
- * an ImageBitmap. `showLabels` controls layer 1's own plan-number boxes
- * (e.g. "507-0220277") - off by default: even at a modest radius there can
- * be dozens of plans, and the labels alone cover most of the map, obscuring
- * the actual boundary lines/basemap underneath.
- *
- * Always goes through dynamicLayers, never the top-level layerDefs param,
- * for both label suppression and the land-use exclusion below - found the
- * hard way, twice. ArcGIS quirk: once dynamicLayers is present at all, it
- * takes over deciding both which layers render AND their filtering - a
- * layer left out of it stops appearing even though `layers=show:` still
- * lists it (bug #1: with only layer 1 in dynamicLayers, layer 4 silently
- * dropped when this fetched everything in one call), and the *separate*
- * top-level layerDefs stops being applied to any layer that IS in
- * dynamicLayers (bug #2: layer 4's EXCLUDE_LANDUSE_CODES filter silently
- * stopped applying the moment dynamicLayers existed for any reason - i.e.
- * always, since labels are off by default - so the giant background hatch
- * this project already fixed once, in tools/iplan_snapshot.py, came right
- * back here under a different trigger). Every layer passed in gets its own
- * dynamicLayers entry unconditionally, with definitionExpression/drawingInfo
- * set directly on it rather than split across two parameters that turn out
- * not to compose. */
-async function fetchXplanImage(bbox, size, layerIds, showLabels) {
-  const dynamicLayers = layerIds.map((id) => {
-    const layer = { id, source: { type: 'mapLayer', mapLayerId: id } };
-    if (id === 4) layer.definitionExpression = `mavat_code NOT IN (${EXCLUDE_LANDUSE_CODES.join(',')})`;
-    if (id === 1) layer.drawingInfo = { showLabels };
-    return layer;
+/** Browser geolocation, wrapped as a promise - see module docstring for why
+ * this is one of two ways in (the other being a typed address via geocode
+ * above), both landing on the exact same WGS84-point-in downstream logic. */
+function getBrowserLocation() {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) { reject(new Error('הדפדפן אינו תומך במיקום גאוגרפי.')); return; }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => resolve({ lon: pos.coords.longitude, lat: pos.coords.latitude }),
+      (err) => reject(new Error(`לא ניתן היה לקבל את המיקום: ${err.message}`)),
+      { enableHighAccuracy: true, timeout: 10000 },
+    );
   });
+}
+
+/** Every feature of `typeName` whose polygon contains (x,y) in ITM - same
+ * "does a polygon here contain this point" shape as blue-lines.js's
+ * checkMetroZone(), just against GovMap's WFS instead of iplan's MapServer. */
+async function pointInPolygon(typeName, x, y, propertyNames) {
   const params = new URLSearchParams({
-    bbox: bbox.map((v) => v.toFixed(3)).join(','),
-    bboxSR: String(ITM_WKID),
-    size: `${size},${size}`,
-    layers: `show:${layerIds.join(',')}`,
-    dynamicLayers: JSON.stringify(dynamicLayers),
-    format: 'png32',
-    transparent: 'true',
-    f: 'json',
+    service: 'WFS', version: '2.0.0', request: 'GetFeature',
+    typeName, outputFormat: 'application/json',
+    propertyName: propertyNames.join(','),
+    CQL_FILTER: `INTERSECTS(the_geom, POINT(${x} ${y}))`,
   });
-  const result = await fetchJson(`${MAPSERVER}/export?${params}`);
-  if (!result.href) throw new Error(`בקשת ה-export נכשלה: ${JSON.stringify(result)}`);
-  const res = await fetch(result.href);
-  return createImageBitmap(await res.blob());
+  const result = await fetchJson(`${GOVMAP_WFS}?${params}`);
+  return (result.features || []).map((f) => f.properties);
 }
 
-/** Whether (x,y) in ITM falls inside a metro station's core/first-ring
- * influence zone - see METRO_ZONE_CODES above. */
-async function checkMetroZone(x, y) {
-  const params = new URLSearchParams({
-    geometry: `${x},${y}`,
-    geometryType: 'esriGeometryPoint',
-    inSR: String(ITM_WKID),
-    spatialRel: 'esriSpatialRelIntersects',
-    where: `MAVAT_CODE IN (${METRO_ZONE_CODES.join(',')})`,
-    outFields: 'MAVAT_CODE,MAVAT_NAME',
-    returnGeometry: 'false',
-    f: 'json',
-  });
-  const result = await fetchJson(`${METRO_MAPSERVER}/4/query?${params}`);
-  const feats = result.features || [];
-  return { inZone: feats.length > 0, zones: feats.map((f) => f.attributes.MAVAT_NAME) };
-}
-
-/** Core/first-ring metro zone polygons intersecting `bbox` (not just the
- * address point), for drawing the actual zone shape on the map - opt-in via
- * a checkbox, since checkMetroZone() above already answers the yes/no
- * question this app exists to answer without needing the geometry at all. */
-async function fetchMetroZoneShapes(bbox) {
-  const params = new URLSearchParams({
-    where: `MAVAT_CODE IN (${METRO_ZONE_CODES.join(',')})`,
-    geometry: bbox.map((v) => v.toFixed(3)).join(','),
-    geometryType: 'esriGeometryEnvelope',
-    inSR: String(ITM_WKID),
-    outFields: 'MAVAT_CODE',
-    returnGeometry: 'true',
-    geometryPrecision: '1',
-    f: 'json',
-  });
-  const result = await fetchJson(`${METRO_MAPSERVER}/4/query?${params}`);
-  return (result.features || []).map((f) => f.geometry?.rings || []).flat();
-}
-
-/** Draws metro-zone rings (already ITM) onto the canvas, in the same
- * itmToPx pixel space as everything else composited there. */
-function drawMetroZones(ctx, bbox, size, rings) {
-  ctx.save();
-  ctx.fillStyle = 'rgba(224, 48, 30, 0.16)';
-  ctx.strokeStyle = 'rgba(180, 30, 15, 0.9)';
-  ctx.lineWidth = 2;
-  for (const ring of rings) {
-    ctx.beginPath();
-    ring.forEach(([x, y], i) => {
-      const [px, py] = itmToPx(bbox, size, x, y);
-      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
-    });
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-  }
-  ctx.restore();
-}
-
-/** Every plan (layer 1) intersecting bbox, with its pl_url - see module
- * docstring step 6 / tools/iplan_snapshot.py's fetch_plan_links(). */
-async function fetchPlanLinks(bbox) {
-  const params = new URLSearchParams({
-    where: '1=1',
-    geometry: bbox.map((v) => v.toFixed(3)).join(','),
-    geometryType: 'esriGeometryEnvelope',
-    inSR: String(ITM_WKID),
-    outFields: 'pl_number,pl_url',
-    returnGeometry: 'true',
-    geometryPrecision: '1',
-    f: 'json',
-  });
-  const result = await fetchJson(`${MAPSERVER}/1/query?${params}`);
-  return (result.features || [])
-    .filter((f) => f.attributes.pl_url && f.geometry?.rings)
-    .map((f) => ({ url: f.attributes.pl_url, rings: f.geometry.rings }));
-}
-
-/** Looks up a plan by its exact pl_number (layer 1) and returns its centre
- * (ITM), a display name, and a radius sized to fit the plan's own extent -
- * so "search by plan" lands on the plan itself rather than an arbitrary
- * default-radius box that might not even overlap it. Two lightweight
- * queries (attributes, extent) rather than one fetch of the full geometry -
- * a plan's boundary can run to thousands of vertices (see
- * tools/iplan_snapshot.py's build_pdf() docstring) and none of them are
- * needed just to centre and size the view. */
-async function fetchPlanCenter(planNumber) {
-  const where = `pl_number='${planNumber.replace(/'/g, "''")}'`;
-  const [attrs, extentResult] = await Promise.all([
-    fetchJson(`${MAPSERVER}/1/query?${new URLSearchParams({
-      where, outFields: 'pl_number,pl_name', returnGeometry: 'false', f: 'json',
-    })}`),
-    fetchJson(`${MAPSERVER}/1/query?${new URLSearchParams({
-      where, returnGeometry: 'false', returnExtentOnly: 'true', f: 'json',
-    })}`),
+async function lookup(lon, lat) {
+  const [[x, y]] = await projectPoints([[lon, lat]], WGS84_WKID, ITM_WKID);
+  const [munis, basins] = await Promise.all([
+    pointInPolygon('opendata:muni_il', x, y, ['Muni_Heb', 'Sug_Muni']),
+    pointInPolygon('opendata:Nikuz', x, y, ['FNAME']),
   ]);
-  const feat = attrs.features && attrs.features[0];
-  const extent = extentResult.extent;
-  if (!feat || !extent) throw new Error(`לא נמצאה תכנית "${planNumber}"`);
-
-  const { xmin, ymin, xmax, ymax } = extent;
-  const x = (xmin + xmax) / 2;
-  const y = (ymin + ymax) / 2;
-  // Half the plan's longer side, padded 30% for margin around it, clamped
-  // to the radius field's own min/max (100-3000) so neither a tiny plan nor
-  // a whole-district one produces a degenerate or absurd request.
-  const half = Math.max(xmax - xmin, ymax - ymin) / 2;
-  const radius = Math.min(3000, Math.max(100, Math.round(half * 1.3)));
-
-  return { x, y, radius, displayName: `${feat.attributes.pl_name || planNumber} (${feat.attributes.pl_number})` };
+  return {
+    muni: munis[0] || null, basin: basins[0]?.FNAME || null, itmX: x, itmY: y,
+  };
 }
 
-/**
- * Traces `points` (already in output pixel space) as a sequence of small
- * rects, each grown until adding the next point would push it past
- * MAX_CHUNK_PX on a side, then restarted from that same point so
- * consecutive chunks touch rather than gap. See tools/iplan_snapshot.py's
- * build_pdf() docstring: one bbox per whole ring (let alone per whole,
- * possibly multi-ring plan) let an elongated or whole-district plan's
- * boundary produce a rect spanning the entire page, so every overlapping
- * click resolved to the same plan. Chunking in output pixels rather than by
- * a fixed vertex count is what actually fixes it - a sparsely-vertexed long
- * boundary stretch (no denser than an ordinary plan's, just covering more
- * ground per vertex) still failed under vertex-count chunking.
- */
-const MAX_CHUNK_PX = 200;
-function* traceRing(points) {
-  if (points.length < 2) return;
-  let prev = points[0];
-  let [cx0, cy0, cx1, cy1] = [prev[0], prev[1], prev[0], prev[1]];
-  let hasChunk = false;
-  for (let i = 1; i < points.length; i += 1) {
-    const [x, y] = points[i];
-    const nx0 = Math.min(cx0, x); const ny0 = Math.min(cy0, y);
-    const nx1 = Math.max(cx1, x); const ny1 = Math.max(cy1, y);
-    if (hasChunk && (nx1 - nx0 > MAX_CHUNK_PX || ny1 - ny0 > MAX_CHUNK_PX)) {
-      yield [cx0, cy0, cx1, cy1];
-      cx0 = Math.min(prev[0], x); cy0 = Math.min(prev[1], y);
-      cx1 = Math.max(prev[0], x); cy1 = Math.max(prev[1], y);
-    } else {
-      [cx0, cy0, cx1, cy1] = [nx0, ny0, nx1, ny1];
-    }
-    hasChunk = true;
-    prev = [x, y];
-  }
-  if (hasChunk) yield [cx0, cy0, cx1, cy1];
-}
+/** A ready-made Google search link for `query` - same "don't make someone
+ * retype it" convention blue-lines.js's own aiUrl already uses for its תמ"א
+ * 70 explainer link. */
+const googleSearch = (query) => `https://www.google.com/search?q=${encodeURIComponent(query)}`;
+const googleLink = (query, label) => `<a href="${esc(googleSearch(query))}" target="_blank" rel="noopener">${esc(label)} ↗</a>`;
 
-function planLinkRects(planLinks, bbox, size) {
-  const rects = [];
-  for (const plan of planLinks) {
-    for (const ring of plan.rings) {
-      const points = ring.map(([x, y]) => itmToPx(bbox, size, x, y));
-      for (const [x0, y0, x1, y1] of traceRing(points)) {
-        const cx0 = Math.max(x0, 0); const cy0 = Math.max(y0, 0);
-        const cx1 = Math.min(x1, size); const cy1 = Math.min(y1, size);
-        if (cx1 > cx0 && cy1 > cy0) rects.push({ url: plan.url, x0: cx0, y0: cy0, x1: cx1, y1: cy1 });
-      }
-    }
-  }
-  // Larger rects first, smaller/more-precise ones last, so a canvas drawn
-  // in this order (and a PDF whose viewer resolves overlapping clicks to
-  // the last-added annotation) both favour the fine-grained one.
-  rects.sort((a, b) => ((b.x1 - b.x0) * (b.y1 - b.y0)) - ((a.x1 - a.x0) * (a.y1 - a.y0)));
-  return rects;
-}
+function renderResult(displayName, { muni, basin }) {
+  const box = el('acResult');
+  const munLine = muni
+    ? `<p><strong>לניקיון כללי</strong> (רחובות, מדרכות, פחי אשפה) — פנו למוקד העירוני של <strong>${esc(muni.Muni_Heb)}</strong> (${esc(muni.Sug_Muni)}).
+       ${googleLink(`${muni.Muni_Heb} מוקד`, 'חיפוש המוקד העירוני')}</p>`
+    : '<p><strong>לניקיון כללי</strong> — לא זוהתה רשות מקומית עבור נקודה זו (ייתכן ומחוץ לתחום שיפוט מוניציפלי, למשל שטח פתוח/מדינה).</p>';
 
-function canvasToJpeg(canvas, quality = 0.85) {
-  return new Promise((resolve) => canvas.toBlob((blob) => resolve(blob), 'image/jpeg', quality));
-}
-
-function downloadBlob(blob, name) {
-  const href = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = href;
-  a.download = name;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(href), 10000);
-}
-
-function safeFilename(label) {
-  return label.replace(/[^\p{L}\p{N}]+/gu, '_').replace(/^_+|_+$/g, '').slice(0, 60) || 'blue-lines';
-}
-
-/** Puts the current search in the URL (?address=...&radius=...&labels=1, or
- * ?mode=plan&plan=...) via replaceState - no new history entry per search,
- * but the address bar is a link someone can copy, bookmark or send, and
- * reloading it re-runs the same search (see start()). radius/labels are
- * only added when they differ from the default, so a plain address search
- * keeps a plain, short URL. */
-function syncUrl(query, radius, showLabels, showLandUse, showPoints, showMetroZone) {
-  const params = new URLSearchParams();
-  if (query.mode === 'plan') {
-    params.set('mode', 'plan');
-    params.set('plan', query.value);
+  let riverLine;
+  if (!basin) {
+    riverLine = '<p><strong>לזיהום/פסולת בנחל או בתעלת ניקוז</strong> — לא זוהה אגן ניקוז עבור נקודה זו.</p>';
   } else {
-    params.set('address', query.value);
+    const authority = BASIN_TO_AUTHORITY[basin];
+    riverLine = authority
+      ? `<p><strong>לזיהום/פסולת בנחל או בתעלת ניקוז</strong> — האחראי/ת הוא/י <strong>${esc(authority)}</strong> (אגן ניקוז: ${esc(basin)}), לא העירייה.
+         ${googleLink(`${authority} פרטי קשר`, 'חיפוש פרטי קשר')}</p>`
+      : `<p><strong>לזיהום/פסולת בנחל או בתעלת ניקוז</strong> — נקודה זו נמצאת באגן ניקוז "${esc(basin)}", אך הרשות האחראית עבור אגן זה לא אומתה כאן. ראו את
+         <a href="https://dsda.org.il/" target="_blank" rel="noopener">רשימת רשויות הניקוז הארציות ↗</a> לזיהוי הרשות הרלוונטית,
+         או ${googleLink(`רשות ניקוז ${basin}`, 'חיפוש לפי שם האגן')}.</p>`;
   }
-  if (radius !== DEFAULT_RADIUS) params.set('radius', String(radius));
-  if (showLabels) params.set('labels', '1');
-  if (showLandUse) params.set('landUse', '1');
-  if (!showPoints) params.set('points', '0');
-  if (!showMetroZone) params.set('metroZone', '0');
-  history.replaceState(null, '', `?${params}`);
+
+  box.innerHTML = `
+    <p class="acc-hint">מיקום: ${esc(displayName)}</p>
+    ${munLine}
+    ${riverLine}
+    <p class="acc-hint">
+      זיהוי הרשות מבוסס על גבולות שיפוט/אגני ניקוז פומביים (GovMap) - בדקו מול הרשות עצמה לפני פנייה אם יש ספק.
+    </p>`;
+  box.hidden = false;
 }
 
-/** @param {{mode: 'address'|'plan', value: string}} query */
-async function run(query, radius, showLabels, showLandUse, showPoints, showMetroZone) {
-  const status = el('blStatus');
-  const resultBox = el('blResult');
-  resultBox.hidden = true;
-  el('blMetro').hidden = true;
+// Holds what the last successful lookup found - only what copyResult() needs
+// to build its text (lat/lon/timestamp), not a full re-derivation of the
+// render above it.
+const state = { lat: null, lon: null, displayName: '' };
 
-  let x;
-  let y;
-  let displayName;
-  if (query.mode === 'plan') {
-    showLoading(status, `מאתר תכנית: ${query.value}…`);
-    const found = await fetchPlanCenter(query.value);
-    ({ x, y, displayName } = found);
-    radius = found.radius; // sized to the plan's own extent - see fetchPlanCenter
-    el('blRadius').value = String(radius); // reflect it in the form, not just silently used
-    showLoading(status, `נמצאה: ${displayName} — מטיל מפה...`);
-  } else {
-    showLoading(status, `מאתר כתובת: ${query.value}…`);
-    const geo = await geocode(query.value);
-    displayName = geo.displayName;
-    showLoading(status, `נמצא: ${displayName} — מטיל מפה...`);
-    [[x, y]] = await projectPoints([[geo.lon, geo.lat]], WGS84_WKID, ITM_WKID);
-  }
-
-  syncUrl(query, radius, showLabels, showLandUse, showPoints, showMetroZone);
-  const bbox = bboxAround(x, y, radius);
-
-  showLoading(status, 'שולף שכבות תכנוניות ובסיס מפה...');
-  const [landUse, planBoundaries, points, basemap, metro, planLinks, metroZoneRings] = await Promise.all([
-    // Off by default - checked directly against the real site
-    // (ags.iplan.gov.il/xplan): its own layer panel ships with יעודי קרקע
-    // unchecked, and confirmed live (network trace, not guessed) that it
-    // never fetches this layer at all until a user opts in. Matched here
-    // rather than the earlier approach of always showing it dimmed - the
-    // real site doesn't dim it either, it just doesn't default to showing
-    // it, because even with the truly-meaningless 995/996 catch-alls
-    // excluded, land use still includes large area-wide designations (e.g.
-    // a heritage conservation zone spanning several km2) that read as
-    // foreground noise over the basemap unless someone actually asked for
-    // land use specifically.
-    showLandUse ? fetchXplanImage(bbox, IMAGE_SIZE, [4], showLabels) : Promise.resolve(null),
-    fetchXplanImage(bbox, IMAGE_SIZE, [1], showLabels),
-    // Fetched and drawn separately, always last/topmost - see drawing order
-    // below - rather than in the same combined export as layers 1/4, so
-    // point markers stay visible above every other overlay (metro zone
-    // included), not just above the export's own internal layer order.
-    showPoints ? fetchXplanImage(bbox, IMAGE_SIZE, [0], showLabels) : Promise.resolve(null),
-    fetchBasemapCanvas(bbox, IMAGE_SIZE),
-    checkMetroZone(x, y),
-    fetchPlanLinks(bbox),
-    showMetroZone ? fetchMetroZoneShapes(bbox) : Promise.resolve([]),
-  ]);
-
-  const canvas = el('blCanvas');
-  canvas.width = IMAGE_SIZE;
-  canvas.height = IMAGE_SIZE;
+/** Draws the OSM basemap (±MAP_RADIUS around the point, MAP_SIZE px square)
+ * with a pin at centre - same fetchBasemapCanvas/drawAddressPin blue-lines.js
+ * uses, just a plain always-1km view here rather than a user-adjustable
+ * radius, since this app's own question ("who do I call") doesn't need one. */
+async function renderMap(itmX, itmY) {
+  const canvasWrap = el('acMapWrap');
+  canvasWrap.hidden = false;
+  const bbox = bboxAround(itmX, itmY, MAP_RADIUS);
+  const basemap = await fetchBasemapCanvas(bbox, MAP_SIZE);
+  const canvas = el('acCanvas');
+  canvas.width = MAP_SIZE;
+  canvas.height = MAP_SIZE;
   const ctx = canvas.getContext('2d');
   ctx.drawImage(basemap, 0, 0);
-  if (landUse) {
-    // Shown at reduced opacity when opted in - the real site renders it at
-    // full strength, but even a single land-use polygon can span several
-    // km2 (a heritage conservation zone, say), and at full strength that
-    // reads as foreground noise burying the basemap/boundaries under it.
-    ctx.globalAlpha = LAND_USE_OPACITY;
-    ctx.drawImage(landUse, 0, 0);
-    ctx.globalAlpha = 1;
-  }
-  ctx.drawImage(planBoundaries, 0, 0);
-  if (showMetroZone) drawMetroZones(ctx, bbox, IMAGE_SIZE, metroZoneRings);
-  if (points) ctx.drawImage(points, 0, 0);
-  drawAddressPin(ctx, IMAGE_SIZE);
+  drawAddressPin(ctx, MAP_SIZE);
+  el('acCopy').disabled = false;
+}
 
-  state.bbox = bbox;
-  state.planLinks = planLinks;
-  state.label = displayName;
-
-  const subject = query.mode === 'plan' ? 'התכנית' : 'הכתובת';
-  const metroBox = el('blMetro');
-  metroBox.hidden = false;
-  if (metro.inZone) {
-    metroBox.className = 'notice error';
-    // A ready-made search query, not a bare "תמ"א 70" link - names the
-    // actual address/plan so the results (and Google's AI tab, which reads
-    // the query itself) address this specific location, not the plan in
-    // the abstract.
-    const aiQuery = `הסבר בקצרה על תמ"א 70, הסבר את ההשפעות על ${displayName}. `
-      + 'הסבר על ההשפעות הכלכליות הצפויות בכתובת. '
-      + 'הסבר בקצרה כיצד תמ"א 70 גוברת על תוכנית המתאר המאושרת באזור';
-    const aiUrl = `https://www.google.com/search?q=${encodeURIComponent(aiQuery)}`;
-    metroBox.innerHTML = `<strong>${esc(subject)} בתחום ההשפעה של תחנת מטרו</strong>
-      (${esc(metro.zones.join(', '))}) — לפי חוק המטרו, בעלי נכסים באזור זה
-      עשויים לחוב בהיטל השבחה מוגבר ("מס מטרו").
-      <p class="acc-hint">
-        <a href="${esc(aiUrl)}" target="_blank" rel="noopener">הסבר על תמ"א 70 ועל ההשפעה כאן ↗</a>
-        — בתוצאות החיפוש של Google, לחצו על הלשונית <strong>AI</strong> לקבלת סיכום.
-      </p>`;
-  } else {
-    metroBox.className = 'notice info';
-    metroBox.textContent = `${subject} מחוץ לתחום ההשפעה הידוע של תחנות מטרו (תמ״א 70).`;
-  }
-
-  el('blPlanCount').textContent = String(planLinks.length);
-  el('blDownload').disabled = false;
+async function runFor(lon, lat, displayName) {
+  const status = el('acStatus');
+  el('acResult').hidden = true;
+  el('acMapWrap').hidden = true;
+  el('acCopy').disabled = true;
+  showLoading(status, 'בודק אחריות...');
+  const result = await lookup(lon, lat);
   status.innerHTML = '';
-  resultBox.hidden = false;
+  state.lat = lat;
+  state.lon = lon;
+  state.displayName = displayName;
+  renderResult(displayName, result);
+  showLoading(status, 'טוען מפה...');
+  await renderMap(result.itmX, result.itmY);
+  status.innerHTML = '';
 }
 
-async function downloadPdf() {
-  const btn = el('blDownload');
-  btn.disabled = true;
+async function runAddress(address) {
+  showLoading(el('acStatus'), `מאתר כתובת: ${address}…`);
+  const geo = await geocode(address);
+  await runFor(geo.lon, geo.lat, geo.displayName);
+}
+
+async function runMyLocation() {
+  showLoading(el('acStatus'), 'מבקש מיקום מהדפדפן…');
+  const geo = await getBrowserLocation();
+  await runFor(geo.lon, geo.lat, `${geo.lat.toFixed(5)}, ${geo.lon.toFixed(5)}`);
+}
+
+/** Copies BOTH the map image and the location/timestamp text in one action,
+ * as two representations of the same ClipboardItem - not two separate
+ * copies. Pasting into an image target (WhatsApp, an email body, an image
+ * field) gets the map; pasting into a plain text field gets the
+ * coordinates/timestamp instead - whichever the paste target actually
+ * accepts, without the user having to choose which to copy first. */
+async function copyResult() {
+  if (state.lat == null) return;
+  const btn = el('acCopy');
   const prevLabel = btn.textContent;
-  btn.textContent = 'בונה PDF…';
+  btn.disabled = true;
+  btn.textContent = 'מעתיק…';
   try {
-    const canvas = el('blCanvas');
-    const jpegBlob = await canvasToJpeg(canvas);
-    const jpegBytes = new Uint8Array(await jpegBlob.arrayBuffer());
-    const links = planLinkRects(state.planLinks, state.bbox, IMAGE_SIZE);
-    const pdfBlob = buildPdf({ jpegBytes, width: IMAGE_SIZE, height: IMAGE_SIZE, links });
-    downloadBlob(pdfBlob, `${safeFilename(state.label)}.pdf`);
-  } finally {
-    btn.disabled = false;
+    const canvas = el('acCanvas');
+    const pngBlob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+    const text = `מיקום: ${state.displayName}\n`
+      + `קואורדינטות: ${state.lat.toFixed(6)}, ${state.lon.toFixed(6)}\n`
+      + `נבדק בתאריך: ${new Date().toLocaleString('he-IL')}`;
+    await navigator.clipboard.write([
+      new ClipboardItem({ 'image/png': pngBlob, 'text/plain': new Blob([text], { type: 'text/plain' }) }),
+    ]);
+    btn.textContent = 'הועתק ✓';
+    setTimeout(() => { btn.textContent = prevLabel; btn.disabled = false; }, 2000);
+  } catch (err) {
+    showError(el('acStatus'), err);
     btn.textContent = prevLabel;
+    btn.disabled = false;
   }
-}
-
-/** Which of the two search-mode inputs is currently selected/relevant. */
-function currentQuery() {
-  const mode = el('blModePlan').checked ? 'plan' : 'address';
-  const value = (mode === 'plan' ? el('blPlanNumber') : el('blAddress')).value.trim();
-  return { mode, value };
-}
-
-function updateSearchModeFields() {
-  const isPlan = el('blModePlan').checked;
-  // Both fields sit in the same row now (desktop - see #blSearchRow in
-  // style.css); the inactive one is disabled rather than removed, so
-  // switching modes doesn't reflow the row. On mobile, style.css hides
-  // whichever input is disabled instead, since there's no room to show a
-  // field nobody can type into.
-  el('blAddress').disabled = isPlan;
-  el('blPlanNumber').disabled = !isPlan;
-}
-
-function submitForm() {
-  const query = currentQuery();
-  if (!query.value) return;
-  const radius = Number(el('blRadius').value) || DEFAULT_RADIUS;
-  const showLabels = el('blShowLabels').checked;
-  const showLandUse = el('blShowLandUse').checked;
-  const showPoints = el('blShowPoints').checked;
-  const showMetroZone = el('blShowMetroZone').checked;
-  run(query, radius, showLabels, showLandUse, showPoints, showMetroZone)
-    .catch((err) => showError(el('blStatus'), err));
 }
 
 function start() {
   initThemePicker(el('themePick'));
   el('created').textContent = document.lastModified;
 
-  // A linked search (?address=...&radius=...&labels=1&landUse=1&points=0&metroZone=0,
-  // or ?mode=plan&plan=...) prefills the form and runs immediately, so the
-  // URL someone shares is the result they saw, not just an empty form - same
-  // shape as syncUrl() writes on every search.
-  const urlIsPlan = param('mode') === 'plan';
   const urlAddress = param('address');
-  const urlPlan = param('plan');
-  el('blModePlan').checked = urlIsPlan;
-  el('blModeAddress').checked = !urlIsPlan;
-  el('blAddress').value = urlAddress || '';
-  el('blPlanNumber').value = urlPlan || '';
-  updateSearchModeFields();
-  el('blRadius').value = param('radius') || String(DEFAULT_RADIUS);
-  el('blShowLabels').checked = param('labels') === '1';
-  el('blShowLandUse').checked = param('landUse') === '1';
-  el('blShowPoints').checked = param('points') !== '0';
-  el('blShowMetroZone').checked = param('metroZone') !== '0';
+  if (urlAddress) el('acAddress').value = urlAddress;
 
-  const form = el('blForm');
-  form.addEventListener('submit', (e) => {
+  el('acForm').addEventListener('submit', (e) => {
     e.preventDefault();
-    submitForm();
+    const address = el('acAddress').value.trim();
+    if (!address) return;
+    history.replaceState(null, '', `?${new URLSearchParams({ address })}`);
+    runAddress(address).catch((err) => showError(el('acStatus'), err));
   });
 
-  [el('blModeAddress'), el('blModePlan')].forEach((radio) => {
-    radio.addEventListener('change', updateSearchModeFields);
+  el('acMyLocation').addEventListener('click', () => {
+    runMyLocation().catch((err) => showError(el('acStatus'), err));
   });
 
-  // Re-runs the search immediately on a checkbox flip, rather than making
-  // someone toggle it and then separately press "הצג מפה" again - only once
-  // there's already something to search for, so this does nothing on first
-  // load before any search has run.
-  ['blShowLabels', 'blShowLandUse', 'blShowPoints', 'blShowMetroZone'].forEach((id) => {
-    el(id).addEventListener('change', () => {
-      if (currentQuery().value) submitForm();
-    });
+  el('acCopy').addEventListener('click', () => {
+    copyResult().catch((err) => showError(el('acStatus'), err));
   });
 
-  el('blDownload').addEventListener('click', () => {
-    downloadPdf().catch((err) => showError(el('blStatus'), err));
-  });
-
-  if (urlIsPlan ? urlPlan : urlAddress) submitForm();
+  if (urlAddress) runAddress(urlAddress).catch((err) => showError(el('acStatus'), err));
 }
 
 start();

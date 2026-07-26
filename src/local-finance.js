@@ -19,7 +19,7 @@
 
 import { el, esc, num, debounce, buildCsv, saveCsv, showError, showLoading } from './ui.js';
 import { initThemePicker } from './theme.js';
-import { YEAR_RESOURCES, YEARS_DESC, ROSTER_YEAR, ROSTER_FILTERS, SUMMARY_SHEET, SUMMARY_ROWS, SUMMARY_COLUMN, form2RowsFor, BALANCE_COLUMN, balanceRowsFor, AREA_SHEET, AREA_CATEGORIES, areaColumnFor, JURISDICTION_SHEET, JURISDICTION_ROW, JURISDICTION_YEAR } from './finance-data.js';
+import { YEAR_RESOURCES, YEARS_DESC, ROSTER_YEAR, ROSTER_FILTERS, SUMMARY_SHEET, SUMMARY_ROWS, SUMMARY_COLUMN, form2RowsFor, BALANCE_COLUMN, balanceRowsFor, AREA_SHEET, AREA_CATEGORIES, areaColumnFor, JURISDICTION_SHEET, JURISDICTION_ROW, JURISDICTION_YEAR, ARNONA_COLLECTION_SHEET, ARNONA_COLLECTION_ROWS, ARNONA_COLLECTION_COLUMN } from './finance-data.js';
 import { renderBarChart, renderHBarChart, renderGroupedChart, CITY_COLOR_MAIN, CITY_COLOR_COMPARE, citySwatchCell } from './charts.js';
 import { dsFilter } from './datastore.js';
 import { CBS_POPULATION_YEAR, fetchPopulation, fetchPopulations } from './population.js';
@@ -284,6 +284,14 @@ function tierLabelFor(tier) {
   }[tier];
 }
 
+// Display labels for the two ARNONA_COLLECTION_ROWS keys - kept beside the
+// tier helpers above since both are small shared lookup tables consumed by
+// renderAuthorityCharts below.
+const ARNONA_COLLECTION_LABELS = [
+  { key: 'residential', label: 'למגורים' },
+  { key: 'other', label: 'לא למגורים (עסקים ואחר)' },
+];
+
 /* ---------- KPI tiles - same visual vocabulary as accidents.html's .stat-row ---------- */
 
 async function renderKpis() {
@@ -486,9 +494,9 @@ async function fetchAuthorityBundles(authorities) {
     const areaCol = areaColumnFor(year);
     const filters = {
       שם_רשות: authorities.length === 1 ? authorities[0] : authorities,
-      [cfg.sheetField]: ['טופס 2', 'טופס 1 אקטיב', 'טופס 1 פאסיב', AREA_SHEET],
-      שורה: [form2.revenue, form2.expense, balRows.assets, balRows.liabilities, balRows.currentLiabilities, ...AREA_CATEGORIES],
-      עמודה: [form2.column, BALANCE_COLUMN, areaCol],
+      [cfg.sheetField]: ['טופס 2', 'טופס 1 אקטיב', 'טופס 1 פאסיב', AREA_SHEET, ARNONA_COLLECTION_SHEET],
+      שורה: [form2.revenue, form2.expense, balRows.assets, balRows.liabilities, balRows.currentLiabilities, ...AREA_CATEGORIES, ...Object.values(ARNONA_COLLECTION_ROWS)],
+      עמודה: [form2.column, BALANCE_COLUMN, areaCol, ARNONA_COLLECTION_COLUMN],
     };
     if (cfg.yearFilter) filters[cfg.yearFilter.field] = cfg.yearFilter.value;
     try {
@@ -505,11 +513,21 @@ async function fetchAuthorityBundles(authorities) {
           const v = rec ? Number(rec['ערך']) : null;
           areas[cat] = Number.isFinite(v) ? v : null;
         }
+        // Ratio column is already a 0-1 fraction in the source - ×100 and
+        // round to 1 decimal, same convention liabRatiosFor uses, so this
+        // chart's numbers read on the same scale as every other % chart here.
+        const arnona = {};
+        for (const [key, row] of Object.entries(ARNONA_COLLECTION_ROWS)) {
+          const rec = own.find((r) => r['שורה'] === row);
+          const v = rec ? Number(rec['ערך']) : null;
+          arnona[key] = Number.isFinite(v) ? Math.round(v * 1000) / 10 : null;
+        }
         byAuthority.set(name, {
           year,
           revenue: val(form2.revenue), expense: val(form2.expense),
           assets: val(balRows.assets), liabilities: val(balRows.liabilities), currentLiabilities: val(balRows.currentLiabilities),
           areas,
+          arnona,
         });
       }
       return byAuthority;
@@ -773,8 +791,8 @@ async function renderAuthorityCharts() {
   const comparePoints = compareBundle?.map(({ year, revenue, expense }) => ({ year, revenue, expense })) ?? null;
   const balancePoints = bundle.map(({ year, assets, liabilities, currentLiabilities }) => ({ year, assets, liabilities, currentLiabilities }));
   const compareBalancePoints = compareBundle?.map(({ year, assets, liabilities, currentLiabilities }) => ({ year, assets, liabilities, currentLiabilities })) ?? null;
-  const areaPoints = bundle.map(({ year, areas }) => ({ year, areas }));
-  const compareAreaPoints = compareBundle?.map(({ year, areas }) => ({ year, areas })) ?? null;
+  const areaPoints = bundle.map(({ year, areas, arnona }) => ({ year, areas, arnona }));
+  const compareAreaPoints = compareBundle?.map(({ year, areas, arnona }) => ({ year, areas, arnona })) ?? null;
 
   if (!points.length) {
     el('finChartAuthRevenue').innerHTML = `<p class="acc-hint">לא נמצאו נתוני הכנסות/הוצאות עבור "${esc(state.authority)}" באף שנה זמינה.</p>`;
@@ -875,6 +893,26 @@ async function renderAuthorityCharts() {
     // "הרשות שנבחרה" placeholder - matters once a compare authority is set,
     // same reasoning as the chart's own caption below.
     el('areasH').textContent = `שטחים לפי ייעוד — ${state.authority}${compareAreas ? ` / ${compareAreas.name}` : ''}`;
+
+    // אחוז גביית ארנונה, למגורים מול לא-למגורים - shown right before the
+    // land-use areas chart below since both characterize the same physical
+    // tax base and compare the same one-or-two authorities; see
+    // ARNONA_COLLECTION_ROWS in finance-data.js for why "לא למגורים" (not a
+    // finer "עסקית") is as granular as the source data gets.
+    const arnonaEntries = ARNONA_COLLECTION_LABELS.filter((c) => latest.arnona?.[c.key] != null).flatMap((c) => {
+      const cmpValue = compareAreas && compareLatest?.arnona?.[c.key] != null ? compareLatest.arnona[c.key] : null;
+      return [
+        { label: `${state.authority} — ${c.label}`, value: latest.arnona[c.key] },
+        ...(cmpValue != null ? [{ label: `${compareAreas.name} — ${c.label}`, value: cmpValue, compare: true }] : []),
+      ];
+    });
+    if (arnonaEntries.length) {
+      renderHBarChart('finChartArnonaCollection',
+        `אחוז גביית ארנונה — למגורים / לא למגורים, ${latest.year} — ${state.authority}${compareAreas ? ` / ${compareAreas.name}` : ''}`,
+        arnonaEntries, '%');
+    } else {
+      el('finChartArnonaCollection').innerHTML = '';
+    }
 
     const areaEntries = AREA_CATEGORIES.filter((cat) => latest.areas[cat] != null).flatMap((cat) => {
       const cmpValue = compareAreas && compareLatest?.areas[cat] != null ? compareLatest.areas[cat] : null;

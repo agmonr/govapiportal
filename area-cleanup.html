@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>מי אחראי על ניקיון האזור?</title>
+  <!-- Sets data-theme before the stylesheet is applied, so a returning
+       visitor who picked "fashion" never sees a flash of the clouds theme
+       first. See src/theme.js for the picker itself. -->
+  <script>
+    try {
+      var t = localStorage.getItem('theme');
+      if (t && t !== 'clouds') document.documentElement.setAttribute('data-theme', t);
+    } catch (e) {}
+  </script>
+  <link rel="stylesheet" href="./src/style.css">
+</head>
+<body class="accidents-page blue-lines-page">
+  <header class="site">
+    <div class="wrap">
+      <h1>מי אחראי על ניקיון האזור?</h1>
+      <span class="site-by">פרויקט של רם אגמון<span class="site-disclaimer">המידע באתר עלול להיות שגוי</span></span>
+      <div class="theme-pick" id="themePick" role="group" aria-label="ערכת נושא">
+        <button type="button" data-theme="clouds">יום</button>
+        <button type="button" data-theme="fashion">לילה</button>
+        <button type="button" data-theme="zebra">זברה</button>
+      </div>
+      <span class="meta" id="created"></span>
+      <span class="meta"><a href="./index.html">← חזרה למפת ה-API</a></span>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <div id="fileproto" class="notice error" dir="auto" hidden>
+      <strong>הדף נפתח כקובץ מקומי (<code dir="ltr">file://</code>) ולכן אינו יכול לטעון את הנתונים.</strong>
+      <p>
+        הדפדפן חוסם מודולי ES ממקור <code dir="ltr">null</code> — זו הגבלת אבטחה של הדפדפן, לא תקלה באתר.
+        הפעל שרת מקומי מתיקיית הפרויקט:
+      </p>
+      <pre dir="ltr"><code>python3 -m http.server 8000</code></pre>
+      <p>ולאחר מכן פתח <a href="http://localhost:8000/area-cleanup.html" dir="ltr">http://localhost:8000/area-cleanup.html</a>.</p>
+      <p>
+        לחלופין, ללא שרת כלל — <a href="./dist/area-cleanup.html" dir="ltr">dist/area-cleanup.html</a>
+        הוא קובץ יחיד ועצמאי שעובד בפתיחה ישירה מהדיסק, כולל הרצת בקשות חיות.
+      </p>
+    </div>
+
+    <div id="app">
+      <details class="notice info" dir="auto">
+        <summary><strong>מה יש כאן</strong></summary>
+        <p>
+          מזינים כתובת, או לוחצים על "המיקום שלי" (באישור הדפדפן), ומקבלים מי אחראי לנקות את האזור -
+          לא תמיד אותו גורם. לניקיון כללי (רחובות, מדרכות, פחי אשפה) אחראית הרשות המקומית עצמה
+          (המוקד העירוני); אבל זיהום או פסולת בתוך נחל או תעלת ניקוז הם באחריות רשות ניקוז ונחלים
+          אזורית נפרדת, לא העירייה - שתי תשובות שונות, שנקבעות לפי המיקום המדויק, לא לפי ניחוש.
+        </p>
+        <p>
+          שני הזיהויים מבוססים על שאילתת "האם הנקודה בתוך פוליגון X" חיה מול שכבות פומביות של GovMap
+          (גבולות רשויות מקומיות, ואגני ניקוז) - לא על טבלה סטטית של עיר מול נהר. שיוך אגן ניקוז ספציפי
+          לרשות הניקוז הרשמית האחראית עליו נבדק ישירות (לא נוחש) רק עבור מספר מצומצם של אגנים -
+          ראו את הערת <code dir="ltr">BASIN_TO_AUTHORITY</code> ב-<code dir="ltr">src/area-cleanup.js</code>;
+          אגן שלא אומת מוצג בשמו הגולמי בלבד, עם קישור לאיגוד הארצי.
+        </p>
+      </details>
+
+      <section class="acc-section">
+        <form id="acForm" class="cm-filters">
+          <div class="acc-year-pick">
+            <input id="acAddress" type="text" autocomplete="off" spellcheck="false"
+                   placeholder="למשל: רוטשילד 1, תל אביב" style="flex:1 1 20rem">
+            <button type="submit" class="drill-dl">בדיקה ⭳</button>
+            <button type="button" id="acMyLocation" class="drill-dl">📍 המיקום שלי</button>
+          </div>
+        </form>
+        <div id="acStatus" aria-live="polite"></div>
+      </section>
+
+      <section id="acResultWrap" class="acc-section">
+        <div id="acResult" class="notice info" dir="auto" hidden></div>
+      </section>
+
+      <section id="acMapWrap" class="acc-section" hidden>
+        <h2>מפה — כ-1 ק"מ סביב המיקום</h2>
+        <p class="acc-hint">בסיס המפה מ-OpenStreetMap; הסימון האדום מציין את המיקום המדויק שנבדק.</p>
+        <div class="bl-map-wrap">
+          <canvas id="acCanvas" width="640" height="640"></canvas>
+        </div>
+        <div class="fin-export-row">
+          <button type="button" id="acCopy" class="drill-dl" disabled>העתקת תמונת המפה + מיקום ⧉</button>
+        </div>
+        <p class="acc-hint">
+          מעתיק בבת אחת גם את תמונת המפה וגם טקסט עם הקואורדינטות והתאריך - הדבקה (Ctrl+V) בשדה שמקבל
+          תמונה תדביק את המפה, הדבקה בשדה טקסט תדביק את הקואורדינטות.
+        </p>
+      </section>
+    </div>
+  </main>
+
+  <!--
+    Same guard as index.html/accidents.html: opened from disk nothing below
+    can load, because ES module scripts are refused from origin 'null'. Must
+    be a classic inline script - a module would be the first thing blocked.
+  -->
+  <script>
+    if (location.protocol === 'file:') {
+      document.getElementById('fileproto').hidden = false;
+      document.getElementById('app').hidden = true;
+    }
+  </script>
+  <script type="module" src="./src/area-cleanup.js"></script>
+</body>
+</html>

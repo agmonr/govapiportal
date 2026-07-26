@@ -118,7 +118,18 @@ TARGETS = [
         # and OSM tiles directly, live - no apis.json lookup, no shared
         # portal.js machinery. pdf.js is its own hand-rolled PDF writer, no
         # third-party library.
-        "sources": ["src/ui.js", "src/theme.js", "src/pdf.js", "src/blue-lines.js"],
+        "sources": ["src/ui.js", "src/theme.js", "src/geo-utils.js", "src/pdf.js", "src/blue-lines.js"],
+        "data": False,
+    },
+    {
+        "html": "area-cleanup.html",
+        "out": "dist/area-cleanup.html",
+        "entry": "src/area-cleanup.js",
+        # Talks to iplan's GeometryServer (coordinate reprojection, shared
+        # via geo-utils.js with blue-lines.js) and GovMap's public WFS
+        # directly, live - no apis.json lookup, no shared portal.js
+        # machinery.
+        "sources": ["src/ui.js", "src/theme.js", "src/geo-utils.js", "src/area-cleanup.js"],
         "data": False,
     },
 ]
