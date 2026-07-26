@@ -206,44 +206,45 @@ async function fetchBasemapCanvas(bbox, size) {
   return out;
 }
 
-/** iplan Xplan export, transparent, as an ImageBitmap. `showLabels` controls
- * layer 1's own plan-number boxes (e.g. "507-0220277") - off by default:
- * even at a modest radius there can be dozens of plans, and the labels
- * alone cover most of the map, obscuring the actual boundary lines/basemap
- * underneath - worse still at a larger radius (100+ plans at 1000m).
- * Suppressed via dynamicLayers rather than dropping layer 1 outright, so
- * the boundary lines (and this app's whole reason to exist, the plan
- * links) stay exactly the same either way - only the on-image text goes.
- * `showPoints` toggles layer 0 (ישויות נקודתיות) on/off entirely - on by
- * default, matching iplan's own layer panel. */
-async function fetchOverlay(bbox, size, showLabels, showPoints) {
-  const layers = showPoints ? LAYERS : LAYERS.filter((id) => id !== 0);
-  const layerDefs = { 4: `mavat_code NOT IN (${EXCLUDE_LANDUSE_CODES.join(',')})` };
+/** One iplan Xplan export (whichever `layerIds` are given), transparent, as
+ * an ImageBitmap. `showLabels` controls layer 1's own plan-number boxes
+ * (e.g. "507-0220277") - off by default: even at a modest radius there can
+ * be dozens of plans, and the labels alone cover most of the map, obscuring
+ * the actual boundary lines/basemap underneath.
+ *
+ * Always goes through dynamicLayers, never the top-level layerDefs param,
+ * for both label suppression and the land-use exclusion below - found the
+ * hard way, twice. ArcGIS quirk: once dynamicLayers is present at all, it
+ * takes over deciding both which layers render AND their filtering - a
+ * layer left out of it stops appearing even though `layers=show:` still
+ * lists it (bug #1: with only layer 1 in dynamicLayers, layer 4 silently
+ * dropped when this fetched everything in one call), and the *separate*
+ * top-level layerDefs stops being applied to any layer that IS in
+ * dynamicLayers (bug #2: layer 4's EXCLUDE_LANDUSE_CODES filter silently
+ * stopped applying the moment dynamicLayers existed for any reason - i.e.
+ * always, since labels are off by default - so the giant background hatch
+ * this project already fixed once, in tools/iplan_snapshot.py, came right
+ * back here under a different trigger). Every layer passed in gets its own
+ * dynamicLayers entry unconditionally, with definitionExpression/drawingInfo
+ * set directly on it rather than split across two parameters that turn out
+ * not to compose. */
+async function fetchXplanImage(bbox, size, layerIds, showLabels) {
+  const dynamicLayers = layerIds.map((id) => {
+    const layer = { id, source: { type: 'mapLayer', mapLayerId: id } };
+    if (id === 4) layer.definitionExpression = `mavat_code NOT IN (${EXCLUDE_LANDUSE_CODES.join(',')})`;
+    if (id === 1) layer.drawingInfo = { showLabels };
+    return layer;
+  });
   const params = new URLSearchParams({
     bbox: bbox.map((v) => v.toFixed(3)).join(','),
     bboxSR: String(ITM_WKID),
     size: `${size},${size}`,
-    layers: `show:${layers.join(',')}`,
+    layers: `show:${layerIds.join(',')}`,
+    dynamicLayers: JSON.stringify(dynamicLayers),
     format: 'png32',
     transparent: 'true',
-    layerDefs: JSON.stringify(layerDefs),
     f: 'json',
   });
-  if (!showLabels) {
-    // ArcGIS quirk found while testing this: once dynamicLayers is present
-    // at all, it takes over deciding which layers render - a layer left out
-    // of it stops appearing even though `layers=show:` still lists it (that
-    // was this bug: with only layer 1 in dynamicLayers, layers 4 and 0
-    // silently dropped, so ישויות נקודתיות/יעודי קרקע stopped rendering the
-    // moment labels were turned off - which is by default). Every active
-    // layer needs its own entry here, with drawingInfo only where an
-    // override is actually wanted.
-    params.set('dynamicLayers', JSON.stringify(
-      layers.map((id) => (id === 1
-        ? { id, source: { type: 'mapLayer', mapLayerId: id }, drawingInfo: { showLabels: false } }
-        : { id, source: { type: 'mapLayer', mapLayerId: id } })),
-    ));
-  }
   const result = await fetchJson(`${MAPSERVER}/export?${params}`);
   if (!result.href) throw new Error(`בקשת ה-export נכשלה: ${JSON.stringify(result)}`);
   const res = await fetch(result.href);
@@ -462,8 +463,13 @@ async function run(address, radius, showLabels, showPoints, showMetroZone) {
   const bbox = bboxAround(x, y, radius);
 
   showLoading(status, 'שולף שכבות תכנוניות ובסיס מפה...');
-  const [overlay, basemap, metro, planLinks, metroZoneRings] = await Promise.all([
-    fetchOverlay(bbox, IMAGE_SIZE, showLabels, showPoints),
+  const [overlay, points, basemap, metro, planLinks, metroZoneRings] = await Promise.all([
+    fetchXplanImage(bbox, IMAGE_SIZE, [1, 4], showLabels),
+    // Fetched and drawn separately, always last/topmost - see drawing order
+    // below - rather than in the same combined export as layers 1/4, so
+    // point markers stay visible above every other overlay (metro zone
+    // included), not just above the export's own internal layer order.
+    showPoints ? fetchXplanImage(bbox, IMAGE_SIZE, [0], showLabels) : Promise.resolve(null),
     fetchBasemapCanvas(bbox, IMAGE_SIZE),
     checkMetroZone(x, y),
     fetchPlanLinks(bbox),
@@ -477,6 +483,7 @@ async function run(address, radius, showLabels, showPoints, showMetroZone) {
   ctx.drawImage(basemap, 0, 0);
   ctx.drawImage(overlay, 0, 0);
   if (showMetroZone) drawMetroZones(ctx, bbox, IMAGE_SIZE, metroZoneRings);
+  if (points) ctx.drawImage(points, 0, 0);
   drawAddressPin(ctx, IMAGE_SIZE);
 
   state.bbox = bbox;
@@ -548,6 +555,16 @@ function start() {
   form.addEventListener('submit', (e) => {
     e.preventDefault();
     submitForm();
+  });
+
+  // Re-runs the search immediately on a checkbox flip, rather than making
+  // someone toggle it and then separately press "הצג מפה" again - only once
+  // there's already an address to search for, so this does nothing on first
+  // load before any search has run.
+  ['blShowLabels', 'blShowPoints', 'blShowMetroZone'].forEach((id) => {
+    el(id).addEventListener('change', () => {
+      if (el('blAddress').value.trim()) submitForm();
+    });
   });
 
   el('blDownload').addEventListener('click', () => {
