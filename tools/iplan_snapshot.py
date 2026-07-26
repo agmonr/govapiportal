@@ -9,11 +9,18 @@ Downloads a map image for an Israeli address from iplan's Xplan service
 
 Pipeline:
     1. Geocode the address with OSM Nominatim (WGS84 lon/lat).
-    2. Build a bounding box around the point (--radius metres, default 250).
-    3. Ask the Xplan MapServer to export that bbox as a PNG, requesting only
-       the wanted layers. Nominatim's WGS84 bbox is passed straight through
-       as bboxSR=4326 - the service reprojects to its native ITM (EPSG:2039)
-       internally, so no local coordinate transform (pyproj etc.) is needed.
+    2. Project that point into the service's native ITM (EPSG:2039) via
+       iplan's own Utilities/Geometry service - not passed through as
+       bboxSR=4326 on the export call itself. That shortcut was tried first
+       and measurably does NOT centre the address: letting /export reproject
+       a WGS84 bbox introduces a systematic ~40-70m offset (verified against
+       the Geometry service's own WGS84->ITM projection of the same point),
+       so the exported point ends up south-west of image centre instead of
+       in the middle. Projecting first and building the bbox directly in
+       ITM metres avoids that reprojection step entirely.
+    3. Build a square bounding box around the projected point (--radius
+       metres, default 250) and ask the Xplan MapServer to export it as a
+       PNG, requesting only the wanted layers, with bboxSR=2039 (native).
     4. Download the rendered PNG.
 
 Stdlib only, no dependencies - same convention as tools/probe.py.
@@ -26,15 +33,16 @@ Usage:
 
 import argparse
 import json
-import math
 import sys
 import urllib.error
 import urllib.parse
 import urllib.request
 
 NOMINATIM = "https://nominatim.openstreetmap.org/search"
+GEOMETRY = "https://ags.iplan.gov.il/arcgisiplan/rest/services/Utilities/Geometry/GeometryServer"
 MAPSERVER = "https://ags.iplan.gov.il/arcgisiplan/rest/services/PlanningPublic/Xplan/MapServer"
 UA = "govapiportal-iplan-snapshot/1.0 (+https://github.com/agmonr/govapiportal)"
+ITM_WKID = 2039
 TIMEOUT = 25
 
 # The two layers named in the request. Kept as the default rather than the
@@ -65,12 +73,36 @@ def geocode(address):
     return float(r["lon"]), float(r["lat"]), r["display_name"]
 
 
-def bbox_around(lon, lat, radius_m):
-    """A square bbox `radius_m` metres out from the point, in WGS84 degrees.
-    Approximate (spherical) - fine at this scale, no need for a proper geodesic."""
-    dlat = radius_m / 111_320
-    dlon = radius_m / (111_320 * math.cos(math.radians(lat)))
-    return lon - dlon, lat - dlat, lon + dlon, lat + dlat
+def project_to_itm(lon, lat):
+    """WGS84 lon/lat -> the MapServer's native EPSG:2039 (ITM), via iplan's
+    own GeometryServer. Doing this explicitly - rather than handing /export
+    a WGS84 bbox with bboxSR=4326 and letting it reproject - is what actually
+    centres the address; see the module docstring for the measured offset."""
+    geometries = json.dumps({
+        "geometryType": "esriGeometryPoint",
+        "geometries": [{"x": lon, "y": lat}],
+    })
+    params = urllib.parse.urlencode({
+        "geometries": geometries,
+        "inSR": 4326,
+        "outSR": ITM_WKID,
+        "f": "json",
+    })
+    req = urllib.request.Request(
+        f"{GEOMETRY}/project", data=params.encode("utf-8"),
+        headers={"User-Agent": UA, "Accept": "application/json"})
+    with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
+        result = json.loads(resp.read().decode("utf-8"))
+    if "geometries" not in result:
+        sys.exit(f"בקשת ה-project נכשלה: {result}")
+    p = result["geometries"][0]
+    return p["x"], p["y"]
+
+
+def bbox_around(x, y, radius_m):
+    """A square bbox `radius_m` metres out from an ITM point. Exact - ITM is
+    a planar projected CRS, so this needs no spherical approximation."""
+    return x - radius_m, y - radius_m, x + radius_m, y + radius_m
 
 
 def layer_names():
@@ -82,8 +114,8 @@ def layer_names():
 
 def export_png(bbox, layers, size, fmt):
     params = urllib.parse.urlencode({
-        "bbox": ",".join(f"{v:.6f}" for v in bbox),
-        "bboxSR": 4326,
+        "bbox": ",".join(f"{v:.3f}" for v in bbox),
+        "bboxSR": ITM_WKID,
         "size": f"{size},{size}",
         "layers": "show:" + ",".join(str(i) for i in layers),
         "format": fmt,
@@ -125,13 +157,16 @@ def main():
     lon, lat, display_name = geocode(args.address)
     print(f"נמצא: {display_name}  ({lat:.6f}, {lon:.6f})")
 
+    x, y = project_to_itm(lon, lat)
+    print(f"נקודה ברשת ITM (EPSG:2039): {x:.1f}, {y:.1f} - זו הנקודה שתמוקם במרכז התמונה")
+
     names = layer_names()
     unknown = [i for i in layers if i not in names]
     if unknown:
         sys.exit(f"שכבות לא קיימות ב-Xplan: {unknown}. הקיימות: {names}")
     print("שכבות: " + ", ".join(f"{i}={names[i]}" for i in layers))
 
-    bbox = bbox_around(lon, lat, args.radius)
+    bbox = bbox_around(x, y, args.radius)
     print(f"בקשת ייצוא, רדיוס {args.radius:.0f} מ׳...")
     result = export_png(bbox, layers, args.size, args.format)
 
