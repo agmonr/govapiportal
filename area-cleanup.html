@@ -15,7 +15,7 @@
   </script>
   <link rel="stylesheet" href="./src/style.css">
 </head>
-<body class="accidents-page blue-lines-page">
+<body class="accidents-page blue-lines-page area-cleanup-page">
   <header class="site">
     <div class="wrap">
       <h1>מי אחראי על ניקיון האזור?</h1>
@@ -48,8 +48,10 @@
     <div id="app">
       <section class="acc-section">
         <form id="acForm" class="cm-filters">
-          <div class="acc-year-pick">
+          <div class="acc-year-pick" style="justify-content:center">
             <button type="button" id="acMyLocation" class="drill-dl">📍 המיקום שלי</button>
+          </div>
+          <div class="acc-year-pick">
             <input id="acAddress" type="text" autocomplete="off" spellcheck="false"
                    placeholder="למשל: רוטשילד 1, תל אביב" style="flex:1 1 20rem">
             <button type="submit" class="drill-dl">בדיקה ⭳</button>
@@ -70,18 +72,9 @@
         </div>
         <div class="fin-export-row">
           <button type="button" id="acCopy" class="drill-dl" disabled>העתקת תמונת המפה + מיקום ⧉</button>
-          <button type="button" id="acShare" class="drill-dl" disabled>שליחה במייל / שיתוף 📤</button>
+          <button type="button" id="acShareMail" class="drill-dl" disabled>שליחה במייל 📧</button>
+          <button type="button" id="acShareWhatsapp" class="drill-dl" disabled>שליחה בוואטסאפ 💬</button>
         </div>
-        <p class="acc-hint">
-          מעתיק בבת אחת גם את תמונת המפה וגם טקסט עם המיקום והתאריך - הדבקה (Ctrl+V, למשל בוואטסאפ או
-          במייל) בשדה שמקבל תמונה תדביק את המפה, הדבקה בשדה טקסט תדביק את הטקסט; המיקום והתאריך מופיעים
-          גם מודפסים ישירות על תמונת המפה עצמה, כך שגם הדבקה כתמונה בלבד לא מאבדת את הפרטים.
-        </p>
-        <p class="acc-hint">
-          "שליחה במייל / שיתוף" פותח את תפריט השיתוף של המכשיר (מייל, Gmail, וואטסאפ וכו') עם תמונת
-          המפה מצורפת ישירות כקובץ - לא רק כטקסט; בוחרים שם למי לשלוח, בדיוק כמו שיתוף תמונה מכל אפליקציה
-          אחרת. בדפדפן שלא תומך בכך נפתח מייל ריק עם הטקסט בלבד (בלי התמונה) במקום.
-        </p>
       </section>
     </div>
   </main>

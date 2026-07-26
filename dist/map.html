@@ -1541,16 +1541,32 @@ body.accidents-page header.site h1 { inline-size: 100%; }
   font-weight: 400;
 }
 
-/* blue-lines.html: the composited map canvas. Native pixel size is fixed
-   (matches the export/basemap resolution), scaled down responsively via CSS
-   rather than re-rendered - a canvas's CSS size and its drawing-buffer size
-   are independent, so this never blurs the pixels that matter. */
+/* blue-lines.html/area-cleanup.html: the composited map canvas. Native pixel
+   size is fixed (matches the export/basemap resolution), scaled down
+   responsively via CSS rather than re-rendered - a canvas's CSS size and its
+   drawing-buffer size are independent, so this never blurs the pixels that
+   matter. */
 .bl-map-wrap { text-align: center; margin-block-end: 1rem; }
-#blCanvas {
+#blCanvas, #acCanvas {
   max-inline-size: 100%;
   block-size: auto;
   border: 1px solid var(--border);
   border-radius: var(--radius);
+}
+
+/* area-cleanup.html is meant to be used one-handed on a phone, standing
+   somewhere pointing a camera-adjacent screen at a problem spot - not read
+   carefully at a desk - so its controls and result text get a real size
+   bump on mobile rather than the site's normal (desk-sized) touch targets. */
+@media (max-width: 640px) {
+  .area-cleanup-page button, .area-cleanup-page input[type="text"] {
+    font-size: 1.15rem;
+    padding: .9rem 1.15rem;
+  }
+  .area-cleanup-page #acResult, .area-cleanup-page .acc-hint {
+    font-size: 1.05rem;
+  }
+  .area-cleanup-page h2 { font-size: 1.3rem; }
 }
 </style>
 </head>

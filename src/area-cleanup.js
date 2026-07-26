@@ -199,7 +199,8 @@ async function renderMap(itmX, itmY, displayName) {
   drawAddressPin(ctx, MAP_SIZE);
   drawLocationCaption(ctx, MAP_SIZE, `${displayName}\n${new Date().toLocaleString('he-IL')}`);
   el('acCopy').disabled = false;
-  el('acShare').disabled = false;
+  el('acShareMail').disabled = false;
+  el('acShareWhatsapp').disabled = false;
 }
 
 async function runFor(lon, lat, displayName) {
@@ -207,7 +208,8 @@ async function runFor(lon, lat, displayName) {
   el('acResult').hidden = true;
   el('acMapWrap').hidden = true;
   el('acCopy').disabled = true;
-  el('acShare').disabled = true;
+  el('acShareMail').disabled = true;
+  el('acShareWhatsapp').disabled = true;
   showLoading(status, 'בודק אחריות...');
   const result = await lookup(lon, lat);
   status.innerHTML = '';
@@ -272,35 +274,82 @@ async function copyResult() {
   }
 }
 
-/** Sends the map+text out through the OS's own share sheet (Mail, Gmail,
- * WhatsApp, whatever the device offers) - the only web-platform way to hand
- * a real image FILE to an outgoing email, since mailto: URIs carry only a
- * subject/body string and can't attach anything. No recipient is set here
- * by design - the share sheet/app the user picks is where they choose who
- * it goes to (themselves, a neighbor, the city), same as sharing a photo
- * from any other app. Falls back to a plain mailto: (text only, no image -
- * a real capability gap on file:// or older browsers, not hidden) when the
- * Share API or file-sharing isn't available at all. */
-async function shareResult() {
+/** Same PNG+text pair as exportResult(), but built with ZERO `await` before
+ * returning - via canvas.toDataURL() (synchronous) instead of toBlob() (a
+ * promise). shareToMail()/shareToWhatsApp() below need this: the Clipboard
+ * API only grants clipboard-write access to a focused document, and
+ * window.open() (called right after, to open Gmail/WhatsApp) shifts focus
+ * to the new tab - so navigator.clipboard.write() has to already be KICKED
+ * OFF, synchronously, before window.open() runs, or it silently never
+ * resolves once focus has moved on. */
+function exportResultSync() {
+  const canvas = el('acCanvas');
+  const dataUrl = canvas.toDataURL('image/png');
+  const byteString = atob(dataUrl.split(',')[1]);
+  const bytes = new Uint8Array(byteString.length);
+  for (let i = 0; i < byteString.length; i += 1) bytes[i] = byteString.charCodeAt(i);
+  const pngBlob = new Blob([bytes], { type: 'image/png' });
+  const text = `${state.displayName}\nנבדק בתאריך: ${new Date().toLocaleString('he-IL')}`;
+  return { pngBlob, text };
+}
+
+/** Starts copying the map image + caption text to the clipboard - same
+ * pairing as copyResult() - and returns the still-pending promise WITHOUT
+ * awaiting it, so the caller (shareToMail/shareToWhatsApp) can call
+ * window.open() immediately after, synchronously, rather than losing the
+ * click's "this is a direct user action" status to an async gap (the exact
+ * bug that made the mail button silently do nothing before this fix).
+ * A courtesy, not a guarantee: Gmail/WhatsApp's own compose links can't
+ * accept a file via the URL at all (mailto: and wa.me only ever carry a
+ * subject/body STRING), so the actual attach still needs one manual paste
+ * (Ctrl+V) once the compose window/chat is open - both accept a pasted
+ * image directly. */
+function startCopyImageForPasting(pngBlob, text) {
+  return navigator.clipboard.write([
+    new ClipboardItem({ 'image/png': pngBlob, 'text/plain': new Blob([text], { type: 'text/plain' }) }),
+  ]).then(() => true).catch(() => false);
+}
+
+/** Opens Gmail's web compose (not a plain mailto:) with the location/date
+ * pre-filled, and separately copies the map image to the clipboard for a
+ * one-paste attach - a bare mailto: only works if the browser has a default
+ * mail handler registered, which a lot of desktop users (anyone who reads
+ * mail through a browser tab, not a native app) simply don't have; clicking
+ * it then does nothing whatsoever, no error, which reads identically to
+ * "the button is broken".
+ *
+ * Both the clipboard write AND window.open() are fired synchronously, in
+ * that order, with no await between them - see exportResultSync()'s and
+ * startCopyImageForPasting()'s own comments for why each half of that
+ * ordering matters (focus vs. user-activation). Only the eventual .then()
+ * that updates the status text is actually asynchronous. */
+function shareToMail() {
   if (state.lat == null) return;
-  const btn = el('acShare');
-  const prevLabel = btn.textContent;
-  btn.disabled = true;
-  try {
-    const { pngBlob, text } = await exportResult();
-    const file = new File([pngBlob], 'מיקום.png', { type: 'image/png' });
-    if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      await navigator.share({ files: [file], title: 'מי אחראי על ניקיון האזור?', text });
-    } else {
-      const params = new URLSearchParams({ subject: 'מי אחראי על ניקיון האזור?', body: text });
-      window.location.href = `mailto:?${params}`.replace(/\+/g, '%20');
-    }
-  } catch (err) {
-    if (err.name !== 'AbortError') showError(el('acStatus'), err); // AbortError: the user closed the share sheet - not a failure
-  } finally {
-    btn.disabled = false;
-    btn.textContent = prevLabel;
-  }
+  const { pngBlob, text } = exportResultSync();
+  const copyPromise = startCopyImageForPasting(pngBlob, text);
+  const params = new URLSearchParams({ view: 'cm', fs: '1', su: 'מי אחראי על ניקיון האזור?', body: text });
+  window.open(`https://mail.google.com/mail/?${params}`, '_blank', 'noopener');
+  copyPromise.then((copied) => {
+    el('acStatus').textContent = copied
+      ? 'נפתח Gmail; תמונת המפה הועתקה - הדביקו (Ctrl+V) בגוף ההודעה כדי לצרף אותה.'
+      : 'נפתח Gmail. לא ניתן היה להעתיק את התמונה אוטומטית - השתמשו בכפתור ההעתקה למעלה.';
+  });
+}
+
+/** Same shape as shareToMail() above, targeting WhatsApp's own "click to
+ * chat" link instead of Gmail - wa.me opens the WhatsApp Web/app compose
+ * with the text pre-filled and, same as Gmail, has no way to carry a file
+ * via the URL either, so the same copy-then-paste courtesy applies. */
+function shareToWhatsApp() {
+  if (state.lat == null) return;
+  const { pngBlob, text } = exportResultSync();
+  const copyPromise = startCopyImageForPasting(pngBlob, text);
+  window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank', 'noopener');
+  copyPromise.then((copied) => {
+    el('acStatus').textContent = copied
+      ? 'נפתח וואטסאפ; תמונת המפה הועתקה - הדביקו (Ctrl+V) בשיחה כדי לצרף אותה.'
+      : 'נפתח וואטסאפ. לא ניתן היה להעתיק את התמונה אוטומטית - השתמשו בכפתור ההעתקה למעלה.';
+  });
 }
 
 function start() {
@@ -326,8 +375,12 @@ function start() {
     copyResult().catch((err) => showError(el('acStatus'), err));
   });
 
-  el('acShare').addEventListener('click', () => {
-    shareResult().catch((err) => showError(el('acStatus'), err));
+  el('acShareMail').addEventListener('click', () => {
+    try { shareToMail(); } catch (err) { showError(el('acStatus'), err); }
+  });
+
+  el('acShareWhatsapp').addEventListener('click', () => {
+    try { shareToWhatsApp(); } catch (err) { showError(el('acStatus'), err); }
   });
 
   if (urlAddress) runAddress(urlAddress).catch((err) => showError(el('acStatus'), err));
