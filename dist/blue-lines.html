@@ -1442,7 +1442,7 @@ body.accidents-page header.site h1 { inline-size: 100%; }
           </div>
           <div class="acc-year-pick">
             <label for="blShowMetroZone">
-              <input id="blShowMetroZone" type="checkbox">
+              <input id="blShowMetroZone" type="checkbox" checked>
               הצג תחום השפעת מטרו (תמ"א 70) על המפה
             </label>
           </div>
@@ -2164,7 +2164,7 @@ function syncUrl(address, radius, showLabels, showPoints, showMetroZone) {
   if (radius !== DEFAULT_RADIUS) params.set('radius', String(radius));
   if (showLabels) params.set('labels', '1');
   if (!showPoints) params.set('points', '0');
-  if (showMetroZone) params.set('metroZone', '1');
+  if (!showMetroZone) params.set('metroZone', '0');
   history.replaceState(null, '', `?${params}`);
 }
 
@@ -2183,8 +2183,17 @@ async function run(address, radius, showLabels, showPoints, showMetroZone) {
   const bbox = bboxAround(x, y, radius);
 
   showLoading(status, 'שולף שכבות תכנוניות ובסיס מפה...');
-  const [overlay, points, basemap, metro, planLinks, metroZoneRings] = await Promise.all([
-    fetchXplanImage(bbox, IMAGE_SIZE, [1, 4], showLabels),
+  const [landUse, planBoundaries, points, basemap, metro, planLinks, metroZoneRings] = await Promise.all([
+    // Fetched separately from the plan boundaries below, and drawn at
+    // reduced opacity - land use (even with the truly-meaningless 995/996
+    // catch-alls excluded) still includes real, large area-wide
+    // designations, e.g. a heritage conservation zone spanning several km2
+    // over central Tel Aviv. That's genuine information, not a bug to
+    // filter out - but at full strength it reads as foreground noise
+    // burying the basemap and the plan boundaries underneath it, so it's
+    // pushed toward the background instead: still visible, not dominant.
+    fetchXplanImage(bbox, IMAGE_SIZE, [4], showLabels),
+    fetchXplanImage(bbox, IMAGE_SIZE, [1], showLabels),
     // Fetched and drawn separately, always last/topmost - see drawing order
     // below - rather than in the same combined export as layers 1/4, so
     // point markers stay visible above every other overlay (metro zone
@@ -2201,7 +2210,10 @@ async function run(address, radius, showLabels, showPoints, showMetroZone) {
   canvas.height = IMAGE_SIZE;
   const ctx = canvas.getContext('2d');
   ctx.drawImage(basemap, 0, 0);
-  ctx.drawImage(overlay, 0, 0);
+  ctx.globalAlpha = 0.45;
+  ctx.drawImage(landUse, 0, 0);
+  ctx.globalAlpha = 1;
+  ctx.drawImage(planBoundaries, 0, 0);
   if (showMetroZone) drawMetroZones(ctx, bbox, IMAGE_SIZE, metroZoneRings);
   if (points) ctx.drawImage(points, 0, 0);
   drawAddressPin(ctx, IMAGE_SIZE);
@@ -2260,7 +2272,7 @@ function start() {
   initThemePicker(el('themePick'));
   el('created').textContent = document.lastModified;
 
-  // A linked search (?address=...&radius=...&labels=1&points=0&metroZone=1)
+  // A linked search (?address=...&radius=...&labels=1&points=0&metroZone=0)
   // prefills the form and runs immediately, so the URL someone shares is the
   // result they saw, not just an empty form - same shape as syncUrl() writes
   // on every search.
@@ -2269,7 +2281,7 @@ function start() {
   el('blRadius').value = param('radius') || String(DEFAULT_RADIUS);
   el('blShowLabels').checked = param('labels') === '1';
   el('blShowPoints').checked = param('points') !== '0';
-  el('blShowMetroZone').checked = param('metroZone') === '1';
+  el('blShowMetroZone').checked = param('metroZone') !== '0';
 
   const form = el('blForm');
   form.addEventListener('submit', (e) => {
