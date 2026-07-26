@@ -442,25 +442,68 @@ def build_pdf(image, out_path, bbox, plan_links):
     writer.append(tmp_pdf)
     page_h = float(writer.pages[0].mediabox.height)
 
+    # A PDF Link annotation is a rectangle - there is no polygon-shaped
+    # clickable region. One bbox per *plan* (bug, fixed here) let an
+    # elongated or multi-ring shape (a road/corridor plan, a whole-district
+    # policy plan, or a plan that merely extends past this crop) produce a
+    # box spanning most or all of the page, e.g. [0, 0, 1024, 1024] - seen
+    # directly while debugging this. With several plans each contributing a
+    # near-full-page rect, whichever one a viewer resolves a click to at a
+    # given point looks like "every link goes to the same plan", because for
+    # most of the page area that was literally true.
+    #
+    # Fixed by tracing each ring as a sequence of small rects, each grown
+    # point-by-point until adding the next point would push it past
+    # MAX_CHUNK_PX on a side, then started over. A first attempt chunked by a
+    # fixed point *count* instead of pixel size, which still failed on a
+    # sparsely-vertexed long stretch of boundary (few points, huge real-world
+    # span - e.g. a whole-district transit policy plan's outer ring, no
+    # denser than an ordinary local plan's boundary vertex-for-vertex, just
+    # covering vastly more ground per vertex). This is immune to that: the
+    # chunk boundary is defined directly in output pixels, not in how many
+    # vertices happen to make it up.
+    MAX_CHUNK_PX = 200
+
+    def clip(x0, y0, x1, y1):
+        return max(x0, 0), max(y0, 0), min(x1, image.width), min(y1, image.height)
+
+    def trace_ring(points):
+        """Yields (x0,y0,x1,y1) bboxes tracing `points` in order, each grown
+        until the next point would push it past MAX_CHUNK_PX, then restarted.
+        `prev` is always a genuine ring vertex (never a synthesized bbox
+        corner), so a restarted chunk shares that real point with the one
+        that just closed - chunks touch, no gaps."""
+        if len(points) < 2:
+            return
+        prev = points[0]
+        cx0, cy0, cx1, cy1 = prev[0], prev[1], prev[0], prev[1]
+        has_chunk = False
+        for x, y in points[1:]:
+            nx0, ny0 = min(cx0, x), min(cy0, y)
+            nx1, ny1 = max(cx1, x), max(cy1, y)
+            if has_chunk and (nx1 - nx0 > MAX_CHUNK_PX or ny1 - ny0 > MAX_CHUNK_PX):
+                yield cx0, cy0, cx1, cy1
+                cx0, cy0 = min(prev[0], x), min(prev[1], y)
+                cx1, cy1 = max(prev[0], x), max(prev[1], y)
+            else:
+                cx0, cy0, cx1, cy1 = nx0, ny0, nx1, ny1
+            has_chunk = True
+            prev = (x, y)
+        if has_chunk:
+            yield cx0, cy0, cx1, cy1
+
     rects = []
     for plan in plan_links:
-        xs, ys = [], []
         for ring in plan["rings"]:
-            for x, y in ring:
-                px, py = itm_to_px(bbox, image.width, x, y)
-                xs.append(px)
-                ys.append(py)
-        x0, x1 = max(min(xs), 0), min(max(xs), image.width)
-        y0, y1 = max(min(ys), 0), min(max(ys), image.height)
-        if x1 <= x0 or y1 <= y0:
-            continue  # entirely outside the visible frame
-        rects.append((plan["url"], x0, y0, x1, y1))
+            points = [itm_to_px(bbox, image.width, x, y) for x, y in ring]
+            for x0, y0, x1, y1 in trace_ring(points):
+                x0, y0, x1, y1 = clip(x0, y0, x1, y1)
+                if x1 > x0 and y1 > y0:
+                    rects.append((plan["url"], x0, y0, x1, y1))
 
-    # Large background-scale plans (whole-city footprints, same story as the
-    # EXCLUDE_LANDUSE_CODES ones on layer 4) end up as rects covering most or
-    # all of the frame. Adding those first and small local plans last means
-    # the local ones sit on top in the annotation stack, which is what most
-    # viewers use to resolve a click that lands inside more than one rect.
+    # Larger rects first, smaller/more-precise ones last: most viewers
+    # resolve an overlapping click to the last-added annotation, so this
+    # keeps the fine-grained ones winning over anything still coarse.
     rects.sort(key=lambda r: (r[3] - r[1]) * (r[4] - r[2]), reverse=True)
 
     n_linked = 0
