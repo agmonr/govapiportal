@@ -22,7 +22,8 @@ import { initThemePicker } from './theme.js';
 import { YEAR_RESOURCES, YEARS_DESC, ROSTER_YEAR, ROSTER_FILTERS, SUMMARY_SHEET, SUMMARY_ROWS, SUMMARY_COLUMN, form2RowsFor, BALANCE_COLUMN, balanceRowsFor, AREA_SHEET, AREA_CATEGORIES, areaColumnFor, JURISDICTION_SHEET, JURISDICTION_ROW, JURISDICTION_YEAR } from './finance-data.js';
 import { renderBarChart, renderHBarChart, renderGroupedChart, CITY_COLOR_MAIN, CITY_COLOR_COMPARE, citySwatchCell } from './charts.js';
 import { dsFilter } from './datastore.js';
-import { CBS_POPULATION_YEAR, fetchPopulation } from './population.js';
+import { CBS_POPULATION_YEAR, fetchPopulation, fetchPopulations } from './population.js';
+import { STABLE_AUTHORITIES } from './stable-authorities.js';
 
 initThemePicker(el('themePick'));
 
@@ -248,6 +249,41 @@ async function fetchLiabilities(year) {
   return byAuthority;
 }
 
+/** Every authority's total-liabilities ratio (סה"כ התחייבויות / תקציב שנתי,
+ * as a %) for one year, unsorted and un-truncated - shared by the national
+ * top-20 charts (renderCharts) and the per-authority "what place is this
+ * city in" note (renderAuthorityLiabRank), so both read off the exact same
+ * numbers rather than two slightly different derivations. */
+function liabRatiosFor(summary, liabilities) {
+  return summary.rows
+    .map((r) => ({ name: r.name, expense: r.expense, bal: liabilities.get(r.name) }))
+    .filter((r) => r.bal?.liabilities != null && r.expense > 0)
+    .map((r) => ({ name: r.name, value: Math.round((r.bal.liabilities / r.expense) * 1000) / 10 }));
+}
+
+/* Population-size tiers - shared by the national ratio charts (renderCharts)
+ * and the per-authority "what place is this city in" note
+ * (renderAuthorityLiabRank), so a city is always compared against the same
+ * size bracket in both places. */
+const TIER_SMALL_MAX = 10000;
+const TIER_MEDIUM_MAX = 50000;
+const TIER_LARGE_MAX = 200000;
+function tierOf(pop) {
+  if (pop == null) return null;
+  if (pop < TIER_SMALL_MAX) return 'small';
+  if (pop < TIER_MEDIUM_MAX) return 'medium';
+  if (pop < TIER_LARGE_MAX) return 'large';
+  return 'veryLarge';
+}
+function tierLabelFor(tier) {
+  return {
+    small: `רשויות קטנות (עד ${num(TIER_SMALL_MAX)} תושבים)`,
+    medium: `רשויות בינוניות (${num(TIER_SMALL_MAX)}–${num(TIER_MEDIUM_MAX)} תושבים)`,
+    large: `רשויות גדולות (${num(TIER_MEDIUM_MAX)}–${num(TIER_LARGE_MAX)} תושבים)`,
+    veryLarge: `רשויות גדולות מאוד (מעל ${num(TIER_LARGE_MAX)} תושבים)`,
+  }[tier];
+}
+
 /* ---------- KPI tiles - same visual vocabulary as accidents.html's .stat-row ---------- */
 
 async function renderKpis() {
@@ -259,10 +295,13 @@ async function renderKpis() {
   if (!cfg?.hasSummary) {
     box.innerHTML = `<p class="acc-hint">אין גיליון סיכום ארצי מוכן לשנת ${year} — ראו ההסבר למעלה. הדוח המפורט של הרשות שנבחרה עדיין זמין למטה.</p>`;
     el('finChartYoY').innerHTML = '';
-    el('finChartLiabRatioBest').innerHTML = '';
-    el('finChartLiabRatio').innerHTML = '';
-    el('finChartCurrentLiabRatio').innerHTML = '';
-    el('finChartTop').innerHTML = '';
+    for (const kind of ['Best', 'Worst']) {
+      for (const tier of ['Small', 'Medium']) {
+        el(`finChartLiabRatio${kind}${tier}`).innerHTML = '';
+      }
+    }
+    el('finChartLiabRatioLarge').innerHTML = '';
+    el('finChartLiabRatioVeryLarge').innerHTML = '';
     return;
   }
 
@@ -310,48 +349,88 @@ async function renderCharts(summary) {
   renderBarChart('finChartYoY', 'עודף (גרעון) ארצי מצטבר, לפי שנה', yoyEntries, 'אלפי ש"ח',
     summary.totals.surplus >= 0 ? 'ok-chart' : 'total');
 
-  // Total and current (short-term) liabilities, each as a share of the
-  // authority's own annual budget (r.expense, "תקציב שנתי") - ratios, not
-  // ₪ amounts, so a small council with genuinely small liabilities can
-  // still rank above a big city with a much larger ₪ figure that's small
-  // relative to ITS OWN budget.
+  // Total liabilities as a share of the authority's own annual budget
+  // (r.expense, "תקציב שנתי") - a ratio, not a ₪ amount, so a small council
+  // with genuinely small liabilities can still rank above a big city with a
+  // much larger ₪ figure that's small relative to ITS OWN budget.
   const liabilities = await fetchLiabilities(state.year);
   if (liabilities && liabilities !== 'unsupported') {
-    const ratios = summary.rows
-      .map((r) => ({ name: r.name, expense: r.expense, bal: liabilities.get(r.name) }))
-      .filter((r) => r.bal && r.expense > 0);
+    const liabRatioPoints = liabRatiosFor(summary, liabilities);
 
-    const liabRatioPoints = ratios
-      .filter((r) => r.bal.liabilities != null)
-      .map((r) => ({ label: r.name, value: Math.round((r.bal.liabilities / r.expense) * 1000) / 10 }));
+    // Split by population size (one bulk CBS request for all of them, see
+    // fetchPopulations) rather than one mixed top-20 in either direction:
+    // without it, both the highest- and lowest-ratio lists are almost
+    // entirely tiny councils (a small budget makes even a modest ₪
+    // liability a big ratio either way), crowding out mid-size and large
+    // cities entirely.
+    const populations = await fetchPopulations();
+    const byTier = { small: [], medium: [], large: [], veryLarge: [] };
+    for (const r of liabRatioPoints) {
+      const tier = tierOf(populations.get(r.name));
+      if (tier) byTier[tier].push(r);
+    }
+    for (const tier of ['small', 'medium']) {
+      const tierCap = tier[0].toUpperCase() + tier.slice(1);
+      const worst = [...byTier[tier]].sort((a, b) => b.value - a.value).slice(0, 20)
+        .map((r) => ({ label: r.name, value: r.value }));
+      renderHBarChart(`finChartLiabRatioWorst${tierCap}`,
+        `${tierLabelFor(tier)} עם יחס ההתחייבויות (סה"כ) לתקציב השנתי הגבוה ביותר, ${state.year}`, worst, '%');
 
-    // Same ratio (סה"כ התחייבויות / תקציב שוטף), sorted the other way - the
-    // 20 authorities carrying the LEAST debt relative to their own budget,
-    // not the ones carrying the most.
-    const bestLiabRatio = [...liabRatioPoints].sort((a, b) => a.value - b.value).slice(0, 20);
-    renderHBarChart('finChartLiabRatioBest',
-      `20 הרשויות עם יחס ההתחייבויות (סה"כ) לתקציב השנתי הנמוך ביותר, ${state.year}`, bestLiabRatio, '%');
+      const best = [...byTier[tier]].sort((a, b) => a.value - b.value).slice(0, 20)
+        .map((r) => ({ label: r.name, value: r.value }));
+      renderHBarChart(`finChartLiabRatioBest${tierCap}`,
+        `${tierLabelFor(tier)} עם יחס ההתחייבויות (סה"כ) לתקציב השנתי הנמוך ביותר, ${state.year}`, best, '%');
+    }
 
-    const liabRatio = [...liabRatioPoints].sort((a, b) => b.value - a.value).slice(0, 20);
-    renderHBarChart('finChartLiabRatio',
-      `20 הרשויות עם ההתחייבויות (סה"כ) הגבוהות ביותר כאחוז מהתקציב השנתי, ${state.year}`, liabRatio, '%');
+    // Large and very-large cities: both shown as one combined list (highest
+    // ratio first) rather than split into a "best 20"/"worst 20" pair - with
+    // few enough authorities in either bracket, a split just shows the same
+    // short list twice in opposite order.
+    for (const tier of ['large', 'veryLarge']) {
+      const tierCap = tier[0].toUpperCase() + tier.slice(1);
+      const all = [...byTier[tier]].sort((a, b) => b.value - a.value)
+        .map((r) => ({ label: r.name, value: r.value }));
+      renderHBarChart(`finChartLiabRatio${tierCap}`,
+        `${tierLabelFor(tier)} — יחס ההתחייבויות (סה"כ) לתקציב השנתי, ${state.year}`, all, '%');
+    }
 
-    const currentLiabRatio = ratios
-      .filter((r) => r.bal.currentLiabilities != null)
-      .map((r) => ({ label: r.name, value: Math.round((r.bal.currentLiabilities / r.expense) * 1000) / 10 }))
-      .sort((a, b) => b.value - a.value)
-      .slice(0, 20);
-    renderHBarChart('finChartCurrentLiabRatio',
-      `20 הרשויות עם ההתחייבויות השוטפות הגבוהות ביותר כאחוז מהתקציב השנתי, ${state.year}`, currentLiabRatio, '%');
+    // "רשויות איתנות" (gov.il's own financial-stability designation, section
+    // 232א of the Municipalities Ordinance - see stable-authorities.js), for
+    // comparison against the size-tier charts above: whether the ministry's
+    // own "financially strong" label actually lines up with a low
+    // liabilities/budget ratio, or not. Split by the same size tiers rather
+    // than one mixed list, same reasoning as the national charts above - and
+    // with only ~5-8 authorities per tier here, each tier is shown whole (no
+    // best/worst split, that would just repeat the same short list twice).
+    // A name not found isn't necessarily a data gap - a few of these 37 are
+    // regional/local councils this dataset's own coverage may not include
+    // every year (see YEAR_RESOURCES' own coverage notes in finance-data.js).
+    const stableSet = new Set(STABLE_AUTHORITIES);
+    const stableByTier = { small: [], medium: [], large: [], veryLarge: [] };
+    for (const r of liabRatioPoints) {
+      if (!stableSet.has(r.name)) continue;
+      const tier = tierOf(populations.get(r.name));
+      if (tier) stableByTier[tier].push(r);
+    }
+    for (const tier of ['small', 'medium', 'large', 'veryLarge']) {
+      const tierCap = tier[0].toUpperCase() + tier.slice(1);
+      const points = [...stableByTier[tier]].sort((a, b) => b.value - a.value)
+        .map((r) => ({ label: r.name, value: r.value }));
+      renderHBarChart(`finChartLiabRatioStable${tierCap}`,
+        `רשויות איתנות — ${tierLabelFor(tier)} — יחס ההתחייבויות (סה"כ) לתקציב השנתי, ${state.year}`, points, '%');
+    }
   } else {
-    el('finChartLiabRatioBest').innerHTML = '';
-    el('finChartLiabRatio').innerHTML = '';
-    el('finChartCurrentLiabRatio').innerHTML = '';
+    for (const kind of ['Best', 'Worst']) {
+      for (const tier of ['Small', 'Medium']) {
+        el(`finChartLiabRatio${kind}${tier}`).innerHTML = '';
+      }
+    }
+    el('finChartLiabRatioLarge').innerHTML = '';
+    el('finChartLiabRatioVeryLarge').innerHTML = '';
+    for (const tier of ['Small', 'Medium', 'Large', 'VeryLarge']) {
+      el(`finChartLiabRatioStable${tier}`).innerHTML = '';
+    }
   }
-
-  const top = [...summary.rows].sort((a, b) => (b.revenue || 0) - (a.revenue || 0)).slice(0, 20)
-    .map((r) => ({ label: r.name, value: r.revenue || 0 }));
-  renderHBarChart('finChartTop', `20 הרשויות עם ההכנסות הגבוהות ביותר, ${state.year}`, top, 'אלפי ש"ח');
 }
 
 /* ---------- one authority's own revenue/expense/surplus, across every year
@@ -501,14 +580,15 @@ function renderAuthorityTable(points, compare = null, population = null, compare
     return mainRow + cmpRow;
   }).join('');
   const popNote = el('finPopNote');
+  const popNoteDetails = el('finPopNoteDetails');
   if (population) {
-    popNote.hidden = false;
+    popNoteDetails.hidden = false;
     const compareNote = compare
       ? (comparePopulation ? ` אוכלוסיית ${compare.name}: ${num(comparePopulation)} תושבים.` : ` הנתון אינו זמין עבור ${compare.name}.`)
       : '';
     popNote.textContent = `הכנסות/הוצאות לתושב מחושבות לפי אוכלוסיית ${state.authority} במפקד ${CBS_POPULATION_YEAR} של הלשכה המרכזית לסטטיסטיקה (${num(population)} תושבים) - אותו מספר תושבים משמש לכל השנים בטבלה, ולא אומדן שנתי מתעדכן.${compareNote}`;
   } else {
-    popNote.hidden = true;
+    popNoteDetails.hidden = true;
   }
   el('finAuthTable').innerHTML = `
     <div class="matrix-wrap">
@@ -601,18 +681,59 @@ function renderPopulationStats(population, compareName, comparePopulation) {
   box.innerHTML = tiles.join('');
 }
 
+/** Where the selected authority ranks nationally on the same total-
+ * liabilities/annual-budget ratio as the national top-20 charts above -
+ * "what place is this city in" for the currently selected year. Reuses
+ * fetchSummary()/fetchLiabilities()'s own caches, so this costs nothing
+ * extra once renderKpis() has already run for that year. */
+async function renderAuthorityLiabRank() {
+  const note = el('finAuthLiabRank');
+  if (!state.authority) { note.hidden = true; return; }
+  if (!YEAR_RESOURCES[state.year]?.hasSummary) { note.hidden = true; return; }
+
+  const [summary, liabilities, populations] = await Promise.all([
+    fetchSummary(state.year), fetchLiabilities(state.year), fetchPopulations(),
+  ]);
+  if (summary === 'unsupported' || liabilities === 'unsupported') { note.hidden = true; return; }
+  // A newer authority/year change already started its own call - same
+  // stale-response guard renderAuthorityCharts() uses below.
+  if (state.authority == null) { note.hidden = true; return; }
+
+  // Ranked against its own size tier, not all 260 authorities - the same
+  // "small/medium/large/very large" split the national charts use above, so
+  // a small council's place is relative to other small councils, not
+  // buried at one extreme of a list dominated by cities many times its
+  // budget (see renderCharts()'s own reasoning for the same split).
+  const myTier = tierOf(populations.get(state.authority));
+  const all = liabRatiosFor(summary, liabilities);
+  const ranked = (myTier ? all.filter((r) => tierOf(populations.get(r.name)) === myTier) : all)
+    .sort((a, b) => b.value - a.value);
+  const rank = ranked.findIndex((r) => r.name === state.authority);
+  if (rank < 0) { note.hidden = true; return; }
+  note.hidden = false;
+  // tierLabelFor() already reads as "רשויות X (טווח אוכלוסייה)" on its own
+  // (e.g. "רשויות גדולות (50,000–200,000 תושבים)") - dropped straight into
+  // the sentence rather than wrapped in a second, redundant set of
+  // parentheses around it.
+  const group = myTier ? tierLabelFor(myTier) : 'רשויות';
+  note.textContent = `${state.authority} נמצאת במקום ${rank + 1} מתוך ${ranked.length} ${group} `
+    + `ביחס ההתחייבויות (סה"כ) לתקציב השנתי לשנת ${state.year} (1 = הגבוה ביותר).`;
+}
+
 async function renderAuthorityCharts() {
   const myGeneration = ++authorityChartsGeneration;
   const wrap = el('finAuthCharts');
   if (!state.authority) {
     wrap.hidden = true;
     el('finAreas').hidden = true;
+    el('finAuthLiabRank').hidden = true;
     return;
   }
   wrap.hidden = false;
   el('finChartAuthRevenue').innerHTML = '<p class="acc-hint">טוען…</p>';
   el('finChartAuthPerCapita').innerHTML = '<p class="acc-hint">טוען…</p>';
   el('finChartAuthLiabRatio').innerHTML = '<p class="acc-hint">טוען…</p>';
+  renderAuthorityLiabRank(); // independent of the fetches below - its own cache, doesn't block this render
 
   const hasCompare = !!state.compareAuthority;
   const authorities = hasCompare ? [state.authority, state.compareAuthority] : [state.authority];
@@ -659,7 +780,7 @@ async function renderAuthorityCharts() {
     el('finChartAuthRevenue').innerHTML = `<p class="acc-hint">לא נמצאו נתוני הכנסות/הוצאות עבור "${esc(state.authority)}" באף שנה זמינה.</p>`;
     el('finChartAuthPerCapita').innerHTML = '';
     el('finAuthTable').innerHTML = '';
-    el('finPopNote').hidden = true;
+    el('finPopNoteDetails').hidden = true;
   } else {
     const compare = hasCompare && comparePoints?.length
       ? { name: state.compareAuthority, points: comparePoints } : null;
@@ -750,11 +871,24 @@ async function renderAuthorityCharts() {
     // assumed to be the same array index.
     const compareLatest = compareAreas?.points.find((p) => p.year === latest.year)
       || compareAreas?.points[compareAreas.points.length - 1] || null;
-    const areaEntries = AREA_CATEGORIES.filter((cat) => latest.areas[cat] != null).flatMap((cat) => [
-      { label: cat, value: latest.areas[cat] },
-      ...(compareAreas && compareLatest?.areas[cat] != null
-        ? [{ label: `${cat} — ${compareAreas.name}`, value: compareLatest.areas[cat], compare: true }] : []),
-    ]);
+    // Section heading reflects whoever is actually selected, not a static
+    // "הרשות שנבחרה" placeholder - matters once a compare authority is set,
+    // same reasoning as the chart's own caption below.
+    el('areasH').textContent = `שטחים לפי ייעוד — ${state.authority}${compareAreas ? ` / ${compareAreas.name}` : ''}`;
+
+    const areaEntries = AREA_CATEGORIES.filter((cat) => latest.areas[cat] != null).flatMap((cat) => {
+      const cmpValue = compareAreas && compareLatest?.areas[cat] != null ? compareLatest.areas[cat] : null;
+      // Main-as-%-of-compare per category, appended right onto the main
+      // entry's own label - the same "X% מ-Y" vocabulary the revenue/
+      // expense grouped chart above already uses for the identical
+      // comparison, just inline since renderHBarChart's entries are plain
+      // label/value pairs with no separate slot for it.
+      const pct = cmpValue ? ` (${Math.round((latest.areas[cat] / cmpValue) * 100)}% מ-${compareAreas.name})` : '';
+      return [
+        { label: `${cat}${pct}`, value: latest.areas[cat] },
+        ...(cmpValue != null ? [{ label: `${cat} — ${compareAreas.name}`, value: cmpValue, compare: true }] : []),
+      ];
+    });
     renderHBarChart('finChartAreas', `שטחים לפי ייעוד, ${latest.year} — ${state.authority}${compareAreas ? ` / ${compareAreas.name}` : ''}`,
       areaEntries, 'אלפי מ"ר');
     renderAreasTable(areaPoints, compareAreas);
@@ -1093,7 +1227,7 @@ compareInput.addEventListener('input', debounce(onCompareChange, 300));
 el('finYear').addEventListener('change', async (e) => {
   state.year = Number(e.target.value);
   syncUrl();
-  await Promise.all([renderKpis(), renderStatement()]);
+  await Promise.all([renderKpis(), renderStatement(), renderAuthorityLiabRank()]);
 });
 authorityInput.addEventListener('input', debounce(onAuthorityChange, 300));
 

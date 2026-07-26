@@ -87,7 +87,7 @@
       "name": "BudgetKey (מפתח התקציב)",
       "name_he": "מפתח התקציב",
       "kind": "פרויקט עצמאי - לא רשמי",
-      "about": "פרויקט עצמאי (לא ממשלתי, לא רשמי) שאוסף ומנגיש את תקציב המדינה, תוכניות תמיכה, התקשרויות רכש, מכרזים ונתוני גופים - לפי האתר עצמו: \"כדי שנוכל לדעת מה עושים עם הכסף שלנו\". חושף גם שרת MCP חי (https://next.obudget.org/mcp) עם שאילתות SQL על סעיפי התקציב מאז 1997 - נבדק ישירות: מסביר בעצמו שסכימת סעיפים לפי קידומת קוד (LIKE) שגויה כי כל סעיף כבר כולל את הסעיפים שמתחתיו בהיררכיה (קוד מיוחד TOTAL לתקציב הכולל), בניגוד למאגרי תקציב המדינה הגולמיים של משרד האוצר ב-data.gov.il, שאין בהם הגנה כזו - סכימה נאיבית שם נמצאה כפולה פי כ-2.5 מהתקציב האמיתי.",
+      "about": "פרויקט עצמאי (לא ממשלתי, לא רשמי) שאוסף ומנגיש את תקציב המדינה, תוכניות תמיכה, התקשרויות רכש, מכרזים ונתוני גופים - לפי האתר עצמו: \"כדי שנוכל לדעת מה עושים עם הכסף שלנו\". חושף גם שרת MCP חי (https://next.obudget.org/mcp, לסוכני AI - לא נפתח כ-GET רגיל בדפדפן) - נבדק ישירות מול הפרוטוקול (handshake מלא): 3 כלים (DatasetInfo, DatasetFullTextSearch, DatasetDBQuery) על 8 מאגרים, כולל טבלת budget_items_data שבה code='TOTAL' אכן מחזיר את סך תקציב המדינה (נבדק: 709.4 מיליארד ₪ ל-2026) - טבלה שונה מ-raw_budget של ממשק ה-SQL הישיר (למטה), ששם code='TOTAL' לא קיים כלל (0 שורות) והשקול היחיד הוא code='00' עם depth=0 (אותו סכום בדיוק, נבדק). בשתי הטבלאות כל סעיף כבר כולל את הסעיפים שמתחתיו בהיררכיה, אז סכימה לפי קידומת קוד (LIKE) תמיד כפולה - בניגוד למאגרי תקציב המדינה הגולמיים של משרד האוצר ב-data.gov.il, שאין בהם הגנה כזו וסכימה נאיבית שם נמצאה כפולה פי כ-2.5 מהתקציב האמיתי.",
       "href": "https://next.obudget.org/",
       "external": true
     }
@@ -272,8 +272,8 @@
       "home": "https://next.obudget.org",
       "docs": "https://github.com/OpenBudget/budgetkey",
       "kind": "פרויקט עצמאי - לא רשמי",
-      "about": "פרויקט עצמאי (לא ממשלתי) שמנגיש את תקציב המדינה, תמיכות, התקשרויות ומכרזים. שני ממשקים פתוחים: שאילתת SQL ישירה על בסיס הנתונים וחיפוש טקסטואלי. שניהם עונים לדפדפן (CORS משקף את ה-Origin).",
-      "api_count": 2,
+      "about": "פרויקט עצמאי (לא ממשלתי) שמנגיש את תקציב המדינה, תמיכות, התקשרויות ומכרזים. שני ממשקים פתוחים לדפדפן (CORS משקף את ה-Origin): שאילתת SQL ישירה על בסיס הנתונים וחיפוש טקסטואלי - ועוד שרת MCP חי לסוכני AI, שלא נפתח כ-GET רגיל.",
+      "api_count": 3,
       "browser_count": 2,
       "domains": [
         "budget"
@@ -662,7 +662,7 @@
       "format": "JSON",
       "status": 200,
       "domain": "budget",
-      "notes": "SELECT חופשי (PostgreSQL) בפרמטר query. נבדק (2026-07-24) על raw_budget — סעיפי תקציב מאז 1997: שורש ההיררכיה הוא depth=0 עם code='00' ('המדינה'), 709.4 מיליארד ₪ נטו מעודכן ל-2026; code='TOTAL' מחזיר 0 שורות בטבלה זו, בניגוד למתואר בשרת ה-MCP שלהם. זהירות בסכימה: כל סעיף כבר כולל את הסעיפים שמתחתיו, אז SUM לפי קידומת קוד סופר כפול. התשובה כוללת download_url מוכן ל-CSV.",
+      "notes": "SELECT חופשי (PostgreSQL) בפרמטר query. נבדק (2026-07-24) על raw_budget — סעיפי תקציב מאז 1997: שורש ההיררכיה הוא depth=0 עם code='00' ('המדינה'), 709.4 מיליארד ₪ נטו מעודכן ל-2026; code='TOTAL' מחזיר 0 שורות בטבלה זו. זו טבלה שונה מ-budget_items_data שחשוף דרך שרת ה-MCP של הפרויקט (ראו למטה) - שם code='TOTAL' כן עובד (אותו סכום בדיוק, נבדק ישירות). זהירות בסכימה: כל סעיף כבר כולל את הסעיפים שמתחתיו, אז SUM לפי קידומת קוד סופר כפול. התשובה כוללת download_url מוכן ל-CSV.",
       "example": "https://next.obudget.org/api/query?query=SELECT%20code%2Ctitle%2Cyear%2Cnet_revised%20FROM%20raw_budget%20WHERE%20depth%3D0%20ORDER%20BY%20year%20DESC%20LIMIT%205",
       "portal": "budgetkey"
     },
@@ -680,6 +680,22 @@
       "domain": "budget",
       "notes": "חיפוש טקסט חופשי בעברית; סוג המסמך בנתיב (budget נבדק ב-2026-07-24: 'חינוך' מחזיר 4,658 סעיפים עם ניקוד רלוונטיות). פרמטר size שולט בכמות התוצאות.",
       "example": "https://next.obudget.org/search/budget?q=%D7%97%D7%99%D7%A0%D7%95%D7%9A&size=3",
+      "portal": "budgetkey"
+    },
+    {
+      "source": "מפתח התקציב",
+      "source_he": "מפתח התקציב",
+      "name": "שרת MCP — שאילתות מובנות לסוכני AI",
+      "endpoint": "https://next.obudget.org/mcp",
+      "method": "POST",
+      "auth": "none",
+      "cors": "unknown",
+      "browser": false,
+      "format": "MCP (JSON-RPC 2.0 over streamable HTTP, תגובת SSE)",
+      "status": 200,
+      "domain": "budget",
+      "notes": "לא נפתח כ-GET רגיל (406, דורש Accept: text/event-stream ו-handshake של initialize לפני כל שימוש) - נבדק ישירות מול הפרוטוקול (2026-07-26), לא רק מהתיעוד. חושף 3 כלים: DatasetInfo (סכימה), DatasetFullTextSearch (חיפוש מזהים), DatasetDBQuery (SQL) - על 8 מאגרים (budget_items_data, support_programs_data, supports_transactions_data, contracts_data, entities_data, income_items_data, budgetary_change_requests_data, budgetary_change_transactions_data). בטבלת budget_items_data code='TOTAL' עובד כשורש היררכיית התקציב (נבדק: 709,395,841,000 ₪ ל-2026 - זהה בדיוק ל-raw_budget עם code='00' AND depth=0 בממשק ה-SQL הישיר למעלה, שם code='TOTAL' לא קיים). לשימוש בכלי MCP (כמו Claude), לא בדפדפן רגיל.",
+      "example": null,
       "portal": "budgetkey"
     }
   ]

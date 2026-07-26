@@ -332,6 +332,42 @@ button.stat { cursor: pointer; }
 .fin-national > summary:hover { color: var(--accent); }
 .fin-national[open] > summary { margin-block-end: 1.5rem; }
 
+/* local-finance.html: the small/medium/large/very-large liabilities-ratio
+   charts - always shown directly, not behind a click, since with 8 of them
+   (4 size tiers x high/low) someone comparing a few tiers would otherwise
+   be opening and closing accordions constantly. A bordered card still
+   separates each one visually within its shared .fin-tier-row pair. */
+.fin-tier {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-block-end: .75rem;
+  padding-inline: 1rem;
+}
+.fin-tier-label { font-size: 1rem; font-weight: 600; color: var(--fg); margin: .85rem 0 0; }
+.fin-tier .acc-chart { padding-block-end: 1rem; }
+
+/* One size tier's "highest ratio" and "lowest ratio" accordions, grouped
+   under a shared label instead of two same-looking rows with no visual
+   link between them. flex-basis:20rem + wrap (the same responsive pattern
+   .acc-charts already uses) puts the pair side by side wherever there's
+   room for both and stacks them - no media query needed - once there isn't. */
+.fin-tier-group { margin-block-end: 1.5rem; }
+.fin-tier-group-label { font-size: .95rem; font-weight: 600; color: var(--muted); margin: 0 0 .5rem; }
+.fin-tier-row { display: flex; flex-wrap: wrap; gap: 1rem; }
+.fin-tier-row .fin-tier { flex: 1 1 20rem; min-inline-size: 0; margin-block-end: 0; }
+
+/* גדולות (a real list, dozens of authorities) next to גדולות מאוד (a short
+   list, a handful of 200,000+ cities) - unlike the wrap-and-stack pairs
+   above, this pair never stacks even on a phone: the short list would
+   otherwise claim a full mobile-width row of its own for maybe 6-8 bars.
+   nowrap keeps them side by side always; the main list gets most of the
+   width (flex:2) and the short one stays a narrower side column (flex:1),
+   both shrinkable below their content's natural size (min-inline-size:0)
+   since neither has anywhere to overflow to. */
+.fin-tier-row-side { flex-wrap: nowrap; }
+.fin-tier-row-side .fin-tier.fin-tier-main { flex: 2 1 0; }
+.fin-tier-row-side .fin-tier.fin-tier-side { flex: 1 1 0; }
+
 /* ---------- page sections (ערים / כלל הארץ) ---------- */
 
 .acc-section { margin-block-end: 2.5rem; }

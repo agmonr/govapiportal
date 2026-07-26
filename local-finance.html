@@ -93,10 +93,65 @@
           <div class="acc-charts">
             <figure id="finChartYoY" class="acc-chart" role="img"></figure>
           </div>
-          <figure id="finChartLiabRatioBest" class="acc-chart total acc-chart-wide" role="img"></figure>
-          <figure id="finChartLiabRatio" class="acc-chart total acc-chart-wide" role="img"></figure>
-          <figure id="finChartCurrentLiabRatio" class="acc-chart total acc-chart-wide" role="img"></figure>
-          <figure id="finChartTop" class="acc-chart total acc-chart-wide" role="img"></figure>
+          <div class="fin-tier-group">
+            <p class="fin-tier-group-label">רשויות קטנות (עד 10,000 תושבים)</p>
+            <div class="fin-tier-row">
+              <div class="fin-tier">
+                <p class="fin-tier-label">יחס ההתחייבויות (סה"כ) לתקציב השנתי — הנמוך ביותר</p>
+                <figure id="finChartLiabRatioBestSmall" class="acc-chart total acc-chart-wide" role="img"></figure>
+              </div>
+              <div class="fin-tier">
+                <p class="fin-tier-label">יחס ההתחייבויות (סה"כ) לתקציב השנתי — הגבוה ביותר</p>
+                <figure id="finChartLiabRatioWorstSmall" class="acc-chart total acc-chart-wide" role="img"></figure>
+              </div>
+            </div>
+          </div>
+          <div class="fin-tier-group">
+            <p class="fin-tier-group-label">רשויות בינוניות (10,000–50,000 תושבים)</p>
+            <div class="fin-tier-row">
+              <div class="fin-tier">
+                <p class="fin-tier-label">יחס ההתחייבויות (סה"כ) לתקציב השנתי — הנמוך ביותר</p>
+                <figure id="finChartLiabRatioBestMedium" class="acc-chart total acc-chart-wide" role="img"></figure>
+              </div>
+              <div class="fin-tier">
+                <p class="fin-tier-label">יחס ההתחייבויות (סה"כ) לתקציב השנתי — הגבוה ביותר</p>
+                <figure id="finChartLiabRatioWorstMedium" class="acc-chart total acc-chart-wide" role="img"></figure>
+              </div>
+            </div>
+          </div>
+          <div class="fin-tier-group">
+            <div class="fin-tier-row fin-tier-row-side">
+              <div class="fin-tier fin-tier-main">
+                <p class="fin-tier-label">רשויות גדולות (50,000–200,000 תושבים)</p>
+                <figure id="finChartLiabRatioLarge" class="acc-chart total acc-chart-wide" role="img"></figure>
+              </div>
+              <div class="fin-tier fin-tier-side">
+                <p class="fin-tier-label">רשויות גדולות מאוד (מעל 200,000 תושבים)</p>
+                <figure id="finChartLiabRatioVeryLarge" class="acc-chart total acc-chart-wide" role="img"></figure>
+              </div>
+            </div>
+          </div>
+          <div class="fin-tier-group">
+            <p class="fin-tier-group-label">רשויות איתנות — יחס ההתחייבויות (סה"כ) לתקציב השנתי, לפי גודל</p>
+            <div class="fin-tier-row">
+              <div class="fin-tier">
+                <p class="fin-tier-label">קטנות (עד 10,000 תושבים)</p>
+                <figure id="finChartLiabRatioStableSmall" class="acc-chart total acc-chart-wide" role="img"></figure>
+              </div>
+              <div class="fin-tier">
+                <p class="fin-tier-label">בינוניות (10,000–50,000 תושבים)</p>
+                <figure id="finChartLiabRatioStableMedium" class="acc-chart total acc-chart-wide" role="img"></figure>
+              </div>
+              <div class="fin-tier">
+                <p class="fin-tier-label">גדולות (50,000–200,000 תושבים)</p>
+                <figure id="finChartLiabRatioStableLarge" class="acc-chart total acc-chart-wide" role="img"></figure>
+              </div>
+              <div class="fin-tier">
+                <p class="fin-tier-label">גדולות מאוד (מעל 200,000 תושבים)</p>
+                <figure id="finChartLiabRatioStableVeryLarge" class="acc-chart total acc-chart-wide" role="img"></figure>
+              </div>
+            </div>
+          </div>
         </section>
       </details>
 
@@ -147,12 +202,22 @@
           <figure id="finChartAuthRevenue" class="acc-chart" role="img"></figure>
           <figure id="finChartAuthPerCapita" class="acc-chart" role="img"></figure>
         </div>
-        <p id="finPopNote" class="acc-hint" dir="auto" hidden></p>
-        <div id="finAuthTable"></div>
+        <details id="finPopNoteDetails" class="acc-hint" dir="auto" hidden>
+          <summary>מקור נתון האוכלוסייה לחישוב לתושב</summary>
+          <p id="finPopNote"></p>
+        </details>
+        <details id="finAuthTableDetails" class="acc-hint">
+          <summary>טבלת הכנסות והוצאות לפי שנה</summary>
+          <div id="finAuthTable"></div>
+        </details>
         <div class="acc-charts">
           <figure id="finChartAuthLiabRatio" class="acc-chart" role="img"></figure>
         </div>
-        <div id="finLiabTable"></div>
+        <p id="finAuthLiabRank" class="acc-hint" dir="auto" hidden></p>
+        <details id="finLiabTableDetails" class="acc-hint">
+          <summary>טבלת התחייבויות לפי שנה</summary>
+          <div id="finLiabTable"></div>
+        </details>
       </section>
 
       <section class="acc-section" id="finAreas" aria-labelledby="areasH" hidden>
@@ -165,7 +230,10 @@
         </p>
         <p id="finJurisdictionNote" class="acc-hint" dir="auto" hidden></p>
         <figure id="finChartAreas" class="acc-chart acc-chart-wide" role="img"></figure>
-        <div id="finAreasTable"></div>
+        <details class="acc-hint">
+          <summary>שטחים לפי שנה — כל השנים הזמינות</summary>
+          <div id="finAreasTable"></div>
+        </details>
       </section>
 
       <section class="acc-section" aria-labelledby="aiPromptH">

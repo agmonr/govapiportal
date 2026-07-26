@@ -84,7 +84,7 @@ TARGETS = [
         # lookup, no shared portal.js machinery (its own KPI/statement logic,
         # over a per-year resource-id config in finance-data.js). Charts and
         # the DataStore query wrapper are shared - see charts.js/datastore.js.
-        "sources": ["src/ui.js", "src/theme.js", "src/finance-data.js", "src/charts.js", "src/datastore.js", "src/population.js", "src/local-finance.js"],
+        "sources": ["src/ui.js", "src/theme.js", "src/finance-data.js", "src/charts.js", "src/datastore.js", "src/population.js", "src/stable-authorities.js", "src/local-finance.js"],
         "data": False,
     },
     {
