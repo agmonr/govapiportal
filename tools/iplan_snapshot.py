@@ -63,7 +63,9 @@ import argparse
 import io
 import json
 import math
+import socket
 import sys
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -84,6 +86,9 @@ MERCATOR_R = 6378137.0  # sphere radius used by Web Mercator (EPSG:3857)
 TILE_PX = 256
 MAX_ZOOM = 19  # OSM's standard raster tiles stop here
 TIMEOUT = 25
+ATTEMPTS = 3   # a single timeout is usually the network, not the server -
+               # same convention as tools/probe.py's ATTEMPTS/PAUSE
+PAUSE = 0.7
 
 # The three layers checked by default in iplan's own layer panel (see module
 # docstring). Kept as the default rather than the only option - --layers lets
@@ -103,9 +108,25 @@ DEFAULT_LAYERS = [1, 4, 0]
 EXCLUDE_LANDUSE_CODES = (995, 996)
 
 
+def open_url(req, timeout=TIMEOUT, attempts=ATTEMPTS):
+    """urlopen with retries on plain unreachability (timeout/DNS/connection
+    reset) - this script makes dozens of requests per run (basemap tiles
+    especially), and a single transient timeout shouldn't abort the whole
+    thing. An HTTPError is a real answer from the server, not retried here."""
+    last_err = None
+    for attempt in range(1, attempts + 1):
+        try:
+            return urllib.request.urlopen(req, timeout=timeout)
+        except (urllib.error.URLError, socket.timeout, TimeoutError) as e:
+            last_err = e
+            if attempt < attempts:
+                time.sleep(PAUSE * attempt)
+    raise last_err
+
+
 def fetch_json(url):
     req = urllib.request.Request(url, headers={"User-Agent": UA, "Accept": "application/json"})
-    with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
+    with open_url(req) as resp:
         return json.loads(resp.read().decode("utf-8"))
 
 
@@ -144,7 +165,7 @@ def project_points(points, in_sr, out_sr):
     req = urllib.request.Request(
         f"{GEOMETRY}/project", data=params.encode("utf-8"),
         headers={"User-Agent": UA, "Accept": "application/json"})
-    with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
+    with open_url(req) as resp:
         result = json.loads(resp.read().decode("utf-8"))
     if "geometries" not in result:
         sys.exit(f"בקשת ה-project נכשלה: {result}")
@@ -182,7 +203,7 @@ def mercator_to_pixel(mx, my, zoom):
 
 def fetch_tile(z, x, y):
     req = urllib.request.Request(OSM_TILE.format(z=z, x=x, y=y), headers={"User-Agent": UA})
-    with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
+    with open_url(req) as resp:
         return Image.open(io.BytesIO(resp.read())).convert("RGB")
 
 
@@ -226,6 +247,7 @@ def fetch_basemap(itm_bbox, size_px):
     for tx in range(tx_min, tx_max + 1):
         for ty in range(ty_min, ty_max + 1):
             canvas.paste(fetch_tile(zoom, tx, ty), ((tx - tx_min) * TILE_PX, (ty - ty_min) * TILE_PX))
+            time.sleep(0.1)  # one thread, lightly paced - OSM's tile usage policy
 
     crop = canvas.crop((
         round(px_min - tx_min * TILE_PX), round(py_min - ty_min * TILE_PX),
@@ -267,7 +289,7 @@ def export_png(bbox, layers, size, fmt, layer_defs, transparent):
 
 def fetch_image(url):
     req = urllib.request.Request(url, headers={"User-Agent": UA})
-    with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
+    with open_url(req) as resp:
         return Image.open(io.BytesIO(resp.read()))
 
 
