@@ -1437,13 +1437,13 @@ body.accidents-page header.site h1 { inline-size: 100%; }
 }
 .acc-year-pick input:not([type="checkbox"]):not([type="radio"]) { min-inline-size: 16rem; }
 
-/* blue-lines.html's four display-option checkboxes, grouped into one row
-   (see .cm-filters .acc-year-pick's flex-wrap:nowrap) instead of one row
-   each - narrower than the combined label widths on a phone screen, so it
-   scrolls horizontally in place rather than wrapping or clipping, the same
-   pattern .matrix-wrap already uses for a too-wide table. */
-#blDisplayOpts { flex-wrap: nowrap; overflow-x: auto; padding-block-end: .3rem; }
-#blDisplayOpts label { white-space: nowrap; }
+/* blue-lines.html's four display-option checkboxes, stacked one per line -
+   overrides .cm-filters .acc-year-pick's flex-wrap:nowrap (needs the ID's
+   higher specificity to win). A single scrolling row was tried first, but
+   with the longest label (תחום השפעת מטרו...) that meant most of the row
+   was scrolled out of view rather than readable at a glance - a plain
+   vertical stack keeps every option fully visible without scrolling. */
+#blDisplayOpts { flex-direction: column; align-items: flex-start; flex-wrap: wrap; gap: .5rem; }
 
 /* The city field's own suggestion dropdown (accidents.js), standing in for a
    native <datalist> - that popup is OS/browser-drawn and ignores dir="rtl"
