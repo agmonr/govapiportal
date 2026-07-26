@@ -77,11 +77,10 @@
         </p>
       </details>
 
-      <!-- The national summary (KPIs + national charts). On a phone this is
-           a long scroll standing between the reader and the year/authority
-           picker, so it starts collapsed there - see the inline script at the
-           bottom, which only removes `open` under the mobile breakpoint. -->
-      <details id="finNational" class="fin-national" open>
+      <!-- The national summary (KPIs + national charts) - a long scroll
+           standing between the reader and the year/authority picker, so it
+           starts collapsed. -->
+      <details id="finNational" class="fin-national">
         <summary>נתונים ארציים — מדדים וגרפים</summary>
 
         <section class="acc-section" aria-labelledby="kpiH">
@@ -94,6 +93,9 @@
           <div class="acc-charts">
             <figure id="finChartYoY" class="acc-chart" role="img"></figure>
           </div>
+          <figure id="finChartLiabRatioBest" class="acc-chart total acc-chart-wide" role="img"></figure>
+          <figure id="finChartLiabRatio" class="acc-chart total acc-chart-wide" role="img"></figure>
+          <figure id="finChartCurrentLiabRatio" class="acc-chart total acc-chart-wide" role="img"></figure>
           <figure id="finChartTop" class="acc-chart total acc-chart-wide" role="img"></figure>
         </section>
       </details>
@@ -148,7 +150,7 @@
         <p id="finPopNote" class="acc-hint" dir="auto" hidden></p>
         <div id="finAuthTable"></div>
         <div class="acc-charts">
-          <figure id="finChartAuthLiab" class="acc-chart" role="img"></figure>
+          <figure id="finChartAuthLiabRatio" class="acc-chart" role="img"></figure>
         </div>
         <div id="finLiabTable"></div>
       </section>
@@ -226,12 +228,6 @@
     if (location.protocol === 'file:') {
       document.getElementById('fileproto').hidden = false;
       document.getElementById('app').hidden = true;
-    }
-    /* Starting state only - same one-shot matchMedia check as index.html's
-       "#more": read once on load, not kept in sync on resize, so it never
-       fights a reader who opened the section and then rotated their phone. */
-    if (matchMedia('(max-width: 640px)').matches) {
-      document.getElementById('finNational').removeAttribute('open');
     }
   </script>
   <script type="module" src="./src/local-finance.js"></script>

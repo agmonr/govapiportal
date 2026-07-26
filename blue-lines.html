@@ -63,34 +63,23 @@
           דרך תיבות הסימון בטופס. כל הנתונים נשלפים חי מ-iplan (מנהל התכנון) ומ-OpenStreetMap; שום דבר
           לא מחושב מראש או נשמר באתר.
         </p>
-        <p>
-          <strong>מה אין כאן:</strong> סימון גוש/חלקה (יש בכלי המקביל <code dir="ltr">tools/iplan_snapshot.py</code>
-          בריפו הזה); ובדיקת תחום ההשפעה מוגבלת לקידוד שנמצא בפועל בשכבת תמ"א 70 (קודי MAVAT_CODE‏ 6011/6012,
-          "מרחב ליבה" ו"תחום טבעת ראשונה") — אינה ייעוץ משפטי, ואינה מחליפה בדיקה מול הרשות המקומית.
-        </p>
       </details>
 
       <section class="acc-section">
         <form id="blForm" class="cm-filters">
-          <div class="acc-year-pick" role="radiogroup" aria-label="חיפוש לפי">
+          <div class="acc-year-pick" id="blSearchRow" role="radiogroup" aria-label="חיפוש לפי">
             <label>
               <input type="radio" name="blSearchMode" id="blModeAddress" value="address" checked>
               חיפוש לפי כתובת
             </label>
+            <input id="blAddress" type="text" autocomplete="off" spellcheck="false"
+                   placeholder="למשל: רוטשילד 1, תל אביב">
             <label>
               <input type="radio" name="blSearchMode" id="blModePlan" value="plan">
               חיפוש לפי מספר תכנית
             </label>
-          </div>
-          <div class="acc-year-pick" id="blAddressField">
-            <label for="blAddress">כתובת:</label>
-            <input id="blAddress" type="text" autocomplete="off" spellcheck="false"
-                   placeholder="למשל: רוטשילד 1, תל אביב">
-          </div>
-          <div class="acc-year-pick" id="blPlanField" hidden>
-            <label for="blPlanNumber">מספר תכנית:</label>
             <input id="blPlanNumber" type="text" autocomplete="off" spellcheck="false"
-                   placeholder="למשל: 507-0177683">
+                   placeholder="למשל: 507-0177683" disabled>
           </div>
           <div class="acc-year-pick">
             <label for="blRadius">רדיוס (מטר):</label>

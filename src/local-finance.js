@@ -49,6 +49,7 @@ const state = {
   compareAuthority: DEFAULT_COMPARE_AUTHORITY,
   year: YEARS_DESC[0],
   summaryCache: new Map(), // year -> { totals, byAuthority[] } | 'unsupported'
+  liabilitiesCache: new Map(), // year -> Map(name -> { liabilities, currentLiabilities }) | 'unsupported'
 };
 
 /* Bumped on every call to renderAuthorityCharts()/renderStatement() -
@@ -218,6 +219,35 @@ async function fetchSummary(year) {
   return summary;
 }
 
+/** Every authority's balance-sheet total/current liabilities for one year -
+ * same "טופס 1 פאסיב" sheet fetchAuthorityBundles() already reads per
+ * authority, just without a שם_רשות filter, one bulk request instead of 260.
+ * Scoped to hasSummary years only, matching fetchSummary() above - the
+ * ratio this feeds needs a תקציב שנתי denominator (r.expense), which only
+ * exists for the same years. */
+async function fetchLiabilities(year) {
+  if (state.liabilitiesCache.has(year)) return state.liabilitiesCache.get(year);
+  const cfg = YEAR_RESOURCES[year];
+  if (!cfg?.hasSummary) { state.liabilitiesCache.set(year, 'unsupported'); return 'unsupported'; }
+
+  const balRows = balanceRowsFor(year);
+  const { records } = await dsFilter(cfg.resourceId, {
+    [cfg.sheetField]: 'טופס 1 פאסיב',
+    שורה: [balRows.liabilities, balRows.currentLiabilities],
+    עמודה: BALANCE_COLUMN,
+  });
+  const byAuthority = new Map();
+  for (const rec of records) {
+    const name = rec['שם_רשות'];
+    const row = byAuthority.get(name) || { name };
+    if (rec['שורה'] === balRows.liabilities) row.liabilities = Number(rec['ערך']) || 0;
+    if (rec['שורה'] === balRows.currentLiabilities) row.currentLiabilities = Number(rec['ערך']) || 0;
+    byAuthority.set(name, row);
+  }
+  state.liabilitiesCache.set(year, byAuthority);
+  return byAuthority;
+}
+
 /* ---------- KPI tiles - same visual vocabulary as accidents.html's .stat-row ---------- */
 
 async function renderKpis() {
@@ -229,6 +259,9 @@ async function renderKpis() {
   if (!cfg?.hasSummary) {
     box.innerHTML = `<p class="acc-hint">אין גיליון סיכום ארצי מוכן לשנת ${year} — ראו ההסבר למעלה. הדוח המפורט של הרשות שנבחרה עדיין זמין למטה.</p>`;
     el('finChartYoY').innerHTML = '';
+    el('finChartLiabRatioBest').innerHTML = '';
+    el('finChartLiabRatio').innerHTML = '';
+    el('finChartCurrentLiabRatio').innerHTML = '';
     el('finChartTop').innerHTML = '';
     return;
   }
@@ -276,6 +309,45 @@ async function renderCharts(summary) {
   ].sort((a, b) => a.label.localeCompare(b.label));
   renderBarChart('finChartYoY', 'עודף (גרעון) ארצי מצטבר, לפי שנה', yoyEntries, 'אלפי ש"ח',
     summary.totals.surplus >= 0 ? 'ok-chart' : 'total');
+
+  // Total and current (short-term) liabilities, each as a share of the
+  // authority's own annual budget (r.expense, "תקציב שנתי") - ratios, not
+  // ₪ amounts, so a small council with genuinely small liabilities can
+  // still rank above a big city with a much larger ₪ figure that's small
+  // relative to ITS OWN budget.
+  const liabilities = await fetchLiabilities(state.year);
+  if (liabilities && liabilities !== 'unsupported') {
+    const ratios = summary.rows
+      .map((r) => ({ name: r.name, expense: r.expense, bal: liabilities.get(r.name) }))
+      .filter((r) => r.bal && r.expense > 0);
+
+    const liabRatioPoints = ratios
+      .filter((r) => r.bal.liabilities != null)
+      .map((r) => ({ label: r.name, value: Math.round((r.bal.liabilities / r.expense) * 1000) / 10 }));
+
+    // Same ratio (סה"כ התחייבויות / תקציב שוטף), sorted the other way - the
+    // 20 authorities carrying the LEAST debt relative to their own budget,
+    // not the ones carrying the most.
+    const bestLiabRatio = [...liabRatioPoints].sort((a, b) => a.value - b.value).slice(0, 20);
+    renderHBarChart('finChartLiabRatioBest',
+      `20 הרשויות עם יחס ההתחייבויות (סה"כ) לתקציב השנתי הנמוך ביותר, ${state.year}`, bestLiabRatio, '%');
+
+    const liabRatio = [...liabRatioPoints].sort((a, b) => b.value - a.value).slice(0, 20);
+    renderHBarChart('finChartLiabRatio',
+      `20 הרשויות עם ההתחייבויות (סה"כ) הגבוהות ביותר כאחוז מהתקציב השנתי, ${state.year}`, liabRatio, '%');
+
+    const currentLiabRatio = ratios
+      .filter((r) => r.bal.currentLiabilities != null)
+      .map((r) => ({ label: r.name, value: Math.round((r.bal.currentLiabilities / r.expense) * 1000) / 10 }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 20);
+    renderHBarChart('finChartCurrentLiabRatio',
+      `20 הרשויות עם ההתחייבויות השוטפות הגבוהות ביותר כאחוז מהתקציב השנתי, ${state.year}`, currentLiabRatio, '%');
+  } else {
+    el('finChartLiabRatioBest').innerHTML = '';
+    el('finChartLiabRatio').innerHTML = '';
+    el('finChartCurrentLiabRatio').innerHTML = '';
+  }
 
   const top = [...summary.rows].sort((a, b) => (b.revenue || 0) - (a.revenue || 0)).slice(0, 20)
     .map((r) => ({ label: r.name, value: r.revenue || 0 }));
@@ -540,7 +612,7 @@ async function renderAuthorityCharts() {
   wrap.hidden = false;
   el('finChartAuthRevenue').innerHTML = '<p class="acc-hint">טוען…</p>';
   el('finChartAuthPerCapita').innerHTML = '<p class="acc-hint">טוען…</p>';
-  el('finChartAuthLiab').innerHTML = '<p class="acc-hint">טוען…</p>';
+  el('finChartAuthLiabRatio').innerHTML = '<p class="acc-hint">טוען…</p>';
 
   const hasCompare = !!state.compareAuthority;
   const authorities = hasCompare ? [state.authority, state.compareAuthority] : [state.authority];
@@ -626,29 +698,40 @@ async function renderAuthorityCharts() {
     }
   }
 
-  // Balance sheet: only the total-vs-current liabilities combo chart - the
-  // total-size-alone chart was removed (assets == liabilities exactly, so it
-  // just duplicated this chart's own "back" bar with no new information).
-  // The compare authority's own TOTAL liabilities is what's shown as the
-  // backdrop here - its current-liabilities figure isn't part of this
-  // particular chart's two series, so there's nothing else meaningful of
-  // its to layer in a third time.
+  // Balance sheet: only the total-vs-current liabilities ratio chart - a
+  // plain ₪ total-vs-current chart used to sit here too, but total is a
+  // superset of current by definition, so the ₪ pairing just repeated the
+  // table below with no new information; the ratio (below) is the version
+  // that actually adds something, same reasoning that already removed the
+  // total-size-alone chart before this one.
   if (!balancePoints.length) {
-    el('finChartAuthLiab').innerHTML = `<p class="acc-hint">לא נמצאו נתוני מאזן עבור "${esc(state.authority)}" באף שנה זמינה.</p>`;
+    el('finChartAuthLiabRatio').innerHTML = `<p class="acc-hint">לא נמצאו נתוני מאזן עבור "${esc(state.authority)}" באף שנה זמינה.</p>`;
     el('finLiabTable').innerHTML = '';
   } else {
-    const compareBalance = hasCompare && compareBalancePoints?.length
-      ? { name: state.compareAuthority, points: compareBalancePoints.map((p) => ({ year: p.year, revenue: p.currentLiabilities, expense: p.liabilities })) }
-      : null;
-    renderGroupedChart('finChartAuthLiab', `התחייבויות: סה"כ מול שוטפות — ${state.authority}`,
-      balancePoints.map((p) => ({ year: p.year, revenue: p.currentLiabilities, expense: p.liabilities })),
-      'אלפי ש"ח', state.authority, { front: 'שוטפות', back: 'סה"כ' }, compareBalance);
     // The table's own compare columns use the compare authority's real
-    // current-liabilities figure (not the flattened single backdrop value
-    // the chart above uses) - a table has room for both numbers plainly.
+    // current-liabilities figure (not a flattened backdrop value) - a
+    // table has room for both numbers plainly.
     const compareBalanceTable = hasCompare && compareBalancePoints?.length
       ? { name: state.compareAuthority, points: compareBalancePoints } : null;
     renderLiabilityTable(balancePoints, compareBalanceTable);
+
+    // Each of total/current divided by that year's own annual budget
+    // (bundle's own `expense`, "תקציב שנתי") - a ratio, so a small council
+    // and a big city read on the same scale, same reasoning as the
+    // national top-20 ratio charts above.
+    const ratioOf = (b) => (b.expense > 0
+      ? { year: b.year, revenue: Math.round((b.currentLiabilities / b.expense) * 1000) / 10, expense: Math.round((b.liabilities / b.expense) * 1000) / 10 }
+      : null);
+    const ratioPoints = bundle.map(ratioOf).filter(Boolean);
+    const compareRatioPoints = compareBundle?.map(ratioOf).filter(Boolean) ?? null;
+    if (!ratioPoints.length) {
+      el('finChartAuthLiabRatio').innerHTML = '';
+    } else {
+      const compareRatio = hasCompare && compareRatioPoints?.length
+        ? { name: state.compareAuthority, points: compareRatioPoints } : null;
+      renderGroupedChart('finChartAuthLiabRatio', `התחייבויות: סה"כ מול שוטפות, כאחוז מהתקציב השנתי — ${state.authority}`,
+        ratioPoints, '%', state.authority, { front: 'שוטפות', back: 'סה"כ' }, compareRatio);
+    }
   }
 
   // שטחים לפי ייעוד: a separate section (own <section>, own hidden flag),

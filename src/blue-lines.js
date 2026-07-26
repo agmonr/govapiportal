@@ -633,8 +633,13 @@ function currentQuery() {
 
 function updateSearchModeFields() {
   const isPlan = el('blModePlan').checked;
-  el('blAddressField').hidden = isPlan;
-  el('blPlanField').hidden = !isPlan;
+  // Both fields sit in the same row now (desktop - see #blSearchRow in
+  // style.css); the inactive one is disabled rather than removed, so
+  // switching modes doesn't reflow the row. On mobile, style.css hides
+  // whichever input is disabled instead, since there's no room to show a
+  // field nobody can type into.
+  el('blAddress').disabled = isPlan;
+  el('blPlanNumber').disabled = !isPlan;
 }
 
 function submitForm() {

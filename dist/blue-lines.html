@@ -326,9 +326,8 @@ button.stat { cursor: pointer; }
 .fin-export-row { display: flex; flex-wrap: wrap; gap: .5rem; margin-block-end: .5rem; }
 
 /* local-finance.html: the whole national block (KPIs + national charts) in
-   one <details>, styled as a section heading rather than a boxed sheet. It
-   ships `open` and only starts collapsed on a phone - the inline script in
-   the page closes it under the mobile breakpoint, one-shot on load. */
+   one <details>, styled as a section heading rather than a boxed sheet.
+   Starts collapsed on every screen size. */
 .fin-national > summary { cursor: pointer; font-size: 1.05rem; font-weight: 600; color: var(--muted); margin-block-end: 1rem; }
 .fin-national > summary:hover { color: var(--accent); }
 .fin-national[open] > summary { margin-block-end: 1.5rem; }
@@ -540,19 +539,19 @@ button.stat { cursor: pointer; }
    chart's own #id rather than a class, since renderGroupedChart (charts.js)
    is shared by every grouped chart on every page and must stay neutral -
    this is a look for one specific chart, not a variant of the component. */
-#finChartAuthLiab {
+#finChartAuthLiabRatio {
   padding: 1rem;
   border-radius: var(--radius);
   background: color-mix(in srgb, var(--accent) 7%, var(--surface));
   border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border));
 }
-#finChartAuthLiab figcaption {
+#finChartAuthLiabRatio figcaption {
   font-size: 1.6rem;
   font-weight: 800;
   color: var(--fg);
   text-align: center;
 }
-#finChartAuthLiab .acc-legend,
+#finChartAuthLiabRatio .acc-legend,
 #finChartAuthRevenue .acc-legend,
 #finChartAuthPerCapita .acc-legend {
   justify-content: center;
@@ -569,24 +568,24 @@ button.stat { cursor: pointer; }
    Applies to all three of this page's authority charts (revenue, per-
    capita, liabilities) - only the liabilities chart also gets the bigger/
    bolder "most important graph" treatment above/below this block. */
-#finChartAuthLiab .fin-chart-body,
+#finChartAuthLiabRatio .fin-chart-body,
 #finChartAuthRevenue .fin-chart-body,
 #finChartAuthPerCapita .fin-chart-body {
   justify-content: center;
 }
-#finChartAuthLiab .fin-chart-plot,
+#finChartAuthLiabRatio .fin-chart-plot,
 #finChartAuthRevenue .fin-chart-plot,
 #finChartAuthPerCapita .fin-chart-plot {
   flex: 0 1 auto;
   justify-content: center;
 }
-#finChartAuthLiab .acc-legend-item,
-#finChartAuthLiab .fin-chart-y,
-#finChartAuthLiab .fin-chart-axis-scale span,
-#finChartAuthLiab .fin-chart-pct {
+#finChartAuthLiabRatio .acc-legend-item,
+#finChartAuthLiabRatio .fin-chart-y,
+#finChartAuthLiabRatio .fin-chart-axis-scale span,
+#finChartAuthLiabRatio .fin-chart-pct {
   font-weight: 700;
 }
-#finChartAuthLiab .fin-chart-axis-scale span { color: var(--fg); }
+#finChartAuthLiabRatio .fin-chart-axis-scale span { color: var(--fg); }
 /* Same table-below-the-chart pattern as everywhere else on this page, just
    bolder/larger to match the chart above it being called out. */
 #finLiabTable .matrix { font-size: 1rem; }
@@ -1445,6 +1444,25 @@ body.accidents-page header.site h1 { inline-size: 100%; }
    vertical stack keeps every option fully visible without scrolling. */
 #blDisplayOpts { flex-direction: column; align-items: flex-start; flex-wrap: wrap; gap: .5rem; }
 
+/* blue-lines.html's search-mode row: on desktop, both the address radio+
+   field and the plan radio+field sit in one row - the inactive field is
+   disabled rather than removed, so switching modes doesn't reflow anything
+   (see updateSearchModeFields() in blue-lines.js). Wraps normally on
+   mobile, since two 16rem-min-width text inputs plus their radio labels
+   can't fit one row on a phone regardless - and there, the disabled field
+   is hidden outright rather than shown as a control nobody can use. */
+#blSearchRow { flex-wrap: wrap; }
+#blSearchRow input:disabled { opacity: .45; }
+@media (min-width: 641px) {
+  /* flex-basis:100% - its own full-width line within .cm-filters, so
+     רדיוס/checkboxes always wrap to the next line rather than packing in
+     beside it when there happens to be room. */
+  #blSearchRow { flex-basis: 100%; flex-wrap: nowrap; }
+}
+@media (max-width: 640px) {
+  #blSearchRow input:disabled { display: none; }
+}
+
 /* The city field's own suggestion dropdown (accidents.js), standing in for a
    native <datalist> - that popup is OS/browser-drawn and ignores dir="rtl"
    (shows up left-anchored and LTR on Linux/GTK Chrome), so it can't be fixed
@@ -1525,34 +1543,23 @@ body.accidents-page header.site h1 { inline-size: 100%; }
           דרך תיבות הסימון בטופס. כל הנתונים נשלפים חי מ-iplan (מנהל התכנון) ומ-OpenStreetMap; שום דבר
           לא מחושב מראש או נשמר באתר.
         </p>
-        <p>
-          <strong>מה אין כאן:</strong> סימון גוש/חלקה (יש בכלי המקביל <code dir="ltr">tools/iplan_snapshot.py</code>
-          בריפו הזה); ובדיקת תחום ההשפעה מוגבלת לקידוד שנמצא בפועל בשכבת תמ"א 70 (קודי MAVAT_CODE‏ 6011/6012,
-          "מרחב ליבה" ו"תחום טבעת ראשונה") — אינה ייעוץ משפטי, ואינה מחליפה בדיקה מול הרשות המקומית.
-        </p>
       </details>
 
       <section class="acc-section">
         <form id="blForm" class="cm-filters">
-          <div class="acc-year-pick" role="radiogroup" aria-label="חיפוש לפי">
+          <div class="acc-year-pick" id="blSearchRow" role="radiogroup" aria-label="חיפוש לפי">
             <label>
               <input type="radio" name="blSearchMode" id="blModeAddress" value="address" checked>
               חיפוש לפי כתובת
             </label>
+            <input id="blAddress" type="text" autocomplete="off" spellcheck="false"
+                   placeholder="למשל: רוטשילד 1, תל אביב">
             <label>
               <input type="radio" name="blSearchMode" id="blModePlan" value="plan">
               חיפוש לפי מספר תכנית
             </label>
-          </div>
-          <div class="acc-year-pick" id="blAddressField">
-            <label for="blAddress">כתובת:</label>
-            <input id="blAddress" type="text" autocomplete="off" spellcheck="false"
-                   placeholder="למשל: רוטשילד 1, תל אביב">
-          </div>
-          <div class="acc-year-pick" id="blPlanField" hidden>
-            <label for="blPlanNumber">מספר תכנית:</label>
             <input id="blPlanNumber" type="text" autocomplete="off" spellcheck="false"
-                   placeholder="למשל: 507-0177683">
+                   placeholder="למשל: 507-0177683" disabled>
           </div>
           <div class="acc-year-pick">
             <label for="blRadius">רדיוס (מטר):</label>
@@ -2484,8 +2491,13 @@ function currentQuery() {
 
 function updateSearchModeFields() {
   const isPlan = el('blModePlan').checked;
-  el('blAddressField').hidden = isPlan;
-  el('blPlanField').hidden = !isPlan;
+  // Both fields sit in the same row now (desktop - see #blSearchRow in
+  // style.css); the inactive one is disabled rather than removed, so
+  // switching modes doesn't reflow the row. On mobile, style.css hides
+  // whichever input is disabled instead, since there's no room to show a
+  // field nobody can type into.
+  el('blAddress').disabled = isPlan;
+  el('blPlanNumber').disabled = !isPlan;
 }
 
 function submitForm() {
