@@ -310,22 +310,33 @@ function startCopyImageForPasting(pngBlob, text) {
   ]).then(() => true).catch(() => false);
 }
 
-/** Opens Gmail's web compose (not a plain mailto:) with the location/date
- * pre-filled, and separately copies the map image to the clipboard for a
- * one-paste attach - a bare mailto: only works if the browser has a default
- * mail handler registered, which a lot of desktop users (anyone who reads
- * mail through a browser tab, not a native app) simply don't have; clicking
- * it then does nothing whatsoever, no error, which reads identically to
- * "the button is broken".
+/** On Android/iPhone with a real mail app installed, navigator.share() with
+ * files opens the OS's native share sheet - the user picks Mail/Gmail/
+ * Outlook/whatever's installed, and the image goes along as a REAL
+ * attachment, no manual paste needed; tried first for exactly that reason.
+ * Falls back to Gmail's web compose (not a plain mailto:, which only works
+ * if a default mail handler happens to be registered - a lot of desktop
+ * users who read mail through a browser tab simply don't have one, and
+ * clicking it then does nothing whatsoever, no error) when file-sharing
+ * isn't available at all - opening a literal browser tab rather than an
+ * app is an inherent limitation of that fallback, not something a web page
+ * can route around; it's what "no native share support" actually means.
+ * In the fallback, the map image is separately copied to the clipboard for
+ * a one-paste attach into the compose body.
  *
- * Both the clipboard write AND window.open() are fired synchronously, in
- * that order, with no await between them - see exportResultSync()'s and
- * startCopyImageForPasting()'s own comments for why each half of that
- * ordering matters (focus vs. user-activation). Only the eventual .then()
- * that updates the status text is actually asynchronous. */
+ * Every branch builds the PNG synchronously (exportResultSync) and calls
+ * share()/clipboard.write()/window.open() with zero `await` first - see
+ * those two helpers' own comments for why (user-activation, clipboard
+ * focus). Only the eventual status-text update is actually asynchronous. */
 function shareToMail() {
   if (state.lat == null) return;
   const { pngBlob, text } = exportResultSync();
+  const file = new File([pngBlob], 'מיקום.png', { type: 'image/png' });
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    navigator.share({ files: [file], title: 'מי אחראי על ניקיון האזור?', text })
+      .catch((err) => { if (err.name !== 'AbortError') showError(el('acStatus'), err); }); // AbortError: the user closed the share sheet - not a failure
+    return;
+  }
   const copyPromise = startCopyImageForPasting(pngBlob, text);
   const params = new URLSearchParams({ view: 'cm', fs: '1', su: 'מי אחראי על ניקיון האזור?', body: text });
   window.open(`https://mail.google.com/mail/?${params}`, '_blank', 'noopener');
@@ -336,13 +347,26 @@ function shareToMail() {
   });
 }
 
-/** Same shape as shareToMail() above, targeting WhatsApp's own "click to
- * chat" link instead of Gmail - wa.me opens the WhatsApp Web/app compose
- * with the text pre-filled and, same as Gmail, has no way to carry a file
- * via the URL either, so the same copy-then-paste courtesy applies. */
+/** WhatsApp specifically registers as a share TARGET for the OS's native
+ * share sheet (files included) on Android/iOS - unlike Gmail, there's a real
+ * "actually attaches the file, zero manual steps" path here when
+ * navigator.share() with files is supported, so it's tried first. wa.me (the
+ * fallback below) is a plain web link with no file-carrying capability at
+ * all - on a desktop browser without file-sharing support (this file's own
+ * canShare check fails), that fallback is all that's left, hence the
+ * copy-then-paste courtesy same as shareToMail(). Both branches build the
+ * PNG synchronously (exportResultSync) and call share()/clipboard.write()
+ * with zero `await` first, for the same user-activation/focus reasons
+ * documented on those two helpers. */
 function shareToWhatsApp() {
   if (state.lat == null) return;
   const { pngBlob, text } = exportResultSync();
+  const file = new File([pngBlob], 'מיקום.png', { type: 'image/png' });
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    navigator.share({ files: [file], title: 'מי אחראי על ניקיון האזור?', text })
+      .catch((err) => { if (err.name !== 'AbortError') showError(el('acStatus'), err); }); // AbortError: the user closed the share sheet - not a failure
+    return;
+  }
   const copyPromise = startCopyImageForPasting(pngBlob, text);
   window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank', 'noopener');
   copyPromise.then((copied) => {
