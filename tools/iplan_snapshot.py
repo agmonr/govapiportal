@@ -55,16 +55,17 @@ Pipeline:
        flattened, always-opaque PNG - which also sidesteps the previous
        "black in dark viewers" problem entirely, since there is no
        transparency left in the output to be misinterpreted.
-    7. With --pdf: also query layer 1 (קווים כחולים) for every plan
-       intersecting the bbox and wrap the PNG in a one-page PDF with a
+    7. Also query layer 1 (קווים כחולים) for every plan intersecting the
+       bbox and wrap the PNG in a one-page PDF, saved alongside it, with a
        clickable link annotation over each plan's footprint, pointing at
        its real page on mavat.iplan.gov.il (the pl_url field) - the same
-       documents iplan's own site links out to.
+       documents iplan's own site links out to. On by default; --no-pdf
+       skips it and writes only the PNG.
 
 Requires Pillow (pip install pillow) for steps 4/5/6's tile stitching,
-compositing and drawing; --pdf additionally requires pypdf (pip install
-pypdf) for the link annotations. Both are real image/PDF manipulation that
-genuinely needs a library, unlike the rest of the script.
+compositing and drawing, and pypdf (pip install pypdf) for step 7's link
+annotations - both are real image/PDF manipulation that genuinely needs a
+library, unlike the rest of the script.
 
 Basemap tiles are cached on disk (~/.cache/iplan-snapshot/osm-tiles/) and
 fetched with up to 2 concurrent connections, per OSM's tile usage policy -
@@ -75,7 +76,7 @@ Usage:
     ./tools/iplan_snapshot.py "הרצל 50, חיפה" -o herzl50.png --radius 400
     ./tools/iplan_snapshot.py "יפו 1, ירושלים" --layers 4,0  # land use + points only
     ./tools/iplan_snapshot.py "דיזנגוף 50, תל אביב" --no-basemap  # iplan layers only
-    ./tools/iplan_snapshot.py "ביאליק 1, רמת גן" --pdf  # + clickable plan links
+    ./tools/iplan_snapshot.py "ביאליק 1, רמת גן" --no-pdf  # PNG only, no PDF/links
 """
 
 import argparse
@@ -429,7 +430,7 @@ def build_pdf(image, out_path, bbox, plan_links):
         from pypdf import PdfWriter
         from pypdf.annotations import Link
     except ImportError:
-        sys.exit("--pdf דורש pypdf: pip install pypdf")
+        sys.exit("יצירת PDF (ברירת מחדל) דורשת pypdf: pip install pypdf, או השתמש ב---no-pdf")
 
     tmp_pdf = io.BytesIO()
     # resolution=72 keeps 1 image pixel == 1 PDF point, so itm_to_px's pixel
@@ -493,8 +494,8 @@ def main():
                           "(עלול להיראות שבור בצופה כהה)")
     ap.add_argument("--no-parcel", action="store_true",
                      help="אל תסמן את הגוש/חלקה בנקודת הכתובת (מ-WFS הקדסטר של GovMap)")
-    ap.add_argument("--pdf", action="store_true",
-                     help="שמור גם PDF עם קישורים חיים לדפי התוכניות (מבא\"ת) על כל תוכנית בתמונה")
+    ap.add_argument("--no-pdf", action="store_true",
+                     help="אל תשמור PDF עם קישורים חיים לדפי התוכניות (מבא\"ת) - PNG בלבד")
     args = ap.parse_args()
 
     try:
@@ -558,7 +559,7 @@ def main():
     final.save(out_path)
     print(f"נשמר: {out_path} ({final.width}x{final.height}, קנה מידה ~1:{result['scale']:.0f})")
 
-    if args.pdf:
+    if not args.no_pdf:
         if 1 in layers:
             print("שולף קישורי תוכניות (pl_url, מבא\"ת)...")
             plan_links = fetch_plan_links(bbox)
