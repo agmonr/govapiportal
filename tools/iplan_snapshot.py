@@ -21,7 +21,18 @@ Pipeline:
     3. Build a square bounding box around the projected point (--radius
        metres, default 250) and ask the Xplan MapServer to export it as a
        PNG, requesting only the wanted layers, with bboxSR=2039 (native).
-    4. Download the rendered PNG.
+       Two land-use codes on layer 4 are excluded by default (see
+       EXCLUDE_LANDUSE_CODES below) - without that, the image is dominated
+       by a solid diagonal hatch that isn't a rendering bug but isn't useful
+       either: codes 995/996 are catch-all "background" designations whose
+       polygons can be enormous (one observed instance spanning ~29km,
+       matching National Master Plan 60) and so cover the entire viewport
+       at building/address scale, burying the actually-local parcels
+       underneath. --include-background switches this off.
+    4. Download the rendered PNG, opaque (transparent=false) - a fully
+       transparent background renders as solid black in dark-themed image
+       viewers, which looks broken even though the layer colours themselves
+       are correct; --transparent switches this off.
 
 Stdlib only, no dependencies - same convention as tools/probe.py.
 
@@ -49,6 +60,18 @@ TIMEOUT = 25
 # only option - --layers lets a caller add layer 1 (plan boundary lines) or
 # any other id this MapServer exposes.
 DEFAULT_LAYERS = [4, 0]
+
+# Layer 4 (יעודי קרקע) codes that are catch-all/regional designations rather
+# than a specific local land use - excluded from the fill by default so a
+# building-scale export isn't buried under one giant hatch. Identified by
+# directly querying the layer around a real address (ששת הימים 9, רעננה):
+# 995 "יעוד עפ"י תכנית מאושרת אחרת" (designated per some other approved plan -
+# used as a literal fallback, including by תמא/60, whose footprint spans
+# ~29km) and 996 "מגבלות בניה ופיתוח" (development restrictions, an overlay
+# constraint rather than a primary land use). Both use the same style
+# (esriSFSBackwardDiagonal) and similar blue tones, which is why excluding
+# only one still left the frame fully hatched by the other.
+EXCLUDE_LANDUSE_CODES = (995, 996)
 
 
 def fetch_json(url):
@@ -112,17 +135,19 @@ def layer_names():
     return {layer["id"]: layer["name"] for layer in meta["layers"]}
 
 
-def export_png(bbox, layers, size, fmt):
-    params = urllib.parse.urlencode({
+def export_png(bbox, layers, size, fmt, layer_defs, transparent):
+    params = {
         "bbox": ",".join(f"{v:.3f}" for v in bbox),
         "bboxSR": ITM_WKID,
         "size": f"{size},{size}",
         "layers": "show:" + ",".join(str(i) for i in layers),
         "format": fmt,
-        "transparent": "true",
+        "transparent": "true" if transparent else "false",
         "f": "json",
-    })
-    result = fetch_json(f"{MAPSERVER}/export?{params}")
+    }
+    if layer_defs:
+        params["layerDefs"] = json.dumps(layer_defs)
+    result = fetch_json(f"{MAPSERVER}/export?{urllib.parse.urlencode(params)}")
     if "href" not in result:
         sys.exit(f"בקשת ה-export נכשלה: {result}")
     return result
@@ -146,6 +171,10 @@ def main():
     ap.add_argument("--format", default="png32", help="פורמט התמונה (ברירת מחדל png32)")
     ap.add_argument("--layers", default=",".join(str(i) for i in DEFAULT_LAYERS),
                      help="מזהי שכבות מופרדים בפסיק (ברירת מחדל: 4=יעודי קרקע, 0=ישויות נקודתיות)")
+    ap.add_argument("--include-background", action="store_true",
+                     help="אל תסנן את קודי הרקע האזוריים (995/996) משכבת יעודי הקרקע")
+    ap.add_argument("--transparent", action="store_true",
+                     help="שקיפות במקום רקע לבן אטום (עלול להיראות שבור בצופה כהה)")
     args = ap.parse_args()
 
     try:
@@ -166,9 +195,15 @@ def main():
         sys.exit(f"שכבות לא קיימות ב-Xplan: {unknown}. הקיימות: {names}")
     print("שכבות: " + ", ".join(f"{i}={names[i]}" for i in layers))
 
+    layer_defs = {}
+    if 4 in layers and not args.include_background:
+        excluded = ",".join(str(c) for c in EXCLUDE_LANDUSE_CODES)
+        layer_defs["4"] = f"mavat_code NOT IN ({excluded})"
+        print(f"מסנן קודי רקע אזוריים משכבת יעודי קרקע: {excluded}")
+
     bbox = bbox_around(x, y, args.radius)
     print(f"בקשת ייצוא, רדיוס {args.radius:.0f} מ׳...")
-    result = export_png(bbox, layers, args.size, args.format)
+    result = export_png(bbox, layers, args.size, args.format, layer_defs, args.transparent)
 
     out_path = args.output or (
         "".join(c if c.isalnum() else "_" for c in args.address).strip("_")[:60] + ".png"
