@@ -231,11 +231,11 @@
       "name": "iplan / מנהל התכנון",
       "name_he": "מנהל התכנון",
       "home": "https://www.iplan.gov.il",
-      "docs": "https://ags.iplan.gov.il/arcgisiplan/rest/services/PlanningPublic/Xplan/MapServer",
+      "docs": "https://ags.iplan.gov.il/services/",
       "kind": "ממשלתי",
-      "about": "שכבות ArcGIS של תכניות בנייה (קווים כחולים), ייעודי קרקע וישויות תכנוניות. כל תכנית מקושרת למסמכיה במבא\"ת.",
-      "api_count": 1,
-      "browser_count": 1,
+      "about": "שכבות ArcGIS של תכניות בנייה (קווים כחולים), ייעודי קרקע וישויות תכנוניות. כל תכנית מקושרת למסמכיה במבא\"ת. מעבר ל-Xplan, שרת ה-ArcGIS חושף עשרות שכבות נוספות (תמ\"א/תמ\"מ, גזרות, ישויות תכנוניות) דרך תיקיית PlanningPublic — ראו קטלוג השירותים למטה.",
+      "api_count": 2,
+      "browser_count": 2,
       "domains": [
         "planning",
         "geo"
@@ -526,6 +526,22 @@
       "domain": "planning",
       "notes": "גבולות תכניות בנייה. מחזיר מספר תכנית, שם, שטח בדונם, ייעודי קרקע, ועדה, תאריכי הפקדה/פרסום, ו-pl_url למסמכים במבא\"ת. תומך שאילתת נקודה (esriGeometryPoint) ושאילתות attribute. מחזיר את ה-Origin המבקש בכותרת CORS ולא '*'.",
       "example": "https://ags.iplan.gov.il/arcgisiplan/rest/services/PlanningPublic/Xplan/MapServer/1/query?where=jurstiction_area_name%3D%27%D7%A8%D7%A2%D7%A0%D7%A0%D7%94%27&outFields=pl_number%2Cpl_name&returnGeometry=false&resultRecordCount=3&f=json",
+      "portal": "iplan"
+    },
+    {
+      "source": "iplan / מנהל התכנון",
+      "source_he": "מנהל התכנון",
+      "name": "קטלוג השירותים (ArcGIS Services Directory)",
+      "endpoint": "https://ags.iplan.gov.il/arcgisiplan/rest/services",
+      "method": "GET",
+      "auth": "none",
+      "cors": "origin",
+      "browser": true,
+      "format": "JSON",
+      "status": 200,
+      "domain": "planning",
+      "notes": "שורש הקטלוג של שרת ה-ArcGIS: שתי תיקיות (PlanningPublic, Utilities) ועוד עשרות שירותי MapServer מעבר ל-Xplan הבודד שכבר רשום למעלה — תמ\"א/תמ\"מ לפי מחוז (compilation_tmm_*), ישויות תכנוניות (entities), אינדקס תכניות (plan_index), גזרות (gaz_compilation) ועוד. כל תיקייה/שירות נשאל באותו דפוס: /rest/services/<תיקייה>?f=json ואז /rest/services/<תיקייה>/<שירות>/MapServer?f=json לרשימת השכבות שלו. נבדק (2026-07-26): מחזיר CORS עם ה-Origin המבקש, כמו רשומת Xplan. בנוסף לגרסת ה-JSON, ה-URL https://ags.iplan.gov.il/services/ מגיש את אותו קטלוג כדף HTML רגיל (ArcGIS Services Directory) — נגיש וניתן לניווט ידני בכל דפדפן, ללא f=json.",
+      "example": "https://ags.iplan.gov.il/arcgisiplan/rest/services?f=json",
       "portal": "iplan"
     },
     {
