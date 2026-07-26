@@ -46,7 +46,7 @@
 
 import { el, esc, param, showError, showLoading } from './ui.js';
 import { initThemePicker } from './theme.js';
-import { buildPdf } from './pdf.js';
+import { buildPdf, downloadBlob, safeFilename } from './pdf.js';
 import { ITM_WKID, WGS84_WKID, projectPoints, bboxAround, itmToPx, fetchBasemapCanvas, drawAddressPin } from './geo-utils.js';
 
 const NOMINATIM = 'https://nominatim.openstreetmap.org/search';
@@ -311,21 +311,6 @@ function canvasToJpeg(canvas, quality = 0.85) {
   return new Promise((resolve) => canvas.toBlob((blob) => resolve(blob), 'image/jpeg', quality));
 }
 
-function downloadBlob(blob, name) {
-  const href = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = href;
-  a.download = name;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(href), 10000);
-}
-
-function safeFilename(label) {
-  return label.replace(/[^\p{L}\p{N}]+/gu, '_').replace(/^_+|_+$/g, '').slice(0, 60) || 'blue-lines';
-}
-
 /** Puts the current search in the URL (?address=...&radius=...&labels=1, or
  * ?mode=plan&plan=...) via replaceState - no new history entry per search,
  * but the address bar is a link someone can copy, bookmark or send, and
@@ -467,7 +452,7 @@ async function downloadPdf() {
     const jpegBytes = new Uint8Array(await jpegBlob.arrayBuffer());
     const links = planLinkRects(state.planLinks, state.bbox, IMAGE_SIZE);
     const pdfBlob = buildPdf({ jpegBytes, width: IMAGE_SIZE, height: IMAGE_SIZE, links });
-    downloadBlob(pdfBlob, `${safeFilename(state.label)}.pdf`);
+    downloadBlob(pdfBlob, `${safeFilename(state.label, 'blue-lines')}.pdf`);
   } finally {
     btn.disabled = false;
     btn.textContent = prevLabel;

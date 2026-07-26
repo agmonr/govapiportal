@@ -2002,6 +2002,29 @@ function drawAddressPin(ctx, size) {
  * spec below).
  */
 
+/** Triggers a browser download of `blob` as `name` - a throwaway <a> element
+ * with a download attribute, the standard no-server way to save a
+ * client-built Blob. Shared by blue-lines.js and area-cleanup.js, both of
+ * which build a PDF via buildPdf() below and need to save it the same way. */
+function downloadBlob(blob, name) {
+  const href = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = href;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(href), 10000);
+}
+
+/** A free-text label (an address, a plan name) -> a safe download filename -
+ * strips anything that isn't a letter/number in ANY script (so Hebrew
+ * survives, unlike a plain [a-zA-Z0-9] filter would), collapsing runs of
+ * everything else to a single underscore. */
+function safeFilename(label, fallback) {
+  return label.replace(/[^\p{L}\p{N}]+/gu, '_').replace(/^_+|_+$/g, '').slice(0, 60) || fallback;
+}
+
 /**
  * @param {Object} args
  * @param {Uint8Array} args.jpegBytes - raw JPEG file bytes (e.g. from canvas.convertToBlob)
@@ -2402,21 +2425,6 @@ function canvasToJpeg(canvas, quality = 0.85) {
   return new Promise((resolve) => canvas.toBlob((blob) => resolve(blob), 'image/jpeg', quality));
 }
 
-function downloadBlob(blob, name) {
-  const href = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = href;
-  a.download = name;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(href), 10000);
-}
-
-function safeFilename(label) {
-  return label.replace(/[^\p{L}\p{N}]+/gu, '_').replace(/^_+|_+$/g, '').slice(0, 60) || 'blue-lines';
-}
-
 /** Puts the current search in the URL (?address=...&radius=...&labels=1, or
  * ?mode=plan&plan=...) via replaceState - no new history entry per search,
  * but the address bar is a link someone can copy, bookmark or send, and
@@ -2558,7 +2566,7 @@ async function downloadPdf() {
     const jpegBytes = new Uint8Array(await jpegBlob.arrayBuffer());
     const links = planLinkRects(state.planLinks, state.bbox, IMAGE_SIZE);
     const pdfBlob = buildPdf({ jpegBytes, width: IMAGE_SIZE, height: IMAGE_SIZE, links });
-    downloadBlob(pdfBlob, `${safeFilename(state.label)}.pdf`);
+    downloadBlob(pdfBlob, `${safeFilename(state.label, 'blue-lines')}.pdf`);
   } finally {
     btn.disabled = false;
     btn.textContent = prevLabel;

@@ -1589,10 +1589,10 @@ body.accidents-page header.site h1 { inline-size: 100%; }
     <div id="app">
       <section class="acc-section">
         <form id="acForm" class="cm-filters">
-          <div class="acc-year-pick" style="justify-content:center">
+          <div class="acc-year-pick" style="justify-content:center; flex-basis:100%">
             <button type="button" id="acMyLocation" class="drill-dl">📍 המיקום שלי</button>
           </div>
-          <div class="acc-year-pick" style="flex-direction:column; align-items:stretch">
+          <div class="acc-year-pick" style="flex-direction:column; align-items:stretch; flex-basis:100%">
             <input id="acAddress" type="text" autocomplete="off" spellcheck="false"
                    placeholder="למשל: רוטשילד 1, תל אביב" style="font-size:1.2rem; padding:.75rem 1rem">
             <button type="submit" class="drill-dl">בדיקה ⭳</button>
@@ -1611,11 +1611,19 @@ body.accidents-page header.site h1 { inline-size: 100%; }
         <div class="bl-map-wrap">
           <canvas id="acCanvas" width="640" height="640"></canvas>
         </div>
-        <div class="fin-export-row">
+        <p style="text-align:center; font-weight:600">צרף כמה תמונות</p>
+        <div class="fin-export-row" style="justify-content:center">
           <button type="button" id="acCopy" class="drill-dl" disabled>העתקת תמונת המפה + מיקום ⧉</button>
           <button type="button" id="acShareMail" class="drill-dl" disabled>שליחה במייל 📧</button>
           <button type="button" id="acShareWhatsapp" class="drill-dl" disabled>שליחה בוואטסאפ 💬</button>
         </div>
+        <div class="fin-export-row" style="justify-content:center">
+          <button type="button" id="acDownloadPdf" class="drill-dl" disabled>הורד הכל כ-PDF ⭳</button>
+        </div>
+        <p class="acc-hint" style="text-align:center">
+          ה-PDF כולל את תמונת המפה (עם המיקום והתאריך מודפסים עליה) וקישורים חיים ל-OpenStreetMap,
+          לוואטסאפ ולמייל.
+        </p>
       </section>
     </div>
   </main>
@@ -1938,6 +1946,132 @@ function drawAddressPin(ctx, size) {
 }
 
 /**
+ * A minimal, hand-rolled single-page PDF writer: one JPEG image filling the
+ * page, plus clickable Link annotations over it. No library, no CDN - the
+ * one thing this site has never needed until now is genuinely small enough
+ * to write by hand: a PDF page is just text-format objects plus one binary
+ * stream, and DCTDecode lets a JPEG's own bytes go in as-is, with no need to
+ * implement JPEG or Flate compression ourselves.
+ *
+ * Verified against pypdf (Python) while developing this: image decodes to
+ * the exact source pixels, annotation Rects and URIs round-trip exactly,
+ * including URLs containing '(', ')' or '\' (escaped per the PDF string
+ * spec below).
+ */
+
+/** Triggers a browser download of `blob` as `name` - a throwaway <a> element
+ * with a download attribute, the standard no-server way to save a
+ * client-built Blob. Shared by blue-lines.js and area-cleanup.js, both of
+ * which build a PDF via buildPdf() below and need to save it the same way. */
+function downloadBlob(blob, name) {
+  const href = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = href;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(href), 10000);
+}
+
+/** A free-text label (an address, a plan name) -> a safe download filename -
+ * strips anything that isn't a letter/number in ANY script (so Hebrew
+ * survives, unlike a plain [a-zA-Z0-9] filter would), collapsing runs of
+ * everything else to a single underscore. */
+function safeFilename(label, fallback) {
+  return label.replace(/[^\p{L}\p{N}]+/gu, '_').replace(/^_+|_+$/g, '').slice(0, 60) || fallback;
+}
+
+/**
+ * @param {Object} args
+ * @param {Uint8Array} args.jpegBytes - raw JPEG file bytes (e.g. from canvas.convertToBlob)
+ * @param {number} args.width
+ * @param {number} args.height
+ * @param {{url: string, x0: number, y0: number, x1: number, y1: number}[]} args.links
+ *   Rects in the same pixel space as the image, origin top-left - this
+ *   function flips to PDF's bottom-up convention internally.
+ * @returns {Blob} application/pdf
+ */
+function buildPdf({ jpegBytes, width, height, links }) {
+  const chunks = [];
+  let offset = 0;
+  const enc = new TextEncoder();
+
+  const push = (bytes) => { chunks.push(bytes); offset += bytes.length; };
+  const pushText = (s) => push(enc.encode(s));
+
+  const offsets = [];
+  const beginObj = (n) => { offsets[n] = offset; pushText(`${n} 0 obj\n`); };
+  const endObj = () => pushText('endobj\n');
+
+  const nAnnots = links.length;
+  // Object numbering: 1 catalog, 2 pages, 3 page, 4 image, 5 content stream,
+  // 6..(5+nAnnots) link annotations.
+  const annotRefs = links.map((_, i) => `${6 + i} 0 R`).join(' ');
+
+  pushText('%PDF-1.4\n');
+
+  beginObj(1);
+  pushText('<< /Type /Catalog /Pages 2 0 R >>\n');
+  endObj();
+
+  beginObj(2);
+  pushText('<< /Type /Pages /Kids [3 0 R] /Count 1 >>\n');
+  endObj();
+
+  beginObj(3);
+  pushText(
+    `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${width} ${height}] `
+    + `/Resources << /XObject << /Im0 4 0 R >> >> /Contents 5 0 R `
+    + `/Annots [ ${annotRefs} ] >>\n`,
+  );
+  endObj();
+
+  beginObj(4);
+  pushText(
+    `<< /Type /XObject /Subtype /Image /Width ${width} /Height ${height} `
+    + `/ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpegBytes.length} >>\nstream\n`,
+  );
+  push(jpegBytes);
+  pushText('\nendstream\n');
+  endObj();
+
+  // cm scales the default 1x1 image space to the full page, positioned at
+  // the origin - the standard "one image, whole page" content stream.
+  const content = `q\n${width} 0 0 ${height} 0 0 cm\n/Im0 Do\nQ\n`;
+  beginObj(5);
+  pushText(`<< /Length ${enc.encode(content).length} >>\nstream\n${content}endstream\n`);
+  endObj();
+
+  links.forEach((link, i) => {
+    beginObj(6 + i);
+    // PDF literal-string escaping: backslash and parens are the only
+    // characters that must be escaped for a URI to round-trip safely.
+    const uri = link.url.replace(/[()\\]/g, (c) => `\\${c}`);
+    // PDF y is bottom-up; the caller's rect is in top-down pixel space.
+    const y0 = height - link.y1;
+    const y1 = height - link.y0;
+    pushText(
+      `<< /Type /Annot /Subtype /Link /Rect [${link.x0.toFixed(2)} ${y0.toFixed(2)} `
+      + `${link.x1.toFixed(2)} ${y1.toFixed(2)}] /Border [0 0 0] `
+      + `/A << /Type /Action /S /URI /URI (${uri}) >> >>\n`,
+    );
+    endObj();
+  });
+
+  const xrefStart = offset;
+  const totalObjs = 5 + nAnnots;
+  pushText(`xref\n0 ${totalObjs + 1}\n`);
+  pushText('0000000000 65535 f \n');
+  for (let i = 1; i <= totalObjs; i++) {
+    pushText(`${String(offsets[i]).padStart(10, '0')} 00000 n \n`);
+  }
+  pushText(`trailer\n<< /Size ${totalObjs + 1} /Root 1 0 R >>\nstartxref\n${xrefStart}\n%%EOF`);
+
+  return new Blob(chunks, { type: 'application/pdf' });
+}
+
+/**
  * "מי אחראי על ניקיון האזור?" - a location (browser geolocation or a typed
  * address) in, the RIGHT body to call out - not always the city.
  *
@@ -1970,6 +2104,7 @@ function drawAddressPin(ctx, size) {
  *     לא ניחוש. אגן שלא מופיע שם מוצג כשמו הגולמי, בלי לשייך אותו לרשות
  *     בניחוש.
  */
+
 
 
 
@@ -2087,7 +2222,7 @@ function renderResult(displayName, { muni, basin }) {
 // Holds what the last successful lookup found - only what copyResult() needs
 // to build its text (lat/lon/timestamp), not a full re-derivation of the
 // render above it.
-const state = { lat: null, displayName: '' };
+const state = { lat: null, lon: null, displayName: '' };
 
 /** A location/date caption baked directly into the image itself (a banner
  * strip at the top, not just a DOM label) - WhatsApp/Mail each decide for
@@ -2138,6 +2273,7 @@ async function renderMap(itmX, itmY, displayName) {
   el('acCopy').disabled = false;
   el('acShareMail').disabled = false;
   el('acShareWhatsapp').disabled = false;
+  el('acDownloadPdf').disabled = false;
 }
 
 async function runFor(lon, lat, displayName) {
@@ -2147,10 +2283,12 @@ async function runFor(lon, lat, displayName) {
   el('acCopy').disabled = true;
   el('acShareMail').disabled = true;
   el('acShareWhatsapp').disabled = true;
+  el('acDownloadPdf').disabled = true;
   showLoading(status, 'בודק אחריות...');
   const result = await lookup(lon, lat);
   status.innerHTML = '';
   state.lat = lat;
+  state.lon = lon;
   state.displayName = displayName;
   renderResult(displayName, result);
   showLoading(status, 'טוען מפה...');
@@ -2313,6 +2451,83 @@ function shareToWhatsApp() {
   });
 }
 
+/** The PDF's own image: the map canvas (already carrying the pin + baked-in
+ * location/date caption) plus an extra footer strip with three clickable-
+ * looking buttons drawn directly into the picture - a PDF has no DOM, so
+ * "a button" here just means "a coloured rect + label, with a matching Link
+ * annotation rect handed to buildPdf() at the same pixel coordinates".
+ * Returns the composited canvas plus each button's own rect, in that same
+ * top-down pixel space buildPdf() expects. */
+function buildDownloadCanvas() {
+  const mapCanvas = el('acCanvas');
+  const footerH = 80;
+  const canvas = document.createElement('canvas');
+  canvas.width = MAP_SIZE;
+  canvas.height = MAP_SIZE + footerH;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(mapCanvas, 0, 0);
+
+  const gap = 10;
+  const btnW = (MAP_SIZE - gap * 4) / 3;
+  const btnH = 50;
+  const y0 = MAP_SIZE + (footerH - btnH) / 2;
+  const labels = ['📍 מפה ב-OpenStreetMap', '💬 וואטסאפ', '📧 מייל'];
+  ctx.direction = 'ltr';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font = 'bold 13px sans-serif';
+  const rects = labels.map((label, i) => {
+    const x0 = gap + i * (btnW + gap);
+    ctx.fillStyle = '#2e7d46';
+    if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(x0, y0, btnW, btnH, 8); ctx.fill(); } else { ctx.fillRect(x0, y0, btnW, btnH); }
+    ctx.fillStyle = '#fff';
+    ctx.fillText(label, x0 + btnW / 2, y0 + btnH / 2, btnW - 10);
+    return { x0, y0, x1: x0 + btnW, y1: y0 + btnH };
+  });
+  return { canvas, rects };
+}
+
+/** Builds a one-page PDF (map image + baked-in location/date, exactly as
+ * shown on screen) with three live links drawn as buttons in a footer strip
+ * - an OpenStreetMap permalink centred on the checked point, and the same
+ * WhatsApp/mail targets the two share buttons use - and downloads it. A PDF
+ * has no script/clipboard access of its own, so unlike the on-page share
+ * buttons there's no copy-image-for-pasting courtesy possible here; the
+ * mail link is a plain mailto: (not the Gmail-web fallback shareToMail()
+ * uses) since a PDF is as likely to be opened outside a browser entirely
+ * (a phone's own PDF viewer, a printed page's QR code, etc.), where the
+ * OS's own mailto: handler is the more universal choice, not a browser
+ * default-handler gap. */
+async function downloadPdf() {
+  if (state.lat == null) return;
+  const btn = el('acDownloadPdf');
+  const prevLabel = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'בונה PDF…';
+  try {
+    const { canvas, rects } = buildDownloadCanvas();
+    const jpegBlob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.9));
+    const jpegBytes = new Uint8Array(await jpegBlob.arrayBuffer());
+    const text = `${state.displayName}\nנבדק בתאריך: ${new Date().toLocaleString('he-IL')}`;
+    const osmUrl = `https://www.openstreetmap.org/?mlat=${state.lat}&mlon=${state.lon}#map=17/${state.lat}/${state.lon}`;
+    const waUrl = `https://wa.me/?text=${encodeURIComponent(text)}`;
+    const mailParams = new URLSearchParams({ subject: 'מי אחראי על ניקיון האזור?', body: text });
+    const mailUrl = `mailto:?${mailParams}`.replace(/\+/g, '%20');
+    const links = [
+      { url: osmUrl, ...rects[0] },
+      { url: waUrl, ...rects[1] },
+      { url: mailUrl, ...rects[2] },
+    ];
+    const pdfBlob = buildPdf({ jpegBytes, width: canvas.width, height: canvas.height, links });
+    downloadBlob(pdfBlob, `${safeFilename(state.displayName, 'area-cleanup')}.pdf`);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = prevLabel;
+  }
+}
+
 function start() {
   initThemePicker(el('themePick'));
   el('created').textContent = document.lastModified;
@@ -2342,6 +2557,10 @@ function start() {
 
   el('acShareWhatsapp').addEventListener('click', () => {
     try { shareToWhatsApp(); } catch (err) { showError(el('acStatus'), err); }
+  });
+
+  el('acDownloadPdf').addEventListener('click', () => {
+    downloadPdf().catch((err) => showError(el('acStatus'), err));
   });
 
   if (urlAddress) runAddress(urlAddress).catch((err) => showError(el('acStatus'), err));

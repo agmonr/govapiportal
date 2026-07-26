@@ -128,8 +128,9 @@ TARGETS = [
         # Talks to iplan's GeometryServer (coordinate reprojection, shared
         # via geo-utils.js with blue-lines.js) and GovMap's public WFS
         # directly, live - no apis.json lookup, no shared portal.js
-        # machinery.
-        "sources": ["src/ui.js", "src/theme.js", "src/geo-utils.js", "src/area-cleanup.js"],
+        # machinery. pdf.js (hand-rolled PDF writer, shared with
+        # blue-lines.js) powers the "הורד הכל כ-PDF" download.
+        "sources": ["src/ui.js", "src/theme.js", "src/geo-utils.js", "src/pdf.js", "src/area-cleanup.js"],
         "data": False,
     },
 ]

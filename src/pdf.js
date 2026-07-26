@@ -12,6 +12,29 @@
  * spec below).
  */
 
+/** Triggers a browser download of `blob` as `name` - a throwaway <a> element
+ * with a download attribute, the standard no-server way to save a
+ * client-built Blob. Shared by blue-lines.js and area-cleanup.js, both of
+ * which build a PDF via buildPdf() below and need to save it the same way. */
+export function downloadBlob(blob, name) {
+  const href = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = href;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(href), 10000);
+}
+
+/** A free-text label (an address, a plan name) -> a safe download filename -
+ * strips anything that isn't a letter/number in ANY script (so Hebrew
+ * survives, unlike a plain [a-zA-Z0-9] filter would), collapsing runs of
+ * everything else to a single underscore. */
+export function safeFilename(label, fallback) {
+  return label.replace(/[^\p{L}\p{N}]+/gu, '_').replace(/^_+|_+$/g, '').slice(0, 60) || fallback;
+}
+
 /**
  * @param {Object} args
  * @param {Uint8Array} args.jpegBytes - raw JPEG file bytes (e.g. from canvas.convertToBlob)

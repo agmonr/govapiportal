@@ -35,6 +35,7 @@
 import { el, esc, showError, showLoading, param } from './ui.js';
 import { initThemePicker } from './theme.js';
 import { ITM_WKID, WGS84_WKID, projectPoints, bboxAround, fetchBasemapCanvas, drawAddressPin } from './geo-utils.js';
+import { buildPdf, downloadBlob, safeFilename } from './pdf.js';
 
 const NOMINATIM = 'https://nominatim.openstreetmap.org/search';
 const GOVMAP_WFS = 'https://open.govmap.gov.il/geoserver/opendata/wfs';
@@ -150,7 +151,7 @@ function renderResult(displayName, { muni, basin }) {
 // Holds what the last successful lookup found - only what copyResult() needs
 // to build its text (lat/lon/timestamp), not a full re-derivation of the
 // render above it.
-const state = { lat: null, displayName: '' };
+const state = { lat: null, lon: null, displayName: '' };
 
 /** A location/date caption baked directly into the image itself (a banner
  * strip at the top, not just a DOM label) - WhatsApp/Mail each decide for
@@ -201,6 +202,7 @@ async function renderMap(itmX, itmY, displayName) {
   el('acCopy').disabled = false;
   el('acShareMail').disabled = false;
   el('acShareWhatsapp').disabled = false;
+  el('acDownloadPdf').disabled = false;
 }
 
 async function runFor(lon, lat, displayName) {
@@ -210,10 +212,12 @@ async function runFor(lon, lat, displayName) {
   el('acCopy').disabled = true;
   el('acShareMail').disabled = true;
   el('acShareWhatsapp').disabled = true;
+  el('acDownloadPdf').disabled = true;
   showLoading(status, 'בודק אחריות...');
   const result = await lookup(lon, lat);
   status.innerHTML = '';
   state.lat = lat;
+  state.lon = lon;
   state.displayName = displayName;
   renderResult(displayName, result);
   showLoading(status, 'טוען מפה...');
@@ -376,6 +380,83 @@ function shareToWhatsApp() {
   });
 }
 
+/** The PDF's own image: the map canvas (already carrying the pin + baked-in
+ * location/date caption) plus an extra footer strip with three clickable-
+ * looking buttons drawn directly into the picture - a PDF has no DOM, so
+ * "a button" here just means "a coloured rect + label, with a matching Link
+ * annotation rect handed to buildPdf() at the same pixel coordinates".
+ * Returns the composited canvas plus each button's own rect, in that same
+ * top-down pixel space buildPdf() expects. */
+function buildDownloadCanvas() {
+  const mapCanvas = el('acCanvas');
+  const footerH = 80;
+  const canvas = document.createElement('canvas');
+  canvas.width = MAP_SIZE;
+  canvas.height = MAP_SIZE + footerH;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(mapCanvas, 0, 0);
+
+  const gap = 10;
+  const btnW = (MAP_SIZE - gap * 4) / 3;
+  const btnH = 50;
+  const y0 = MAP_SIZE + (footerH - btnH) / 2;
+  const labels = ['📍 מפה ב-OpenStreetMap', '💬 וואטסאפ', '📧 מייל'];
+  ctx.direction = 'ltr';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font = 'bold 13px sans-serif';
+  const rects = labels.map((label, i) => {
+    const x0 = gap + i * (btnW + gap);
+    ctx.fillStyle = '#2e7d46';
+    if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(x0, y0, btnW, btnH, 8); ctx.fill(); } else { ctx.fillRect(x0, y0, btnW, btnH); }
+    ctx.fillStyle = '#fff';
+    ctx.fillText(label, x0 + btnW / 2, y0 + btnH / 2, btnW - 10);
+    return { x0, y0, x1: x0 + btnW, y1: y0 + btnH };
+  });
+  return { canvas, rects };
+}
+
+/** Builds a one-page PDF (map image + baked-in location/date, exactly as
+ * shown on screen) with three live links drawn as buttons in a footer strip
+ * - an OpenStreetMap permalink centred on the checked point, and the same
+ * WhatsApp/mail targets the two share buttons use - and downloads it. A PDF
+ * has no script/clipboard access of its own, so unlike the on-page share
+ * buttons there's no copy-image-for-pasting courtesy possible here; the
+ * mail link is a plain mailto: (not the Gmail-web fallback shareToMail()
+ * uses) since a PDF is as likely to be opened outside a browser entirely
+ * (a phone's own PDF viewer, a printed page's QR code, etc.), where the
+ * OS's own mailto: handler is the more universal choice, not a browser
+ * default-handler gap. */
+async function downloadPdf() {
+  if (state.lat == null) return;
+  const btn = el('acDownloadPdf');
+  const prevLabel = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'בונה PDF…';
+  try {
+    const { canvas, rects } = buildDownloadCanvas();
+    const jpegBlob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.9));
+    const jpegBytes = new Uint8Array(await jpegBlob.arrayBuffer());
+    const text = `${state.displayName}\nנבדק בתאריך: ${new Date().toLocaleString('he-IL')}`;
+    const osmUrl = `https://www.openstreetmap.org/?mlat=${state.lat}&mlon=${state.lon}#map=17/${state.lat}/${state.lon}`;
+    const waUrl = `https://wa.me/?text=${encodeURIComponent(text)}`;
+    const mailParams = new URLSearchParams({ subject: 'מי אחראי על ניקיון האזור?', body: text });
+    const mailUrl = `mailto:?${mailParams}`.replace(/\+/g, '%20');
+    const links = [
+      { url: osmUrl, ...rects[0] },
+      { url: waUrl, ...rects[1] },
+      { url: mailUrl, ...rects[2] },
+    ];
+    const pdfBlob = buildPdf({ jpegBytes, width: canvas.width, height: canvas.height, links });
+    downloadBlob(pdfBlob, `${safeFilename(state.displayName, 'area-cleanup')}.pdf`);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = prevLabel;
+  }
+}
+
 function start() {
   initThemePicker(el('themePick'));
   el('created').textContent = document.lastModified;
@@ -405,6 +486,10 @@ function start() {
 
   el('acShareWhatsapp').addEventListener('click', () => {
     try { shareToWhatsApp(); } catch (err) { showError(el('acStatus'), err); }
+  });
+
+  el('acDownloadPdf').addEventListener('click', () => {
+    downloadPdf().catch((err) => showError(el('acStatus'), err));
   });
 
   if (urlAddress) runAddress(urlAddress).catch((err) => showError(el('acStatus'), err));
