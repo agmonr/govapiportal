@@ -43,26 +43,47 @@ Pipeline:
        or two at this extent - not reprojected through /export's own
        bboxSR, which is the reprojection already shown to drift. --no-basemap
        skips this and returns to the old plain-background behaviour.
-    5. Composite the iplan layers (fetched transparent) over the basemap and
-       save one flattened, always-opaque PNG - which also sidesteps the
-       previous "black in dark viewers" problem entirely, since there is no
+    5. Look up the cadastral parcel (גוש/חלקה) containing the address from
+       GovMap's open WFS cadastre (already catalogued in apis.json under
+       the "govmap" portal), and highlight its outline. Queried with an
+       INTERSECTS spatial filter at the address point, output requested
+       directly in EPSG:2039 - GovMap's own GeoServer reprojects to it, so
+       these vertices land in the same ITM system as the iplan layers with
+       no extra hop through iplan's GeometryServer. --no-parcel skips this.
+    6. Composite the iplan layers (fetched transparent), the parcel
+       highlight and the OSM attribution over the basemap, and save one
+       flattened, always-opaque PNG - which also sidesteps the previous
+       "black in dark viewers" problem entirely, since there is no
        transparency left in the output to be misinterpreted.
+    7. With --pdf: also query layer 1 (קווים כחולים) for every plan
+       intersecting the bbox and wrap the PNG in a one-page PDF with a
+       clickable link annotation over each plan's footprint, pointing at
+       its real page on mavat.iplan.gov.il (the pl_url field) - the same
+       documents iplan's own site links out to.
 
-Requires Pillow (pip install pillow) for step 4/5's tile stitching and
-compositing - image manipulation genuinely needs it, unlike the rest of the
-script.
+Requires Pillow (pip install pillow) for steps 4/5/6's tile stitching,
+compositing and drawing; --pdf additionally requires pypdf (pip install
+pypdf) for the link annotations. Both are real image/PDF manipulation that
+genuinely needs a library, unlike the rest of the script.
+
+Basemap tiles are cached on disk (~/.cache/iplan-snapshot/osm-tiles/) and
+fetched with up to 2 concurrent connections, per OSM's tile usage policy -
+repeat runs over the same area hit the network for nothing.
 
 Usage:
     ./tools/iplan_snapshot.py "רוטשילד 1, תל אביב"
     ./tools/iplan_snapshot.py "הרצל 50, חיפה" -o herzl50.png --radius 400
     ./tools/iplan_snapshot.py "יפו 1, ירושלים" --layers 4,0  # land use + points only
     ./tools/iplan_snapshot.py "דיזנגוף 50, תל אביב" --no-basemap  # iplan layers only
+    ./tools/iplan_snapshot.py "ביאליק 1, רמת גן" --pdf  # + clickable plan links
 """
 
 import argparse
+import concurrent.futures
 import io
 import json
 import math
+import pathlib
 import socket
 import sys
 import time
@@ -78,6 +99,7 @@ except ImportError:
 NOMINATIM = "https://nominatim.openstreetmap.org/search"
 GEOMETRY = "https://ags.iplan.gov.il/arcgisiplan/rest/services/Utilities/Geometry/GeometryServer"
 MAPSERVER = "https://ags.iplan.gov.il/arcgisiplan/rest/services/PlanningPublic/Xplan/MapServer"
+GOVMAP_WFS = "https://open.govmap.gov.il/geoserver/opendata/wfs"
 OSM_TILE = "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
 UA = "govapiportal-iplan-snapshot/1.0 (+https://github.com/agmonr/govapiportal)"
 ITM_WKID = 2039
@@ -85,7 +107,10 @@ WGS84_WKID = 4326
 MERCATOR_R = 6378137.0  # sphere radius used by Web Mercator (EPSG:3857)
 TILE_PX = 256
 MAX_ZOOM = 19  # OSM's standard raster tiles stop here
+TILE_WORKERS = 2  # OSM tile usage policy: no more than 2 simultaneous connections
+TILE_CACHE = pathlib.Path.home() / ".cache" / "iplan-snapshot" / "osm-tiles"
 TIMEOUT = 25
+TILE_TIMEOUT = 10  # a 256x256 PNG is small; don't wait as long as for a big export
 ATTEMPTS = 3   # a single timeout is usually the network, not the server -
                # same convention as tools/probe.py's ATTEMPTS/PAUSE
 PAUSE = 0.7
@@ -183,6 +208,18 @@ def bbox_around(x, y, radius_m):
     return x - radius_m, y - radius_m, x + radius_m, y + radius_m
 
 
+def itm_to_px(bbox, size_px, x, y):
+    """An ITM point -> pixel coordinates in the final image. Both the iplan
+    export and the basemap crop are built to cover exactly `bbox` at
+    `size_px` x `size_px` (see fetch_basemap's docstring for how the basemap
+    side gets there), so this one linear map is what places anything new -
+    the parcel highlight, plan-link regions - correctly on either."""
+    xmin, ymin, xmax, ymax = bbox
+    px = (x - xmin) / (xmax - xmin) * size_px
+    py = (ymax - y) / (ymax - ymin) * size_px
+    return px, py
+
+
 def lonlat_to_mercator(lon, lat):
     """WGS84 lon/lat -> Web Mercator (EPSG:3857) metres. Standard spherical
     formula - exact for what OSM's raster tiles themselves are drawn on, so
@@ -202,9 +239,20 @@ def mercator_to_pixel(mx, my, zoom):
 
 
 def fetch_tile(z, x, y):
+    """Disk-cached - the same address is typically re-run several times
+    while iterating (different radius/layers/etc), and a basemap tile never
+    changes underneath that, so there is no reason to re-fetch it."""
+    cache_path = TILE_CACHE / str(z) / str(x) / f"{y}.png"
+    if cache_path.exists():
+        return Image.open(cache_path).convert("RGB")
+
     req = urllib.request.Request(OSM_TILE.format(z=z, x=x, y=y), headers={"User-Agent": UA})
-    with open_url(req) as resp:
-        return Image.open(io.BytesIO(resp.read())).convert("RGB")
+    with open_url(req, timeout=TILE_TIMEOUT) as resp:
+        data = resp.read()
+
+    cache_path.parent.mkdir(parents=True, exist_ok=True)
+    cache_path.write_bytes(data)
+    return Image.open(io.BytesIO(data)).convert("RGB")
 
 
 def fetch_basemap(itm_bbox, size_px):
@@ -244,10 +292,12 @@ def fetch_basemap(itm_bbox, size_px):
         sys.exit(f"רדיוס גדול מדי לבסיס מפה ({n_tiles} אריחים) - הקטן את --radius או השתמש ב---no-basemap")
 
     canvas = Image.new("RGB", ((tx_max - tx_min + 1) * TILE_PX, (ty_max - ty_min + 1) * TILE_PX))
-    for tx in range(tx_min, tx_max + 1):
-        for ty in range(ty_min, ty_max + 1):
-            canvas.paste(fetch_tile(zoom, tx, ty), ((tx - tx_min) * TILE_PX, (ty - ty_min) * TILE_PX))
-            time.sleep(0.1)  # one thread, lightly paced - OSM's tile usage policy
+    coords = [(tx, ty) for tx in range(tx_min, tx_max + 1) for ty in range(ty_min, ty_max + 1)]
+    # Cached tiles never touch the network, so only genuinely new fetches
+    # compete for the 2 connections the tile usage policy allows.
+    with concurrent.futures.ThreadPoolExecutor(max_workers=TILE_WORKERS) as pool:
+        for (tx, ty), tile in zip(coords, pool.map(lambda c: fetch_tile(zoom, *c), coords)):
+            canvas.paste(tile, ((tx - tx_min) * TILE_PX, (ty - ty_min) * TILE_PX))
 
     crop = canvas.crop((
         round(px_min - tx_min * TILE_PX), round(py_min - ty_min * TILE_PX),
@@ -260,6 +310,51 @@ def fetch_basemap(itm_bbox, size_px):
     draw.rectangle((0, size_px - 16, 8 * len(label) + 6, size_px), fill=(255, 255, 255, 180))
     draw.text((4, size_px - 14), label, fill=(0, 0, 0))
     return basemap
+
+
+def fetch_parcel(mx, my):
+    """The cadastral parcel (גוש/חלקה) containing Web-Mercator point (mx,my),
+    from GovMap's open WFS cadastre. Geometry is requested directly in
+    EPSG:2039 - GeoServer's own reprojection - landing in the same ITM system
+    as the iplan layers. Returns None if the point falls outside any mapped
+    parcel (e.g. sea, unmapped area) rather than raising."""
+    params = urllib.parse.urlencode({
+        "service": "WFS", "version": "2.0.0", "request": "GetFeature",
+        "typeNames": "opendata:PARCEL_ALL", "outputFormat": "application/json",
+        "srsName": f"EPSG:{ITM_WKID}",
+        "CQL_FILTER": f"INTERSECTS(the_geom,POINT({mx} {my}))",
+    })
+    req = urllib.request.Request(f"{GOVMAP_WFS}?{params}",
+                                  headers={"User-Agent": UA, "Accept": "application/json"})
+    with open_url(req) as resp:
+        data = json.loads(resp.read().decode("utf-8"))
+
+    feats = data.get("features") or []
+    if not feats:
+        return None
+    props = feats[0]["properties"]
+    geom = feats[0]["geometry"]
+    polys = geom["coordinates"] if geom["type"] == "MultiPolygon" else [geom["coordinates"]]
+    rings = [ring for poly in polys for ring in poly]
+    return {
+        "gush": props.get("GUSH_NUM"),
+        "gush_suffix": props.get("GUSH_SUFFI"),
+        "parcel": props.get("PARCEL"),
+        "rings": rings,  # each a list of [x, y] in EPSG:2039
+    }
+
+
+def draw_parcel(image, bbox, size_px, parcel):
+    """Highlights `parcel`'s outline+fill on `image` (RGBA, size_px square) -
+    colour only, no label; console output already prints the גוש/חלקה."""
+    overlay = Image.new("RGBA", (size_px, size_px), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(overlay)
+
+    for ring in parcel["rings"]:
+        px_ring = [itm_to_px(bbox, size_px, x, y) for x, y in ring]
+        draw.polygon(px_ring, fill=(255, 0, 200, 35), outline=(255, 0, 200, 160), width=3)
+
+    image.alpha_composite(overlay)
 
 
 def layer_names():
@@ -293,6 +388,92 @@ def fetch_image(url):
         return Image.open(io.BytesIO(resp.read()))
 
 
+def fetch_plan_links(bbox):
+    """Every plan (layer 1, קווים כחולים) intersecting `bbox`, with its
+    pl_url - a real page on mavat.iplan.gov.il, the same one iplan's own
+    site links each plan to. Geometry comes back in the bbox's own SR
+    (native/ITM, since no outSR override is passed), so it's already in the
+    coordinate system itm_to_px expects - no extra reprojection hop."""
+    params = urllib.parse.urlencode({
+        "where": "1=1",
+        "geometry": ",".join(f"{v:.3f}" for v in bbox),
+        "geometryType": "esriGeometryEnvelope",
+        "inSR": ITM_WKID,
+        "outFields": "pl_number,pl_url",
+        "returnGeometry": "true",
+        # 0.1m is far finer than a single output pixel at this scale - cuts
+        # the response roughly in half against some plans' very dense
+        # boundary rings (thousands of vertices for a large regional plan).
+        "geometryPrecision": 1,
+        "f": "json",
+    })
+    result = fetch_json(f"{MAPSERVER}/1/query?{params}")
+    links = []
+    for feat in result.get("features", []):
+        url = feat["attributes"].get("pl_url")
+        rings = feat.get("geometry", {}).get("rings")
+        if not url or not rings:
+            continue
+        links.append({
+            "pl_number": feat["attributes"].get("pl_number"),
+            "url": url,
+            "rings": rings,
+        })
+    return links
+
+
+def build_pdf(image, out_path, bbox, plan_links):
+    """A one-page PDF of `image` with a clickable Link annotation over each
+    plan's footprint, pointing at its real mavat.iplan.gov.il page."""
+    try:
+        from pypdf import PdfWriter
+        from pypdf.annotations import Link
+    except ImportError:
+        sys.exit("--pdf דורש pypdf: pip install pypdf")
+
+    tmp_pdf = io.BytesIO()
+    # resolution=72 keeps 1 image pixel == 1 PDF point, so itm_to_px's pixel
+    # coordinates can be used directly for the annotation rects below.
+    image.convert("RGB").save(tmp_pdf, format="PDF", resolution=72.0)
+    tmp_pdf.seek(0)
+
+    writer = PdfWriter()
+    writer.append(tmp_pdf)
+    page_h = float(writer.pages[0].mediabox.height)
+
+    rects = []
+    for plan in plan_links:
+        xs, ys = [], []
+        for ring in plan["rings"]:
+            for x, y in ring:
+                px, py = itm_to_px(bbox, image.width, x, y)
+                xs.append(px)
+                ys.append(py)
+        x0, x1 = max(min(xs), 0), min(max(xs), image.width)
+        y0, y1 = max(min(ys), 0), min(max(ys), image.height)
+        if x1 <= x0 or y1 <= y0:
+            continue  # entirely outside the visible frame
+        rects.append((plan["url"], x0, y0, x1, y1))
+
+    # Large background-scale plans (whole-city footprints, same story as the
+    # EXCLUDE_LANDUSE_CODES ones on layer 4) end up as rects covering most or
+    # all of the frame. Adding those first and small local plans last means
+    # the local ones sit on top in the annotation stack, which is what most
+    # viewers use to resolve a click that lands inside more than one rect.
+    rects.sort(key=lambda r: (r[3] - r[1]) * (r[4] - r[2]), reverse=True)
+
+    n_linked = 0
+    for url, x0, y0, x1, y1 in rects:
+        # PDF y is bottom-up; image y is top-down.
+        rect = (x0, page_h - y1, x1, page_h - y0)
+        writer.add_annotation(0, Link(rect=rect, url=url, border=[0, 0, 0]))
+        n_linked += 1
+
+    with open(out_path, "wb") as f:
+        writer.write(f)
+    return n_linked
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("address", help="כתובת בישראל, למשל 'רוטשילד 1, תל אביב'")
@@ -310,6 +491,10 @@ def main():
     ap.add_argument("--transparent", action="store_true",
                      help="עם --no-basemap בלבד: שקיפות במקום רקע לבן אטום "
                           "(עלול להיראות שבור בצופה כהה)")
+    ap.add_argument("--no-parcel", action="store_true",
+                     help="אל תסמן את הגוש/חלקה בנקודת הכתובת (מ-WFS הקדסטר של GovMap)")
+    ap.add_argument("--pdf", action="store_true",
+                     help="שמור גם PDF עם קישורים חיים לדפי התוכניות (מבא\"ת) על כל תוכנית בתמונה")
     args = ap.parse_args()
 
     try:
@@ -350,13 +535,39 @@ def main():
         print("שולף בסיס מפה (מבנים/רחובות) מ-OpenStreetMap...")
         basemap = fetch_basemap(bbox, args.size).convert("RGBA")
         basemap.alpha_composite(overlay)
-        final = basemap.convert("RGB")
+        final = basemap
+
+    if not args.no_parcel:
+        mx, my = lonlat_to_mercator(lon, lat)
+        parcel = fetch_parcel(mx, my)
+        if parcel:
+            suffix = f"/{parcel['gush_suffix']}" if parcel["gush_suffix"] else ""
+            print(f"חלקה נבחרת: גוש {parcel['gush']}{suffix} חלקה {parcel['parcel']}")
+            draw_parcel(final, bbox, args.size, parcel)
+        else:
+            print("לא נמצאה חלקה בנקודת הכתובת (מחוץ לכיסוי הקדסטר)")
+
+    # A basemap is always fully opaque; in --no-basemap mode, opaque unless
+    # the caller explicitly asked to keep the transparency.
+    if not (args.no_basemap and args.transparent):
+        final = final.convert("RGB")
 
     out_path = args.output or (
         "".join(c if c.isalnum() else "_" for c in args.address).strip("_")[:60] + ".png"
     )
     final.save(out_path)
     print(f"נשמר: {out_path} ({final.width}x{final.height}, קנה מידה ~1:{result['scale']:.0f})")
+
+    if args.pdf:
+        if 1 in layers:
+            print("שולף קישורי תוכניות (pl_url, מבא\"ת)...")
+            plan_links = fetch_plan_links(bbox)
+        else:
+            print("שכבה 1 (קווים כחולים) לא נכללת ב---layers - PDF יישמר ללא קישורי תוכניות")
+            plan_links = []
+        pdf_path = str(pathlib.Path(out_path).with_suffix(".pdf"))
+        n_linked = build_pdf(final, pdf_path, bbox, plan_links)
+        print(f"נשמר: {pdf_path} ({n_linked} קישורים חיים לתוכניות)")
 
 
 if __name__ == "__main__":
