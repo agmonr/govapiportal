@@ -335,19 +335,23 @@ function startCopyImageForPasting(pngBlob, text) {
 function shareToMail() {
   if (state.lat == null) return;
   const { pngBlob, text } = exportResultSync();
-  const file = new File([pngBlob], 'מיקום.png', { type: 'image/png' });
+  const file = new File([pngBlob], 'map-location.png', { type: 'image/png' });
   if (navigator.canShare && navigator.canShare({ files: [file] })) {
-    navigator.share({ files: [file], title: 'מי אחראי על ניקיון האזור?', text })
+    // files ALONE, no text/title alongside it - some share targets (WhatsApp
+    // confirmed) silently keep only the text and drop the image when both
+    // are handed to navigator.share() together. The location/date is
+    // already baked into the image itself (drawLocationCaption), so nothing
+    // is actually lost by not passing it here too.
+    navigator.share({ files: [file] })
       .catch((err) => { if (err.name !== 'AbortError') showError(el('acStatus'), err); }); // AbortError: the user closed the share sheet - not a failure
     return;
   }
+  downloadBlob(pngBlob, 'map-location.png');
   const copyPromise = startCopyImageForPasting(pngBlob, text);
   const params = new URLSearchParams({ view: 'cm', fs: '1', su: 'מי אחראי על ניקיון האזור?', body: text });
   window.open(`https://mail.google.com/mail/?${params}`, '_blank', 'noopener');
   copyPromise.then((copied) => {
-    el('acStatus').textContent = copied
-      ? 'נפתח Gmail; תמונת המפה הועתקה - הדביקו (Ctrl+V) בגוף ההודעה כדי לצרף אותה.'
-      : 'נפתח Gmail. לא ניתן היה להעתיק את התמונה אוטומטית - השתמשו בכפתור ההעתקה למעלה.';
+    el('acStatus').textContent = `נפתח Gmail; תמונת המפה גם הורדה למכשיר (map-location.png)${copied ? ' וגם הועתקה - הדביקו (Ctrl+V) בגוף ההודעה' : ''} - צרפו אותה ידנית להודעה.`;
   });
 }
 
@@ -365,18 +369,20 @@ function shareToMail() {
 function shareToWhatsApp() {
   if (state.lat == null) return;
   const { pngBlob, text } = exportResultSync();
-  const file = new File([pngBlob], 'מיקום.png', { type: 'image/png' });
+  const file = new File([pngBlob], 'map-location.png', { type: 'image/png' });
   if (navigator.canShare && navigator.canShare({ files: [file] })) {
-    navigator.share({ files: [file], title: 'מי אחראי על ניקיון האזור?', text })
+    // files ALONE - see shareToMail()'s identical comment: WhatsApp's own
+    // share-target handler has been observed to keep only the text and
+    // drop the image when navigator.share() is called with both at once.
+    navigator.share({ files: [file] })
       .catch((err) => { if (err.name !== 'AbortError') showError(el('acStatus'), err); }); // AbortError: the user closed the share sheet - not a failure
     return;
   }
+  downloadBlob(pngBlob, 'map-location.png');
   const copyPromise = startCopyImageForPasting(pngBlob, text);
   window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank', 'noopener');
   copyPromise.then((copied) => {
-    el('acStatus').textContent = copied
-      ? 'נפתח וואטסאפ; תמונת המפה הועתקה - הדביקו (Ctrl+V) בשיחה כדי לצרף אותה.'
-      : 'נפתח וואטסאפ. לא ניתן היה להעתיק את התמונה אוטומטית - השתמשו בכפתור ההעתקה למעלה.';
+    el('acStatus').textContent = `נפתח וואטסאפ; תמונת המפה גם הורדה למכשיר (map-location.png)${copied ? ' וגם הועתקה - הדביקו (Ctrl+V) בשיחה' : ''} - צרפו אותה ידנית (לחצו על סיכת הנייר 📎 בוואטסאפ).`;
   });
 }
 
