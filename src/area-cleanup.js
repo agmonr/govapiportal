@@ -32,11 +32,12 @@
  *     בניחוש.
  */
 
-import { el, esc, showError, showLoading, param } from './ui.js';
+import { el, esc, debounce, showError, showLoading, param } from './ui.js';
 import { initThemePicker } from './theme.js';
 import { ITM_WKID, WGS84_WKID, projectPoints, bboxAround, fetchBasemapCanvas, drawAddressPin } from './geo-utils.js';
 import { buildPdf, downloadBlob, safeFilename } from './pdf.js';
 import { renderAppContext, loadAppsData } from './apps.js';
+import { STREET_CANOPY } from './tree-canopy-streets.js';
 
 const NOMINATIM = 'https://nominatim.openstreetmap.org/search';
 const GOVMAP_WFS = 'https://open.govmap.gov.il/geoserver/opendata/wfs';
@@ -58,6 +59,42 @@ const BASIN_TO_AUTHORITY = {
   שקמה: 'רשות ניקוז ונחלים שקמה-בשור',
   אבטח: 'רשות ניקוז ונחלים שקמה-בשור',
 };
+
+/* ---------- address autocomplete - a suggestion list, not a constraint:
+   #acAddress keeps <input list=...>'s normal free-text editing (adding a
+   house number the roster itself doesn't carry, since it's a street/city
+   directory, not a building-level one), same convention tree-canopy.html's
+   own roster uses for its street level. Reuses that exact dataset
+   (tree-canopy-streets.js's STREET_CANOPY, keyed "city::street") rather than
+   building a separate one - the canopy numbers on each entry go unused
+   here, but a second street/city directory generated independently would
+   drift from this one over time in a way reusing the same source can't. ---- */
+
+const ADDRESS_ROSTER = Object.entries(STREET_CANOPY).map(([key]) => {
+  const [city, name] = key.split('::');
+  return { name, city, label: `${name}, ${city}` };
+});
+
+/** Same ranking as tree-canopy.js's own candidateEntries(): a street-NAME
+ * match ranks before a match that only hits because the city name happens
+ * to contain the query (e.g. "הרצל" as a street vs. as a substring of
+ * "הרצליה") - both stay available, just ordered so the likely intent wins
+ * the top-40 slice a <datalist> can usefully show at once. */
+function addressCandidates(query) {
+  const q = query.trim().toLowerCase();
+  if (!q) return [];
+  const nameHits = [];
+  const otherHits = [];
+  for (const e of ADDRESS_ROSTER) {
+    if (e.name.toLowerCase().includes(q)) nameHits.push(e);
+    else if (e.label.toLowerCase().includes(q)) otherHits.push(e);
+  }
+  return [...nameHits, ...otherHits].slice(0, 40);
+}
+
+function updateAddressRoster(query) {
+  el('acRoster').innerHTML = addressCandidates(query).map((e) => `<option value="${esc(e.label)}">`).join('');
+}
 
 function fetchJson(url, opts) {
   return fetch(url, opts).then((r) => {
@@ -149,10 +186,55 @@ function renderResult(displayName, { muni, basin }) {
   box.hidden = false;
 }
 
-// Holds what the last successful lookup found - only what copyResult() needs
-// to build its text (lat/lon/timestamp), not a full re-derivation of the
-// render above it.
-const state = { lat: null, lon: null, displayName: '' };
+// Holds what the last successful lookup found - lat/lon/timestamp for
+// copyResult()'s text, `result` (muni/basin) so downloadPdf() can render the
+// same responsibility text again without re-querying, and `photos` (the
+// attached-image objects, see addPhotos below).
+const state = {
+  lat: null, lon: null, displayName: '', result: null, photos: [],
+};
+
+/* ---------- attached photos - shown on screen, and each turned into its own
+   page in the PDF (see downloadPdf) ---------- */
+
+/** Re-draws the thumbnail strip from state.photos - called after every add
+ * or remove, never patched incrementally, since the list is short (a few
+ * photos of one problem spot, not a gallery) and a full re-render keeps the
+ * index-based remove button below trivially correct. */
+function renderPhotoThumbs() {
+  const box = el('acPhotoThumbs');
+  box.innerHTML = state.photos.map((p, i) => `
+    <span class="ac-photo-thumb">
+      <img src="${p.url}" alt="" dir="auto">
+      <button type="button" class="ac-photo-remove" data-idx="${i}" aria-label="הסרת התמונה">✕</button>
+    </span>`).join('');
+  box.querySelectorAll('.ac-photo-remove').forEach((btn) => {
+    btn.addEventListener('click', () => removePhoto(Number(btn.dataset.idx)));
+  });
+}
+
+/** `files` straight from the file input's FileList - object URLs are cheap
+ * (just a reference into the already-decoded file), revoked on removal/
+ * clearPhotos below rather than left to pile up for the life of the page. */
+function addPhotos(files) {
+  for (const file of files) {
+    if (!file.type.startsWith('image/')) continue; // the input already filters via accept=, but a picker can still be overridden
+    state.photos.push({ file, url: URL.createObjectURL(file) });
+  }
+  renderPhotoThumbs();
+}
+
+function removePhoto(idx) {
+  const [removed] = state.photos.splice(idx, 1);
+  if (removed) URL.revokeObjectURL(removed.url);
+  renderPhotoThumbs();
+}
+
+function clearPhotos() {
+  state.photos.forEach((p) => URL.revokeObjectURL(p.url));
+  state.photos = [];
+  renderPhotoThumbs();
+}
 
 /** A location/date caption baked directly into the image itself (a banner
  * strip at the top, not just a DOM label) - WhatsApp/Mail each decide for
@@ -220,6 +302,8 @@ async function runFor(lon, lat, displayName) {
   state.lat = lat;
   state.lon = lon;
   state.displayName = displayName;
+  state.result = result;
+  clearPhotos(); // a new location's PDF shouldn't drag along the previous spot's photos
   renderResult(displayName, result);
   showLoading(status, 'טוען מפה...');
   await renderMap(result.itmX, result.itmY, displayName);
@@ -425,27 +509,152 @@ function buildDownloadCanvas() {
   return { canvas, rects };
 }
 
-/** Builds a one-page PDF (map image + baked-in location/date, exactly as
- * shown on screen) with three live links drawn as buttons in a footer strip
- * - an OpenStreetMap permalink centred on the checked point, and the same
- * WhatsApp/mail targets the two share buttons use - and downloads it. A PDF
- * has no script/clipboard access of its own, so unlike the on-page share
- * buttons there's no copy-image-for-pasting courtesy possible here; the
- * mail link is a plain mailto: (not the Gmail-web fallback shareToMail()
- * uses) since a PDF is as likely to be opened outside a browser entirely
- * (a phone's own PDF viewer, a printed page's QR code, etc.), where the
- * OS's own mailto: handler is the more universal choice, not a browser
- * default-handler gap. */
+function canvasToJpegBytes(canvas, quality = 0.9) {
+  return new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', quality))
+    .then((blob) => blob.arrayBuffer())
+    .then((buf) => new Uint8Array(buf));
+}
+
+/** Plain-text version of renderResult()'s two paragraphs (muni + basin), for
+ * the PDF's own data page below - no HTML/links there (a canvas can't draw
+ * a clickable <a>, and this page isn't meant to duplicate the footer
+ * buttons' own live links anyway), just the same finding in the same words.
+ * Reads off state.result directly rather than re-querying, so the PDF always
+ * matches whatever's currently on screen. */
+function resultLines() {
+  const { muni, basin } = state.result;
+  const lines = [
+    `מיקום: ${state.displayName}`,
+    `קואורדינטות (WGS84): ${state.lat.toFixed(6)}, ${state.lon.toFixed(6)}`,
+    `נבדק בתאריך: ${new Date().toLocaleString('he-IL')}`,
+    '',
+  ];
+  lines.push(muni
+    ? `לניקיון כללי (רחובות, מדרכות, פחי אשפה) - פנו למוקד העירוני של ${muni.Muni_Heb} (${muni.Sug_Muni}).`
+    : 'לניקיון כללי - לא זוהתה רשות מקומית עבור נקודה זו (ייתכן ומחוץ לתחום שיפוט מוניציפלי, למשל שטח פתוח/מדינה).');
+  lines.push('');
+  if (!basin) {
+    lines.push('לזיהום/פסולת בנחל או בתעלת ניקוז - לא זוהה אגן ניקוז עבור נקודה זו.');
+  } else {
+    const authority = BASIN_TO_AUTHORITY[basin];
+    lines.push(authority
+      ? `לזיהום/פסולת בנחל או בתעלת ניקוז - האחראי/ת הוא/י ${authority} (אגן ניקוז: ${basin}), לא העירייה.`
+      : `לזיהום/פסולת בנחל או בתעלת ניקוז - נקודה זו נמצאת באגן ניקוז "${basin}", אך הרשות האחראית עבור אגן זה לא אומתה כאן. ראו dsda.org.il לזיהוי הרשות הרלוונטית.`);
+  }
+  lines.push('', 'זיהוי הרשות מבוסס על גבולות שיפוט/אגני ניקוז פומביים (GovMap) - בדקו מול הרשות עצמה לפני פנייה אם יש ספק.');
+  return lines;
+}
+
+/** Greedy word-wrap to `maxWidth` in `ctx`'s current font - plain space-
+ * splitting works regardless of RTL/LTR (Hebrew words are space-separated
+ * same as any other script here); the caller draws each returned line
+ * right-aligned, so wrapping itself only needs to know where to BREAK, not
+ * which direction to draw in. */
+function wrapText(ctx, text, maxWidth) {
+  const words = text.split(' ');
+  const lines = [];
+  let line = '';
+  for (const word of words) {
+    const test = line ? `${line} ${word}` : word;
+    if (line && ctx.measureText(test).width > maxWidth) {
+      lines.push(line);
+      line = word;
+    } else {
+      line = test;
+    }
+  }
+  if (line) lines.push(line);
+  return lines;
+}
+
+/** The PDF's plain-text "everything found" page - address, coordinates,
+ * timestamp and both responsibility paragraphs (see resultLines above) -
+ * added because the map+links page alone doesn't carry the actual finding
+ * in words anyone could read without opening the site again. A canvas page
+ * (like every other page here), not real PDF text objects: this hand-rolled
+ * writer has no font embedding, and Hebrew text needs one - a canvas already
+ * renders it correctly via the browser's own font stack, same trick
+ * drawLocationCaption uses for the map's baked-in caption. */
+function buildDataPageCanvas() {
+  const width = MAP_SIZE;
+  const pad = 28;
+  const lineH = 24;
+  const titleH = 44;
+  const measurer = document.createElement('canvas').getContext('2d');
+  measurer.font = '15px sans-serif';
+  const wrapped = resultLines().flatMap((line) => (line === '' ? [''] : wrapText(measurer, line, width - pad * 2)));
+
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = titleH + pad * 2 + wrapped.length * lineH;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.direction = 'rtl';
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'top';
+  ctx.fillStyle = '#1b5e34';
+  ctx.font = 'bold 19px sans-serif';
+  ctx.fillText('מי אחראי על ניקיון האזור? — פרטים מלאים', width - pad, pad);
+  ctx.font = '15px sans-serif';
+  ctx.fillStyle = '#24331f';
+  let y = pad + titleH;
+  for (const line of wrapped) {
+    ctx.fillText(line, width - pad, y);
+    y += lineH;
+  }
+  return canvas;
+}
+
+/** One attached photo -> one PDF page - downscaled to PHOTO_MAX_DIM on its
+ * long side (a phone camera photo straight off the sensor can be 10+MB at
+ * 4000px+; nothing here needs print resolution) via a plain <img> element
+ * rather than createImageBitmap, since an <img>'s decode already applies the
+ * file's own EXIF orientation - drawing it onto a canvas bakes that
+ * orientation in as real pixels, so the PDF page (which has no EXIF concept
+ * of its own) still comes out right-side up. */
+const PHOTO_MAX_DIM = 1600;
+async function photoToPage(file) {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = new Image();
+    img.src = url;
+    await img.decode();
+    const scale = Math.min(1, PHOTO_MAX_DIM / Math.max(img.naturalWidth, img.naturalHeight));
+    const width = Math.round(img.naturalWidth * scale);
+    const height = Math.round(img.naturalHeight * scale);
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+    const jpegBytes = await canvasToJpegBytes(canvas, 0.85);
+    return { jpegBytes, width, height };
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+/** Builds a multi-page PDF and downloads it: page 1 is the map image (pin +
+ * baked-in location/date) with three live links drawn as buttons in a footer
+ * strip - an OpenStreetMap permalink centred on the checked point, and the
+ * same WhatsApp/mail targets the two share buttons use; page 2 is the plain-
+ * text finding (buildDataPageCanvas); pages 3+ are each attached photo,
+ * unchanged order. A PDF has no script/clipboard access of its own, so
+ * unlike the on-page share buttons there's no copy-image-for-pasting
+ * courtesy possible here; the mail link is a plain mailto: (not the Gmail-
+ * web fallback shareToMail() uses) since a PDF is as likely to be opened
+ * outside a browser entirely (a phone's own PDF viewer, a printed page's QR
+ * code, etc.), where the OS's own mailto: handler is the more universal
+ * choice, not a browser default-handler gap. */
 async function downloadPdf() {
   if (state.lat == null) return;
   const btn = el('acDownloadPdf');
   const prevLabel = btn.textContent;
   btn.disabled = true;
-  btn.textContent = 'בונה PDF…';
   try {
-    const { canvas, rects } = buildDownloadCanvas();
-    const jpegBlob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.9));
-    const jpegBytes = new Uint8Array(await jpegBlob.arrayBuffer());
+    btn.textContent = 'בונה PDF…';
+    const { canvas: mapCanvas, rects } = buildDownloadCanvas();
+    const mapJpegBytes = await canvasToJpegBytes(mapCanvas);
     const text = `${state.displayName}\nנבדק בתאריך: ${new Date().toLocaleString('he-IL')}`;
     const osmUrl = `https://www.openstreetmap.org/?mlat=${state.lat}&mlon=${state.lon}#map=17/${state.lat}/${state.lon}`;
     const waUrl = `https://wa.me/?text=${encodeURIComponent(text)}`;
@@ -456,7 +665,18 @@ async function downloadPdf() {
       { url: waUrl, ...rects[1] },
       { url: mailUrl, ...rects[2] },
     ];
-    const pdfBlob = buildPdf({ jpegBytes, width: canvas.width, height: canvas.height, links });
+    const mapPage = { jpegBytes: mapJpegBytes, width: mapCanvas.width, height: mapCanvas.height, links };
+
+    const dataCanvas = buildDataPageCanvas();
+    const dataPage = { jpegBytes: await canvasToJpegBytes(dataCanvas), width: dataCanvas.width, height: dataCanvas.height };
+
+    const pages = [mapPage, dataPage];
+    for (let i = 0; i < state.photos.length; i += 1) {
+      btn.textContent = `בונה PDF… (תמונה ${i + 1}/${state.photos.length})`;
+      pages.push(await photoToPage(state.photos[i].file));
+    }
+
+    const pdfBlob = buildPdf({ pages });
     downloadBlob(pdfBlob, `${safeFilename(state.displayName, 'area-cleanup')}.pdf`);
   } finally {
     btn.disabled = false;
@@ -471,6 +691,8 @@ function start() {
 
   const urlAddress = param('address');
   if (urlAddress) el('acAddress').value = urlAddress;
+
+  el('acAddress').addEventListener('input', debounce(() => updateAddressRoster(el('acAddress').value), 120));
 
   el('acForm').addEventListener('submit', (e) => {
     e.preventDefault();
@@ -498,6 +720,12 @@ function start() {
 
   el('acDownloadPdf').addEventListener('click', () => {
     downloadPdf().catch((err) => showError(el('acStatus'), err));
+  });
+
+  el('acAddPhoto').addEventListener('click', () => el('acPhotoInput').click());
+  el('acPhotoInput').addEventListener('change', (e) => {
+    addPhotos(e.target.files);
+    e.target.value = ''; // so picking the exact same file again still fires 'change'
   });
 
   if (urlAddress) runAddress(urlAddress).catch((err) => showError(el('acStatus'), err));

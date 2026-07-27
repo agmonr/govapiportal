@@ -37,15 +37,22 @@ export function safeFilename(label, fallback) {
 
 /**
  * @param {Object} args
- * @param {Uint8Array} args.jpegBytes - raw JPEG file bytes (e.g. from canvas.convertToBlob)
- * @param {number} args.width
- * @param {number} args.height
- * @param {{url: string, x0: number, y0: number, x1: number, y1: number}[]} args.links
- *   Rects in the same pixel space as the image, origin top-left - this
- *   function flips to PDF's bottom-up convention internally.
+ * @param {{
+ *   jpegBytes: Uint8Array,
+ *   width: number,
+ *   height: number,
+ *   links?: {url: string, x0: number, y0: number, x1: number, y1: number}[],
+ * }[]} args.pages
+ *   One entry per page, each its own image + own link Rects (top-down pixel
+ *   space, same page's own width/height - this function flips each to PDF's
+ *   bottom-up convention internally). area-cleanup.html's own PDF is the
+ *   reason this is a list rather than a single page: map+links page, a
+ *   plain-text "everything found" page, then one page per attached photo -
+ *   each independent of the others, so a page with no clickable area at all
+ *   (a photo) just passes an empty/omitted `links`.
  * @returns {Blob} application/pdf
  */
-export function buildPdf({ jpegBytes, width, height, links }) {
+export function buildPdf({ pages }) {
   const chunks = [];
   let offset = 0;
   const enc = new TextEncoder();
@@ -57,10 +64,20 @@ export function buildPdf({ jpegBytes, width, height, links }) {
   const beginObj = (n) => { offsets[n] = offset; pushText(`${n} 0 obj\n`); };
   const endObj = () => pushText('endobj\n');
 
-  const nAnnots = links.length;
-  // Object numbering: 1 catalog, 2 pages, 3 page, 4 image, 5 content stream,
-  // 6..(5+nAnnots) link annotations.
-  const annotRefs = links.map((_, i) => `${6 + i} 0 R`).join(' ');
+  // Object numbering: 1 catalog, 2 pages tree, then 3 objects per page (page,
+  // image, content stream) plus that page's own link annotations, allocated
+  // in one pass so every /Parent, /Contents, /XObject and /Annots reference
+  // below already knows every object number it needs before any bytes are
+  // actually written.
+  let next = 3;
+  const pageObjs = pages.map((p) => {
+    const pageNum = next; next += 1;
+    const imageNum = next; next += 1;
+    const contentNum = next; next += 1;
+    const links = p.links || [];
+    const annotNums = links.map(() => { const n = next; next += 1; return n; });
+    return { pageNum, imageNum, contentNum, links, annotNums };
+  });
 
   pushText('%PDF-1.4\n');
 
@@ -69,51 +86,59 @@ export function buildPdf({ jpegBytes, width, height, links }) {
   endObj();
 
   beginObj(2);
-  pushText('<< /Type /Pages /Kids [3 0 R] /Count 1 >>\n');
+  const kids = pageObjs.map((p) => `${p.pageNum} 0 R`).join(' ');
+  pushText(`<< /Type /Pages /Kids [${kids}] /Count ${pageObjs.length} >>\n`);
   endObj();
 
-  beginObj(3);
-  pushText(
-    `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${width} ${height}] `
-    + `/Resources << /XObject << /Im0 4 0 R >> >> /Contents 5 0 R `
-    + `/Annots [ ${annotRefs} ] >>\n`,
-  );
-  endObj();
+  pages.forEach((page, i) => {
+    const { pageNum, imageNum, contentNum, links, annotNums } = pageObjs[i];
+    const { width, height, jpegBytes } = page;
+    const annotRefs = annotNums.map((n) => `${n} 0 R`).join(' ');
 
-  beginObj(4);
-  pushText(
-    `<< /Type /XObject /Subtype /Image /Width ${width} /Height ${height} `
-    + `/ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpegBytes.length} >>\nstream\n`,
-  );
-  push(jpegBytes);
-  pushText('\nendstream\n');
-  endObj();
-
-  // cm scales the default 1x1 image space to the full page, positioned at
-  // the origin - the standard "one image, whole page" content stream.
-  const content = `q\n${width} 0 0 ${height} 0 0 cm\n/Im0 Do\nQ\n`;
-  beginObj(5);
-  pushText(`<< /Length ${enc.encode(content).length} >>\nstream\n${content}endstream\n`);
-  endObj();
-
-  links.forEach((link, i) => {
-    beginObj(6 + i);
-    // PDF literal-string escaping: backslash and parens are the only
-    // characters that must be escaped for a URI to round-trip safely.
-    const uri = link.url.replace(/[()\\]/g, (c) => `\\${c}`);
-    // PDF y is bottom-up; the caller's rect is in top-down pixel space.
-    const y0 = height - link.y1;
-    const y1 = height - link.y0;
+    beginObj(pageNum);
     pushText(
-      `<< /Type /Annot /Subtype /Link /Rect [${link.x0.toFixed(2)} ${y0.toFixed(2)} `
-      + `${link.x1.toFixed(2)} ${y1.toFixed(2)}] /Border [0 0 0] `
-      + `/A << /Type /Action /S /URI /URI (${uri}) >> >>\n`,
+      `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${width} ${height}] `
+      + `/Resources << /XObject << /Im0 ${imageNum} 0 R >> >> /Contents ${contentNum} 0 R`
+      + (annotNums.length ? ` /Annots [ ${annotRefs} ]` : '')
+      + ' >>\n',
     );
     endObj();
+
+    beginObj(imageNum);
+    pushText(
+      `<< /Type /XObject /Subtype /Image /Width ${width} /Height ${height} `
+      + `/ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpegBytes.length} >>\nstream\n`,
+    );
+    push(jpegBytes);
+    pushText('\nendstream\n');
+    endObj();
+
+    // cm scales the default 1x1 image space to the full page, positioned at
+    // the origin - the standard "one image, whole page" content stream.
+    const content = `q\n${width} 0 0 ${height} 0 0 cm\n/Im0 Do\nQ\n`;
+    beginObj(contentNum);
+    pushText(`<< /Length ${enc.encode(content).length} >>\nstream\n${content}endstream\n`);
+    endObj();
+
+    links.forEach((link, j) => {
+      beginObj(annotNums[j]);
+      // PDF literal-string escaping: backslash and parens are the only
+      // characters that must be escaped for a URI to round-trip safely.
+      const uri = link.url.replace(/[()\\]/g, (c) => `\\${c}`);
+      // PDF y is bottom-up; the caller's rect is in top-down pixel space.
+      const y0 = height - link.y1;
+      const y1 = height - link.y0;
+      pushText(
+        `<< /Type /Annot /Subtype /Link /Rect [${link.x0.toFixed(2)} ${y0.toFixed(2)} `
+        + `${link.x1.toFixed(2)} ${y1.toFixed(2)}] /Border [0 0 0] `
+        + `/A << /Type /Action /S /URI /URI (${uri}) >> >>\n`,
+      );
+      endObj();
+    });
   });
 
   const xrefStart = offset;
-  const totalObjs = 5 + nAnnots;
+  const totalObjs = next - 1;
   pushText(`xref\n0 ${totalObjs + 1}\n`);
   pushText('0000000000 65535 f \n');
   for (let i = 1; i <= totalObjs; i++) {

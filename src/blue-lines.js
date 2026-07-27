@@ -98,6 +98,20 @@ async function geocode(address) {
   return { lon: Number(r.lon), lat: Number(r.lat), displayName: r.display_name };
 }
 
+/** Browser geolocation, wrapped as a promise - same helper area-cleanup.js's
+ * own locator button uses, skipping geocode() entirely (no address string to
+ * forward-geocode - the coordinates ARE the point). */
+function getBrowserLocation() {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) { reject(new Error('הדפדפן אינו תומך במיקום גאוגרפי.')); return; }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => resolve({ lon: pos.coords.longitude, lat: pos.coords.latitude }),
+      (err) => reject(new Error(`לא ניתן היה לקבל את המיקום: ${err.message}`)),
+      { enableHighAccuracy: true, timeout: 10000 },
+    );
+  });
+}
+
 /** One iplan Xplan export (whichever `layerIds` are given), transparent, as
  * an ImageBitmap. `showLabels` controls layer 1's own plan-number boxes
  * (e.g. "507-0220277") - off by default: even at a modest radius there can
@@ -319,6 +333,12 @@ function canvasToJpeg(canvas, quality = 0.85) {
  * only added when they differ from the default, so a plain address search
  * keeps a plain, short URL. */
 function syncUrl(query, radius, showLabels, showLandUse, showPoints, showMetroZone) {
+  // A geolocation-based search isn't reproducible from a URL the way an
+  // address or plan number is (the coordinates are the browser's own, not
+  // something to re-type) - same choice area-cleanup.js's own locator
+  // button makes, leaving the address bar as whatever the last real
+  // address/plan search set.
+  if (query.mode === 'mylocation') return;
   const params = new URLSearchParams();
   if (query.mode === 'plan') {
     params.set('mode', 'plan');
@@ -334,7 +354,7 @@ function syncUrl(query, radius, showLabels, showLandUse, showPoints, showMetroZo
   history.replaceState(null, '', `?${params}`);
 }
 
-/** @param {{mode: 'address'|'plan', value: string}} query */
+/** @param {{mode: 'address'|'plan'|'mylocation', value?: string}} query */
 async function run(query, radius, showLabels, showLandUse, showPoints, showMetroZone) {
   const status = el('blStatus');
   const resultBox = el('blResult');
@@ -351,6 +371,15 @@ async function run(query, radius, showLabels, showLandUse, showPoints, showMetro
     radius = found.radius; // sized to the plan's own extent - see fetchPlanCenter
     el('blRadius').value = String(radius); // reflect it in the form, not just silently used
     showLoading(status, `נמצאה: ${displayName} — מטיל מפה...`);
+  } else if (query.mode === 'mylocation') {
+    showLoading(status, 'מבקש מיקום מהדפדפן…');
+    const geo = await getBrowserLocation();
+    // No reverse geocode - same choice area-cleanup.js's own locator makes,
+    // the plain coordinates are an honest label for a point nobody typed a
+    // name for.
+    displayName = `${geo.lat.toFixed(5)}, ${geo.lon.toFixed(5)}`;
+    showLoading(status, `נמצא: ${displayName} — מטיל מפה...`);
+    [[x, y]] = await projectPoints([[geo.lon, geo.lat]], WGS84_WKID, ITM_WKID);
   } else {
     showLoading(status, `מאתר כתובת: ${query.value}…`);
     const geo = await geocode(query.value);
@@ -452,7 +481,7 @@ async function downloadPdf() {
     const jpegBlob = await canvasToJpeg(canvas);
     const jpegBytes = new Uint8Array(await jpegBlob.arrayBuffer());
     const links = planLinkRects(state.planLinks, state.bbox, IMAGE_SIZE);
-    const pdfBlob = buildPdf({ jpegBytes, width: IMAGE_SIZE, height: IMAGE_SIZE, links });
+    const pdfBlob = buildPdf({ pages: [{ jpegBytes, width: IMAGE_SIZE, height: IMAGE_SIZE, links }] });
     downloadBlob(pdfBlob, `${safeFilename(state.label, 'blue-lines')}.pdf`);
   } finally {
     btn.disabled = false;
@@ -478,16 +507,27 @@ function updateSearchModeFields() {
   el('blPlanNumber').disabled = !isPlan;
 }
 
-function submitForm() {
-  const query = currentQuery();
-  if (!query.value) return;
-  const radius = Number(el('blRadius').value) || DEFAULT_RADIUS;
+/** Shared by submitForm (address/plan) and the 📍 locator button below - both
+ * just build a query and the same radius/display options, differing only in
+ * how `query` itself is built. */
+function runQuery(query, radius) {
   const showLabels = el('blShowLabels').checked;
   const showLandUse = el('blShowLandUse').checked;
   const showPoints = el('blShowPoints').checked;
   const showMetroZone = el('blShowMetroZone').checked;
-  run(query, radius, showLabels, showLandUse, showPoints, showMetroZone)
-    .catch((err) => showError(el('blStatus'), err));
+  return run(query, radius, showLabels, showLandUse, showPoints, showMetroZone);
+}
+
+function submitForm() {
+  const query = currentQuery();
+  if (!query.value) return;
+  const radius = Number(el('blRadius').value) || DEFAULT_RADIUS;
+  runQuery(query, radius).catch((err) => showError(el('blStatus'), err));
+}
+
+function runMyLocation() {
+  const radius = Number(el('blRadius').value) || DEFAULT_RADIUS;
+  runQuery({ mode: 'mylocation' }, radius).catch((err) => showError(el('blStatus'), err));
 }
 
 function start() {
@@ -522,6 +562,8 @@ function start() {
   [el('blModeAddress'), el('blModePlan')].forEach((radio) => {
     radio.addEventListener('change', updateSearchModeFields);
   });
+
+  el('blMyLocation').addEventListener('click', runMyLocation);
 
   // Re-runs the search immediately on a checkbox flip, rather than making
   // someone toggle it and then separately press "הצג מפה" again - only once

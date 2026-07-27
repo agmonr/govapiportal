@@ -15,7 +15,7 @@
   </script>
   <link rel="stylesheet" href="./src/style.css">
 </head>
-<body>
+<body class="apps-page">
   <header class="site">
     <div class="wrap">
       <h1>כל האפליקציות</h1>
@@ -45,11 +45,15 @@
     </div>
 
     <div id="app">
-      <p class="lead" dir="auto">
-        כל האפליקציות שבנויות על גבי נתונים ממשלתיים באתר הזה, מקובצות לפי מה שרלוונטי למי שמגיע -
-        לא לפי מקור הנתונים הטכני. מפת ה-API המלאה, עם כל הפורטלים והממשקים, נמצאת
-        ב<a href="./index.html">עמוד הבית</a>.
-      </p>
+      <details class="lead-details" dir="auto">
+        <summary>על העמוד הזה</summary>
+        <p class="lead" dir="auto">
+          כל האפליקציות שבנויות על גבי נתונים ממשלתיים באתר הזה, מקובצות לפי מה שרלוונטי למי שמגיע -
+          לא לפי מקור הנתונים הטכני. מפת ה-API המלאה, עם כל הפורטלים והממשקים, נמצאת ב<a
+            href="./index.html" class="apps-home-link" title="עמוד הבית"
+          ><span class="apps-home-icon" aria-hidden="true">🏠</span><span class="apps-home-text">עמוד הבית</span></a>.
+        </p>
+      </details>
       <div id="apps"></div>
     </div>
   </main>

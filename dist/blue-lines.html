@@ -1591,6 +1591,28 @@ body.accidents-page header.site h1 { inline-size: 100%; }
   border-radius: var(--radius);
 }
 
+/* area-cleanup.html's attached-photo strip (src/area-cleanup.js addPhotos) -
+   each thumbnail is a plain <img> (so a phone photo's own EXIF orientation
+   renders the same way it will once baked into the PDF page, see
+   photoToPage) with a small ✕ overlaid in the corner rather than a separate
+   row of remove buttons below, since a photo removed here is removed from
+   the PDF the same click builds. */
+.ac-photo-thumbs {
+  display: flex; flex-wrap: wrap; gap: .6rem; justify-content: center;
+  margin-block-end: .75rem;
+}
+.ac-photo-thumb { position: relative; display: block; inline-size: 5.5rem; block-size: 5.5rem; }
+.ac-photo-thumb img {
+  inline-size: 100%; block-size: 100%; object-fit: cover;
+  border: 1px solid var(--border); border-radius: var(--radius);
+}
+.ac-photo-remove {
+  position: absolute; inset-block-start: -.4rem; inset-inline-end: -.4rem;
+  inline-size: 1.4rem; block-size: 1.4rem; padding: 0; line-height: 1;
+  border-radius: 999px; border: 1px solid var(--border);
+  background: var(--card); color: var(--danger); cursor: pointer;
+}
+
 /* area-cleanup.html is meant to be used one-handed on a phone, standing
    somewhere pointing a camera-adjacent screen at a problem spot - not read
    carefully at a desk - so its controls and result text get a real size
@@ -1604,6 +1626,16 @@ body.accidents-page header.site h1 { inline-size: 100%; }
     font-size: 1.05rem;
   }
   .area-cleanup-page h2 { font-size: 1.3rem; }
+}
+
+.ac-address-row { display: flex; flex-direction: column; align-items: stretch; flex-basis: 100%; }
+/* On desktop, align-items:stretch above otherwise stretches the submit
+   button to the full width of the address input above it - fine (even
+   wanted) on mobile's big one-handed touch targets, but on a desk-sized
+   screen it reads as a giant button for two words. Shrinking it back to its
+   own natural pill size (.drill-dl's own small font/padding, unstretched). */
+@media (min-width: 641px) {
+  .ac-address-row .ac-submit { align-self: center; inline-size: max-content; }
 }
 
 /* tree-canopy.html's city/neighborhood/street level picker - same pill
@@ -1668,6 +1700,30 @@ body.accidents-page header.site h1 { inline-size: 100%; }
 }
 .lead-details[open] summary { margin-block-end: .6rem; }
 
+/* apps.html only: the intro collapses on mobile only, not desktop - unlike
+   tree-canopy.html's own .lead-details, which collapses on every width.
+   Desktop forces the paragraph open and hides the now-redundant toggle,
+   same [hidden]-override trick already used for the neighborhood stat
+   panel (src/tree-canopy.js) - author CSS can beat a native default (here,
+   <details> without `open`) at a wider breakpoint without touching the
+   markup itself. */
+@media (min-width: 641px) {
+  .apps-page .lead-details summary { display: none; }
+  .apps-page .lead-details > p { display: block !important; }
+}
+
+/* apps.html only, mobile only: "עמוד הבית" collapses from a text link into
+   a plain home icon - 35% bigger than the app tiles' own .app-icon
+   (2.3rem), since here it's the one interactive element in the sentence
+   rather than one glyph among a full grid of them. */
+.apps-home-icon { display: none; }
+@media (max-width: 640px) {
+  .apps-page .apps-home-text { display: none; }
+  .apps-page .apps-home-icon {
+    display: inline-block; font-size: 3.1rem; line-height: 1; vertical-align: middle;
+  }
+}
+
 /* Mobile only, this page only: the drill-in section drops entirely, since
    "צלילה פנימה" assumes room for a button row per compared city a phone-
    width screen doesn't have to spare. Links turn light blue here too,
@@ -1718,6 +1774,9 @@ body.accidents-page header.site h1 { inline-size: 100%; }
 
       <section class="acc-section">
         <form id="blForm" class="cm-filters">
+          <div class="acc-year-pick" style="justify-content:center; flex-basis:100%">
+            <button type="button" id="blMyLocation" class="drill-dl">📍 המיקום שלי</button>
+          </div>
           <div class="acc-year-pick" id="blSearchRow" role="radiogroup" aria-label="חיפוש לפי">
             <label>
               <input type="radio" name="blSearchMode" id="blModeAddress" value="address" checked>
@@ -2139,15 +2198,22 @@ function safeFilename(label, fallback) {
 
 /**
  * @param {Object} args
- * @param {Uint8Array} args.jpegBytes - raw JPEG file bytes (e.g. from canvas.convertToBlob)
- * @param {number} args.width
- * @param {number} args.height
- * @param {{url: string, x0: number, y0: number, x1: number, y1: number}[]} args.links
- *   Rects in the same pixel space as the image, origin top-left - this
- *   function flips to PDF's bottom-up convention internally.
+ * @param {{
+ *   jpegBytes: Uint8Array,
+ *   width: number,
+ *   height: number,
+ *   links?: {url: string, x0: number, y0: number, x1: number, y1: number}[],
+ * }[]} args.pages
+ *   One entry per page, each its own image + own link Rects (top-down pixel
+ *   space, same page's own width/height - this function flips each to PDF's
+ *   bottom-up convention internally). area-cleanup.html's own PDF is the
+ *   reason this is a list rather than a single page: map+links page, a
+ *   plain-text "everything found" page, then one page per attached photo -
+ *   each independent of the others, so a page with no clickable area at all
+ *   (a photo) just passes an empty/omitted `links`.
  * @returns {Blob} application/pdf
  */
-function buildPdf({ jpegBytes, width, height, links }) {
+function buildPdf({ pages }) {
   const chunks = [];
   let offset = 0;
   const enc = new TextEncoder();
@@ -2159,10 +2225,20 @@ function buildPdf({ jpegBytes, width, height, links }) {
   const beginObj = (n) => { offsets[n] = offset; pushText(`${n} 0 obj\n`); };
   const endObj = () => pushText('endobj\n');
 
-  const nAnnots = links.length;
-  // Object numbering: 1 catalog, 2 pages, 3 page, 4 image, 5 content stream,
-  // 6..(5+nAnnots) link annotations.
-  const annotRefs = links.map((_, i) => `${6 + i} 0 R`).join(' ');
+  // Object numbering: 1 catalog, 2 pages tree, then 3 objects per page (page,
+  // image, content stream) plus that page's own link annotations, allocated
+  // in one pass so every /Parent, /Contents, /XObject and /Annots reference
+  // below already knows every object number it needs before any bytes are
+  // actually written.
+  let next = 3;
+  const pageObjs = pages.map((p) => {
+    const pageNum = next; next += 1;
+    const imageNum = next; next += 1;
+    const contentNum = next; next += 1;
+    const links = p.links || [];
+    const annotNums = links.map(() => { const n = next; next += 1; return n; });
+    return { pageNum, imageNum, contentNum, links, annotNums };
+  });
 
   pushText('%PDF-1.4\n');
 
@@ -2171,51 +2247,59 @@ function buildPdf({ jpegBytes, width, height, links }) {
   endObj();
 
   beginObj(2);
-  pushText('<< /Type /Pages /Kids [3 0 R] /Count 1 >>\n');
+  const kids = pageObjs.map((p) => `${p.pageNum} 0 R`).join(' ');
+  pushText(`<< /Type /Pages /Kids [${kids}] /Count ${pageObjs.length} >>\n`);
   endObj();
 
-  beginObj(3);
-  pushText(
-    `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${width} ${height}] `
-    + `/Resources << /XObject << /Im0 4 0 R >> >> /Contents 5 0 R `
-    + `/Annots [ ${annotRefs} ] >>\n`,
-  );
-  endObj();
+  pages.forEach((page, i) => {
+    const { pageNum, imageNum, contentNum, links, annotNums } = pageObjs[i];
+    const { width, height, jpegBytes } = page;
+    const annotRefs = annotNums.map((n) => `${n} 0 R`).join(' ');
 
-  beginObj(4);
-  pushText(
-    `<< /Type /XObject /Subtype /Image /Width ${width} /Height ${height} `
-    + `/ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpegBytes.length} >>\nstream\n`,
-  );
-  push(jpegBytes);
-  pushText('\nendstream\n');
-  endObj();
-
-  // cm scales the default 1x1 image space to the full page, positioned at
-  // the origin - the standard "one image, whole page" content stream.
-  const content = `q\n${width} 0 0 ${height} 0 0 cm\n/Im0 Do\nQ\n`;
-  beginObj(5);
-  pushText(`<< /Length ${enc.encode(content).length} >>\nstream\n${content}endstream\n`);
-  endObj();
-
-  links.forEach((link, i) => {
-    beginObj(6 + i);
-    // PDF literal-string escaping: backslash and parens are the only
-    // characters that must be escaped for a URI to round-trip safely.
-    const uri = link.url.replace(/[()\\]/g, (c) => `\\${c}`);
-    // PDF y is bottom-up; the caller's rect is in top-down pixel space.
-    const y0 = height - link.y1;
-    const y1 = height - link.y0;
+    beginObj(pageNum);
     pushText(
-      `<< /Type /Annot /Subtype /Link /Rect [${link.x0.toFixed(2)} ${y0.toFixed(2)} `
-      + `${link.x1.toFixed(2)} ${y1.toFixed(2)}] /Border [0 0 0] `
-      + `/A << /Type /Action /S /URI /URI (${uri}) >> >>\n`,
+      `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${width} ${height}] `
+      + `/Resources << /XObject << /Im0 ${imageNum} 0 R >> >> /Contents ${contentNum} 0 R`
+      + (annotNums.length ? ` /Annots [ ${annotRefs} ]` : '')
+      + ' >>\n',
     );
     endObj();
+
+    beginObj(imageNum);
+    pushText(
+      `<< /Type /XObject /Subtype /Image /Width ${width} /Height ${height} `
+      + `/ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpegBytes.length} >>\nstream\n`,
+    );
+    push(jpegBytes);
+    pushText('\nendstream\n');
+    endObj();
+
+    // cm scales the default 1x1 image space to the full page, positioned at
+    // the origin - the standard "one image, whole page" content stream.
+    const content = `q\n${width} 0 0 ${height} 0 0 cm\n/Im0 Do\nQ\n`;
+    beginObj(contentNum);
+    pushText(`<< /Length ${enc.encode(content).length} >>\nstream\n${content}endstream\n`);
+    endObj();
+
+    links.forEach((link, j) => {
+      beginObj(annotNums[j]);
+      // PDF literal-string escaping: backslash and parens are the only
+      // characters that must be escaped for a URI to round-trip safely.
+      const uri = link.url.replace(/[()\\]/g, (c) => `\\${c}`);
+      // PDF y is bottom-up; the caller's rect is in top-down pixel space.
+      const y0 = height - link.y1;
+      const y1 = height - link.y0;
+      pushText(
+        `<< /Type /Annot /Subtype /Link /Rect [${link.x0.toFixed(2)} ${y0.toFixed(2)} `
+        + `${link.x1.toFixed(2)} ${y1.toFixed(2)}] /Border [0 0 0] `
+        + `/A << /Type /Action /S /URI /URI (${uri}) >> >>\n`,
+      );
+      endObj();
+    });
   });
 
   const xrefStart = offset;
-  const totalObjs = 5 + nAnnots;
+  const totalObjs = next - 1;
   pushText(`xref\n0 ${totalObjs + 1}\n`);
   pushText('0000000000 65535 f \n');
   for (let i = 1; i <= totalObjs; i++) {
@@ -2449,6 +2533,20 @@ async function geocode(address) {
   return { lon: Number(r.lon), lat: Number(r.lat), displayName: r.display_name };
 }
 
+/** Browser geolocation, wrapped as a promise - same helper area-cleanup.js's
+ * own locator button uses, skipping geocode() entirely (no address string to
+ * forward-geocode - the coordinates ARE the point). */
+function getBrowserLocation() {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) { reject(new Error('הדפדפן אינו תומך במיקום גאוגרפי.')); return; }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => resolve({ lon: pos.coords.longitude, lat: pos.coords.latitude }),
+      (err) => reject(new Error(`לא ניתן היה לקבל את המיקום: ${err.message}`)),
+      { enableHighAccuracy: true, timeout: 10000 },
+    );
+  });
+}
+
 /** One iplan Xplan export (whichever `layerIds` are given), transparent, as
  * an ImageBitmap. `showLabels` controls layer 1's own plan-number boxes
  * (e.g. "507-0220277") - off by default: even at a modest radius there can
@@ -2670,6 +2768,12 @@ function canvasToJpeg(canvas, quality = 0.85) {
  * only added when they differ from the default, so a plain address search
  * keeps a plain, short URL. */
 function syncUrl(query, radius, showLabels, showLandUse, showPoints, showMetroZone) {
+  // A geolocation-based search isn't reproducible from a URL the way an
+  // address or plan number is (the coordinates are the browser's own, not
+  // something to re-type) - same choice area-cleanup.js's own locator
+  // button makes, leaving the address bar as whatever the last real
+  // address/plan search set.
+  if (query.mode === 'mylocation') return;
   const params = new URLSearchParams();
   if (query.mode === 'plan') {
     params.set('mode', 'plan');
@@ -2685,7 +2789,7 @@ function syncUrl(query, radius, showLabels, showLandUse, showPoints, showMetroZo
   history.replaceState(null, '', `?${params}`);
 }
 
-/** @param {{mode: 'address'|'plan', value: string}} query */
+/** @param {{mode: 'address'|'plan'|'mylocation', value?: string}} query */
 async function run(query, radius, showLabels, showLandUse, showPoints, showMetroZone) {
   const status = el('blStatus');
   const resultBox = el('blResult');
@@ -2702,6 +2806,15 @@ async function run(query, radius, showLabels, showLandUse, showPoints, showMetro
     radius = found.radius; // sized to the plan's own extent - see fetchPlanCenter
     el('blRadius').value = String(radius); // reflect it in the form, not just silently used
     showLoading(status, `נמצאה: ${displayName} — מטיל מפה...`);
+  } else if (query.mode === 'mylocation') {
+    showLoading(status, 'מבקש מיקום מהדפדפן…');
+    const geo = await getBrowserLocation();
+    // No reverse geocode - same choice area-cleanup.js's own locator makes,
+    // the plain coordinates are an honest label for a point nobody typed a
+    // name for.
+    displayName = `${geo.lat.toFixed(5)}, ${geo.lon.toFixed(5)}`;
+    showLoading(status, `נמצא: ${displayName} — מטיל מפה...`);
+    [[x, y]] = await projectPoints([[geo.lon, geo.lat]], WGS84_WKID, ITM_WKID);
   } else {
     showLoading(status, `מאתר כתובת: ${query.value}…`);
     const geo = await geocode(query.value);
@@ -2803,7 +2916,7 @@ async function downloadPdf() {
     const jpegBlob = await canvasToJpeg(canvas);
     const jpegBytes = new Uint8Array(await jpegBlob.arrayBuffer());
     const links = planLinkRects(state.planLinks, state.bbox, IMAGE_SIZE);
-    const pdfBlob = buildPdf({ jpegBytes, width: IMAGE_SIZE, height: IMAGE_SIZE, links });
+    const pdfBlob = buildPdf({ pages: [{ jpegBytes, width: IMAGE_SIZE, height: IMAGE_SIZE, links }] });
     downloadBlob(pdfBlob, `${safeFilename(state.label, 'blue-lines')}.pdf`);
   } finally {
     btn.disabled = false;
@@ -2829,16 +2942,27 @@ function updateSearchModeFields() {
   el('blPlanNumber').disabled = !isPlan;
 }
 
-function submitForm() {
-  const query = currentQuery();
-  if (!query.value) return;
-  const radius = Number(el('blRadius').value) || DEFAULT_RADIUS;
+/** Shared by submitForm (address/plan) and the 📍 locator button below - both
+ * just build a query and the same radius/display options, differing only in
+ * how `query` itself is built. */
+function runQuery(query, radius) {
   const showLabels = el('blShowLabels').checked;
   const showLandUse = el('blShowLandUse').checked;
   const showPoints = el('blShowPoints').checked;
   const showMetroZone = el('blShowMetroZone').checked;
-  run(query, radius, showLabels, showLandUse, showPoints, showMetroZone)
-    .catch((err) => showError(el('blStatus'), err));
+  return run(query, radius, showLabels, showLandUse, showPoints, showMetroZone);
+}
+
+function submitForm() {
+  const query = currentQuery();
+  if (!query.value) return;
+  const radius = Number(el('blRadius').value) || DEFAULT_RADIUS;
+  runQuery(query, radius).catch((err) => showError(el('blStatus'), err));
+}
+
+function runMyLocation() {
+  const radius = Number(el('blRadius').value) || DEFAULT_RADIUS;
+  runQuery({ mode: 'mylocation' }, radius).catch((err) => showError(el('blStatus'), err));
 }
 
 function start() {
@@ -2873,6 +2997,8 @@ function start() {
   [el('blModeAddress'), el('blModePlan')].forEach((radio) => {
     radio.addEventListener('change', updateSearchModeFields);
   });
+
+  el('blMyLocation').addEventListener('click', runMyLocation);
 
   // Re-runs the search immediately on a checkbox flip, rather than making
   // someone toggle it and then separately press "הצג מפה" again - only once

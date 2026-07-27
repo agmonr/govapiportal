@@ -171,8 +171,15 @@ TARGETS = [
         # directly, live - no shared portal.js machinery. pdf.js
         # (hand-rolled PDF writer, shared with blue-lines.js) powers the
         # "הורד הכל כ-PDF" download. apis.json is only for apps.js's
-        # under-header category strip.
-        "sources": ["src/ui.js", "src/theme.js", "src/geo-utils.js", "src/pdf.js", "src/apps.js", "src/area-cleanup.js"],
+        # under-header category strip. tree-canopy-streets.js is tree-
+        # canopy.html's own generated street/city dataset, reused here purely
+        # for the address field's autocomplete roster (its canopy numbers go
+        # unused) - deliberate size tradeoff, see area-cleanup.js's own
+        # comment on ADDRESS_ROSTER.
+        "sources": [
+            "src/ui.js", "src/theme.js", "src/geo-utils.js", "src/pdf.js", "src/apps.js",
+            "src/tree-canopy-streets.js", "src/area-cleanup.js",
+        ],
         "data": True,
     },
 ]

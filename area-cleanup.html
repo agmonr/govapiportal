@@ -52,12 +52,13 @@
           <div class="acc-year-pick" style="justify-content:center; flex-basis:100%">
             <button type="button" id="acMyLocation" class="drill-dl">📍 המיקום שלי</button>
           </div>
-          <div class="acc-year-pick" style="flex-direction:column; align-items:stretch; flex-basis:100%">
-            <input id="acAddress" type="text" autocomplete="off" spellcheck="false"
+          <div class="acc-year-pick ac-address-row">
+            <input id="acAddress" type="text" autocomplete="off" spellcheck="false" list="acRoster"
                    placeholder="למשל: רוטשילד 1, תל אביב" style="font-size:1.2rem; padding:.75rem 1rem">
-            <button type="submit" class="drill-dl">בדיקה ⭳</button>
+            <button type="submit" class="drill-dl ac-submit">בדיקה ⭳</button>
           </div>
         </form>
+        <datalist id="acRoster"></datalist>
         <div id="acStatus" aria-live="polite"></div>
       </section>
 
@@ -72,6 +73,11 @@
           <canvas id="acCanvas" width="640" height="640"></canvas>
         </div>
         <p style="text-align:center; font-weight:600">צרף כמה תמונות</p>
+        <input id="acPhotoInput" type="file" accept="image/*" capture="environment" multiple hidden>
+        <div class="fin-export-row" style="justify-content:center">
+          <button type="button" id="acAddPhoto" class="drill-dl">📷 הוספת תמונה</button>
+        </div>
+        <div id="acPhotoThumbs" class="ac-photo-thumbs"></div>
         <div class="fin-export-row" style="justify-content:center">
           <button type="button" id="acCopy" class="drill-dl" disabled>העתקת תמונת המפה + מיקום ⧉</button>
           <button type="button" id="acShareMail" class="drill-dl" disabled>שליחה במייל 📧</button>
@@ -81,8 +87,9 @@
           <button type="button" id="acDownloadPdf" class="drill-dl" disabled>הורד הכל כ-PDF ⭳</button>
         </div>
         <p class="acc-hint" style="text-align:center">
-          ה-PDF כולל את תמונת המפה (עם המיקום והתאריך מודפסים עליה) וקישורים חיים ל-OpenStreetMap,
-          לוואטסאפ ולמייל.
+          ה-PDF כולל את תמונת המפה (עם המיקום והתאריך מודפסים עליה) וקישורים חיים ל-OpenStreetMap, לוואטסאפ
+          ולמייל, עמוד עם כל הפרטים (כתובת, קואורדינטות, ומי אחראי לניקיון כללי ולנחלים/ניקוז), ותמונה נוספת
+          לכל תמונה שצורפה למעלה.
         </p>
       </section>
     </div>

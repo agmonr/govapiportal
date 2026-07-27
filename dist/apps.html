@@ -1591,6 +1591,28 @@ body.accidents-page header.site h1 { inline-size: 100%; }
   border-radius: var(--radius);
 }
 
+/* area-cleanup.html's attached-photo strip (src/area-cleanup.js addPhotos) -
+   each thumbnail is a plain <img> (so a phone photo's own EXIF orientation
+   renders the same way it will once baked into the PDF page, see
+   photoToPage) with a small ✕ overlaid in the corner rather than a separate
+   row of remove buttons below, since a photo removed here is removed from
+   the PDF the same click builds. */
+.ac-photo-thumbs {
+  display: flex; flex-wrap: wrap; gap: .6rem; justify-content: center;
+  margin-block-end: .75rem;
+}
+.ac-photo-thumb { position: relative; display: block; inline-size: 5.5rem; block-size: 5.5rem; }
+.ac-photo-thumb img {
+  inline-size: 100%; block-size: 100%; object-fit: cover;
+  border: 1px solid var(--border); border-radius: var(--radius);
+}
+.ac-photo-remove {
+  position: absolute; inset-block-start: -.4rem; inset-inline-end: -.4rem;
+  inline-size: 1.4rem; block-size: 1.4rem; padding: 0; line-height: 1;
+  border-radius: 999px; border: 1px solid var(--border);
+  background: var(--card); color: var(--danger); cursor: pointer;
+}
+
 /* area-cleanup.html is meant to be used one-handed on a phone, standing
    somewhere pointing a camera-adjacent screen at a problem spot - not read
    carefully at a desk - so its controls and result text get a real size
@@ -1604,6 +1626,16 @@ body.accidents-page header.site h1 { inline-size: 100%; }
     font-size: 1.05rem;
   }
   .area-cleanup-page h2 { font-size: 1.3rem; }
+}
+
+.ac-address-row { display: flex; flex-direction: column; align-items: stretch; flex-basis: 100%; }
+/* On desktop, align-items:stretch above otherwise stretches the submit
+   button to the full width of the address input above it - fine (even
+   wanted) on mobile's big one-handed touch targets, but on a desk-sized
+   screen it reads as a giant button for two words. Shrinking it back to its
+   own natural pill size (.drill-dl's own small font/padding, unstretched). */
+@media (min-width: 641px) {
+  .ac-address-row .ac-submit { align-self: center; inline-size: max-content; }
 }
 
 /* tree-canopy.html's city/neighborhood/street level picker - same pill
@@ -1668,6 +1700,30 @@ body.accidents-page header.site h1 { inline-size: 100%; }
 }
 .lead-details[open] summary { margin-block-end: .6rem; }
 
+/* apps.html only: the intro collapses on mobile only, not desktop - unlike
+   tree-canopy.html's own .lead-details, which collapses on every width.
+   Desktop forces the paragraph open and hides the now-redundant toggle,
+   same [hidden]-override trick already used for the neighborhood stat
+   panel (src/tree-canopy.js) - author CSS can beat a native default (here,
+   <details> without `open`) at a wider breakpoint without touching the
+   markup itself. */
+@media (min-width: 641px) {
+  .apps-page .lead-details summary { display: none; }
+  .apps-page .lead-details > p { display: block !important; }
+}
+
+/* apps.html only, mobile only: "עמוד הבית" collapses from a text link into
+   a plain home icon - 35% bigger than the app tiles' own .app-icon
+   (2.3rem), since here it's the one interactive element in the sentence
+   rather than one glyph among a full grid of them. */
+.apps-home-icon { display: none; }
+@media (max-width: 640px) {
+  .apps-page .apps-home-text { display: none; }
+  .apps-page .apps-home-icon {
+    display: inline-block; font-size: 3.1rem; line-height: 1; vertical-align: middle;
+  }
+}
+
 /* Mobile only, this page only: the drill-in section drops entirely, since
    "צלילה פנימה" assumes room for a button row per compared city a phone-
    width screen doesn't have to spare. Links turn light blue here too,
@@ -1679,7 +1735,7 @@ body.accidents-page header.site h1 { inline-size: 100%; }
 }
 </style>
 </head>
-<body>
+<body class="apps-page">
   <header class="site">
     <div class="wrap">
       <h1>כל האפליקציות</h1>
@@ -1695,11 +1751,15 @@ body.accidents-page header.site h1 { inline-size: 100%; }
 
   <main class="wrap">
     <div id="app">
-      <p class="lead" dir="auto">
-        כל האפליקציות שבנויות על גבי נתונים ממשלתיים באתר הזה, מקובצות לפי מה שרלוונטי למי שמגיע -
-        לא לפי מקור הנתונים הטכני. מפת ה-API המלאה, עם כל הפורטלים והממשקים, נמצאת
-        ב<a href="./index.html">עמוד הבית</a>.
-      </p>
+      <details class="lead-details" dir="auto">
+        <summary>על העמוד הזה</summary>
+        <p class="lead" dir="auto">
+          כל האפליקציות שבנויות על גבי נתונים ממשלתיים באתר הזה, מקובצות לפי מה שרלוונטי למי שמגיע -
+          לא לפי מקור הנתונים הטכני. מפת ה-API המלאה, עם כל הפורטלים והממשקים, נמצאת ב<a
+            href="./index.html" class="apps-home-link" title="עמוד הבית"
+          ><span class="apps-home-icon" aria-hidden="true">🏠</span><span class="apps-home-text">עמוד הבית</span></a>.
+        </p>
+      </details>
       <div id="apps"></div>
     </div>
   </main>
