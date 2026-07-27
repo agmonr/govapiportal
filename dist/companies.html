@@ -777,20 +777,12 @@ button.stat { cursor: pointer; }
 .app-siblings { display: flex; flex-wrap: wrap; gap: .35rem; }
 .app-sibling {
   display: flex; align-items: center; justify-content: center;
-  inline-size: 2rem; block-size: 2rem; font-size: 1.15rem; line-height: 1;
+  inline-size: 4rem; block-size: 4rem; font-size: 2.3rem; line-height: 1;
   border-radius: 999px; border: 1px solid var(--border); background: var(--card);
   text-decoration: none; transition: border-color .15s ease, transform .15s ease;
 }
 .app-sibling:hover, .app-sibling:focus-visible { border-color: var(--accent); transform: translateY(-1px); }
 .app-sibling-current { border-color: var(--accent); background: var(--surface); box-shadow: inset 0 0 0 1px var(--accent); cursor: default; }
-
-/* Desktop only - doubled from the base 2rem/1.15rem so the strip reads as a
-   real navigation element on a pointer-driven screen with room to spare;
-   the base size stays the mobile default (kept small there on purpose, same
-   reasoning .tree-canopy-page's own mobile overrides already use). */
-@media (min-width: 641px) {
-  .app-sibling { inline-size: 4rem; block-size: 4rem; font-size: 2.3rem; }
-}
 
 /* ---------- "continue" disclosure past the portals ----------
    Native <details>/<summary>: no JS toggle to write or keep accessible,
@@ -1683,6 +1675,60 @@ body.accidents-page header.site h1 { inline-size: 100%; }
    read as broken, not just wrapped. Breaking only at an actual space (not
    after every hyphen) keeps "תל אביב - יפו" together as drawn. */
 .tree-canopy-page .stat-l { white-space: normal; word-break: keep-all; }
+
+/* Intro paragraph collapses behind a normal disclosure triangle, open or
+   closed on any width - unlike .more-toggle (index.html's "continue" section)
+   this stays clickable after opening, since here the point is a plain
+   expand/collapse a visitor can toggle back, not a one-way reveal. */
+.lead-details summary {
+  cursor: pointer; color: var(--accent); font-weight: 600; font-size: .95rem;
+  margin-block-end: .4rem;
+}
+.lead-details[open] summary { margin-block-end: .6rem; }
+
+/* Mobile only, this page only: comparison stat lines keep just the headline
+   % tile (area/tree-count/per-length tiles stay in the table's own
+   expandable row below, see renderCompareTable in tree-canopy.js) - and the
+   drill-in section drops entirely, since "צלילה פנימה" assumes room for a
+   button row per compared city that a phone-width screen doesn't have to
+   spare. Links turn light blue here too, closer to the familiar mobile-web
+   link color than --accent's green, which reads as body text at this size. */
+@media (max-width: 640px) {
+  .tree-canopy-page a, .tree-canopy-page a:visited { color: #4fc3f7; }
+  .tree-canopy-page .tc-stat-line > .stat:not(:first-child) { display: none; }
+  .tree-canopy-page #tcDrillSection { display: none; }
+}
+
+/* Neighborhood-only collapsible stat line (src/tree-canopy.js
+   statTilesCollapsible) - a plain button/label + a [hidden] tiles panel
+   toggled by JS, not native <details>, so desktop can force it open below
+   without fighting a real open/closed DOM state. */
+.tc-stat-line.tc-stat-collapsible { display: block; }
+.tc-stat-toggle {
+  display: flex; align-items: center; gap: .5rem; inline-size: 100%;
+  text-align: start; cursor: pointer; background: none; border: none;
+  padding: .3rem 0; font: inherit; color: inherit;
+}
+.tc-stat-toggle .x-mark { margin-inline-start: auto; }
+.tc-stat-tiles {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: .5rem; margin-block-start: .4rem;
+}
+/* An unqualified .tc-stat-tiles{display:grid} above would otherwise beat the
+   browser's own [hidden]{display:none} default - same specificity, but
+   author CSS always wins over the user-agent stylesheet regardless of which
+   loaded first - silently showing the panel even before it's opened. */
+.tc-stat-tiles[hidden] { display: none; }
+@media (max-width: 640px) {
+  .tc-stat-tiles { grid-template-columns: 1fr; }
+}
+/* Desktop: the collapse only exists for phone-width cramping - here the
+   panel always shows and the toggle reads as a plain label, not a control. */
+@media (min-width: 641px) {
+  .tree-canopy-page .tc-stat-tiles[hidden] { display: grid !important; }
+  .tree-canopy-page .tc-stat-toggle { cursor: default; pointer-events: none; }
+  .tree-canopy-page .tc-stat-toggle .x-mark { display: none; }
+}
 </style>
 </head>
 <body class="accidents-page companies-page">
