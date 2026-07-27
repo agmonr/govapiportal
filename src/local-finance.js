@@ -24,8 +24,10 @@ import { renderBarChart, renderHBarChart, renderGroupedChart, CITY_COLOR_MAIN, C
 import { dsFilter } from './datastore.js';
 import { CBS_POPULATION_YEAR, fetchPopulation, fetchPopulations } from './population.js';
 import { STABLE_AUTHORITIES } from './stable-authorities.js';
+import { renderAppContext, loadAppsData } from './apps.js';
 
 initThemePicker(el('themePick'));
+loadAppsData().then((data) => renderAppContext(el('appContext'), data.apps, 'local-finance')).catch(() => {});
 
 const created = new Date(document.lastModified);
 if (!Number.isNaN(created.getTime())) {

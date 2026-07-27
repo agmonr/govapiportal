@@ -21,8 +21,10 @@ import { NATIONAL_RESOURCE_ID, NATIONAL_FIELDS, AUTHORITY_RESOURCE_ID, AUTHORITY
 import { renderGroupedChart, renderHBarChart, CITY_COLOR_MAIN, CITY_COLOR_COMPARE, citySwatchCell } from './charts.js';
 import { dsQuery } from './datastore.js';
 import { fetchPopulation, CBS_POPULATION_YEAR } from './population.js';
+import { renderAppContext, loadAppsData } from './apps.js';
 
 initThemePicker(el('themePick'));
+loadAppsData().then((data) => renderAppContext(el('appContext'), data.apps, 'welfare')).catch(() => {});
 
 const created = new Date(document.lastModified);
 if (!Number.isNaN(created.getTime())) {

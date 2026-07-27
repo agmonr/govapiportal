@@ -28,8 +28,10 @@ import { el, esc, num, debounce, buildCsv, saveCsv, showError, showLoading } fro
 import { initThemePicker } from './theme.js';
 import { renderBarChart } from './charts.js';
 import { dsQuery } from './datastore.js';
+import { renderAppContext, loadAppsData } from './apps.js';
 
 initThemePicker(el('themePick'));
+loadAppsData().then((data) => renderAppContext(el('appContext'), data.apps, 'companies')).catch(() => {});
 
 const created = new Date(document.lastModified);
 if (!Number.isNaN(created.getTime())) {

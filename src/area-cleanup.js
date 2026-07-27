@@ -36,6 +36,7 @@ import { el, esc, showError, showLoading, param } from './ui.js';
 import { initThemePicker } from './theme.js';
 import { ITM_WKID, WGS84_WKID, projectPoints, bboxAround, fetchBasemapCanvas, drawAddressPin } from './geo-utils.js';
 import { buildPdf, downloadBlob, safeFilename } from './pdf.js';
+import { renderAppContext, loadAppsData } from './apps.js';
 
 const NOMINATIM = 'https://nominatim.openstreetmap.org/search';
 const GOVMAP_WFS = 'https://open.govmap.gov.il/geoserver/opendata/wfs';
@@ -465,6 +466,7 @@ async function downloadPdf() {
 
 function start() {
   initThemePicker(el('themePick'));
+  loadAppsData().then((data) => renderAppContext(el('appContext'), data.apps, 'area-cleanup')).catch(() => {});
   el('created').textContent = document.lastModified;
 
   const urlAddress = param('address');

@@ -48,6 +48,7 @@ import { el, esc, param, showError, showLoading } from './ui.js';
 import { initThemePicker } from './theme.js';
 import { buildPdf, downloadBlob, safeFilename } from './pdf.js';
 import { ITM_WKID, WGS84_WKID, projectPoints, bboxAround, itmToPx, fetchBasemapCanvas, drawAddressPin } from './geo-utils.js';
+import { renderAppContext, loadAppsData } from './apps.js';
 
 const NOMINATIM = 'https://nominatim.openstreetmap.org/search';
 const MAPSERVER = 'https://ags.iplan.gov.il/arcgisiplan/rest/services/PlanningPublic/Xplan/MapServer';
@@ -491,6 +492,7 @@ function submitForm() {
 
 function start() {
   initThemePicker(el('themePick'));
+  loadAppsData().then((data) => renderAppContext(el('appContext'), data.apps, 'blue-lines')).catch(() => {});
   el('created').textContent = document.lastModified;
 
   // A linked search (?address=...&radius=...&labels=1&landUse=1&points=0&metroZone=0,

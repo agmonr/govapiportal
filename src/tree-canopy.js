@@ -21,8 +21,10 @@ import { renderHBarChart, citySwatchCell } from './charts.js';
 import { CITY_CANOPY } from './tree-canopy-cities.js';
 import { NEIGHBORHOOD_CANOPY } from './tree-canopy-neighborhoods.js';
 import { STREET_CANOPY } from './tree-canopy-streets.js';
+import { renderAppContext, loadAppsData } from './apps.js';
 
 initThemePicker(el('themePick'));
+loadAppsData().then((data) => renderAppContext(el('appContext'), data.apps, 'tree-canopy')).catch(() => {});
 
 const created = new Date(document.lastModified);
 if (!Number.isNaN(created.getTime())) {

@@ -82,77 +82,85 @@ TARGETS = [
         # Reuses portal.js's openPortal() as-is, so it needs the same base as
         # map.js minus explorer.js - accidents.html has no per-API request
         # panel to attach. Needs apis.json inlined: it looks up the
-        # "accidents" app entry the same way map.js looks up portals.
-        "sources": ["src/ui.js", "src/theme.js", "src/portal.js", "src/city-stats.js", "src/charts.js", "src/accidents.js"],
+        # "accidents" app entry the same way map.js looks up portals, and
+        # apps.js's renderAppContext() reads the same data.apps for the
+        # under-header category strip every app page now carries.
+        "sources": ["src/ui.js", "src/theme.js", "src/portal.js", "src/city-stats.js", "src/charts.js", "src/apps.js", "src/accidents.js"],
         "data": True,
     },
     {
         "html": "committees.html",
         "out": "dist/committees.html",
         "entry": "src/committees.js",
-        # Talks to handasi.complot.co.il directly, live - no apis.json lookup,
-        # no shared portal.js machinery (its own filter/KPI/table logic; the
-        # chart renderer itself is shared - see charts.js).
-        "sources": ["src/ui.js", "src/theme.js", "src/committee-sites.js", "src/charts.js", "src/committees.js"],
-        "data": False,
+        # Talks to handasi.complot.co.il directly, live - no shared portal.js
+        # machinery (its own filter/KPI/table logic; the chart renderer
+        # itself is shared - see charts.js). apis.json IS now needed, purely
+        # for apps.js's under-header "other apps in this category" strip.
+        "sources": ["src/ui.js", "src/theme.js", "src/committee-sites.js", "src/charts.js", "src/apps.js", "src/committees.js"],
+        "data": True,
     },
     {
         "html": "local-finance.html",
         "out": "dist/local-finance.html",
         "entry": "src/local-finance.js",
-        # Talks to data.gov.il's DataStore directly, live - no apis.json
-        # lookup, no shared portal.js machinery (its own KPI/statement logic,
-        # over a per-year resource-id config in finance-data.js). Charts and
-        # the DataStore query wrapper are shared - see charts.js/datastore.js.
-        "sources": ["src/ui.js", "src/theme.js", "src/finance-data.js", "src/charts.js", "src/datastore.js", "src/population.js", "src/stable-authorities.js", "src/local-finance.js"],
-        "data": False,
+        # Talks to data.gov.il's DataStore directly, live - no shared
+        # portal.js machinery (its own KPI/statement logic, over a per-year
+        # resource-id config in finance-data.js). Charts and the DataStore
+        # query wrapper are shared - see charts.js/datastore.js. apis.json is
+        # only for apps.js's under-header category strip.
+        "sources": ["src/ui.js", "src/theme.js", "src/finance-data.js", "src/charts.js", "src/datastore.js", "src/population.js", "src/stable-authorities.js", "src/apps.js", "src/local-finance.js"],
+        "data": True,
     },
     {
         "html": "companies.html",
         "out": "dist/companies.html",
         "entry": "src/companies.js",
-        # Talks to data.gov.il's DataStore directly, live - no apis.json
-        # lookup, no shared portal.js machinery (its own KPI/search/pager
-        # logic, purpose-built for one fixed resource id). Chart renderer and
-        # DataStore query wrapper are shared - see charts.js/datastore.js.
-        "sources": ["src/ui.js", "src/theme.js", "src/charts.js", "src/datastore.js", "src/companies.js"],
-        "data": False,
+        # Talks to data.gov.il's DataStore directly, live - no shared
+        # portal.js machinery (its own KPI/search/pager logic, purpose-built
+        # for one fixed resource id). Chart renderer and DataStore query
+        # wrapper are shared - see charts.js/datastore.js. apis.json is only
+        # for apps.js's under-header category strip.
+        "sources": ["src/ui.js", "src/theme.js", "src/charts.js", "src/datastore.js", "src/apps.js", "src/companies.js"],
+        "data": True,
     },
     {
         "html": "tree-canopy.html",
         "out": "dist/tree-canopy.html",
         "entry": "src/tree-canopy.js",
-        # No live API at all - see tools/canopy_build.py. Ships three
-        # locally-precomputed tables (city/neighborhood/street canopy %),
-        # same "dated snapshot" shape as city-stats.js for accidents.html,
-        # just three of them. No apis.json lookup, no portal.js machinery.
+        # No live API at all for the canopy data itself - see
+        # tools/canopy_build.py. Ships three locally-precomputed tables
+        # (city/neighborhood/street canopy %), same "dated snapshot" shape as
+        # city-stats.js for accidents.html, just three of them. No portal.js
+        # machinery. apis.json IS now inlined too, purely for apps.js's
+        # under-header category strip.
         "sources": ["src/ui.js", "src/theme.js", "src/charts.js",
                     "src/tree-canopy-cities.js", "src/tree-canopy-neighborhoods.js", "src/tree-canopy-streets.js",
-                    "src/tree-canopy.js"],
-        "data": False,
+                    "src/apps.js", "src/tree-canopy.js"],
+        "data": True,
     },
     {
         "html": "welfare.html",
         "out": "dist/welfare.html",
         "entry": "src/welfare.js",
-        # Talks to data.gov.il's DataStore directly, live - no apis.json
-        # lookup, no shared portal.js machinery. Both source resources are
-        # small enough to fetch whole once, so unlike local-finance.js there
-        # is no per-year resource config to bring in. Chart renderer and
-        # DataStore query wrapper are shared - see charts.js/datastore.js.
-        "sources": ["src/ui.js", "src/theme.js", "src/welfare-data.js", "src/charts.js", "src/datastore.js", "src/population.js", "src/welfare.js"],
-        "data": False,
+        # Talks to data.gov.il's DataStore directly, live - no shared
+        # portal.js machinery. Both source resources are small enough to
+        # fetch whole once, so unlike local-finance.js there is no per-year
+        # resource config to bring in. Chart renderer and DataStore query
+        # wrapper are shared - see charts.js/datastore.js. apis.json is only
+        # for apps.js's under-header category strip.
+        "sources": ["src/ui.js", "src/theme.js", "src/welfare-data.js", "src/charts.js", "src/datastore.js", "src/population.js", "src/apps.js", "src/welfare.js"],
+        "data": True,
     },
     {
         "html": "blue-lines.html",
         "out": "dist/blue-lines.html",
         "entry": "src/blue-lines.js",
         # Talks to iplan (Xplan MapServer, tma_70 MapServer, GeometryServer)
-        # and OSM tiles directly, live - no apis.json lookup, no shared
-        # portal.js machinery. pdf.js is its own hand-rolled PDF writer, no
-        # third-party library.
-        "sources": ["src/ui.js", "src/theme.js", "src/geo-utils.js", "src/pdf.js", "src/blue-lines.js"],
-        "data": False,
+        # and OSM tiles directly, live - no shared portal.js machinery.
+        # pdf.js is its own hand-rolled PDF writer, no third-party library.
+        # apis.json is only for apps.js's under-header category strip.
+        "sources": ["src/ui.js", "src/theme.js", "src/geo-utils.js", "src/pdf.js", "src/apps.js", "src/blue-lines.js"],
+        "data": True,
     },
     {
         "html": "area-cleanup.html",
@@ -160,11 +168,12 @@ TARGETS = [
         "entry": "src/area-cleanup.js",
         # Talks to iplan's GeometryServer (coordinate reprojection, shared
         # via geo-utils.js with blue-lines.js) and GovMap's public WFS
-        # directly, live - no apis.json lookup, no shared portal.js
-        # machinery. pdf.js (hand-rolled PDF writer, shared with
-        # blue-lines.js) powers the "הורד הכל כ-PDF" download.
-        "sources": ["src/ui.js", "src/theme.js", "src/geo-utils.js", "src/pdf.js", "src/area-cleanup.js"],
-        "data": False,
+        # directly, live - no shared portal.js machinery. pdf.js
+        # (hand-rolled PDF writer, shared with blue-lines.js) powers the
+        # "הורד הכל כ-PDF" download. apis.json is only for apps.js's
+        # under-header category strip.
+        "sources": ["src/ui.js", "src/theme.js", "src/geo-utils.js", "src/pdf.js", "src/apps.js", "src/area-cleanup.js"],
+        "data": True,
     },
 ]
 

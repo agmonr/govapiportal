@@ -767,6 +767,31 @@ button.stat { cursor: pointer; }
 .app-icon { font-size: 2.3rem; line-height: 1; }
 .app-name { font-weight: 600; font-size: .95rem; }
 
+/* ---------- per-page "app context" strip (src/apps.js renderAppContext) ---
+   Sits under an app's own header: a 🏠 back to apps.html, then small icon-
+   links to its category siblings (this app's own icon shown too, inert, as
+   "you are here") - all derived from apis.json rather than hand-written per
+   page. Small and understated on purpose - this is a footnote to the page,
+   not a second hero section competing with the one above it. */
+.app-context { margin-block-end: 1.2rem; }
+.app-siblings { display: flex; flex-wrap: wrap; gap: .35rem; }
+.app-sibling {
+  display: flex; align-items: center; justify-content: center;
+  inline-size: 2rem; block-size: 2rem; font-size: 1.15rem; line-height: 1;
+  border-radius: 999px; border: 1px solid var(--border); background: var(--card);
+  text-decoration: none; transition: border-color .15s ease, transform .15s ease;
+}
+.app-sibling:hover, .app-sibling:focus-visible { border-color: var(--accent); transform: translateY(-1px); }
+.app-sibling-current { border-color: var(--accent); background: var(--surface); box-shadow: inset 0 0 0 1px var(--accent); cursor: default; }
+
+/* Desktop only - doubled from the base 2rem/1.15rem so the strip reads as a
+   real navigation element on a pointer-driven screen with room to spare;
+   the base size stays the mobile default (kept small there on purpose, same
+   reasoning .tree-canopy-page's own mobile overrides already use). */
+@media (min-width: 641px) {
+  .app-sibling { inline-size: 4rem; block-size: 4rem; font-size: 2.3rem; }
+}
+
 /* ---------- "continue" disclosure past the portals ----------
    Native <details>/<summary>: no JS toggle to write or keep accessible,
    the browser already handles open/closed and keyboard use. The `open`

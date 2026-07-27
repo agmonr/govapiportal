@@ -22,16 +22,29 @@ export const APP_ICON = {
 };
 
 // Render order for categories - not alphabetical on the Hebrew label, and
-// not apis.json's own app order. Civic-action items first (things asking
-// something OF you), then money/accountability, then whatever's tied to
-// your own address. A category outside this list still renders (under its
+// not apis.json's own app order. Whatever's tied to your own address first,
+// then civic-action items (things asking something OF you), then money/
+// accountability. A category outside this list still renders (under its
 // own heading, after these) rather than silently dropping its apps.
-const CATEGORY_ORDER = ['civic', 'money', 'home'];
+const CATEGORY_ORDER = ['home', 'civic', 'money'];
+
+// The native hover tooltip (title=) can't be styled - the browser draws it,
+// wrapping to as many lines as the full `about` text needs (some run past
+// 500 characters). A single short line reads on hover before the tooltip
+// even finishes rendering; the full text is one click away on the app's own
+// page anyway; splitting on the first ". " keeps it to one real sentence
+// rather than cutting mid-word, with a hard length cap as a backstop for
+// entries whose first sentence alone still runs long.
+const HOVER_MAX = 90;
+function oneLineSummary(about) {
+  const firstSentence = about.split('. ')[0];
+  return firstSentence.length <= HOVER_MAX ? firstSentence : `${firstSentence.slice(0, HOVER_MAX)}…`;
+}
 
 export function appCard(a) {
   return `
     <a class="app-tile" href="${esc(a.href)}"${a.external ? ' target="_blank" rel="noopener"' : ''}
-       title="${esc(a.about)}" dir="auto">
+       title="${esc(oneLineSummary(a.about))}" dir="auto">
       <span class="app-icon" aria-hidden="true">${APP_ICON[a.id] || '🔗'}</span>
       <span class="app-name" dir="auto">${esc(a.name_he)}</span>
     </a>`;
@@ -64,4 +77,50 @@ export function renderAppsByCategory(node, apps) {
         <div class="apps-grid">${items.map(appCard).join('')}</div>
       </section>`;
   }).join('');
+}
+
+/**
+ * apis.json isn't inlined into the browser bundle the same way for every
+ * page - some embed it (globalThis.__API_DATA__, set by bundle.py), others
+ * are served and fetch it live. One shared loader means every page that
+ * wants app data (this context strip, or anything else in future) doesn't
+ * re-implement the same fallback.
+ */
+export async function loadAppsData() {
+  if (globalThis.__API_DATA__) return globalThis.__API_DATA__;
+  const res = await fetch(new URL('../apis.json', import.meta.url));
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+/**
+ * Renders, under an app's own page header, a 🏠 icon back to apps.html (the
+ * full list, every category) plus small icon-links to every OTHER app in the
+ * same category as `currentId` (the current one shown too, but inert - "you
+ * are here" - not a link to itself). Cross-navigation between related tools
+ * without hand-maintaining it per page.
+ */
+export function renderAppContext(node, apps, currentId) {
+  const current = apps.find((a) => a.id === currentId);
+  if (!current) { node.innerHTML = ''; return; }
+  const inCategory = apps.filter((a) => a.category === current.category);
+
+  const homeHtml = `
+    <a class="app-sibling" href="./apps.html" title="כל האפליקציות" dir="auto">
+      <span aria-hidden="true">🏠</span>
+    </a>`;
+
+  const siblingsHtml = inCategory.map((a) => (a.id === currentId
+    ? `<span class="app-sibling app-sibling-current" title="${esc(a.name_he)}" aria-current="page" dir="auto">
+         <span aria-hidden="true">${APP_ICON[a.id] || '🔗'}</span>
+       </span>`
+    : `<a class="app-sibling" href="${esc(a.href)}"${a.external ? ' target="_blank" rel="noopener"' : ''}
+         title="${esc(a.name_he)}" dir="auto">
+         <span aria-hidden="true">${APP_ICON[a.id] || '🔗'}</span>
+       </a>`)).join('');
+
+  node.innerHTML = `
+    <nav class="app-siblings" aria-label="אפליקציות נוספות ב${esc(current.category_he || '')}">
+      ${homeHtml}${siblingsHtml}
+    </nav>`;
 }

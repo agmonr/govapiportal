@@ -28,10 +28,12 @@ import { el, esc, num, debounce, buildCsv, saveCsv, showError, showLoading } fro
 import { initThemePicker } from './theme.js';
 import { COMMITTEE_SITES, MEETING_TYPES } from './committee-sites.js';
 import { renderBarChart } from './charts.js';
+import { renderAppContext, loadAppsData } from './apps.js';
 
 const CM_EMPTY_MSG = { emptyMessage: 'אין נתונים להצגה בטווח שנבחר.' };
 
 initThemePicker(el('themePick'));
+loadAppsData().then((data) => renderAppContext(el('appContext'), data.apps, 'committees')).catch(() => {});
 
 const created = new Date(document.lastModified);
 if (!Number.isNaN(created.getTime())) {

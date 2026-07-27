@@ -29,18 +29,6 @@
       "category_he": "הבית והשכונה שלי"
     },
     {
-      "id": "committees",
-      "name": "Planning Committee Meetings (Complot)",
-      "name_he": "ישיבות ועדות תכנון ובנייה",
-      "kind": "אפליקציה",
-      "about": "רשימת ישיבות וקישורים לפרוטוקולים של כ-68 ועדות תכנון מקומיות ומרחביות, נשלפת חי מהדפדפן ממנוע Complot (handasi.complot.co.il) - לא ממנהל התכנון עצמו. אין כאן ניתוח תוכן פרוטוקולים (יח\"ד, מ\"ר, החלטות, ייעודי קרקע) - זה דורש פענוח PDF שלא בוצע. ועדות מחוזיות/ארציות אינן זמינות במקור נתונים זה - הפרוטוקולים שלהן יושבים במערכת מבא\"ת של מינהל התכנון, חסומה מאחורי reCAPTCHA.",
-      "href": "./committees.html",
-      "external": false,
-      "home": "https://hodhasharon.complot.co.il/newengine/Pages/meetings2.aspx",
-      "category": "home",
-      "category_he": "הבית והשכונה שלי"
-    },
-    {
       "id": "blue-lines",
       "name": "Blue Lines — Address to Plans & Metro Levy Check",
       "name_he": "המטרו והבית שלי",
@@ -60,8 +48,8 @@
       "about": "האתר הרשמי (ArcGIS Hub) של משרד החקלאות וביטחון המזון - קטלוג חזותי ואינטראקטיבי של שכבות, מפות ואפליקציות ייעודיות (תחת 'אפליקציות ומפות'), חלק ניתן להורדה ישירה. אותו מקור נתונים כמו הפורטל 'משרד החקלאות' במפת ה-API שלמטה (93 מאגרים גאוגרפיים דרך DCAT/ArcGIS FeatureServer) - זו חוויית הגלישה הוויזואלית שלו, לא קריאת API.",
       "href": "https://data1-moag.opendata.arcgis.com/",
       "external": true,
-      "category": "home",
-      "category_he": "הבית והשכונה שלי"
+      "category": "external",
+      "category_he": "אתרים חיצוניים"
     },
     {
       "id": "area-cleanup",
@@ -99,6 +87,18 @@
       "category_he": "כסף וממשל מקומי"
     },
     {
+      "id": "committees",
+      "name": "Planning Committee Meetings (Complot)",
+      "name_he": "ישיבות ועדות תכנון ובנייה",
+      "kind": "אפליקציה",
+      "about": "רשימת ישיבות וקישורים לפרוטוקולים של כ-68 ועדות תכנון מקומיות ומרחביות, נשלפת חי מהדפדפן ממנוע Complot (handasi.complot.co.il) - לא ממנהל התכנון עצמו. אין כאן ניתוח תוכן פרוטוקולים (יח\"ד, מ\"ר, החלטות, ייעודי קרקע) - זה דורש פענוח PDF שלא בוצע. ועדות מחוזיות/ארציות אינן זמינות במקור נתונים זה - הפרוטוקולים שלהן יושבים במערכת מבא\"ת של מינהל התכנון, חסומה מאחורי reCAPTCHA.",
+      "href": "./committees.html",
+      "external": false,
+      "home": "https://hodhasharon.complot.co.il/newengine/Pages/meetings2.aspx",
+      "category": "money",
+      "category_he": "כסף וממשל מקומי"
+    },
+    {
       "id": "companies",
       "name": "Companies Registry (Ministry of Justice)",
       "name_he": "מאגר החברות",
@@ -131,8 +131,8 @@
       "about": "פרויקט עצמאי (לא ממשלתי, לא רשמי) שאוסף ומנגיש את תקציב המדינה, תוכניות תמיכה, התקשרויות רכש, מכרזים ונתוני גופים - לפי האתר עצמו: \"כדי שנוכל לדעת מה עושים עם הכסף שלנו\". חושף גם שרת MCP חי (https://next.obudget.org/mcp, לסוכני AI - לא נפתח כ-GET רגיל בדפדפן) - נבדק ישירות מול הפרוטוקול (handshake מלא): 3 כלים (DatasetInfo, DatasetFullTextSearch, DatasetDBQuery) על 8 מאגרים, כולל טבלת budget_items_data שבה code='TOTAL' אכן מחזיר את סך תקציב המדינה (נבדק: 709.4 מיליארד ₪ ל-2026) - טבלה שונה מ-raw_budget של ממשק ה-SQL הישיר (למטה), ששם code='TOTAL' לא קיים כלל (0 שורות) והשקול היחיד הוא code='00' עם depth=0 (אותו סכום בדיוק, נבדק). בשתי הטבלאות כל סעיף כבר כולל את הסעיפים שמתחתיו בהיררכיה, אז סכימה לפי קידומת קוד (LIKE) תמיד כפולה - בניגוד למאגרי תקציב המדינה הגולמיים של משרד האוצר ב-data.gov.il, שאין בהם הגנה כזו וסכימה נאיבית שם נמצאה כפולה פי כ-2.5 מהתקציב האמיתי.",
       "href": "https://next.obudget.org/",
       "external": true,
-      "category": "money",
-      "category_he": "כסף וממשל מקומי"
+      "category": "external",
+      "category_he": "אתרים חיצוניים"
     }
   ],
   "portals": [

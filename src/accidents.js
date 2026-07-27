@@ -14,6 +14,7 @@ import { openPortal } from './portal.js';
 import { initThemePicker } from './theme.js';
 import { CITY_ROWS, CITY_YEARS } from './city-stats.js';
 import { renderBarChart } from './charts.js';
+import { renderAppContext, loadAppsData } from './apps.js';
 
 initThemePicker(el('themePick'));
 
@@ -282,11 +283,8 @@ el('accYear').addEventListener('change', (e) => {
 async function load() {
   const mount = el('accidents');
   try {
-    const data = globalThis.__API_DATA__ || await (async () => {
-      const res = await fetch(new URL('../apis.json', import.meta.url));
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      return res.json();
-    })();
+    const data = await loadAppsData();
+    renderAppContext(el('appContext'), data.apps, 'accidents');
     const app = data.apps.find((a) => a.id === 'accidents');
     if (!app) throw new Error('accidents app entry not found in apis.json');
     if (app.computed_at) {
