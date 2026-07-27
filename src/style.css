@@ -711,6 +711,13 @@ button.stat { cursor: pointer; }
    light colours rather than the page's own theme variables: the point is
    to stand out as an inviting button regardless of which of the two site
    themes (or accidents.html's own warning mood) happens to be active. */
+/* One heading + grid per category (src/apps.js renderAppsByCategory) - its
+   own rule rather than reusing .section, whose :first-of-type margin reset
+   would otherwise fire on EVERY category heading (each is the first h3
+   within its own separate <section>, not just the page's first one). */
+.apps-category + .apps-category { margin-block-start: 1.5rem; }
+.apps-category-h { font-size: 1rem; margin-block: 0 .6rem; color: var(--muted); font-weight: 600; }
+
 .apps-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));

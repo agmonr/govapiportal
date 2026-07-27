@@ -6,6 +6,7 @@
 import { el, esc, probedAt } from './ui.js';
 import { attachExplorer } from './explorer.js';
 import { openPortal, hasPreview } from './portal.js';
+import { renderAppsByCategory } from './apps.js';
 import { initThemePicker } from './theme.js';
 
 const portalGrid = el('portals');
@@ -136,26 +137,12 @@ function renderMatrix() {
    Not government APIs, and not part of the probe/verdict model below - just
    things built on top of one (or, for the tree tracker, adjacent to one).
    Plain links, not filter buttons: there is no in-page state to open for
-   either. */
-
-// One glyph each - a welcoming button reads as a destination, not a document,
-// so the icon carries it rather than a URL or an arrow-hint line.
-const APP_ICON = {
-  accidents: '🚦', trees: '🌳', committees: '🏛️', 'local-finance': '💰', agriculture: '🌾',
-  companies: '🏢', welfare: '🤝', budgetkey: '🔑', 'blue-lines': '🚇', 'area-cleanup': '🧹',
-};
-
-function appCard(a) {
-  return `
-    <a class="app-tile" href="${esc(a.href)}"${a.external ? ' target="_blank" rel="noopener"' : ''}
-       title="${esc(a.about)}" dir="auto">
-      <span class="app-icon" aria-hidden="true">${APP_ICON[a.id] || '🔗'}</span>
-      <span class="app-name" dir="auto">${esc(a.name_he)}</span>
-    </a>`;
-}
+   either. Rendering itself (icons, grouping by category) lives in
+   src/apps.js - shared with apps.html, which shows the same grid on its
+   own page. */
 
 function renderApps() {
-  appsGrid.innerHTML = data.apps.map(appCard).join('');
+  renderAppsByCategory(appsGrid, data.apps);
 }
 
 /* ---------- portal level ---------- */

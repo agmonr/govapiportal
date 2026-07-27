@@ -8,7 +8,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>קווים כחולים — כתובת ← תכניות ומס מטרו</title>
+  <title>המטרו והבית שלי — כתובת ← תכניות ומס מטרו</title>
   <!-- Sets data-theme before the stylesheet is applied, so a returning
        visitor who picked "fashion" never sees a flash of the clouds theme
        first. See src/theme.js for the picker itself. -->
@@ -732,6 +732,13 @@ button.stat { cursor: pointer; }
    light colours rather than the page's own theme variables: the point is
    to stand out as an inviting button regardless of which of the two site
    themes (or accidents.html's own warning mood) happens to be active. */
+/* One heading + grid per category (src/apps.js renderAppsByCategory) - its
+   own rule rather than reusing .section, whose :first-of-type margin reset
+   would otherwise fire on EVERY category heading (each is the first h3
+   within its own separate <section>, not just the page's first one). */
+.apps-category + .apps-category { margin-block-start: 1.5rem; }
+.apps-category-h { font-size: 1rem; margin-block: 0 .6rem; color: var(--muted); font-weight: 600; }
+
 .apps-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
@@ -1656,7 +1663,7 @@ body.accidents-page header.site h1 { inline-size: 100%; }
 <body class="accidents-page blue-lines-page">
   <header class="site">
     <div class="wrap">
-      <h1>קווים כחולים</h1>
+      <h1>המטרו והבית שלי</h1>
       <span class="site-by">פרויקט של רם אגמון<span class="site-disclaimer">המידע באתר עלול להיות שגוי</span></span>
       <div class="theme-pick" id="themePick" role="group" aria-label="ערכת נושא">
         <button type="button" data-theme="clouds">יום</button>

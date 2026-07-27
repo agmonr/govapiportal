@@ -45,7 +45,17 @@ TARGETS = [
         "html": "index.html",
         "out": "dist/map.html",
         "entry": "src/map.js",
-        "sources": ["src/ui.js", "src/theme.js", "src/explorer.js", "src/portal.js", "src/map.js"],
+        "sources": ["src/ui.js", "src/theme.js", "src/explorer.js", "src/portal.js", "src/apps.js", "src/map.js"],
+        "data": True,
+    },
+    {
+        "html": "apps.html",
+        "out": "dist/apps.html",
+        "entry": "src/apps-page.js",
+        # Same apps.js grouping as index.html's "אפליקציות" section, its own
+        # page - needs apis.json inlined the same way index.html does, to
+        # read data.apps.
+        "sources": ["src/ui.js", "src/theme.js", "src/apps.js", "src/apps-page.js"],
         "data": True,
     },
     {
@@ -273,6 +283,13 @@ def build(t: dict) -> str:
         sibling = [x["out"] for x in TARGETS if x["html"] == "moag.html"]
         if not sibling or Path(sibling[0]).name != "moag.html":
             sys.exit("error: a page links to ./moag.html but no target emits that filename "
+                     "into dist/ - the offline copies would link to nothing.")
+
+    # Same check, for index.html's link to apps.html.
+    if "apps.html" in html:
+        sibling = [x["out"] for x in TARGETS if x["html"] == "apps.html"]
+        if not sibling or Path(sibling[0]).name != "apps.html":
+            sys.exit("error: a page links to ./apps.html but no target emits that filename "
                      "into dist/ - the offline copies would link to nothing.")
 
     data = None
