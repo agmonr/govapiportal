@@ -401,6 +401,119 @@ async function runMoagPass(label, url) {
 }
 
 /**
+ * tree-canopy.html has no live network dependency at all - every number on
+ * the page comes from the three tables tools/canopy_build.py computed
+ * locally (see there), so unlike every other pass in this file there is
+ * nothing to soft-skip: a failure here is always this page's own bug, never
+ * someone else's server being down.
+ */
+async function runTreeCanopyPass(label, url, { bundled = false } = {}) {
+  console.log(`\n\x1b[1m${label}\x1b[0m  ${url}`);
+  const problems = [];
+  const ok = (cond, msg) => {
+    console.log(`${cond ? '\x1b[32m  PASS\x1b[0m' : '\x1b[31m  FAIL\x1b[0m'}  ${msg}`);
+    if (!cond) problems.push(`${label}: ${msg}`);
+  };
+
+  const page = await browser.newPage({ viewport: { width: 1200, height: 1400 } });
+  page.on('console', (m) => { if (m.type() === 'error') problems.push(`${label} console: ${m.text()}`); });
+  page.on('pageerror', (e) => problems.push(`${label} pageerror: ${e.message}`));
+
+  await page.goto(url, { waitUntil: 'load' });
+  await page.waitForSelector('.tc-level-btn.active', { timeout: 10000 });
+
+  ok(await page.locator('.tc-level-btn.active').innerText() === 'ערים', 'opens on the city level');
+  ok(await page.locator('#tcRosterHint').innerText().then((t) => /\d/.test(t)), 'roster hint states a total count');
+  ok(await page.locator('.lead a[href*="Tree1022"]').count() === 1, 'top-of-page lead links to the GovMap source viewer');
+
+  // Picks 2/3 must be cleared explicitly - the page loads with all 4 slots
+  // pre-filled (DEFAULT_CITY_PICKS), unlike a blank first visit before that
+  // default existed.
+  await page.locator('#tcPick0').fill('הוד השרון');
+  await page.locator('#tcPick0').dispatchEvent('change');
+  await page.locator('#tcPick1').fill('תל אביב - יפו');
+  await page.locator('#tcPick1').dispatchEvent('change');
+  await page.locator('#tcPick2').fill('');
+  await page.locator('#tcPick2').dispatchEvent('change');
+  await page.locator('#tcPick3').fill('');
+  await page.locator('#tcPick3').dispatchEvent('change');
+  await page.waitForSelector('#tcCompareSection:not([hidden])', { timeout: 5000 });
+  ok(await page.locator('#tcStats .stat').count() === 6, '2 cities x 3 stat tiles each');
+  ok(await page.locator('#tcTable tbody tr.has-files').count() === 2, 'comparison table has one row per city');
+  ok(await page.locator('#tcDrillSection:not([hidden])').count() === 1, 'drill-in section appears once a city is picked');
+  ok(await page.locator('#tcDrillBtns .tc-drill-group').count() === 2, 'one drill-in group per compared city');
+
+  // The up-to-4-way compare this test exists for: filling picks 3 and 4 too.
+  await page.locator('#tcPick2').fill('חיפה');
+  await page.locator('#tcPick2').dispatchEvent('change');
+  await page.locator('#tcPick3').fill('רעננה');
+  await page.locator('#tcPick3').dispatchEvent('change');
+  await page.waitForTimeout(150);
+  ok(await page.locator('#tcStats .stat').count() === 12, '4 cities x 3 stat tiles each');
+  ok(await page.locator('#tcTable tbody tr.has-files').count() === 4, 'comparison table grows to 4 rows');
+  ok(await page.locator('#tcDrillBtns .tc-drill-group').count() === 4, 'drill-in offers all 4 compared cities, not just the first');
+
+  // Blur first: tcPick3 is still focused from the fill() above, and a
+  // focused <input list> keeps Chromium's native datalist suggestion popup
+  // open, which sits outside the DOM and can intercept a real click on
+  // whatever is underneath it - a real user's click on the drill button
+  // blurs the input as part of that same click, but a scripted
+  // dispatchEvent() above never did. Without this the click below lands
+  // (mousedown fires) but never completes (no mouseup/click), and the level
+  // silently stays "city".
+  await page.locator('#tcPick3').evaluate((e) => e.blur());
+  // The drill-in must land on real data for the FIRST city compared, not an
+  // empty screen - and the two prefilled entries must actually belong to it.
+  await page.locator('#tcDrillBtns .tc-drill-group').first().locator('button[data-drill="neighborhood"]').click();
+  await page.waitForSelector('#tcCompareSection:not([hidden])', { timeout: 5000 });
+  ok((await page.locator('#tcRosterHint').innerText()).includes('הוד השרון'), 'drilling into neighborhoods scopes the roster to that city');
+  const nbRows = await page.locator('#tcTable tbody tr.has-files').count();
+  ok(nbRows >= 1, 'at least one neighborhood prefilled after drill-in');
+
+  // Regression check for the "הרצל" vs "הרצליה" ranking bug: a street named
+  // exactly the query must outrank a street that only matches because its
+  // CITY name contains the query as a substring.
+  await page.locator('.tc-level-btn[data-level="street"]').click();
+  await page.waitForTimeout(150);
+  await page.locator('#tcPick0').fill('הרצל');
+  await page.waitForTimeout(200);
+  const firstOpt = await page.locator('#tcRoster option').first().getAttribute('value');
+  ok(firstOpt?.startsWith('הרצל,'), `exact-name match ranks first for a substring also found in a city name (got "${firstOpt}")`);
+
+  // No street/neighborhood/city with zero detected canopy should ever be
+  // offered - it's a data gap (see canopy_area_within's docstring), not a
+  // verified zero, so it must not appear as a pickable option.
+  const zeroTreeStillListed = await page.locator('#tcRoster option').evaluateAll((opts, streets) => {
+    const values = new Set(opts.map((o) => o.value));
+    return streets.some((s) => values.has(s));
+  }, ['לב השרון, האורן', 'ראש פינה, הנרקיס']);
+  ok(!zeroTreeStillListed, 'a street with 0 detected canopy is never offered in the pick list');
+
+  ok(await page.locator('#tcBoardChart.tc-board-scroll').count() === 1, 'leaderboard chart has the scrollable class');
+  const boardBox = await page.locator('#tcBoardChart').evaluate((e) => ({ scrollH: e.scrollHeight, clientH: e.clientHeight }));
+  ok(boardBox.scrollH > boardBox.clientH, 'leaderboard actually overflows into its scroll box (more than fits at once)');
+
+  if (bundled) {
+    ok(await page.locator('#fileproto').count() === 0, 'no "run a server" notice in the bundle - it does not apply there');
+    const external = await page.evaluate(() =>
+      [...document.querySelectorAll('script[src], link[rel="stylesheet"][href], img[src]')].map((e) => e.getAttribute('src') || e.getAttribute('href')));
+    ok(external.length === 0, `no external asset references (found ${external.join(', ') || 'none'})`);
+  } else {
+    ok(await page.locator('#fileproto').isVisible() === false, 'file:// notice stays hidden when served over HTTP');
+  }
+
+  for (const width of [380, 768, 1280]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.waitForTimeout(150);
+    const over = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    ok(over <= 0, `no horizontal body scroll at ${width}px (overflow ${over}px)`);
+  }
+
+  await page.close();
+  failures.push(...problems);
+}
+
+/**
  * The road-accidents app is a third page, reusing openPortal() in
  * standalone mode - so it gets its own pass too, exactly like the explorer.
  * Soft-skipped when data.gov.il does not answer, same policy as the other
@@ -475,6 +588,8 @@ await runCkanPass('explorer over HTTP', `${HTTP_BASE}/datagov.html`);
 await runCkanPass('explorer from disk', new URL('../dist/datagov.html', import.meta.url).href);
 await runMoagPass('moag explorer over HTTP', `${HTTP_BASE}/moag.html`);
 await runMoagPass('moag explorer from disk', new URL('../dist/moag.html', import.meta.url).href);
+await runTreeCanopyPass('tree canopy over HTTP', `${HTTP_BASE}/tree-canopy.html`);
+await runTreeCanopyPass('tree canopy from disk', new URL('../dist/tree-canopy.html', import.meta.url).href, { bundled: true });
 await runAccidentsPass('accidents app over HTTP', `${HTTP_BASE}/accidents.html`);
 await runAccidentsPass('accidents app from disk', new URL('../dist/accidents.html', import.meta.url).href, { bundled: true });
 
@@ -484,4 +599,4 @@ if (failures.length) {
   console.log(`\n\x1b[31m${failures.length} problem(s)\x1b[0m\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('\n\x1b[32mAll checks passed across all eight passes. No console errors.\x1b[0m');
+console.log('\n\x1b[32mAll checks passed across all ten passes. No console errors.\x1b[0m');

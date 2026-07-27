@@ -1572,6 +1572,85 @@ body.accidents-page header.site h1 { inline-size: 100%; }
   }
   .area-cleanup-page h2 { font-size: 1.3rem; }
 }
+
+/* tree-canopy.html's city/neighborhood/street level picker - same pill
+   shape as .ck-open, but only the active one is filled; the other two stay
+   outlined so it reads as a 3-way toggle, not three buttons. */
+.tc-level-btn {
+  font: inherit; font-size: .85rem; padding: .4rem 1rem; cursor: pointer;
+  color: var(--fg); background: var(--card); border: 1px solid var(--border); border-radius: 999px;
+}
+.tc-level-btn:hover { border-color: var(--accent); }
+.tc-level-btn.active {
+  color: var(--bg); background: var(--accent); border-color: var(--accent); font-weight: 600;
+}
+
+/* The leaderboard shows up to 30 rows (vs. the usual 10) - scrolls in its
+   own box, same "long content, fixed-height box" treatment as
+   .matrix-wrap.scroll elsewhere on the site, so the page itself doesn't
+   grow to fit whichever level currently has the longest leaderboard. */
+.tc-board-scroll { max-block-size: 32rem; overflow-y: auto; }
+.tc-board-scroll .acc-hbars { padding-inline-end: .3rem; }
+/* The caption (which entity/metric this ranks) stays visible while
+   scrolling through up to ~27,700 rows, instead of scrolling away after
+   the first screenful. */
+.tc-board-scroll figcaption { position: sticky; inset-block-start: 0; background: var(--bg); padding-block: .3rem; z-index: 1; }
+
+/* One drill-in group per compared city (up to 4), each tagged with the same
+   color swatch used for that city everywhere else on the page. */
+.tc-drill-group { display: inline-flex; align-items: center; gap: .4rem; flex-wrap: wrap; margin-inline-end: 1rem; }
+
+/* .acc-hbar-y's shared 8rem width (see charts.js/renderHBarChart) truncates
+   most neighborhood/street labels here - they carry a city name alongside
+   the name itself ("מעוז אביב, תל אביב - יפו"), routinely longer than any
+   label the chart was originally sized for elsewhere on the site. Widened
+   only for this page rather than changing the shared 8rem for every other
+   page's (shorter) labels. */
+.tree-canopy-page .acc-hbar-y { flex-basis: 17rem; }
+@media (max-width: 640px) {
+  .tree-canopy-page .acc-hbar-y { flex-basis: 9rem; }
+}
+
+/* Each compared entity's 3 tiles stay together on their own line - a plain
+   .stat-row grid (see index.html's API-status tiles, its original use)
+   wraps strictly by available width, which for 4 entities x 3 tiles each
+   split an entity's own tiles across two visual rows whenever the column
+   count didn't divide evenly by 3. src/tree-canopy.js wraps each entity's
+   tiles in its own .tc-stat-line instead of relying on #tcStats being a
+   .stat-row grid at all. */
+/* The 4 pick fields fill column-by-column (grid-auto-flow: column) rather
+   than row-by-row: pick 1 sits directly above pick 2, and pick 3 directly
+   above pick 4, instead of 1/2 sharing the top row and 3/4 the bottom one. */
+#tcPicks {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(14rem, 1fr));
+  grid-template-rows: repeat(2, auto);
+  grid-auto-flow: column;
+  gap: .5rem 1.5rem;
+}
+@media (max-width: 640px) {
+  #tcPicks { grid-template-columns: 1fr; grid-auto-flow: row; }
+}
+
+#tcStats { display: flex; flex-direction: column; gap: .5rem; }
+/* auto-fit rather than a hardcoded column count - cities/neighborhoods
+   carry 3 tiles per line, streets carry a 4th (canopy per 100m), and this
+   sizes to whichever it actually is instead of always assuming 3 (which
+   left a street's 4th tile alone on its own row at a third of a row's
+   width). Safe to auto-fit here in a way the page-wide grid wasn't: each
+   .tc-stat-line only ever holds ONE entity's own tiles, so wrapping within
+   it is never confused with where one entity's data ends and another's
+   begins. */
+.tc-stat-line { display: grid; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); gap: .5rem; }
+@media (max-width: 640px) {
+  .tc-stat-line { grid-template-columns: 1fr; }
+}
+/* Labels here carry a full name + city ("תל אביב - יפו — כיסוי חופות"),
+   longer than the short word or two .stat-l was originally sized for -
+   wrapping mid-phrase split the name away from its own city in a way that
+   read as broken, not just wrapped. Breaking only at an actual space (not
+   after every hyphen) keeps "תל אביב - יפו" together as drawn. */
+.tree-canopy-page .stat-l { white-space: normal; word-break: keep-all; }
 </style>
 </head>
 <body class="accidents-page companies-page">
@@ -1852,9 +1931,15 @@ function renderBarChart(figId, caption, entries, unit = '', colorClass = '', opt
  * A ranked top-N reads far better as rows stacked top-to-bottom than as N
  * vertical bars squeezed into one fixed-height row - a different mark from
  * renderBarChart, not that same one rotated. `entries`: [{ label, value,
- * compare? }] - `compare: true` renders a row in the same grayed-out accent
- * used for a compare authority everywhere else, so two authorities can sit
- * as adjacent rows per category without a legend to look up. */
+ * compare? , color? }] - `compare: true` renders a row in the same grayed-out
+ * accent used for a compare authority everywhere else, so two authorities
+ * can sit as adjacent rows per category without a legend to look up.
+ * `color` (optional) overrides the bar's fill with a specific CSS color
+ * instead - tree-canopy.html's comparison chart uses this to match each
+ * bar to the same per-entity color used in its stat tiles/table rows,
+ * rather than every bar sharing one accent regardless of which entity it
+ * is. Existing callers that never pass `color` are unaffected - the class-
+ * based accent/compare coloring is unchanged when it's absent. */
 function renderHBarChart(figId, caption, entries, unit) {
   const fig = el(figId);
   if (!entries.length) { fig.innerHTML = `<figcaption>${esc(caption)}</figcaption><p class="acc-hint">אין נתונים להצגה.</p>`; return; }
@@ -1862,7 +1947,7 @@ function renderHBarChart(figId, caption, entries, unit) {
   const rows = entries.map((e) => `
     <div class="acc-hbar${e.compare ? ' acc-hbar-compare' : ''}" title="${esc(e.label)}: ${num(e.value)} ${esc(unit)}">
       <span class="acc-hbar-y" dir="auto">${esc(e.label)}</span>
-      <div class="acc-hbar-track"><div class="acc-hbar-fill" style="inline-size:${peak ? (e.value / peak) * 100 : 0}%"></div></div>
+      <div class="acc-hbar-track"><div class="acc-hbar-fill" style="inline-size:${peak ? (e.value / peak) * 100 : 0}%${e.color ? `;background:${e.color}` : ''}"></div></div>
       <span class="acc-hbar-v">${num(e.value)}</span>
     </div>`).join('');
   fig.innerHTML = `<figcaption>${esc(caption)}</figcaption><div class="acc-hbars">${rows}</div>`;

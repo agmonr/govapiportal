@@ -55,6 +55,8 @@ than shipping to whoever downloads it.
 | `index.html` / `src/map.js` | Top view + portal grid + API list, filterable |
 | `datagov.html` / `src/ckan.js` | The data.gov.il explorer: catalogue → dataset → records |
 | `moag.html` / `src/moag-explorer.js` | The Ministry of Agriculture explorer: catalogue → dataset → FeatureServer records |
+| `tree-canopy.html` / `src/tree-canopy.js` | Tree canopy % by city/neighborhood/street, compare-two-entities UI. Data is precomputed - see below. |
+| `tools/canopy_build.py` | One-time local batch job that computes the three canopy tables above from a gitignored local shapefile |
 | `src/portal.js` | Portal drill-in: live request per portal, rendered as a table |
 | `src/explorer.js` | Live in-browser request panel |
 | `src/style.css` | RTL-first styling |
@@ -268,6 +270,85 @@ from user input, so only the typed search value needs escaping.
 CSV download works the same way it does everywhere else on this site: built
 here from the same paged `/query` calls already used to show the table, not
 from a server-side export.
+
+## How green is your city — a page with no live API behind it at all
+
+**`tree-canopy.html` is a different shape from everything else here.** Every
+other page fetches from a live government API, even the ones with a
+precomputed snapshot (accidents.html's numbers are dated, but the *source*
+is still `datastore_search`, live, if you want to recompute them). Tree
+canopy coverage has no API at all: the source is a 358 MB Esri shapefile
+(2.89 million tree-canopy polygons, from the Survey of Israel's national
+canopy mapping under Government Decision 1022) that data.gov.il serves only
+as a WAF-challenged file download — the same challenge page this repo
+already documents for CSV/XLSX, just for a ZIP this time.
+
+So this page's data pipeline is entirely offline, entirely local, and runs
+once: `tools/canopy_build.py` reads a manually-downloaded copy of the
+shapefile (never committed — `zip/` is gitignored) and computes canopy %
+against three boundary sources, spatially, using GDAL's Python bindings.
+Assignment is by centroid containment (a tree's centroid inside a boundary,
+not a full intersection test for every candidate — the same simplification
+`area-cleanup.js` already uses elsewhere on this site), but the *area added*
+for a counted tree is its true intersection area with the boundary, not
+always its own full area — the two are equal for the overwhelming majority
+(a tree canopy shape is tiny next to any of these boundaries), except when a
+boundary is narrow enough that a tree can straddle it — found exactly this
+way: a 7.5 m street buffer once reported 501% canopy coverage because one of
+its three trees was itself a ~6,800 sqm shape (something closer to a forest
+patch), most of which actually sat outside the buffer.
+
+| Level | Boundary source | Count | Method |
+|---|---|---|---|
+| City | GovMap's open `muni_il` WFS (already used by area-cleanup.html), regional councils excluded | 186 | canopy inside city polygon |
+| Neighborhood | OpenStreetMap `place=suburb/neighbourhood/quarter` — real polygons, plus Voronoi cells around name-only points | 1,281 (245 real + 1,036 approximate) | canopy inside neighborhood polygon (or its Voronoi cell) |
+| Street | OpenStreetMap named ways, grouped by (city, street name), buffered | 35,938 distinct (city, street) pairs, from 98,488 raw segments | 7.5 m buffer around the street |
+
+The 7.5 m street buffer is not an arbitrary choice — it's the exact
+methodology the source dataset's own data.gov.il description states it used
+to compute its own street-level ratios, so this reproduces the government's
+method rather than inventing a different one.
+
+**Three honesty notes the page states directly, not just here:**
+
+- **Regional councils (מועצה אזורית) are excluded from the city-level
+  roster entirely, not just caveated.** Their jurisdiction polygon covers a
+  large rural/desert/agricultural area around their settlements, not just
+  the built-up area, so their canopy % is near-zero almost by construction —
+  187 of 373 candidate names collapsed from `muni_il` were exactly this
+  type. The right comparison for a regional council is its own
+  neighborhood/street, not its jurisdiction-wide %.
+- **Most OSM neighborhoods are a named point, not a polygon — used anyway,
+  marked `approx: true`.** A real boundary only exists for 245 nationally
+  (strong in Tel Aviv/Haifa, patchy almost everywhere else — checked
+  directly against Nominatim before building this). For the other 1,036,
+  every named point in a city (including ones that already have a real
+  polygon, so their neighbors' cells don't encroach on real territory)
+  competes as a Voronoi seed, clipped to the city boundary — an
+  approximate straight-line boundary between two named centers, not a
+  verified shape, and the page marks it as such everywhere it appears
+  rather than presenting it at the same confidence as a real polygon.
+- **A neighborhood/street/city missing here is a mapping gap, not a claim
+  it doesn't exist** — and one with zero detected canopy polygons at all is
+  treated the same way: left out of the pick list and leaderboard rather
+  than shown as a verified "zero."
+
+Only the three small computed tables (`src/tree-canopy-{cities,
+neighborhoods,streets}.js`) are committed — not the shapefile, not the
+converted GeoPackage, not the raw OSM fetches. The street table is the one
+genuinely large file on this site (a few MB uncommitted, roughly 700 KB
+gzipped as served) — sized deliberately before committing to it: 36k
+distinct streets is what nationwide OSM street coverage actually produces,
+not an inflated or padded number. Its leaderboard (all ~27,700 streets with
+any detected canopy, not just a top-N) renders in animation-frame-sized
+chunks rather than one blocking write, after measuring a ~3.3s freeze from
+doing it the naive way.
+
+Regenerate all three after re-downloading the source shapefile into `zip/`:
+
+```bash
+python3 tools/canopy_build.py all       # or: cities / neighborhoods / streets
+```
 
 ## Downloading files
 

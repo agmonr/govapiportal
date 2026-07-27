@@ -59,9 +59,15 @@ export function renderBarChart(figId, caption, entries, unit = '', colorClass = 
  * A ranked top-N reads far better as rows stacked top-to-bottom than as N
  * vertical bars squeezed into one fixed-height row - a different mark from
  * renderBarChart, not that same one rotated. `entries`: [{ label, value,
- * compare? }] - `compare: true` renders a row in the same grayed-out accent
- * used for a compare authority everywhere else, so two authorities can sit
- * as adjacent rows per category without a legend to look up. */
+ * compare? , color? }] - `compare: true` renders a row in the same grayed-out
+ * accent used for a compare authority everywhere else, so two authorities
+ * can sit as adjacent rows per category without a legend to look up.
+ * `color` (optional) overrides the bar's fill with a specific CSS color
+ * instead - tree-canopy.html's comparison chart uses this to match each
+ * bar to the same per-entity color used in its stat tiles/table rows,
+ * rather than every bar sharing one accent regardless of which entity it
+ * is. Existing callers that never pass `color` are unaffected - the class-
+ * based accent/compare coloring is unchanged when it's absent. */
 export function renderHBarChart(figId, caption, entries, unit) {
   const fig = el(figId);
   if (!entries.length) { fig.innerHTML = `<figcaption>${esc(caption)}</figcaption><p class="acc-hint">אין נתונים להצגה.</p>`; return; }
@@ -69,7 +75,7 @@ export function renderHBarChart(figId, caption, entries, unit) {
   const rows = entries.map((e) => `
     <div class="acc-hbar${e.compare ? ' acc-hbar-compare' : ''}" title="${esc(e.label)}: ${num(e.value)} ${esc(unit)}">
       <span class="acc-hbar-y" dir="auto">${esc(e.label)}</span>
-      <div class="acc-hbar-track"><div class="acc-hbar-fill" style="inline-size:${peak ? (e.value / peak) * 100 : 0}%"></div></div>
+      <div class="acc-hbar-track"><div class="acc-hbar-fill" style="inline-size:${peak ? (e.value / peak) * 100 : 0}%${e.color ? `;background:${e.color}` : ''}"></div></div>
       <span class="acc-hbar-v">${num(e.value)}</span>
     </div>`).join('');
   fig.innerHTML = `<figcaption>${esc(caption)}</figcaption><div class="acc-hbars">${rows}</div>`;

@@ -109,6 +109,19 @@ TARGETS = [
         "data": False,
     },
     {
+        "html": "tree-canopy.html",
+        "out": "dist/tree-canopy.html",
+        "entry": "src/tree-canopy.js",
+        # No live API at all - see tools/canopy_build.py. Ships three
+        # locally-precomputed tables (city/neighborhood/street canopy %),
+        # same "dated snapshot" shape as city-stats.js for accidents.html,
+        # just three of them. No apis.json lookup, no portal.js machinery.
+        "sources": ["src/ui.js", "src/theme.js", "src/charts.js",
+                    "src/tree-canopy-cities.js", "src/tree-canopy-neighborhoods.js", "src/tree-canopy-streets.js",
+                    "src/tree-canopy.js"],
+        "data": False,
+    },
+    {
         "html": "welfare.html",
         "out": "dist/welfare.html",
         "entry": "src/welfare.js",
