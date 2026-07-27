@@ -320,39 +320,35 @@ function renderTopStreets(entries) {
   renderTopWithinCity(entries, 'street', TOP_STREETS_N, 'tcTopStreetsSection', 'tcTopStreetsCity', 'tcTopStreetsChart', 'רחובות מובילים');
 }
 
-/* ---------- canopy density normalized by street length ----------
- * % (used everywhere else on this page) already normalizes by AREA - a
- * short street and a long one at the same % both read as "equally green".
- * It does NOT normalize by LENGTH: raw tree count still grows with a
- * street's length regardless of greenness, so two streets at the same %
- * but very different tree counts read identically by % alone. Canopies per
- * 100m of street length answers a different question - not "what fraction
- * of this street's area is shaded" but "how densely are canopies actually
- * spaced along it" - both real, complementary views of the same data,
- * hence a table (a plain ranking) rather than folding this into the
- * existing % charts above. */
-const DENSITY_CITY_N = 25;
-const DENSITY_NATIONAL_N = 100;
+/* ---------- planting-priority score (pct × street length) ----------
+ * % alone treats a short street and a long street at the same coverage as
+ * equally "done" - but improving the long one shades far more street
+ * frontage for the same percentage gain. Multiplying pct by the street's
+ * length turns that into a single ranking: same % coverage, longer street
+ * scores higher, since there's simply more of it already benefiting. */
+const PRIORITY_CITY_N = 25;
+const PRIORITY_NATIONAL_N = 100;
 
-/** Every street with a known length, ranked by canopies-per-100m
- * descending - shared by the city-scoped and national tables below (the
- * only difference between them is which subset of `streets` is passed in,
- * and whether the city name needs to be shown per row). */
-function densityRanked(streets) {
+/** Every street with a known length, ranked by (pct × lengthM) descending -
+ * shared by the city-scoped and national tables below (the only
+ * difference between them is which subset of `streets` is passed in, and
+ * whether the city name needs to be shown per row). */
+function priorityRanked(streets) {
   return streets
     .filter((e) => e.lengthM > 0)
-    .map((e) => ({ ...e, per100m: (e.treeCount / e.lengthM) * 100 }))
-    .sort((a, b) => b.per100m - a.per100m);
+    .map((e) => ({ ...e, priority: e.pct * e.lengthM }))
+    .sort((a, b) => b.priority - a.priority);
 }
 
-function densityTableHtml(ranked, n, includeCity) {
+function priorityTableHtml(ranked, n, includeCity) {
   const top = ranked.slice(0, n);
   const rows = top.map((e, i) => `
     <tr>
       <th scope="row">${i + 1}</th>
       <td dir="auto">${esc(e.name)}${includeCity ? ` <span class="acc-hint">— ${esc(e.city)}</span>` : ''}</td>
+      <td>${e.pct.toFixed(1)}</td>
       <td>${num(Math.round(e.lengthM))}</td>
-      <td>${e.per100m.toFixed(1)}</td>
+      <td>${num(Math.round(e.priority))}</td>
     </tr>`).join('');
   return `
     <div class="matrix-wrap">
@@ -360,8 +356,9 @@ function densityTableHtml(ranked, n, includeCity) {
         <thead><tr>
           <th scope="col">#</th>
           <th scope="col">רחוב</th>
+          <th scope="col">% כיסוי</th>
           <th scope="col">אורך (מ')</th>
-          <th scope="col">חופות ל-100 מ'</th>
+          <th scope="col">ציון עדיפות</th>
         </tr></thead>
         <tbody>${rows}</tbody>
       </table>
@@ -371,25 +368,25 @@ function densityTableHtml(ranked, n, includeCity) {
 // City-scoped: same single-city condition as renderTopNeighborhoods/
 // renderTopStreets above - a companion ranking to "top streets by %"
 // (tcTopStreetsSection), not a replacement for it.
-function renderCityDensity(entries) {
-  const section = el('tcCityDensitySection');
+function renderCityPriority(entries) {
+  const section = el('tcCityPrioritySection');
   if (state.level !== 'city' || entries.length !== 1) { section.hidden = true; return; }
   const cityName = entries[0].label;
   const streets = levelEntries('street').filter((e) => e.city === cityName && isCredible('street', e));
-  const ranked = densityRanked(streets);
+  const ranked = priorityRanked(streets);
   if (!ranked.length) { section.hidden = true; return; }
   section.hidden = false;
-  el('tcCityDensityCity').textContent = cityName;
-  el('tcCityDensityTable').innerHTML = densityTableHtml(ranked, DENSITY_CITY_N, false);
+  el('tcCityPriorityCity').textContent = cityName;
+  el('tcCityPriorityTable').innerHTML = priorityTableHtml(ranked, PRIORITY_CITY_N, false);
 }
 
 // National (every city) - independent of state.level/state.picks, so it's
 // rendered once, not on every renderAll(). Every credible street in the
 // country, not scoped to whatever level/city the comparison above happens
 // to be showing.
-function renderDensityBoard() {
-  const ranked = densityRanked(levelEntries('street').filter((e) => isCredible('street', e)));
-  el('tcDensityBoardTable').innerHTML = densityTableHtml(ranked, DENSITY_NATIONAL_N, true);
+function renderPriorityBoard() {
+  const ranked = priorityRanked(levelEntries('street').filter((e) => isCredible('street', e)));
+  el('tcPriorityBoardTable').innerHTML = priorityTableHtml(ranked, PRIORITY_NATIONAL_N, true);
 }
 
 function renderCompare() {
@@ -409,7 +406,7 @@ function renderCompare() {
     renderDrill([]);
     el('tcTopNeighborhoodsSection').hidden = true;
     el('tcTopStreetsSection').hidden = true;
-    el('tcCityDensitySection').hidden = true;
+    el('tcCityPrioritySection').hidden = true;
     return;
   }
   section.hidden = false;
@@ -420,7 +417,7 @@ function renderCompare() {
   renderDrill(entries);
   renderTopNeighborhoods(entries);
   renderTopStreets(entries);
-  renderCityDensity(entries);
+  renderCityPriority(entries);
 }
 
 /* ---------- leaderboard (own renderer - see why below) ---------- */
@@ -593,4 +590,4 @@ pickInputs.forEach((input, i) => {
 
 readStateFromUrl();
 renderAll();
-renderDensityBoard(); // nationwide, independent of state.level/picks - rendered once
+renderPriorityBoard(); // nationwide, independent of state.level/picks - rendered once
