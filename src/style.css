@@ -1740,3 +1740,18 @@ body.accidents-page header.site h1 { inline-size: 100%; }
   .tree-canopy-page a, .tree-canopy-page a:visited { color: #4fc3f7; }
   .tree-canopy-page #tcDrillSection { display: none; }
 }
+
+/* Mobile only: a brief "✓ נטען" beside a pick field once it resolves to a
+   real city/neighborhood/street (src/tree-canopy.js showPickConfirm) - the
+   comparison itself often sits below the fold on a phone, so a valid pick
+   otherwise gives no feedback at all until the visitor scrolls down.
+   Desktop sees the chart update right there already, so this stays
+   entirely out of layout there. */
+.tc-pick-confirm { display: none; }
+@media (max-width: 640px) {
+  .tc-pick-confirm {
+    display: inline-block; font-size: .78rem; font-weight: 600; color: var(--accent);
+    opacity: 0; transition: opacity .25s ease;
+  }
+  .tc-pick-confirm.tc-pick-confirm-show { opacity: 1; }
+}

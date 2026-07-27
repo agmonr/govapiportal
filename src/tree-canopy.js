@@ -82,7 +82,7 @@ const LEVELS = {
       // neighborhood rather than guessed at.
       return {
         key, label: `${name}, ${city}${v.nb ? ` (${v.nb})` : ''}`, name, city, pct: v.pct,
-        areaM2: v.bufferAreaM2, canopyAreaM2: v.canopyAreaM2, treeCount: v.treeCount,
+        areaM2: v.bufferAreaM2, canopyAreaM2: v.canopyAreaM2, treeCount: v.treeCount, lengthM: v.lengthM,
       };
     }),
   },
@@ -284,24 +284,112 @@ function drillInto(level, cityName) {
 // A single city (not a multi-city comparison, and not already at the
 // street/neighborhood level - drilling in there via "צלילה פנימה" already
 // gets its own full leaderboard below) gets a quick answer to the obvious
-// next question - which of ITS OWN streets are greenest - without leaving
-// the city level or waiting for the page-wide (national) leaderboard
-// further down, which ranks every city's streets against each other, not
-// one city's against itself.
+// next question - which of ITS OWN neighborhoods/streets are greenest -
+// without leaving the city level or waiting for the page-wide (national)
+// leaderboard further down, which ranks every city's neighborhoods/streets
+// against each other, not one city's against itself. Neighborhoods (top 20)
+// render before streets (top 25) - broader area first, then the finer-
+// grained breakdown.
+const TOP_NEIGHBORHOODS_N = 20;
 const TOP_STREETS_N = 25;
+
+/** Shared by renderTopNeighborhoods/renderTopStreets below - `noun` is the
+ * already gender-agreeing phrase ("רחובות מובילים"/"שכונות מובילות", see
+ * LEVELS' own boardTitle for the same agreement rule applied to the
+ * national leaderboard). */
+function renderTopWithinCity(entries, level, n, sectionId, citySpanId, chartId, noun) {
+  const section = el(sectionId);
+  if (state.level !== 'city' || entries.length !== 1) { section.hidden = true; return; }
+  const cityName = entries[0].label;
+  const items = levelEntries(level).filter((e) => e.city === cityName && isCredible(level, e));
+  if (!items.length) { section.hidden = true; return; }
+  section.hidden = false;
+  el(citySpanId).textContent = cityName;
+  const top = [...items].sort((a, b) => b.pct - a.pct).slice(0, n);
+  // e.name (just the street/neighborhood) rather than e.label (which
+  // repeats the city already named in this section's own heading).
+  const chartEntries = top.map((e) => ({ label: e.name, value: Number(e.pct.toFixed(1)) }));
+  renderHBarChart(chartId, `${num(top.length)} ${noun} בכיסוי חופות עצים${top.length < items.length ? ` (מתוך ${num(items.length)})` : ''}`, chartEntries, '%');
+}
+
+function renderTopNeighborhoods(entries) {
+  renderTopWithinCity(entries, 'neighborhood', TOP_NEIGHBORHOODS_N, 'tcTopNeighborhoodsSection', 'tcTopNeighborhoodsCity', 'tcTopNeighborhoodsChart', 'שכונות מובילות');
+}
+
 function renderTopStreets(entries) {
-  const section = el('tcTopStreetsSection');
+  renderTopWithinCity(entries, 'street', TOP_STREETS_N, 'tcTopStreetsSection', 'tcTopStreetsCity', 'tcTopStreetsChart', 'רחובות מובילים');
+}
+
+/* ---------- canopy density normalized by street length ----------
+ * % (used everywhere else on this page) already normalizes by AREA - a
+ * short street and a long one at the same % both read as "equally green".
+ * It does NOT normalize by LENGTH: raw tree count still grows with a
+ * street's length regardless of greenness, so two streets at the same %
+ * but very different tree counts read identically by % alone. Canopies per
+ * 100m of street length answers a different question - not "what fraction
+ * of this street's area is shaded" but "how densely are canopies actually
+ * spaced along it" - both real, complementary views of the same data,
+ * hence a table (a plain ranking) rather than folding this into the
+ * existing % charts above. */
+const DENSITY_CITY_N = 25;
+const DENSITY_NATIONAL_N = 100;
+
+/** Every street with a known length, ranked by canopies-per-100m
+ * descending - shared by the city-scoped and national tables below (the
+ * only difference between them is which subset of `streets` is passed in,
+ * and whether the city name needs to be shown per row). */
+function densityRanked(streets) {
+  return streets
+    .filter((e) => e.lengthM > 0)
+    .map((e) => ({ ...e, per100m: (e.treeCount / e.lengthM) * 100 }))
+    .sort((a, b) => b.per100m - a.per100m);
+}
+
+function densityTableHtml(ranked, n, includeCity) {
+  const top = ranked.slice(0, n);
+  const rows = top.map((e, i) => `
+    <tr>
+      <th scope="row">${i + 1}</th>
+      <td dir="auto">${esc(e.name)}${includeCity ? ` <span class="acc-hint">— ${esc(e.city)}</span>` : ''}</td>
+      <td>${num(Math.round(e.lengthM))}</td>
+      <td>${e.per100m.toFixed(1)}</td>
+    </tr>`).join('');
+  return `
+    <div class="matrix-wrap">
+      <table class="matrix">
+        <thead><tr>
+          <th scope="col">#</th>
+          <th scope="col">רחוב</th>
+          <th scope="col">אורך (מ')</th>
+          <th scope="col">חופות ל-100 מ'</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+}
+
+// City-scoped: same single-city condition as renderTopNeighborhoods/
+// renderTopStreets above - a companion ranking to "top streets by %"
+// (tcTopStreetsSection), not a replacement for it.
+function renderCityDensity(entries) {
+  const section = el('tcCityDensitySection');
   if (state.level !== 'city' || entries.length !== 1) { section.hidden = true; return; }
   const cityName = entries[0].label;
   const streets = levelEntries('street').filter((e) => e.city === cityName && isCredible('street', e));
-  if (!streets.length) { section.hidden = true; return; }
+  const ranked = densityRanked(streets);
+  if (!ranked.length) { section.hidden = true; return; }
   section.hidden = false;
-  el('tcTopStreetsCity').textContent = cityName;
-  const top = [...streets].sort((a, b) => b.pct - a.pct).slice(0, TOP_STREETS_N);
-  // e.name (just the street) rather than e.label (which repeats the city
-  // and neighborhood already named in this section's own heading).
-  const chartEntries = top.map((e) => ({ label: e.name, value: Number(e.pct.toFixed(1)) }));
-  renderHBarChart('tcTopStreetsChart', `${num(top.length)} רחובות מובילים בכיסוי חופות עצים${top.length < streets.length ? ` (מתוך ${num(streets.length)})` : ''}`, chartEntries, '%');
+  el('tcCityDensityCity').textContent = cityName;
+  el('tcCityDensityTable').innerHTML = densityTableHtml(ranked, DENSITY_CITY_N, false);
+}
+
+// National (every city) - independent of state.level/state.picks, so it's
+// rendered once, not on every renderAll(). Every credible street in the
+// country, not scoped to whatever level/city the comparison above happens
+// to be showing.
+function renderDensityBoard() {
+  const ranked = densityRanked(levelEntries('street').filter((e) => isCredible('street', e)));
+  el('tcDensityBoardTable').innerHTML = densityTableHtml(ranked, DENSITY_NATIONAL_N, true);
 }
 
 function renderCompare() {
@@ -319,7 +407,9 @@ function renderCompare() {
   if (!entries.length) {
     section.hidden = true;
     renderDrill([]);
+    el('tcTopNeighborhoodsSection').hidden = true;
     el('tcTopStreetsSection').hidden = true;
+    el('tcCityDensitySection').hidden = true;
     return;
   }
   section.hidden = false;
@@ -328,7 +418,9 @@ function renderCompare() {
   renderHBarChart('tcChart', `אחוז כיסוי חופות עצים${entries.length > 1 ? ' — השוואה' : ''}`, chartEntries, '%');
   renderCompareTable(entries);
   renderDrill(entries);
+  renderTopNeighborhoods(entries);
   renderTopStreets(entries);
+  renderCityDensity(entries);
 }
 
 /* ---------- leaderboard (own renderer - see why below) ---------- */
@@ -467,12 +559,38 @@ document.querySelectorAll('.tc-level-btn').forEach((btn) => {
   });
 });
 
+// Mobile only (see .tc-pick-confirm in style.css): a brief "✓ נטען" next to
+// whichever field was just picked - on a phone, the comparison itself often
+// sits below the fold, so without this a valid pick gives no feedback at
+// all until the visitor scrolls down. Desktop already sees the chart update
+// right there, so it stays hidden there.
+const pickConfirmTimers = [];
+function showPickConfirm(i, ok) {
+  const confirmEl = el(`tcPickConfirm${i}`);
+  clearTimeout(pickConfirmTimers[i]);
+  confirmEl.classList.remove('tc-pick-confirm-show');
+  if (!ok) return;
+  confirmEl.textContent = '✓ נטען';
+  // Reflow before re-adding the class, so a second pick in the same field
+  // still restarts the fade instead of the browser coalescing it into a
+  // no-op.
+  void confirmEl.offsetWidth;
+  confirmEl.classList.add('tc-pick-confirm-show');
+  pickConfirmTimers[i] = setTimeout(() => confirmEl.classList.remove('tc-pick-confirm-show'), 1500);
+}
+
 pickInputs.forEach((input, i) => {
   input.addEventListener('input', debounce(() => updateRosterOptions(input.value), 120));
-  const commit = () => { state.picks[i] = input.value.trim() || null; syncUrl(); renderCompare(); };
+  const commit = () => {
+    state.picks[i] = input.value.trim() || null;
+    syncUrl();
+    renderCompare();
+    showPickConfirm(i, Boolean(state.picks[i] && labelMap(state.level).has(state.picks[i])));
+  };
   input.addEventListener('change', commit);
   input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); commit(); } });
 });
 
 readStateFromUrl();
 renderAll();
+renderDensityBoard(); // nationwide, independent of state.level/picks - rendered once

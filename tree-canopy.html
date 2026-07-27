@@ -122,21 +122,25 @@
             <label for="tcPick0" id="tcPickLabel0">עיר:</label>
             <input id="tcPick0" type="text" list="tcRoster" autocomplete="off" spellcheck="false"
                    placeholder="התחילו להקליד…">
+            <span class="tc-pick-confirm" id="tcPickConfirm0" aria-live="polite"></span>
           </div>
           <div class="acc-year-pick">
             <label for="tcPick1" id="tcPickLabel1">השוואה 2 (אופציונלי):</label>
             <input id="tcPick1" type="text" list="tcRoster" autocomplete="off" spellcheck="false"
                    placeholder="התחילו להקליד…">
+            <span class="tc-pick-confirm" id="tcPickConfirm1" aria-live="polite"></span>
           </div>
           <div class="acc-year-pick">
             <label for="tcPick2" id="tcPickLabel2">השוואה 3 (אופציונלי):</label>
             <input id="tcPick2" type="text" list="tcRoster" autocomplete="off" spellcheck="false"
                    placeholder="התחילו להקליד…">
+            <span class="tc-pick-confirm" id="tcPickConfirm2" aria-live="polite"></span>
           </div>
           <div class="acc-year-pick">
             <label for="tcPick3" id="tcPickLabel3">השוואה 4 (אופציונלי):</label>
             <input id="tcPick3" type="text" list="tcRoster" autocomplete="off" spellcheck="false"
                    placeholder="התחילו להקליד…">
+            <span class="tc-pick-confirm" id="tcPickConfirm3" aria-live="polite"></span>
           </div>
         </div>
         <datalist id="tcRoster"></datalist>
@@ -153,9 +157,23 @@
         </div>
       </section>
 
+      <section class="acc-section" id="tcTopNeighborhoodsSection" aria-labelledby="topNeighborhoodsH" hidden>
+        <h2 id="topNeighborhoodsH">השכונות הירוקות ביותר ב<span id="tcTopNeighborhoodsCity" dir="auto"></span></h2>
+        <figure id="tcTopNeighborhoodsChart" class="acc-chart acc-chart-wide" role="img"></figure>
+      </section>
+
       <section class="acc-section" id="tcTopStreetsSection" aria-labelledby="topStreetsH" hidden>
         <h2 id="topStreetsH">הרחובות הירוקים ביותר ב<span id="tcTopStreetsCity" dir="auto"></span></h2>
         <figure id="tcTopStreetsChart" class="acc-chart acc-chart-wide" role="img"></figure>
+      </section>
+
+      <section class="acc-section" id="tcCityDensitySection" aria-labelledby="cityDensityH" hidden>
+        <h2 id="cityDensityH">רחובות מובילים בצפיפות חופות (מנורמל לאורך) ב<span id="tcCityDensityCity" dir="auto"></span></h2>
+        <p class="acc-hint" dir="auto">
+          מספר החופות שזוהו ל-100 מ׳ אורך רחוב - לא אחוז כיסוי - כך ששני רחובות באותו אחוז כיסוי, אך מספר חופות
+          שונה, מדורגים לפי הצפיפות בפועל ולא רק לפי גודל השטח.
+        </p>
+        <div id="tcCityDensityTable"></div>
       </section>
 
       <section class="acc-section" id="tcDrillSection" aria-labelledby="drillH" hidden>
@@ -168,6 +186,15 @@
         <h2 id="boardH"><span id="tcBoardLevel"></span></h2>
         <p class="acc-hint" dir="auto" id="tcBoardHint"></p>
         <figure id="tcBoardChart" class="acc-chart acc-chart-wide tc-board-scroll" role="img"></figure>
+      </section>
+
+      <section class="acc-section" aria-labelledby="densityBoardH">
+        <h2 id="densityBoardH">רחובות מובילים ארצית בצפיפות חופות (מנורמל לאורך)</h2>
+        <p class="acc-hint" dir="auto">
+          מספר החופות שזוהו ל-100 מ׳ אורך רחוב, בכל הארץ - לא אחוז כיסוי, ולא מוגבל לעיר אחת (למעלה יש את
+          אותו דירוג בתוך העיר שנבחרה בלבד).
+        </p>
+        <div id="tcDensityBoardTable" class="tc-board-scroll"></div>
       </section>
 
       <section class="acc-section" aria-labelledby="csvH">
