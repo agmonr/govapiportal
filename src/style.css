@@ -763,12 +763,13 @@ button.stat { cursor: pointer; }
 .app-sibling:hover, .app-sibling:focus-visible { border-color: var(--accent); transform: translateY(-1px); }
 .app-sibling-current { border-color: var(--accent); background: var(--surface); box-shadow: inset 0 0 0 1px var(--accent); cursor: default; }
 
-/* Mobile only: doubled again from the 4rem/2.3rem base (itself already
-   doubled once from the original 2rem desktop-only size) - a touch target
-   is worth more room than a pointer target, so mobile now runs bigger than
-   desktop rather than matching it. */
+/* Mobile keeps the same size as desktop now that desktop's own base above
+   doubled to match it (a touch target still earns at least as much room as
+   a pointer one) - kept as its own rule rather than folded into the base
+   so a future desktop-only change here doesn't need to be re-checked
+   against mobile too. */
 @media (max-width: 640px) {
-  .app-sibling { inline-size: 8rem; block-size: 8rem; font-size: 4.6rem; }
+  .app-sibling { inline-size: 4rem; block-size: 4rem; font-size: 2.3rem; }
 }
 
 /* ---------- "continue" disclosure past the portals ----------
@@ -1622,13 +1623,6 @@ body.accidents-page header.site h1 { inline-size: 100%; }
   .tree-canopy-page .acc-hbar-y { flex-basis: 9rem; }
 }
 
-/* Each compared entity's 3 tiles stay together on their own line - a plain
-   .stat-row grid (see index.html's API-status tiles, its original use)
-   wraps strictly by available width, which for 4 entities x 3 tiles each
-   split an entity's own tiles across two visual rows whenever the column
-   count didn't divide evenly by 3. src/tree-canopy.js wraps each entity's
-   tiles in its own .tc-stat-line instead of relying on #tcStats being a
-   .stat-row grid at all. */
 /* The 4 pick fields fill column-by-column (grid-auto-flow: column) rather
    than row-by-row: pick 1 sits directly above pick 2, and pick 3 directly
    above pick 4, instead of 1/2 sharing the top row and 3/4 the bottom one. */
@@ -1643,26 +1637,6 @@ body.accidents-page header.site h1 { inline-size: 100%; }
   #tcPicks { grid-template-columns: 1fr; grid-auto-flow: row; }
 }
 
-#tcStats { display: flex; flex-direction: column; gap: .5rem; }
-/* auto-fit rather than a hardcoded column count - cities/neighborhoods
-   carry 3 tiles per line, streets carry a 4th (canopy per 100m), and this
-   sizes to whichever it actually is instead of always assuming 3 (which
-   left a street's 4th tile alone on its own row at a third of a row's
-   width). Safe to auto-fit here in a way the page-wide grid wasn't: each
-   .tc-stat-line only ever holds ONE entity's own tiles, so wrapping within
-   it is never confused with where one entity's data ends and another's
-   begins. */
-.tc-stat-line { display: grid; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); gap: .5rem; }
-@media (max-width: 640px) {
-  .tc-stat-line { grid-template-columns: 1fr; }
-}
-/* Labels here carry a full name + city ("תל אביב - יפו — כיסוי חופות"),
-   longer than the short word or two .stat-l was originally sized for -
-   wrapping mid-phrase split the name away from its own city in a way that
-   read as broken, not just wrapped. Breaking only at an actual space (not
-   after every hyphen) keeps "תל אביב - יפו" together as drawn. */
-.tree-canopy-page .stat-l { white-space: normal; word-break: keep-all; }
-
 /* Intro paragraph collapses behind a normal disclosure triangle, open or
    closed on any width - unlike .more-toggle (index.html's "continue" section)
    this stays clickable after opening, since here the point is a plain
@@ -1673,56 +1647,12 @@ body.accidents-page header.site h1 { inline-size: 100%; }
 }
 .lead-details[open] summary { margin-block-end: .6rem; }
 
-/* Mobile only, this page only: comparison stat lines keep just the headline
-   % tile (area/tree-count/per-length tiles stay in the table's own
-   expandable row below, see renderCompareTable in tree-canopy.js) - and the
-   drill-in section drops entirely, since "צלילה פנימה" assumes room for a
-   button row per compared city that a phone-width screen doesn't have to
-   spare. Links turn light blue here too, closer to the familiar mobile-web
-   link color than --accent's green, which reads as body text at this size. */
+/* Mobile only, this page only: the drill-in section drops entirely, since
+   "צלילה פנימה" assumes room for a button row per compared city a phone-
+   width screen doesn't have to spare. Links turn light blue here too,
+   closer to the familiar mobile-web link color than --accent's green,
+   which reads as body text at this size. */
 @media (max-width: 640px) {
   .tree-canopy-page a, .tree-canopy-page a:visited { color: #4fc3f7; }
-  .tree-canopy-page .tc-stat-line > .stat:not(:first-child) { display: none; }
   .tree-canopy-page #tcDrillSection { display: none; }
-
-  /* The chart is the one thing worth seeing before scrolling past the stat
-     tiles - reordered visually only (DOM order, and every non-mobile width,
-     stays heading/stats/chart/table/export as written in the HTML). */
-  .tree-canopy-page #tcCompareSection { display: flex; flex-direction: column; }
-  .tree-canopy-page #tcCompareSection > #compareH { order: -2; }
-  .tree-canopy-page #tcCompareSection > #tcChart { order: -1; }
-  .tree-canopy-page #tcCompareSection > #tcStats { order: 0; }
-  .tree-canopy-page #tcCompareSection > #tcTable { order: 1; }
-  .tree-canopy-page #tcCompareSection > .fin-export-row { order: 2; }
-}
-
-/* Neighborhood-only collapsible stat line (src/tree-canopy.js
-   statTilesCollapsible) - a plain button/label + a [hidden] tiles panel
-   toggled by JS, not native <details>, so desktop can force it open below
-   without fighting a real open/closed DOM state. */
-.tc-stat-line.tc-stat-collapsible { display: block; }
-.tc-stat-toggle {
-  display: flex; align-items: center; gap: .5rem; inline-size: 100%;
-  text-align: start; cursor: pointer; background: none; border: none;
-  padding: .3rem 0; font: inherit; color: inherit;
-}
-.tc-stat-toggle .x-mark { margin-inline-start: auto; }
-.tc-stat-tiles {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
-  gap: .5rem; margin-block-start: .4rem;
-}
-/* An unqualified .tc-stat-tiles{display:grid} above would otherwise beat the
-   browser's own [hidden]{display:none} default - same specificity, but
-   author CSS always wins over the user-agent stylesheet regardless of which
-   loaded first - silently showing the panel even before it's opened. */
-.tc-stat-tiles[hidden] { display: none; }
-@media (max-width: 640px) {
-  .tc-stat-tiles { grid-template-columns: 1fr; }
-}
-/* Desktop: the collapse only exists for phone-width cramping - here the
-   panel always shows and the toggle reads as a plain label, not a control. */
-@media (min-width: 641px) {
-  .tree-canopy-page .tc-stat-tiles[hidden] { display: grid !important; }
-  .tree-canopy-page .tc-stat-toggle { cursor: default; pointer-events: none; }
-  .tree-canopy-page .tc-stat-toggle .x-mark { display: none; }
 }

@@ -74,7 +74,7 @@ const LEVELS = {
       // neighborhood rather than guessed at.
       return {
         key, label: `${name}, ${city}${v.nb ? ` (${v.nb})` : ''}`, name, city, pct: v.pct,
-        areaM2: v.bufferAreaM2, canopyAreaM2: v.canopyAreaM2, treeCount: v.treeCount, lengthM: v.lengthM,
+        areaM2: v.bufferAreaM2, canopyAreaM2: v.canopyAreaM2, treeCount: v.treeCount,
       };
     }),
   },
@@ -205,71 +205,6 @@ function updateRosterHint() {
 
 /* ---------- comparison ---------- */
 
-// One line per compared entity - its own 3 tiles together, not scattered
-// across whichever row a generic auto-fit grid happened to wrap them onto
-// (with 4 entities x 3 tiles each and a column count that doesn't divide
-// evenly by 3, a plain grid split an entity's own tiles across two visual
-// rows, which read as broken grouping rather than "this row is one city").
-// Streets carry a 4th tile the other two levels don't: canopy density per
-// 100m of street. Raw tree count/area cannot be compared across streets of
-// very different lengths (a long street naturally racks up more of both
-// even at equal greenness) - % already normalizes by area, but nothing
-// until now normalized by length, which is what was actually asked for.
-function perLength(entry, color) {
-  if (entry.lengthM == null) return '';
-  const per100m = entry.lengthM ? (entry.treeCount / entry.lengthM) * 100 : 0;
-  return `
-      <div class="stat" style="border-inline-start-color:${color}">
-        <span class="stat-n">${per100m.toFixed(1)}</span>
-        <span class="stat-l" dir="auto">${esc(entry.label)} — חופות ל-100 מ׳ רחוב (אורך: ${num(Math.round(entry.lengthM))} מ׳)</span>
-      </div>`;
-}
-
-function statTiles(entry, color) {
-  return `
-    <div class="tc-stat-line">
-      <div class="stat" style="border-inline-start-color:${color}">
-        <span class="stat-n">${entry.pct.toFixed(1)}%</span>
-        <span class="stat-l" dir="auto">${esc(entry.label)} — כיסוי חופות</span>
-      </div>
-      <div class="stat" style="border-inline-start-color:${color}">
-        <span class="stat-n">${num(Math.round(entry.areaM2 / 1000))}</span>
-        <span class="stat-l" dir="auto">${esc(entry.label)} — שטח (דונם)</span>
-      </div>
-      <div class="stat" style="border-inline-start-color:${color}">
-        <span class="stat-n">${num(entry.treeCount)}</span>
-        <span class="stat-l" dir="auto">${esc(entry.label)} — חופות שזוהו</span>
-      </div>
-      ${perLength(entry, color)}
-    </div>`;
-}
-
-// Neighborhoods only, mobile only (see .tc-stat-collapsible in style.css,
-// which forces this back open on desktop widths): a neighborhood's own
-// label already carries its city ("... — ..."), long enough that even just
-// the % tile per compared entity is cramped at phone width with up to 4 of
-// them stacked - collapsed behind a press instead, same ▾/▴ toggle idiom
-// renderCompareTable's own per-row detail already uses below. Only the %
-// tile sits behind the press - same "headline number only" rule as
-// city/street's own mobile stat line (area/tree-count stay reachable in the
-// table below regardless of level).
-function statTilesCollapsible(entry, color, idx) {
-  return `
-    <div class="tc-stat-line tc-stat-collapsible">
-      <button type="button" class="tc-stat-toggle" data-toggle="${idx}">
-        <span class="acc-legend-swatch" style="background:${color}"></span>
-        <span dir="auto">${esc(entry.label)}</span>
-        <span class="x-mark">▾</span>
-      </button>
-      <div class="tc-stat-tiles" data-tiles="${idx}" hidden>
-        <div class="stat" style="border-inline-start-color:${color}">
-          <span class="stat-n">${entry.pct.toFixed(1)}%</span>
-          <span class="stat-l" dir="auto">${esc(entry.label)} — כיסוי חופות</span>
-        </div>
-      </div>
-    </div>`;
-}
-
 // Only the % - the number this whole page is about - shows by default;
 // area/canopy-area/tree-count sit in an expandable row per entity, same
 // "expandable" table idiom already used by portal.js/moag-explorer.js for
@@ -358,18 +293,6 @@ function renderCompare() {
   if (!entries.length) { section.hidden = true; renderDrill([]); return; }
   section.hidden = false;
 
-  el('tcStats').innerHTML = entries.map((e, i) => (state.level === 'neighborhood'
-    ? statTilesCollapsible(e, PICK_COLORS[i], i)
-    : statTiles(e, PICK_COLORS[i]))).join('');
-  if (state.level === 'neighborhood') {
-    el('tcStats').querySelectorAll('.tc-stat-toggle').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const body = el('tcStats').querySelector(`[data-tiles="${btn.dataset.toggle}"]`);
-        body.hidden = !body.hidden;
-        btn.querySelector('.x-mark').textContent = body.hidden ? '▾' : '▴';
-      });
-    });
-  }
   const chartEntries = entries.map((e, i) => ({ label: e.label, value: Number(e.pct.toFixed(1)), color: PICK_COLORS[i] }));
   renderHBarChart('tcChart', `אחוז כיסוי חופות עצים${entries.length > 1 ? ' — השוואה' : ''}`, chartEntries, '%');
   renderCompareTable(entries);

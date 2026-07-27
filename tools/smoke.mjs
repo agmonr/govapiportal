@@ -438,7 +438,6 @@ async function runTreeCanopyPass(label, url, { bundled = false } = {}) {
   await page.locator('#tcPick3').fill('');
   await page.locator('#tcPick3').dispatchEvent('change');
   await page.waitForSelector('#tcCompareSection:not([hidden])', { timeout: 5000 });
-  ok(await page.locator('#tcStats .stat').count() === 6, '2 cities x 3 stat tiles each');
   ok(await page.locator('#tcTable tbody tr.has-files').count() === 2, 'comparison table has one row per city');
   ok(await page.locator('#tcDrillSection:not([hidden])').count() === 1, 'drill-in section appears once a city is picked');
   ok(await page.locator('#tcDrillBtns .tc-drill-group').count() === 2, 'one drill-in group per compared city');
@@ -449,7 +448,6 @@ async function runTreeCanopyPass(label, url, { bundled = false } = {}) {
   await page.locator('#tcPick3').fill('רעננה');
   await page.locator('#tcPick3').dispatchEvent('change');
   await page.waitForTimeout(150);
-  ok(await page.locator('#tcStats .stat').count() === 12, '4 cities x 3 stat tiles each');
   ok(await page.locator('#tcTable tbody tr.has-files').count() === 4, 'comparison table grows to 4 rows');
   ok(await page.locator('#tcDrillBtns .tc-drill-group').count() === 4, 'drill-in offers all 4 compared cities, not just the first');
 
