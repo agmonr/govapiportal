@@ -363,81 +363,79 @@ async function copyResult() {
   }
 }
 
-/** Same PNG+text pair as exportResult(), but built with ZERO `await` before
- * returning - via canvas.toDataURL() (synchronous) instead of toBlob() (a
- * promise). shareToMail()/shareToWhatsApp() below need this: the Clipboard
- * API only grants clipboard-write access to a focused document, and
- * window.open() (called right after, to open Gmail/WhatsApp) shifts focus
- * to the new tab - so navigator.clipboard.write() has to already be KICKED
- * OFF, synchronously, before window.open() runs, or it silently never
- * resolves once focus has moved on. */
-function exportResultSync() {
-  const canvas = el('acCanvas');
-  const dataUrl = canvas.toDataURL('image/png');
-  const byteString = atob(dataUrl.split(',')[1]);
-  const bytes = new Uint8Array(byteString.length);
-  for (let i = 0; i < byteString.length; i += 1) bytes[i] = byteString.charCodeAt(i);
-  const pngBlob = new Blob([bytes], { type: 'image/png' });
-  const text = `${state.displayName}\nנבדק בתאריך: ${new Date().toLocaleString('he-IL')}`;
-  return { pngBlob, text };
+/** A trivial zero-byte File of the right MIME type - just to ask
+ * navigator.canShare() "can this browser share a PDF file at all", before
+ * spending any time actually building one. canShare() only inspects type
+ * (and a rough size ceiling), never content, so this is a legitimate,
+ * synchronous stand-in for the real PDF that hasn't been built yet - it
+ * lets shareToMail/shareToWhatsApp below decide their whole branch (native
+ * share vs. mailto:/wa.me fallback) immediately on click, before any
+ * `await`, rather than only finding out AFTER spending time building a PDF
+ * nothing can actually share. */
+function canShareFiles(type) {
+  return !!(navigator.canShare && navigator.canShare({ files: [new File([], 'x', { type })] }));
 }
 
-/** Starts copying the map image + caption text to the clipboard - same
- * pairing as copyResult() - and returns the still-pending promise WITHOUT
- * awaiting it, so the caller (shareToMail/shareToWhatsApp) can call
- * window.open() immediately after, synchronously, rather than losing the
- * click's "this is a direct user action" status to an async gap (the exact
- * bug that made the mail button silently do nothing before this fix).
- * A courtesy, not a guarantee: Gmail/WhatsApp's own compose links can't
- * accept a file via the URL at all (mailto: and wa.me only ever carry a
- * subject/body STRING), so the actual attach still needs one manual paste
- * (Ctrl+V) once the compose window/chat is open - both accept a pasted
- * image directly. */
-function startCopyImageForPasting(pngBlob, text) {
-  return navigator.clipboard.write([
-    new ClipboardItem({ 'image/png': pngBlob, 'text/plain': new Blob([text], { type: 'text/plain' }) }),
-  ]).then(() => true).catch(() => false);
+/** Builds and downloads the same PDF downloadPdf() does (map+links, full
+ * finding text, every attached photo) then opens `composeUrl` (a Gmail-web
+ * or wa.me link, built by the caller from `text`) - the copy-image-for-
+ * pasting courtesy the old PNG-only version used no longer applies (the
+ * Clipboard API has no writable PDF representation), so this fallback path
+ * is "downloaded, attach it yourself" rather than "paste it". Shared by both
+ * shareToMail/shareToWhatsApp's own non-native-share branch. */
+async function downloadPdfAndOpen(composeUrl, statusPrefix, attachHint) {
+  const status = el('acStatus');
+  showLoading(status, 'בונה PDF…');
+  try {
+    const pdfBlob = await buildAreaCleanupPdfBlob((i, n) => showLoading(status, `בונה PDF… (תמונה ${i}/${n})`));
+    const filename = `${safeFilename(state.displayName, 'area-cleanup')}.pdf`;
+    downloadBlob(pdfBlob, filename);
+    window.open(composeUrl, '_blank', 'noopener');
+    status.textContent = `${statusPrefix}; קובץ ה-PDF גם הורד למכשיר (${filename}) - ${attachHint}`;
+  } catch (err) {
+    showError(status, err);
+  }
 }
 
 /** On Android/iPhone with a real mail app installed, navigator.share() with
  * files opens the OS's native share sheet - the user picks Mail/Gmail/
- * Outlook/whatever's installed, and the image goes along as a REAL
- * attachment, no manual paste needed; tried first for exactly that reason.
- * Falls back to Gmail's web compose (not a plain mailto:, which only works
- * if a default mail handler happens to be registered - a lot of desktop
- * users who read mail through a browser tab simply don't have one, and
- * clicking it then does nothing whatsoever, no error) when file-sharing
- * isn't available at all - opening a literal browser tab rather than an
- * app is an inherent limitation of that fallback, not something a web page
- * can route around; it's what "no native share support" actually means.
- * In the fallback, the map image is separately copied to the clipboard for
- * a one-paste attach into the compose body.
+ * Outlook/whatever's installed, and the PDF (map+links, full finding text,
+ * every attached photo - same file downloadPdf() saves) goes along as a
+ * REAL attachment, no manual paste needed; tried first for exactly that
+ * reason. Falls back to Gmail's web compose (not a plain mailto:, which
+ * only works if a default mail handler happens to be registered - a lot of
+ * desktop users who read mail through a browser tab simply don't have one,
+ * and clicking it then does nothing whatsoever, no error) when file-sharing
+ * isn't available at all - opening a literal browser tab rather than an app
+ * is an inherent limitation of that fallback, not something a web page can
+ * route around; it's what "no native share support" actually means.
  *
- * Every branch builds the PNG synchronously (exportResultSync) and calls
- * share()/clipboard.write()/window.open() with zero `await` first - see
- * those two helpers' own comments for why (user-activation, clipboard
- * focus). Only the eventual status-text update is actually asynchronous. */
+ * canShareFiles('application/pdf') runs FIRST, synchronously, so the whole
+ * branch is decided before any `await` - by the time the real PDF is built
+ * (native-share branch) the click's transient user activation may be a
+ * couple seconds old, which every browser this was tested against still
+ * honours; window.open() in the fallback branch, though, still needs to
+ * fire with no async gap at all, so that branch keeps building/downloading
+ * the PDF strictly AFTER opening the compose window/chat, same discipline
+ * the old PNG-only version used for its own clipboard-write step. */
 function shareToMail() {
   if (state.lat == null) return;
-  const { pngBlob, text } = exportResultSync();
-  const file = new File([pngBlob], 'map-location.png', { type: 'image/png' });
-  if (navigator.canShare && navigator.canShare({ files: [file] })) {
-    // files ALONE, no text/title alongside it - some share targets (WhatsApp
-    // confirmed) silently keep only the text and drop the image when both
-    // are handed to navigator.share() together. The location/date is
-    // already baked into the image itself (drawLocationCaption), so nothing
-    // is actually lost by not passing it here too.
-    navigator.share({ files: [file] })
-      .catch((err) => { if (err.name !== 'AbortError') showError(el('acStatus'), err); }); // AbortError: the user closed the share sheet - not a failure
+  const status = el('acStatus');
+  if (canShareFiles('application/pdf')) {
+    showLoading(status, 'בונה PDF לשיתוף…');
+    buildAreaCleanupPdfBlob((i, n) => showLoading(status, `בונה PDF לשיתוף… (תמונה ${i}/${n})`))
+      .then((pdfBlob) => {
+        const filename = `${safeFilename(state.displayName, 'area-cleanup')}.pdf`;
+        const file = new File([pdfBlob], filename, { type: 'application/pdf' });
+        status.innerHTML = '';
+        return navigator.share({ files: [file] });
+      })
+      .catch((err) => { if (err.name !== 'AbortError') showError(status, err); }); // AbortError: the user closed the share sheet - not a failure
     return;
   }
-  downloadBlob(pngBlob, 'map-location.png');
-  const copyPromise = startCopyImageForPasting(pngBlob, text);
+  const text = resultText();
   const params = new URLSearchParams({ view: 'cm', fs: '1', su: 'מי אחראי על ניקיון האזור?', body: text });
-  window.open(`https://mail.google.com/mail/?${params}`, '_blank', 'noopener');
-  copyPromise.then((copied) => {
-    el('acStatus').textContent = `נפתח Gmail; תמונת המפה גם הורדה למכשיר (map-location.png)${copied ? ' וגם הועתקה - הדביקו (Ctrl+V) בגוף ההודעה' : ''} - צרפו אותה ידנית להודעה.`;
-  });
+  downloadPdfAndOpen(`https://mail.google.com/mail/?${params}`, 'נפתח Gmail', 'צרפו אותו ידנית להודעה.');
 }
 
 /** WhatsApp specifically registers as a share TARGET for the OS's native
@@ -446,29 +444,26 @@ function shareToMail() {
  * navigator.share() with files is supported, so it's tried first. wa.me (the
  * fallback below) is a plain web link with no file-carrying capability at
  * all - on a desktop browser without file-sharing support (this file's own
- * canShare check fails), that fallback is all that's left, hence the
- * copy-then-paste courtesy same as shareToMail(). Both branches build the
- * PNG synchronously (exportResultSync) and call share()/clipboard.write()
- * with zero `await` first, for the same user-activation/focus reasons
- * documented on those two helpers. */
+ * canShareFiles check fails), that fallback is all that's left. Same
+ * branch-before-any-await discipline as shareToMail() above, see its own
+ * comment for why. */
 function shareToWhatsApp() {
   if (state.lat == null) return;
-  const { pngBlob, text } = exportResultSync();
-  const file = new File([pngBlob], 'map-location.png', { type: 'image/png' });
-  if (navigator.canShare && navigator.canShare({ files: [file] })) {
-    // files ALONE - see shareToMail()'s identical comment: WhatsApp's own
-    // share-target handler has been observed to keep only the text and
-    // drop the image when navigator.share() is called with both at once.
-    navigator.share({ files: [file] })
-      .catch((err) => { if (err.name !== 'AbortError') showError(el('acStatus'), err); }); // AbortError: the user closed the share sheet - not a failure
+  const status = el('acStatus');
+  if (canShareFiles('application/pdf')) {
+    showLoading(status, 'בונה PDF לשיתוף…');
+    buildAreaCleanupPdfBlob((i, n) => showLoading(status, `בונה PDF לשיתוף… (תמונה ${i}/${n})`))
+      .then((pdfBlob) => {
+        const filename = `${safeFilename(state.displayName, 'area-cleanup')}.pdf`;
+        const file = new File([pdfBlob], filename, { type: 'application/pdf' });
+        status.innerHTML = '';
+        return navigator.share({ files: [file] });
+      })
+      .catch((err) => { if (err.name !== 'AbortError') showError(status, err); }); // AbortError: the user closed the share sheet - not a failure
     return;
   }
-  downloadBlob(pngBlob, 'map-location.png');
-  const copyPromise = startCopyImageForPasting(pngBlob, text);
-  window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank', 'noopener');
-  copyPromise.then((copied) => {
-    el('acStatus').textContent = `נפתח וואטסאפ; תמונת המפה גם הורדה למכשיר (map-location.png)${copied ? ' וגם הועתקה - הדביקו (Ctrl+V) בשיחה' : ''} - צרפו אותה ידנית (לחצו על סיכת הנייר 📎 בוואטסאפ).`;
-  });
+  const text = resultText();
+  downloadPdfAndOpen(`https://wa.me/?text=${encodeURIComponent(text)}`, 'נפתח וואטסאפ', 'צרפו אותו ידנית (לחצו על סיכת הנייר 📎 בוואטסאפ).');
 }
 
 /** The PDF's own image: the map canvas (already carrying the pin + baked-in
@@ -515,34 +510,56 @@ function canvasToJpegBytes(canvas, quality = 0.9) {
     .then((buf) => new Uint8Array(buf));
 }
 
-/** Plain-text version of renderResult()'s two paragraphs (muni + basin), for
- * the PDF's own data page below - no HTML/links there (a canvas can't draw
- * a clickable <a>, and this page isn't meant to duplicate the footer
- * buttons' own live links anyway), just the same finding in the same words.
- * Reads off state.result directly rather than re-querying, so the PDF always
+/** Structured version of renderResult()'s two paragraphs (muni + basin) -
+ * one entry per line, `url` set on the same search/reference links the
+ * on-page result box itself offers (googleLink there, same googleSearch()
+ * query strings here) so the PDF's own data page can draw them as real
+ * clickable Link annotations, not just mention them in prose. The single
+ * source both buildDataPageCanvas (below) and resultText (the plain-text
+ * version shareToMail/shareToWhatsApp's fallback body uses) build on, so a
+ * link added/changed here shows up in both without drifting apart. Reads
+ * off state.result directly rather than re-querying, so the PDF always
  * matches whatever's currently on screen. */
-function resultLines() {
+function resultLineItems() {
   const { muni, basin } = state.result;
-  const lines = [
-    `מיקום: ${state.displayName}`,
-    `קואורדינטות (WGS84): ${state.lat.toFixed(6)}, ${state.lon.toFixed(6)}`,
-    `נבדק בתאריך: ${new Date().toLocaleString('he-IL')}`,
-    '',
+  const items = [
+    { text: `מיקום: ${state.displayName}` },
+    { text: `קואורדינטות (WGS84): ${state.lat.toFixed(6)}, ${state.lon.toFixed(6)}` },
+    { text: `נבדק בתאריך: ${new Date().toLocaleString('he-IL')}` },
+    { text: '' },
   ];
-  lines.push(muni
-    ? `לניקיון כללי (רחובות, מדרכות, פחי אשפה) - פנו למוקד העירוני של ${muni.Muni_Heb} (${muni.Sug_Muni}).`
-    : 'לניקיון כללי - לא זוהתה רשות מקומית עבור נקודה זו (ייתכן ומחוץ לתחום שיפוט מוניציפלי, למשל שטח פתוח/מדינה).');
-  lines.push('');
+  if (muni) {
+    items.push({ text: `לניקיון כללי (רחובות, מדרכות, פחי אשפה) - פנו למוקד העירוני של ${muni.Muni_Heb} (${muni.Sug_Muni}).` });
+    items.push({ text: '🔗 חיפוש המוקד העירוני', url: googleSearch(`${muni.Muni_Heb} מוקד`) });
+  } else {
+    items.push({ text: 'לניקיון כללי - לא זוהתה רשות מקומית עבור נקודה זו (ייתכן ומחוץ לתחום שיפוט מוניציפלי, למשל שטח פתוח/מדינה).' });
+  }
+  items.push({ text: '' });
   if (!basin) {
-    lines.push('לזיהום/פסולת בנחל או בתעלת ניקוז - לא זוהה אגן ניקוז עבור נקודה זו.');
+    items.push({ text: 'לזיהום/פסולת בנחל או בתעלת ניקוז - לא זוהה אגן ניקוז עבור נקודה זו.' });
   } else {
     const authority = BASIN_TO_AUTHORITY[basin];
-    lines.push(authority
-      ? `לזיהום/פסולת בנחל או בתעלת ניקוז - האחראי/ת הוא/י ${authority} (אגן ניקוז: ${basin}), לא העירייה.`
-      : `לזיהום/פסולת בנחל או בתעלת ניקוז - נקודה זו נמצאת באגן ניקוז "${basin}", אך הרשות האחראית עבור אגן זה לא אומתה כאן. ראו dsda.org.il לזיהוי הרשות הרלוונטית.`);
+    if (authority) {
+      items.push({ text: `לזיהום/פסולת בנחל או בתעלת ניקוז - האחראי/ת הוא/י ${authority} (אגן ניקוז: ${basin}), לא העירייה.` });
+      items.push({ text: '🔗 חיפוש פרטי קשר', url: googleSearch(`${authority} פרטי קשר`) });
+    } else {
+      items.push({ text: `לזיהום/פסולת בנחל או בתעלת ניקוז - נקודה זו נמצאת באגן ניקוז "${basin}", אך הרשות האחראית עבור אגן זה לא אומתה כאן.` });
+      items.push({ text: '🔗 רשימת רשויות הניקוז הארציות', url: 'https://dsda.org.il/' });
+      items.push({ text: '🔗 חיפוש לפי שם האגן', url: googleSearch(`רשות ניקוז ${basin}`) });
+    }
   }
-  lines.push('', 'זיהוי הרשות מבוסס על גבולות שיפוט/אגני ניקוז פומביים (GovMap) - בדקו מול הרשות עצמה לפני פנייה אם יש ספק.');
-  return lines;
+  items.push({ text: '' });
+  items.push({ text: 'זיהוי הרשות מבוסס על גבולות שיפוט/אגני ניקוז פומביים (GovMap) - בדקו מול הרשות עצמה לפני פנייה אם יש ספק.' });
+  return items;
+}
+
+/** Plain-text flattening of resultLineItems() - shareToMail/shareToWhatsApp's
+ * fallback compose body has no way to draw a real link (mailto:/wa.me only
+ * ever carry a subject/body STRING), so a link line's URL is appended in
+ * parens instead - Gmail/WhatsApp both auto-linkify a bare URL in plain
+ * text, so it's still tappable there, just not a styled link. */
+function resultText() {
+  return resultLineItems().map((item) => (item.url ? `${item.text} (${item.url})` : item.text)).join('\n');
 }
 
 /** Greedy word-wrap to `maxWidth` in `ctx`'s current font - plain space-
@@ -568,13 +585,19 @@ function wrapText(ctx, text, maxWidth) {
 }
 
 /** The PDF's plain-text "everything found" page - address, coordinates,
- * timestamp and both responsibility paragraphs (see resultLines above) -
+ * timestamp and both responsibility paragraphs (see resultLineItems above) -
  * added because the map+links page alone doesn't carry the actual finding
  * in words anyone could read without opening the site again. A canvas page
  * (like every other page here), not real PDF text objects: this hand-rolled
  * writer has no font embedding, and Hebrew text needs one - a canvas already
  * renders it correctly via the browser's own font stack, same trick
- * drawLocationCaption uses for the map's baked-in caption. */
+ * drawLocationCaption uses for the map's baked-in caption. A `link` item
+ * (see resultLineItems) is never word-wrapped (short by construction) and is
+ * drawn in the accent colour; its rendered bounding box becomes a real Link
+ * annotation rect, same google-search/dsda.org.il links the on-page result
+ * box itself offers via <a> - not just mentioned in the plain-text body.
+ * Returns { canvas, links } - `links` in buildPdf()'s own top-down pixel
+ * space, ready to hand straight to the page object it becomes. */
 function buildDataPageCanvas() {
   const width = MAP_SIZE;
   const pad = 28;
@@ -582,11 +605,15 @@ function buildDataPageCanvas() {
   const titleH = 44;
   const measurer = document.createElement('canvas').getContext('2d');
   measurer.font = '15px sans-serif';
-  const wrapped = resultLines().flatMap((line) => (line === '' ? [''] : wrapText(measurer, line, width - pad * 2)));
+  const rendered = resultLineItems().flatMap((item) => {
+    if (item.text === '') return [{ text: '' }];
+    if (item.url) return [item]; // link lines are short by construction - never wrapped
+    return wrapText(measurer, item.text, width - pad * 2).map((text) => ({ text }));
+  });
 
   const canvas = document.createElement('canvas');
   canvas.width = width;
-  canvas.height = titleH + pad * 2 + wrapped.length * lineH;
+  canvas.height = titleH + pad * 2 + rendered.length * lineH;
   const ctx = canvas.getContext('2d');
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -596,14 +623,24 @@ function buildDataPageCanvas() {
   ctx.fillStyle = '#1b5e34';
   ctx.font = 'bold 19px sans-serif';
   ctx.fillText('מי אחראי על ניקיון האזור? — פרטים מלאים', width - pad, pad);
-  ctx.font = '15px sans-serif';
-  ctx.fillStyle = '#24331f';
+
+  const links = [];
   let y = pad + titleH;
-  for (const line of wrapped) {
-    ctx.fillText(line, width - pad, y);
+  for (const line of rendered) {
+    if (line.url) {
+      ctx.font = 'bold 15px sans-serif';
+      ctx.fillStyle = '#2ba8e0';
+      ctx.fillText(line.text, width - pad, y);
+      const w = ctx.measureText(line.text).width;
+      links.push({ url: line.url, x0: width - pad - w, y0: y, x1: width - pad, y1: y + lineH });
+    } else {
+      ctx.font = '15px sans-serif';
+      ctx.fillStyle = '#24331f';
+      ctx.fillText(line.text, width - pad, y);
+    }
     y += lineH;
   }
-  return canvas;
+  return { canvas, links };
 }
 
 /** One attached photo -> one PDF page - downscaled to PHOTO_MAX_DIM on its
@@ -634,18 +671,49 @@ async function photoToPage(file) {
   }
 }
 
-/** Builds a multi-page PDF and downloads it: page 1 is the map image (pin +
- * baked-in location/date) with three live links drawn as buttons in a footer
- * strip - an OpenStreetMap permalink centred on the checked point, and the
- * same WhatsApp/mail targets the two share buttons use; page 2 is the plain-
- * text finding (buildDataPageCanvas); pages 3+ are each attached photo,
- * unchanged order. A PDF has no script/clipboard access of its own, so
- * unlike the on-page share buttons there's no copy-image-for-pasting
- * courtesy possible here; the mail link is a plain mailto: (not the Gmail-
- * web fallback shareToMail() uses) since a PDF is as likely to be opened
- * outside a browser entirely (a phone's own PDF viewer, a printed page's QR
- * code, etc.), where the OS's own mailto: handler is the more universal
- * choice, not a browser default-handler gap. */
+/** Builds the exact multi-page PDF blob downloadPdf() saves - factored out
+ * so shareToMail()/shareToWhatsApp() can hand the SAME file to
+ * navigator.share() instead of just the bare map PNG they used to. Page 1 is
+ * the map image (pin + baked-in location/date) with three live links drawn
+ * as buttons in a footer strip - an OpenStreetMap permalink centred on the
+ * checked point, and the same WhatsApp/mail targets the two share buttons
+ * use; page 2 is the plain-text finding (buildDataPageCanvas); pages 3+ are
+ * each attached photo, unchanged order. The mail link is a plain mailto:
+ * (not the Gmail-web fallback shareToMail() itself falls back to) since a
+ * PDF is as likely to be opened outside a browser entirely (a phone's own
+ * PDF viewer, a printed page's QR code, etc.), where the OS's own mailto:
+ * handler is the more universal choice, not a browser default-handler gap.
+ * `onProgress(i, n)` (optional) is called once per photo page, 1-indexed,
+ * so a caller can reflect "still working" on a button label. */
+async function buildAreaCleanupPdfBlob(onProgress) {
+  const { canvas: mapCanvas, rects } = buildDownloadCanvas();
+  const mapJpegBytes = await canvasToJpegBytes(mapCanvas);
+  const text = `${state.displayName}\nנבדק בתאריך: ${new Date().toLocaleString('he-IL')}`;
+  const osmUrl = `https://www.openstreetmap.org/?mlat=${state.lat}&mlon=${state.lon}#map=17/${state.lat}/${state.lon}`;
+  const waUrl = `https://wa.me/?text=${encodeURIComponent(text)}`;
+  const mailParams = new URLSearchParams({ subject: 'מי אחראי על ניקיון האזור?', body: text });
+  const mailUrl = `mailto:?${mailParams}`.replace(/\+/g, '%20');
+  const links = [
+    { url: osmUrl, ...rects[0] },
+    { url: waUrl, ...rects[1] },
+    { url: mailUrl, ...rects[2] },
+  ];
+  const mapPage = { jpegBytes: mapJpegBytes, width: mapCanvas.width, height: mapCanvas.height, links };
+
+  const { canvas: dataCanvas, links: dataLinks } = buildDataPageCanvas();
+  const dataPage = {
+    jpegBytes: await canvasToJpegBytes(dataCanvas), width: dataCanvas.width, height: dataCanvas.height, links: dataLinks,
+  };
+
+  const pages = [mapPage, dataPage];
+  for (let i = 0; i < state.photos.length; i += 1) {
+    onProgress?.(i + 1, state.photos.length);
+    pages.push(await photoToPage(state.photos[i].file));
+  }
+
+  return buildPdf({ pages });
+}
+
 async function downloadPdf() {
   if (state.lat == null) return;
   const btn = el('acDownloadPdf');
@@ -653,30 +721,7 @@ async function downloadPdf() {
   btn.disabled = true;
   try {
     btn.textContent = 'בונה PDF…';
-    const { canvas: mapCanvas, rects } = buildDownloadCanvas();
-    const mapJpegBytes = await canvasToJpegBytes(mapCanvas);
-    const text = `${state.displayName}\nנבדק בתאריך: ${new Date().toLocaleString('he-IL')}`;
-    const osmUrl = `https://www.openstreetmap.org/?mlat=${state.lat}&mlon=${state.lon}#map=17/${state.lat}/${state.lon}`;
-    const waUrl = `https://wa.me/?text=${encodeURIComponent(text)}`;
-    const mailParams = new URLSearchParams({ subject: 'מי אחראי על ניקיון האזור?', body: text });
-    const mailUrl = `mailto:?${mailParams}`.replace(/\+/g, '%20');
-    const links = [
-      { url: osmUrl, ...rects[0] },
-      { url: waUrl, ...rects[1] },
-      { url: mailUrl, ...rects[2] },
-    ];
-    const mapPage = { jpegBytes: mapJpegBytes, width: mapCanvas.width, height: mapCanvas.height, links };
-
-    const dataCanvas = buildDataPageCanvas();
-    const dataPage = { jpegBytes: await canvasToJpegBytes(dataCanvas), width: dataCanvas.width, height: dataCanvas.height };
-
-    const pages = [mapPage, dataPage];
-    for (let i = 0; i < state.photos.length; i += 1) {
-      btn.textContent = `בונה PDF… (תמונה ${i + 1}/${state.photos.length})`;
-      pages.push(await photoToPage(state.photos[i].file));
-    }
-
-    const pdfBlob = buildPdf({ pages });
+    const pdfBlob = await buildAreaCleanupPdfBlob((i, n) => { btn.textContent = `בונה PDF… (תמונה ${i}/${n})`; });
     downloadBlob(pdfBlob, `${safeFilename(state.displayName, 'area-cleanup')}.pdf`);
   } finally {
     btn.disabled = false;

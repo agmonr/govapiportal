@@ -371,6 +371,14 @@ button.stat { cursor: pointer; }
 #cityTable { max-inline-size: 32rem; }
 #cityTable .matrix { font-variant-numeric: tabular-nums; }
 #cityTable .matrix tbody th { font-weight: 600; }
+/* Narrower columns overall (less padding than the site-wide .matrix
+   default) - "פצועים קשה"/"פצועים קל" (3rd/4th column) each wrap onto their
+   own 2 lines instead of forcing a wide column to fit the site-wide
+   nowrap default, which is what was actually stretching this table out. */
+#cityTable .matrix th, #cityTable .matrix td { padding: .4rem .5rem; }
+#cityTable .matrix th:nth-child(3), #cityTable .matrix th:nth-child(4) {
+  white-space: normal; max-inline-size: 4.5rem; line-height: 1.25;
+}
 
 /* ---------- fatalities-by-year chart ---------- */
 

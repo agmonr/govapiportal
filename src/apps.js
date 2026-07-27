@@ -3,7 +3,7 @@
  * the tree tracker, adjacent to) a government API, as opposed to the portal/
  * API map itself. Grouped by what a visitor is actually trying to do
  * (category/category_he in apis.json), not by data source - "מי אחראי על
- * ניקיון" and "עצים והשגות" have nothing in common technically, but both are
+ * ניקיון" and "להציל עץ" have nothing in common technically, but both are
  * things a citizen might act on, so both sit under the same heading.
  *
  * Used by index.html's map (every category, above the portal/API detail) and
@@ -13,12 +13,16 @@
 
 import { esc } from './ui.js';
 
-// One glyph each - a welcoming button reads as a destination, not a
-// document, so the icon carries it rather than a URL or an arrow-hint line.
+// One glyph each (occasionally a short sequence) - a welcoming button reads
+// as a destination, not a document, so the icon carries it rather than a
+// URL or an arrow-hint line. trees (🆘) and tree-canopy (🏠🏢) both start
+// from the same 🌳 but diverge on purpose: trees is about a tree in trouble,
+// tree-canopy is about how much canopy covers a city/neighborhood/street -
+// its own house-and-building pair, not a distress signal.
 export const APP_ICON = {
-  accidents: '🚦', trees: '🌳', committees: '🏛️', 'local-finance': '💰', agriculture: '🌾',
+  accidents: '🚦', trees: '🌳🆘', committees: '🏛️', 'local-finance': '💰', agriculture: '🌾',
   companies: '🏢', welfare: '🤝', budgetkey: '🔑', 'blue-lines': '🚇', 'area-cleanup': '🧹',
-  'tree-canopy': '🌳',
+  'tree-canopy': '🌳🏠🏢',
 };
 
 // Render order for categories - not alphabetical on the Hebrew label, and

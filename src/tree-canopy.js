@@ -34,9 +34,15 @@ if (!Number.isNaN(created.getTime())) {
 
 /* ---------- levels: one shape, three sources ---------- */
 
+// boardTitle/rankedWord: "ערים"/"שכונות" are grammatically feminine
+// (מובילות/מדורגות agrees), but "רחובות" is masculine (needs מובילים/
+// מדורגים) - both leaderboard strings below (the h2 and renderBoard's own
+// chart caption) read off these per-level rather than one fixed adjective
+// for all three, so the streets leaderboard doesn't read as a grammar error.
 const LEVELS = {
   city: {
     label: 'עיר', labelPlural: 'ערים', pickLabel: 'עיר:',
+    boardTitle: 'ערים מובילות', rankedWord: 'מדורגות',
     entries: () => Object.entries(CITY_CANOPY).map(([name, v]) => ({
       key: name, label: name, name, city: name, pct: v.pct, areaM2: v.cityAreaM2,
       canopyAreaM2: v.canopyAreaM2, treeCount: v.treeCount,
@@ -48,6 +54,7 @@ const LEVELS = {
   // row - once in the key, once in the value - was pure duplication).
   neighborhood: {
     label: 'שכונה', labelPlural: 'שכונות', pickLabel: 'שכונה:',
+    boardTitle: 'שכונות מובילות', rankedWord: 'מדורגות',
     // Some neighborhoods have no real OSM boundary, only a named point -
     // their "area" is a Voronoi cell built around that point and clipped to
     // the city (see tools/canopy_build.py), not a verified shape. That
@@ -65,6 +72,7 @@ const LEVELS = {
   },
   street: {
     label: 'רחוב', labelPlural: 'רחובות', pickLabel: 'רחוב:',
+    boardTitle: 'רחובות מובילים', rankedWord: 'מדורגים',
     entries: () => Object.entries(STREET_CANOPY).map(([key, v]) => {
       const [city, name] = key.split('::');
       // `nb` (the neighborhood the street's centroid falls in) is display-
@@ -126,14 +134,9 @@ const PICK_COLORS = [
 ];
 const MAX_PICKS = 4;
 
-// Loads on a blank visit (no ?p1=...) showing something rather than four
-// empty inputs - four neighboring Sharon-area cities, same area this
-// project itself is rooted in (see the site header/footer).
-const DEFAULT_CITY_PICKS = ['הוד השרון', 'כפר סבא', 'רעננה', 'הרצליה'];
-
 /* ---------- state + URL ---------- */
 
-const state = { level: 'city', picks: [...DEFAULT_CITY_PICKS], cityFilter: null };
+const state = { level: 'city', picks: [null, null, null, null], cityFilter: null };
 
 function readStateFromUrl() {
   const p = new URLSearchParams(location.search);
@@ -278,6 +281,29 @@ function drillInto(level, cityName) {
   renderAll();
 }
 
+// A single city (not a multi-city comparison, and not already at the
+// street/neighborhood level - drilling in there via "צלילה פנימה" already
+// gets its own full leaderboard below) gets a quick answer to the obvious
+// next question - which of ITS OWN streets are greenest - without leaving
+// the city level or waiting for the page-wide (national) leaderboard
+// further down, which ranks every city's streets against each other, not
+// one city's against itself.
+const TOP_STREETS_N = 10;
+function renderTopStreets(entries) {
+  const section = el('tcTopStreetsSection');
+  if (state.level !== 'city' || entries.length !== 1) { section.hidden = true; return; }
+  const cityName = entries[0].label;
+  const streets = levelEntries('street').filter((e) => e.city === cityName && isCredible('street', e));
+  if (!streets.length) { section.hidden = true; return; }
+  section.hidden = false;
+  el('tcTopStreetsCity').textContent = cityName;
+  const top = [...streets].sort((a, b) => b.pct - a.pct).slice(0, TOP_STREETS_N);
+  // e.name (just the street) rather than e.label (which repeats the city
+  // and neighborhood already named in this section's own heading).
+  const chartEntries = top.map((e) => ({ label: e.name, value: Number(e.pct.toFixed(1)) }));
+  renderHBarChart('tcTopStreetsChart', `${num(top.length)} רחובות מובילים בכיסוי חופות עצים${top.length < streets.length ? ` (מתוך ${num(streets.length)})` : ''}`, chartEntries, '%');
+}
+
 function renderCompare() {
   const lvl = LEVELS[state.level];
   const map = labelMap(state.level);
@@ -290,13 +316,19 @@ function renderCompare() {
   if (missing.length) warn.textContent = `לא נמצא/ו: ${missing.join(', ')} ב${lvl.labelPlural}.`;
 
   const section = el('tcCompareSection');
-  if (!entries.length) { section.hidden = true; renderDrill([]); return; }
+  if (!entries.length) {
+    section.hidden = true;
+    renderDrill([]);
+    el('tcTopStreetsSection').hidden = true;
+    return;
+  }
   section.hidden = false;
 
   const chartEntries = entries.map((e, i) => ({ label: e.label, value: Number(e.pct.toFixed(1)), color: PICK_COLORS[i] }));
   renderHBarChart('tcChart', `אחוז כיסוי חופות עצים${entries.length > 1 ? ' — השוואה' : ''}`, chartEntries, '%');
   renderCompareTable(entries);
   renderDrill(entries);
+  renderTopStreets(entries);
 }
 
 /* ---------- leaderboard (own renderer - see why below) ---------- */
@@ -346,7 +378,7 @@ function renderBoardChart(figId, caption, entries, unit) {
 
 function renderBoard() {
   const lvl = LEVELS[state.level];
-  el('tcBoardLevel').textContent = lvl.labelPlural;
+  el('tcBoardLevel').textContent = lvl.boardTitle;
   let entries = levelEntries(state.level);
   const scopeNote = [];
   if (state.cityFilter) {
@@ -369,7 +401,7 @@ function renderBoard() {
   const capped = state.level === 'city' ? sorted : sorted.slice(0, BOARD_CAP);
   const ranked = capped.map((e) => ({ label: e.label, value: Number(e.pct.toFixed(1)) }));
   const capNote = capped.length < sorted.length ? ` (${num(BOARD_CAP)} מתוך ${num(sorted.length)})` : '';
-  renderBoardChart('tcBoardChart', `${num(ranked.length)} ${lvl.labelPlural} מדורגות לפי אחוז כיסוי חופות עצים${capNote}`, ranked, '%');
+  renderBoardChart('tcBoardChart', `${num(ranked.length)} ${lvl.labelPlural} ${lvl.rankedWord} לפי אחוז כיסוי חופות עצים${capNote}`, ranked, '%');
 }
 
 /* ---------- CSV ---------- */

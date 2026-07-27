@@ -18,7 +18,7 @@
 <body class="accidents-page tree-canopy-page">
   <header class="site">
     <div class="wrap">
-      <h1>כמה ירוקה העיר שלי?</h1>
+      <h1>כמה ירוקה העיר שלי? (Green Index)</h1>
       <span class="site-by">פרויקט של רם אגמון<span class="site-disclaimer">המידע באתר עלול להיות שגוי</span><a href="https://hod-hasharon.org/" target="_blank" rel="noopener">הירוקים הוד השרון</a></span>
       <div class="theme-pick" id="themePick" role="group" aria-label="ערכת נושא">
         <button type="button" data-theme="clouds">יום</button>
@@ -153,6 +153,11 @@
         </div>
       </section>
 
+      <section class="acc-section" id="tcTopStreetsSection" aria-labelledby="topStreetsH" hidden>
+        <h2 id="topStreetsH">הרחובות הירוקים ביותר ב<span id="tcTopStreetsCity" dir="auto"></span></h2>
+        <figure id="tcTopStreetsChart" class="acc-chart acc-chart-wide" role="img"></figure>
+      </section>
+
       <section class="acc-section" id="tcDrillSection" aria-labelledby="drillH" hidden>
         <h2 id="drillH">צלילה פנימה</h2>
         <p class="acc-hint" dir="auto">מתוך העיר שנבחרה - עיינו בשכונות או ברחובות שלה בנפרד.</p>
@@ -160,7 +165,7 @@
       </section>
 
       <section class="acc-section" aria-labelledby="boardH">
-        <h2 id="boardH">מובילות — <span id="tcBoardLevel"></span></h2>
+        <h2 id="boardH"><span id="tcBoardLevel"></span></h2>
         <p class="acc-hint" dir="auto" id="tcBoardHint"></p>
         <figure id="tcBoardChart" class="acc-chart acc-chart-wide tc-board-scroll" role="img"></figure>
       </section>

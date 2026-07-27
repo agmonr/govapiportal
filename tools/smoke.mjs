@@ -426,9 +426,6 @@ async function runTreeCanopyPass(label, url, { bundled = false } = {}) {
   ok(await page.locator('#tcRosterHint').innerText().then((t) => /\d/.test(t)), 'roster hint states a total count');
   ok(await page.locator('.lead a[href*="Tree1022"]').count() === 1, 'top-of-page lead links to the GovMap source viewer');
 
-  // Picks 2/3 must be cleared explicitly - the page loads with all 4 slots
-  // pre-filled (DEFAULT_CITY_PICKS), unlike a blank first visit before that
-  // default existed.
   await page.locator('#tcPick0').fill('הוד השרון');
   await page.locator('#tcPick0').dispatchEvent('change');
   await page.locator('#tcPick1').fill('תל אביב - יפו');
