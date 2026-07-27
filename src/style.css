@@ -763,6 +763,14 @@ button.stat { cursor: pointer; }
 .app-sibling:hover, .app-sibling:focus-visible { border-color: var(--accent); transform: translateY(-1px); }
 .app-sibling-current { border-color: var(--accent); background: var(--surface); box-shadow: inset 0 0 0 1px var(--accent); cursor: default; }
 
+/* Mobile only: doubled again from the 4rem/2.3rem base (itself already
+   doubled once from the original 2rem desktop-only size) - a touch target
+   is worth more room than a pointer target, so mobile now runs bigger than
+   desktop rather than matching it. */
+@media (max-width: 640px) {
+  .app-sibling { inline-size: 8rem; block-size: 8rem; font-size: 4.6rem; }
+}
+
 /* ---------- "continue" disclosure past the portals ----------
    Native <details>/<summary>: no JS toggle to write or keep accessible,
    the browser already handles open/closed and keyboard use. The `open`
@@ -1676,6 +1684,16 @@ body.accidents-page header.site h1 { inline-size: 100%; }
   .tree-canopy-page a, .tree-canopy-page a:visited { color: #4fc3f7; }
   .tree-canopy-page .tc-stat-line > .stat:not(:first-child) { display: none; }
   .tree-canopy-page #tcDrillSection { display: none; }
+
+  /* The chart is the one thing worth seeing before scrolling past the stat
+     tiles - reordered visually only (DOM order, and every non-mobile width,
+     stays heading/stats/chart/table/export as written in the HTML). */
+  .tree-canopy-page #tcCompareSection { display: flex; flex-direction: column; }
+  .tree-canopy-page #tcCompareSection > #compareH { order: -2; }
+  .tree-canopy-page #tcCompareSection > #tcChart { order: -1; }
+  .tree-canopy-page #tcCompareSection > #tcStats { order: 0; }
+  .tree-canopy-page #tcCompareSection > #tcTable { order: 1; }
+  .tree-canopy-page #tcCompareSection > .fin-export-row { order: 2; }
 }
 
 /* Neighborhood-only collapsible stat line (src/tree-canopy.js

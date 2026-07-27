@@ -1,5 +1,5 @@
 /**
- * Entry point for tree-canopy.html - כמה ירוקה העיר שלך.
+ * Entry point for tree-canopy.html - כמה ירוקה העיר שלי.
  *
  * Unlike every other page here, the source data (a 358MB national tree-
  * canopy shapefile) has no API at all - see tools/canopy_build.py, which
@@ -48,16 +48,18 @@ const LEVELS = {
   // row - once in the key, once in the value - was pure duplication).
   neighborhood: {
     label: 'שכונה', labelPlural: 'שכונות', pickLabel: 'שכונה:',
-    // `approx`: this neighborhood has no real OSM boundary, only a named
-    // point - its "area" is a Voronoi cell built around that point and
-    // clipped to the city (see tools/canopy_build.py), not a verified
-    // shape. Carried through to the UI rather than silently treated the
-    // same as the ~245 real polygons.
+    // Some neighborhoods have no real OSM boundary, only a named point -
+    // their "area" is a Voronoi cell built around that point and clipped to
+    // the city (see tools/canopy_build.py), not a verified shape. That
+    // distinction used to be spelled out per-name ("(עיר, משוער)"), which
+    // repeated on every such neighborhood across the roster, chart and
+    // table alike - covered once, in full, in the "מה יש כאן" methodology
+    // notice instead now.
     entries: () => Object.entries(NEIGHBORHOOD_CANOPY).map(([key, v]) => {
       const [city, name] = key.split('::');
       return {
-        key, label: `${name} (${city === '—' ? 'ללא עיר מזוהה' : city}${v.approx ? ', משוער' : ''})`, name, city, pct: v.pct,
-        areaM2: v.areaM2, canopyAreaM2: v.canopyAreaM2, treeCount: v.treeCount, approx: Boolean(v.approx),
+        key, label: `${name} (${city === '—' ? 'ללא עיר מזוהה' : city})`, name, city, pct: v.pct,
+        areaM2: v.areaM2, canopyAreaM2: v.canopyAreaM2, treeCount: v.treeCount,
       };
     }),
   },
@@ -247,7 +249,10 @@ function statTiles(entry, color) {
 // label already carries its city ("... — ..."), long enough that even just
 // the % tile per compared entity is cramped at phone width with up to 4 of
 // them stacked - collapsed behind a press instead, same ▾/▴ toggle idiom
-// renderCompareTable's own per-row detail already uses below.
+// renderCompareTable's own per-row detail already uses below. Only the %
+// tile sits behind the press - same "headline number only" rule as
+// city/street's own mobile stat line (area/tree-count stay reachable in the
+// table below regardless of level).
 function statTilesCollapsible(entry, color, idx) {
   return `
     <div class="tc-stat-line tc-stat-collapsible">
@@ -260,14 +265,6 @@ function statTilesCollapsible(entry, color, idx) {
         <div class="stat" style="border-inline-start-color:${color}">
           <span class="stat-n">${entry.pct.toFixed(1)}%</span>
           <span class="stat-l" dir="auto">${esc(entry.label)} — כיסוי חופות</span>
-        </div>
-        <div class="stat" style="border-inline-start-color:${color}">
-          <span class="stat-n">${num(Math.round(entry.areaM2 / 1000))}</span>
-          <span class="stat-l" dir="auto">${esc(entry.label)} — שטח (דונם)</span>
-        </div>
-        <div class="stat" style="border-inline-start-color:${color}">
-          <span class="stat-n">${num(entry.treeCount)}</span>
-          <span class="stat-l" dir="auto">${esc(entry.label)} — חופות שזוהו</span>
         </div>
       </div>
     </div>`;
@@ -480,7 +477,7 @@ el('tcShare').addEventListener('click', () => {
   const map = labelMap(state.level);
   const entries = state.picks.map((label) => (label ? map.get(label) : null)).filter(Boolean);
   const lines = entries.map((e) => `${e.label}: ${e.pct.toFixed(1)}% כיסוי חופות`);
-  const text = `כמה ירוקה העיר שלך? 🌳\n${lines.join('\n')}\n${location.href}`;
+  const text = `כמה ירוקה העיר שלי? 🌳\n${lines.join('\n')}\n${location.href}`;
   window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank', 'noopener');
 });
 
