@@ -175,6 +175,28 @@ const PREVIEWS = {
     })),
   },
 
+  moag: {
+    label: 'קטלוג מאגרים גאוגרפיים (DCAT)',
+    placeholder: 'חפש מאגר — למשל פשטי הצפה, סחיפת קרקע…',
+    // Same reasoning as the datagov entry above: this stops at the catalogue,
+    // the full catalog -> dataset -> records drill-down lives on its own page.
+    more: { href: './moag.html', label: 'חקירה מלאה: קטלוג ← מאגר ← טבלת הנתונים' },
+    // 93 datasets arrive in one DCAT document - small enough to hold whole and
+    // filter client-side, same honesty as the CBS entry below ("סינון מקומי").
+    local: true,
+    scroll: true,
+    url: () => 'https://data1-moag.opendata.arcgis.com/api/feed/dcat-us/1.1.json',
+    unit: 'מאגרים',
+    columns: [['title', 'מאגר'], ['org', 'גוף מפרסם'], ['formats', 'פורמטים']],
+    rows: (j) => (j.dataset || []).map((ds) => ({
+      title: ds.title,
+      org: ds.publisher?.name || '—',
+      formats: [...new Set((ds.distribution || [])
+        .filter((d) => !['ArcGIS Hub Dataset', 'ArcGIS GeoService'].includes(d.title))
+        .map((d) => d.title))].slice(0, 4).join(', ') || '—',
+    })),
+  },
+
   cbs: {
     label: 'קטלוג מדדים (index/catalog)',
     placeholder: 'סנן פרקים…',

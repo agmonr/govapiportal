@@ -146,7 +146,7 @@ async function runPass(label, url, { bundled = false } = {}) {
      not fail because someone else's server is down. */
   // Hand-maintained, like verdict() above: bump this when a PREVIEWS entry
   // is added to or removed from src/portal.js.
-  const EXPECTED_PREVIEWS = 5;
+  const EXPECTED_PREVIEWS = 6;
   // Scoped to #portals: the apps grid uses the same .p-open span for its
   // "go to the full page" / "external site" hint, which isn't a preview.
   const withPreview = await page.locator('#portals .portal .p-open').count();
@@ -329,6 +329,78 @@ async function runCkanPass(label, url) {
 }
 
 /**
+ * The moag explorer is the same shape as the CKAN one - own page, own pass,
+ * over HTTP and from disk. Soft-skipped when data1-moag.opendata.arcgis.com
+ * does not answer, same policy as the CKAN pass.
+ */
+async function runMoagPass(label, url) {
+  console.log(`\n\x1b[1m${label}\x1b[0m  ${url}`);
+  const problems = [];
+  const ok = (cond, msg) => {
+    console.log(`${cond ? '\x1b[32m  PASS\x1b[0m' : '\x1b[31m  FAIL\x1b[0m'}  ${msg}`);
+    if (!cond) problems.push(`${label}: ${msg}`);
+  };
+
+  const page = await browser.newPage({ viewport: { width: 1280, height: 1000 } });
+  page.on('console', (m) => { if (m.type() === 'error') problems.push(`${label} console: ${m.text()}`); });
+  page.on('pageerror', (e) => problems.push(`${label} pageerror: ${e.message}`));
+
+  await page.goto(url, { waitUntil: 'load' });
+  const live = await page.locator('#moag .ck-card').first()
+    .waitFor({ timeout: 30000 }).then(() => true, () => false);
+
+  if (!live) {
+    console.log('\x1b[33m  SKIP\x1b[0m  data1-moag.opendata.arcgis.com did not answer - explorer not asserted');
+  } else {
+    ok(await page.locator('#moag .ck-card').count() === 24, 'catalogue shows a page of datasets');
+    ok((await page.locator('#moag .ck-count').innerText()).includes('93'),
+      'catalogue states the full total, not just the fetched page');
+    ok(await page.locator('#moag .mg-q').count() === 1, 'search box present');
+    ok(await page.locator('#moag .mg-direct').count() === 1, '"direct link only" toggle present');
+    ok((await page.locator('#moag .drill-url code').innerText()).includes('dcat-us'),
+      'the exact DCAT request is shown');
+    ok(await page.locator('#moag .drill-scope').count() === 1, 'the page states its filtering scope');
+    ok(await page.locator('#moag .pager .pg[data-page]').count() > 0, 'catalogue is paged');
+    ok(!(await page.content()).includes('__API_DATA__'),
+      'the explorer embeds no data snapshot');
+
+    // Deterministically-direct datasets (probed 2026-07-27: 37/93 resolve
+    // without the Web Map fallback) resolve fast enough for a smoke test;
+    // the fallback path is exercised by hand, not asserted here.
+    const card = page.locator('#moag .ck-card', { has: page.locator('.f-tag') }).first();
+    if (await card.count()) {
+      await card.click();
+      await page.waitForSelector('#moag .ck-detail', { timeout: 20000 });
+      const openBtn = page.locator('#moag .mg-service .ck-open').first();
+      const resolved = await openBtn.waitFor({ timeout: 20000 }).then(() => true, () => false);
+      if (!resolved) {
+        console.log('\x1b[33m  SKIP\x1b[0m  no dataset resolved a live layer in time - records level not asserted');
+      } else {
+        await openBtn.click();
+        await page.waitForSelector('#moag .ck-rec', { timeout: 20000 });
+        ok(await page.locator('#moag .mg-rq').count() === 1, 'records level offers a search box');
+        ok(await page.locator('#moag #mg-dl').count() === 1, 'records level offers a CSV download');
+        ok((await page.locator('#moag .drill-url code').innerText()).includes('/query'),
+          'the exact FeatureServer query is shown');
+        await page.locator('#moag .ck-crumb').first().click();
+        await page.waitForSelector('#moag .ck-card', { timeout: 20000 });
+      }
+    }
+  }
+
+  for (const width of [380, 768, 1280]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.waitForTimeout(150);
+    const over = await page.evaluate(() =>
+      document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    ok(over <= 0, `no horizontal body scroll at ${width}px (overflow ${over}px)`);
+  }
+
+  await page.close();
+  failures.push(...problems);
+}
+
+/**
  * The road-accidents app is a third page, reusing openPortal() in
  * standalone mode - so it gets its own pass too, exactly like the explorer.
  * Soft-skipped when data.gov.il does not answer, same policy as the other
@@ -401,6 +473,8 @@ await runPass('served over HTTP', HTTP_BASE);
 await runPass('opened from disk', FILE_BASE, { bundled: true });
 await runCkanPass('explorer over HTTP', `${HTTP_BASE}/datagov.html`);
 await runCkanPass('explorer from disk', new URL('../dist/datagov.html', import.meta.url).href);
+await runMoagPass('moag explorer over HTTP', `${HTTP_BASE}/moag.html`);
+await runMoagPass('moag explorer from disk', new URL('../dist/moag.html', import.meta.url).href);
 await runAccidentsPass('accidents app over HTTP', `${HTTP_BASE}/accidents.html`);
 await runAccidentsPass('accidents app from disk', new URL('../dist/accidents.html', import.meta.url).href, { bundled: true });
 
@@ -410,4 +484,4 @@ if (failures.length) {
   console.log(`\n\x1b[31m${failures.length} problem(s)\x1b[0m\n- ${failures.join('\n- ')}`);
   process.exit(1);
 }
-console.log('\n\x1b[32mAll checks passed across all six passes. No console errors.\x1b[0m');
+console.log('\n\x1b[32mAll checks passed across all eight passes. No console errors.\x1b[0m');

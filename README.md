@@ -35,13 +35,14 @@ still fails on CORS, as it should).
 Regenerate it after editing `apis.json` or `src/`:
 
 ```bash
-./tools/bundle.py           # rewrite dist/map.html and dist/datagov.html
-./tools/bundle.py --check   # exit non-zero if either is stale
+./tools/bundle.py           # rewrite every dist/*.html
+./tools/bundle.py --check   # exit non-zero if any is stale
 ```
 
-Both offline copies land in `dist/`, so the map's link to `./datagov.html` keeps
-working between them. The bundler asserts that rather than assuming it: a page
-that links to `./datagov.html` fails the build if no target emits that filename.
+All offline copies land in `dist/`, so the map's links to `./datagov.html` and
+`./moag.html` keep working between them. The bundler asserts that rather than
+assuming it: a page that links to `./datagov.html` (or `./moag.html`) fails the
+build if no target emits that filename.
 
 `tools/verify.sh` runs `--check` first, so a stale copy fails the build rather
 than shipping to whoever downloads it.
@@ -53,12 +54,14 @@ than shipping to whoever downloads it.
 | `apis.json` | The map — `portals` (10) and `apis` (16). Edit this to add sources. |
 | `index.html` / `src/map.js` | Top view + portal grid + API list, filterable |
 | `datagov.html` / `src/ckan.js` | The data.gov.il explorer: catalogue → dataset → records |
+| `moag.html` / `src/moag-explorer.js` | The Ministry of Agriculture explorer: catalogue → dataset → FeatureServer records |
 | `src/portal.js` | Portal drill-in: live request per portal, rendered as a table |
 | `src/explorer.js` | Live in-browser request panel |
 | `src/style.css` | RTL-first styling |
 | `SESSION.md` | Build log: decisions, corrections, what's unverified |
 | `dist/map.html` | Generated single-file build of the map. Works offline, from disk. |
 | `dist/datagov.html` | Same, for the explorer. Holds no snapshot — every row is live. |
+| `dist/moag.html` | Same, for the moag explorer. Also holds no snapshot. |
 | `tools/` | Bundler, API re-prober, browser verification. Not part of the site. |
 
 ## Top view
@@ -103,6 +106,7 @@ readable table — not raw JSON:
 | Portal | Request | Shows |
 |---|---|---|
 | data.gov.il | `package_search` | datasets, publisher, formats, resource count (1,197 total) |
+| Ministry of Agriculture | DCAT feed | dataset title, publisher, formats (93 total) |
 | CBS | `index/catalog` | 14 price-index chapters |
 | Open Bus | `gtfs_stops/list` | stops with city and coordinates |
 | GovMap | WFS `PARCEL_ALL` | גוש/חלקה, locality, area, status (1,097,502 total) |
@@ -213,6 +217,57 @@ we can actually get, and offered as a blob. Verified end to end: 116,673 rows,
   25 rows on screen — filters and sort are carried into the export.
 - The origin file is still linked, labelled `⭳ מקור` and described as what it is.
   For non-DataStore resources it remains the only option.
+
+## Going all the way into the Ministry of Agriculture's data
+
+**`moag.html` is the same idea, for the second portal here that exposes actual
+records rather than just a catalogue of files.** The Ministry of Agriculture's
+ArcGIS Hub (`data1-moag.opendata.arcgis.com`) publishes 93 geographic datasets
+— flood plains, fire-buffer zones, soil erosion, planned-settlement land
+standards, and more. Same three levels as the CKAN explorer:
+
+| Level | Request | What you get |
+|---|---|---|
+| קטלוג | DCAT feed (one document, 93 datasets) | title, publisher, files, service link — filtered locally |
+| מאגר | (already in hand) | description, dates, downloadable files, live data-service resolution |
+| נתונים | ArcGIS FeatureServer `/query` | the actual rows: text search, column sort, paging |
+
+Unlike data.gov.il's `package_search`, the DCAT feed is one JSON document with
+no server-side search or paging — 93 datasets is small enough to fetch whole
+and filter in the browser, the same honesty the CBS preview on the map already
+has (`סינון מקומי`, stated on the control rather than implied).
+
+**Not every dataset resolves to a queryable service, and the page says so
+instead of faking a table.** Probed against the live feed (2026-07-27):
+
+- **37 of 93** datasets have a DCAT service link that points directly at an
+  ArcGIS `FeatureServer`/`MapServer` layer — no extra request needed to know
+  it works.
+- For the rest, the DCAT service link points at an Experience Builder or
+  Instant Apps page — a map application, not a queryable service. Opening
+  such a dataset tries one more thing: searching ArcGIS Online for a `Web Map`
+  item with the *exact same title*, owned by the ministry's own org, and
+  reading its operational layers' FeatureServer URLs out of the map's saved
+  JSON. That resolves **24 more** (61/93 total). A dataset can hold more than
+  one relevant layer this way — `אגני ותת אגני ניקוז` (drainage basins **and**
+  sub-basins) turned out to be backed by two separate FeatureServer layers,
+  one per half of the title, and both are offered rather than only the first
+  one found.
+- The remaining **32** genuinely have no separately published queryable
+  service. Their page shows why, with a link to the ArcGIS item itself rather
+  than a broken data panel.
+
+**Records search is client-composed SQL, not full text.** ArcGIS REST has no
+equivalent of CKAN's `q=` full-text search, so the records level ORs a
+`UPPER(field) LIKE UPPER('%…%')` clause across every string-typed field on the
+layer — the same family of filter portal.js already builds for GovMap and
+iplan, just applied to a dynamic field list read from the layer's own
+metadata rather than hardcoded. Field names come from that metadata, never
+from user input, so only the typed search value needs escaping.
+
+CSV download works the same way it does everywhere else on this site: built
+here from the same paged `/query` calls already used to show the table, not
+from a server-side export.
 
 ## Downloading files
 

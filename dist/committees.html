@@ -858,6 +858,10 @@ button.stat { cursor: pointer; }
 }
 .ck-count { font-size: .85rem; color: var(--muted); margin-block-end: .6rem; }
 
+/* The moag explorer's "only directly-queryable datasets" toggle - inline with
+   the rest of .ck-controls rather than a styled checkbox of its own. */
+.mg-only { display: flex; align-items: center; gap: .35rem; font-size: .82rem; color: var(--muted); cursor: pointer; white-space: nowrap; }
+
 /* min(17rem, 100%) rather than a bare 17rem: below a 17rem viewport the track
    would otherwise stay 17rem wide and push the page sideways. */
 .ck-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(17rem, 100%), 1fr)); gap: .6rem; }

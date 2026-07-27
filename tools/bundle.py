@@ -56,6 +56,16 @@ TARGETS = [
         "data": False,
     },
     {
+        "html": "moag.html",
+        "out": "dist/moag.html",
+        "entry": "src/moag.js",
+        # Same shape as the datagov target above: the explorer fetches its
+        # catalogue and records live, so it needs apis.json inlined for
+        # neither.
+        "sources": ["src/ui.js", "src/theme.js", "src/moag-explorer.js", "src/moag.js"],
+        "data": False,
+    },
+    {
         "html": "accidents.html",
         "out": "dist/accidents.html",
         "entry": "src/accidents.js",
@@ -243,6 +253,13 @@ def build(t: dict) -> str:
         sibling = [x["out"] for x in TARGETS if x["html"] == "datagov.html"]
         if not sibling or Path(sibling[0]).name != "datagov.html":
             sys.exit("error: a page links to ./datagov.html but no target emits that filename "
+                     "into dist/ - the offline copies would link to nothing.")
+
+    # Same check, for the moag explorer's self-referencing localhost/dist links.
+    if "moag.html" in html:
+        sibling = [x["out"] for x in TARGETS if x["html"] == "moag.html"]
+        if not sibling or Path(sibling[0]).name != "moag.html":
+            sys.exit("error: a page links to ./moag.html but no target emits that filename "
                      "into dist/ - the offline copies would link to nothing.")
 
     data = None
