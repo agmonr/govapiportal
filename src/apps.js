@@ -13,16 +13,23 @@
 
 import { esc } from './ui.js';
 
-// One glyph each (occasionally a short sequence) - a welcoming button reads
-// as a destination, not a document, so the icon carries it rather than a
-// URL or an arrow-hint line. trees (🆘) and tree-canopy (🏠🏢) both start
-// from the same 🌳 but diverge on purpose: trees is about a tree in trouble,
-// tree-canopy is about how much canopy covers a city/neighborhood/street -
-// its own house-and-building pair, not a distress signal.
+// One glyph each (occasionally a short sequence, or - trees/tree-canopy
+// only - a small HTML composition, see .icon-small/.tc-icon in style.css) -
+// a welcoming button reads as a destination, not a document, so the icon
+// carries it rather than a URL or an arrow-hint line. trees (small 🚑) and
+// tree-canopy (🏠 badge) both start from the same 🌳 but diverge on
+// purpose: trees is about a tree in trouble (needing rescue - the
+// ambulance is deliberately smaller, a detail riding along with the tree
+// rather than an equal second subject), tree-canopy is about how much
+// canopy covers a city/neighborhood/street - a house tucked in the corner,
+// not a rescue call. Not escaped by appCard/renderAppContext (both
+// interpolate this directly, no esc()), so raw markup here renders as real
+// HTML, not text.
 export const APP_ICON = {
-  accidents: '🚦', trees: '🌳🆘', committees: '🏛️', 'local-finance': '💰', agriculture: '🌾',
+  accidents: '🚦', trees: '🌳<span class="icon-small">🚑</span>', committees: '🏛️',
+  'local-finance': '💰', agriculture: '🌾',
   companies: '🏢', welfare: '🤝', budgetkey: '🔑', 'blue-lines': '🚇', 'area-cleanup': '🧹',
-  'tree-canopy': '🌳🏠🏢',
+  'tree-canopy': '<span class="tc-icon">🌳<span class="tc-icon-badge">🏠</span></span>',
 };
 
 // Render order for categories - not alphabetical on the Hebrew label, and

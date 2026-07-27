@@ -775,6 +775,26 @@ button.stat { cursor: pointer; }
 .app-icon { font-size: 2.3rem; line-height: 1; }
 .app-name { font-weight: 600; font-size: .95rem; }
 
+/* tree-canopy's own icon (src/apps.js APP_ICON) - a small house badge
+   tucked in the corner of the tree, not beside it, so the icon never grows
+   wider than a plain single-glyph one. Sized in em, relative to whichever
+   container places it (.app-icon in the apps grid, .app-sibling in the
+   per-page context strip - both happen to already share the same 2.3rem
+   icon font-size, so this scales identically in either without its own
+   per-container override). */
+.tc-icon { position: relative; display: inline-block; }
+.tc-icon-badge {
+  position: absolute; inset-block-end: -.15em; inset-inline-end: -.15em;
+  font-size: .55em; line-height: 1;
+  background: var(--card); border-radius: 999px; box-shadow: 0 0 0 2px var(--card);
+}
+
+/* trees' own icon - the ambulance rides along smaller, inline beside the
+   tree rather than badged in a corner (unlike tc-icon-badge above) - a
+   supporting detail, not a second subject the same size as the tree. Also
+   em-relative for the same reason tc-icon-badge is. */
+.icon-small { font-size: .6em; vertical-align: middle; }
+
 /* ---------- per-page "app context" strip (src/apps.js renderAppContext) ---
    Sits under an app's own header: a 🏠 back to apps.html, then small icon-
    links to its category siblings (this app's own icon shown too, inert, as
@@ -2347,16 +2367,23 @@ function renderGroupedChart(figId, caption, points, unit, mainName, labels = { f
  * its own is worth having).
  */
 
-// One glyph each (occasionally a short sequence) - a welcoming button reads
-// as a destination, not a document, so the icon carries it rather than a
-// URL or an arrow-hint line. trees (🆘) and tree-canopy (🏠🏢) both start
-// from the same 🌳 but diverge on purpose: trees is about a tree in trouble,
-// tree-canopy is about how much canopy covers a city/neighborhood/street -
-// its own house-and-building pair, not a distress signal.
+// One glyph each (occasionally a short sequence, or - trees/tree-canopy
+// only - a small HTML composition, see .icon-small/.tc-icon in style.css) -
+// a welcoming button reads as a destination, not a document, so the icon
+// carries it rather than a URL or an arrow-hint line. trees (small 🚑) and
+// tree-canopy (🏠 badge) both start from the same 🌳 but diverge on
+// purpose: trees is about a tree in trouble (needing rescue - the
+// ambulance is deliberately smaller, a detail riding along with the tree
+// rather than an equal second subject), tree-canopy is about how much
+// canopy covers a city/neighborhood/street - a house tucked in the corner,
+// not a rescue call. Not escaped by appCard/renderAppContext (both
+// interpolate this directly, no esc()), so raw markup here renders as real
+// HTML, not text.
 const APP_ICON = {
-  accidents: '🚦', trees: '🌳🆘', committees: '🏛️', 'local-finance': '💰', agriculture: '🌾',
+  accidents: '🚦', trees: '🌳<span class="icon-small">🚑</span>', committees: '🏛️',
+  'local-finance': '💰', agriculture: '🌾',
   companies: '🏢', welfare: '🤝', budgetkey: '🔑', 'blue-lines': '🚇', 'area-cleanup': '🧹',
-  'tree-canopy': '🌳🏠🏢',
+  'tree-canopy': '<span class="tc-icon">🌳<span class="tc-icon-badge">🏠</span></span>',
 };
 
 // Render order for categories - not alphabetical on the Hebrew label, and

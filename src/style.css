@@ -754,6 +754,26 @@ button.stat { cursor: pointer; }
 .app-icon { font-size: 2.3rem; line-height: 1; }
 .app-name { font-weight: 600; font-size: .95rem; }
 
+/* tree-canopy's own icon (src/apps.js APP_ICON) - a small house badge
+   tucked in the corner of the tree, not beside it, so the icon never grows
+   wider than a plain single-glyph one. Sized in em, relative to whichever
+   container places it (.app-icon in the apps grid, .app-sibling in the
+   per-page context strip - both happen to already share the same 2.3rem
+   icon font-size, so this scales identically in either without its own
+   per-container override). */
+.tc-icon { position: relative; display: inline-block; }
+.tc-icon-badge {
+  position: absolute; inset-block-end: -.15em; inset-inline-end: -.15em;
+  font-size: .55em; line-height: 1;
+  background: var(--card); border-radius: 999px; box-shadow: 0 0 0 2px var(--card);
+}
+
+/* trees' own icon - the ambulance rides along smaller, inline beside the
+   tree rather than badged in a corner (unlike tc-icon-badge above) - a
+   supporting detail, not a second subject the same size as the tree. Also
+   em-relative for the same reason tc-icon-badge is. */
+.icon-small { font-size: .6em; vertical-align: middle; }
+
 /* ---------- per-page "app context" strip (src/apps.js renderAppContext) ---
    Sits under an app's own header: a 🏠 back to apps.html, then small icon-
    links to its category siblings (this app's own icon shown too, inert, as

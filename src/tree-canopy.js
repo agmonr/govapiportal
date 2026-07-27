@@ -288,7 +288,7 @@ function drillInto(level, cityName) {
 // the city level or waiting for the page-wide (national) leaderboard
 // further down, which ranks every city's streets against each other, not
 // one city's against itself.
-const TOP_STREETS_N = 10;
+const TOP_STREETS_N = 25;
 function renderTopStreets(entries) {
   const section = el('tcTopStreetsSection');
   if (state.level !== 'city' || entries.length !== 1) { section.hidden = true; return; }
