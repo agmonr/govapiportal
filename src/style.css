@@ -1228,6 +1228,13 @@ a:focus-visible, button:focus-visible {
   --accent: #ddb44f;
   --surface: #18140d;
   --danger: #d2685a;
+  /* Missing from this list until now - every var(--card) consumer (score
+     gauges, notices, stat tiles, etc.) fell through to whatever --card
+     resolved to elsewhere (the light theme's white, or the OS-dark media
+     query's forest-green #142018 if the OS itself preferred dark) instead
+     of this theme's own palette - a warm near-black bg needs its own
+     raised-surface tone, not a mismatched green or plain white. */
+  --card: #221c12;
   --radius: 3px;
   --font-display: Georgia, "David", "Times New Roman", serif;
 }
