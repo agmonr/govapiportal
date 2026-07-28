@@ -101,6 +101,7 @@ let violationState = { active: false };
 let storageDegraded = false;
 let wakeLock = null;
 let historyMode = false;
+let screenWarningTimer = null;
 
 /** Best-effort - GPS + accelerometer tracking is useless if the OS locks
  * the screen mid-trip and suspends the tab; the on-screen reminder (see
@@ -800,10 +801,12 @@ async function startTrip(vehicleType, resumed, busLine) {
   setChromeVisible(false);
   acquireWakeLock();
   showScreen('active');
-  el('trVehicleBadge').textContent = trip.vehicleType === 'bus' ? '🚌 אוטובוס' : '🚗 רכב פרטי';
   el('trStartTime').textContent = formatStartTime(trip.startTime);
   el('trPauseResume').textContent = trip.status === 'paused' ? '▶' : '⏸';
   el('trStopConfirm').hidden = true;
+  el('trScreenWarning').classList.remove('tr-warning-shrink');
+  clearTimeout(screenWarningTimer);
+  screenWarningTimer = setTimeout(() => el('trScreenWarning').classList.add('tr-warning-shrink'), 30000);
 
   const sensorStarted = await startAccelerometer();
   if (!sensorStarted) {
@@ -847,6 +850,7 @@ function stopTrip() {
   if (accelSensor) { accelSensor.stop(); accelSensor = null; }
   stopTicking();
   releaseWakeLock();
+  clearTimeout(screenWarningTimer);
   try {
     localStorage.setItem(STORAGE_LAST_COMPLETE, JSON.stringify(trip));
     localStorage.removeItem(STORAGE_ACTIVE);

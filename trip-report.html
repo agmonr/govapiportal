@@ -89,12 +89,11 @@
            whole active/paused duration (see setChromeVisible in
            trip-report.js) - a driving screen, not a browsing one. -->
       <section id="trScreenActive" class="acc-section" hidden>
-        <p class="tr-screen-warning">📱 השאר את המסך פועל כל משך הנסיעה</p>
+        <p id="trScreenWarning" class="tr-screen-warning">📱 השאר את המסך פועל כל משך הנסיעה</p>
         <div class="tr-topbar">
-          <span id="trVehicleBadge" class="tr-badge"></span>
-          <span id="trBusInfo" class="tr-badge" hidden></span>
           <span class="tr-speed-now"><span id="trSpeedNow">—</span> <small>קמ"ש</small></span>
           <span class="tr-speed-limit">מותר: <span id="trSpeedLimit">—</span> קמ"ש</span>
+          <span id="trBusInfo" class="tr-badge" hidden></span>
           <span class="tr-elapsed">⏱ <span id="trElapsed">0:00</span></span>
           <span class="tr-start-time">התחלה: <span id="trStartTime">—</span></span>
         </div>
@@ -114,8 +113,6 @@
             </details>
           </div>
         </div>
-
-        <div id="trProblemMeter" class="tr-problem-meter"></div>
 
         <div class="stat-row tr-stats-row">
           <div class="stat"><span class="stat-n" id="trViolationCount">0</span><span class="stat-l">חריגות מהירות</span></div>
@@ -138,6 +135,7 @@
           <summary>מה זה מודד?</summary>
           <p class="acc-hint">זמן נהיגה בפועל בכל טווח מהירות ביחס למותר בדרך - אותם טווחים שצובעים את המסלול על המפה.</p>
         </details>
+        <div id="trProblemMeter" class="tr-problem-meter"></div>
         <div id="trProblemLegend" class="tr-legend"></div>
 
         <div class="fin-export-row" style="justify-content:center">

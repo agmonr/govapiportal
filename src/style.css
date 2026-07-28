@@ -1780,8 +1780,24 @@ body.accidents-page header.site h1 { inline-size: 100%; }
 }
 .tr-badge { font-size: 1.1rem; }
 .tr-speed-now { font-size: 1.8rem; color: var(--accent); }
+/* Its own full-width row, right under the speed - not squeezed onto the
+   same line as everything else in the topbar. */
+.tr-speed-limit { flex-basis: 100%; text-align: center; }
 .tr-start-time { font-size: .85rem; color: var(--muted); font-weight: 400; }
-.tr-screen-warning { text-align: center; font-size: .85rem; color: var(--muted); margin-block-end: .8rem; }
+
+/* Loud on purpose for its first 30s (a trip just started, worth a real
+   glance), then recedes to a quiet persistent reminder rather than
+   competing with the live info below it for the rest of the drive. Sticky
+   so it stays at the very top of the viewport through scrolling instead of
+   being scrolled past once the page fills up (map, stats, etc). */
+.tr-screen-warning {
+  position: sticky; top: 0; z-index: 5;
+  text-align: center; font-weight: 700; font-size: 1.2rem;
+  background: var(--card); border-bottom: 1px solid var(--border);
+  padding: .7rem; margin: 0 0 1rem;
+  transition: font-size .3s ease, font-weight .3s ease, padding .3s ease, color .3s ease;
+}
+.tr-screen-warning.tr-warning-shrink { font-size: .8rem; font-weight: 400; color: var(--muted); padding: .3rem; }
 
 /* Icon-only pause/stop - a driving screen is glanced at, not read; a bare
    glyph this size reads faster than a labelled pill button would. */
