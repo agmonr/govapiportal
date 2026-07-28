@@ -54,11 +54,14 @@
 
       <!-- ---------- setup screen ---------- -->
       <section id="trScreenSetup" class="acc-section">
-        <p class="acc-hint">
-          עוקב אחרי הנסיעה שלך בזמן אמת - מיקום GPS וחיישן התאוצה של המכשיר, ומחשב ציון נהיגה חי לפי בלימות/האצות
-          חדות וחריגות מהירות מול המהירות המותרת בפועל (OpenStreetMap). הכול מחושב בדפדפן בלבד; שום נתון לא נשלח
-          לשרת. נדרשת הרשאת מיקום (ותאוצה, במכשירים שתומכים) כדי להתחיל.
-        </p>
+        <details class="lead-details">
+          <summary>איך זה עובד?</summary>
+          <p class="acc-hint">
+            עוקב אחרי הנסיעה שלך בזמן אמת - מיקום GPS וחיישן התאוצה של המכשיר, ומחשב ציון נהיגה חי לפי בלימות/האצות
+            חדות וחריגות מהירות מול המהירות המותרת בפועל (OpenStreetMap). הכול מחושב בדפדפן בלבד; שום נתון לא נשלח
+            לשרת. נדרשת הרשאת מיקום (ותאוצה, במכשירים שתומכים) כדי להתחיל.
+          </p>
+        </details>
         <div class="tr-vehicle-pick" role="radiogroup" aria-label="סוג הרכב">
           <label class="tr-vehicle-opt">
             <input type="radio" name="vehicleType" value="car" checked> 🚗 רכב פרטי
@@ -91,7 +94,8 @@
         <p id="trScreenWarning" class="tr-screen-warning">📱 השאר את המסך פועל כל משך הנסיעה</p>
         <div class="tr-topbar">
           <div class="tr-speed-row">
-            <span class="tr-speed-now"><span id="trSpeedNow">—</span> <small>קמ"ש</small></span>
+            <span id="trSpeedNowSign" class="tr-sign tr-sign-speed"><span id="trSpeedNow">—</span></span>
+            <small class="tr-speed-unit">קמ"ש</small>
             <span id="trSpeedLimitSign" class="tr-sign" title="מהירות מותרת"><span id="trSpeedLimit">—</span></span>
           </div>
           <span id="trBusInfo" class="tr-badge" hidden></span>
@@ -118,8 +122,6 @@
           <div class="stat"><span class="stat-n" id="trViolationCount">0</span><span class="stat-l">חריגות מהירות</span></div>
           <div class="stat"><span class="stat-n" id="trBrakeCount">0</span><span class="stat-l">בלימות חדות</span></div>
           <div class="stat"><span class="stat-n" id="trAccelCount">0</span><span class="stat-l">האצות חדות</span></div>
-        </div>
-        <div class="stat-row tr-stats-row">
           <div class="stat"><span class="stat-n" id="trMaxSpeed">0</span><span class="stat-l">מהירות מרבית</span></div>
           <div class="stat"><span class="stat-n" id="trAvgSpeed">0</span><span class="stat-l">מהירות ממוצעת</span></div>
           <div class="stat"><span class="stat-n" id="trDistance">0 ק"מ</span><span class="stat-l">מרחק</span></div>

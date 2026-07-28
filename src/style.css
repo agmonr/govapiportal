@@ -1818,19 +1818,22 @@ body.accidents-page header.site h1 { inline-size: 100%; }
   font-weight: 600; margin-block-end: 1rem;
 }
 .tr-badge { font-size: 1.1rem; }
-.tr-speed-row { display: flex; align-items: center; gap: .8rem; }
-.tr-speed-now { font-size: 1.8rem; color: var(--accent); }
+.tr-speed-row { display: flex; align-items: center; gap: .5rem; }
 /* A real speed-limit road sign (תמרור) - red ring, white face, bare number,
    no unit/label - the same reason no real dashboard captions its own speed-
-   limit sign either: the shape already says what it is. Sits right beside
-   the current speed rather than on its own line, so the two numbers - what
-   you're doing, what you're allowed - read as one comparison at a glance. */
+   limit sign either: the shape already says what it is. Current speed gets
+   the same circular treatment (its own accent-colored ring, not red - that
+   color means "this is the legal limit", not "this is what you're doing"),
+   with the קמ"ש unit as a small label between the two circles rather than
+   inside either one. */
 .tr-sign {
   display: inline-flex; align-items: center; justify-content: center;
   inline-size: 2.6rem; block-size: 2.6rem; border-radius: 50%;
   background: #fff; border: 4px solid #d21f1f; color: #111;
   font-size: 1.15rem; font-weight: 700; line-height: 1; flex: none;
 }
+.tr-sign-speed { border-color: var(--accent); }
+.tr-speed-unit { font-size: .7rem; color: var(--muted); font-weight: 400; }
 .tr-start-time { font-size: .85rem; color: var(--muted); font-weight: 400; }
 /* Moved below the map (see trip-report.html) - a plain centered line, not
    part of the topbar's flex row anymore. */
@@ -1912,7 +1915,13 @@ body.accidents-page header.site h1 { inline-size: 100%; }
   background: repeating-linear-gradient(45deg, var(--border), var(--border) 2px, transparent 2px, transparent 4px);
 }
 
-.tr-stats-row { margin-block-end: 1.5rem; }
+/* Smaller columns and tighter tiles than the site-wide .stat default (9rem
+   min, .7rem/.85rem padding) - shrunk specifically so all six fit on one
+   row instead of wrapping to a second line. */
+.tr-stats-row { grid-template-columns: repeat(auto-fit, minmax(5.2rem, 1fr)); gap: .4rem; margin-block-end: 1.5rem; }
+.tr-stats-row .stat { padding: .45rem .5rem; }
+.tr-stats-row .stat-n { font-size: 1.3rem; }
+.tr-stats-row .stat-l { font-size: .68rem; }
 
 .tr-complete-summary p { margin-block: .4rem; }
 .tr-complete-score { font-size: 1.3rem; }
@@ -1936,15 +1945,14 @@ body.accidents-page header.site h1 { inline-size: 100%; }
 
 /* Civic-category pages only (.civic-app-page - accidents.html,
    area-cleanup.html, trip-report.html; tree-plans/trees are external, no
-   local page to mark), mobile only: the app-context strip (category
-   siblings, normally 4.6rem/2.3rem everywhere else - see .app-sibling's own
-   base rule) shrinks 30% here, matching trip-report.html's own original
-   treatment (a driving screen a visitor is about to use hands-free
-   shouldn't linger on this strip) - extended to the whole category so
-   every civic app agrees on the same mobile weight for it. The caption
-   stays legible rather than shrinking with it - it's the part doing the
-   identifying work now that the icon is smaller. */
-@media (max-width: 640px) {
-  .civic-app-page .app-sibling { inline-size: 3.2rem; }
-  .civic-app-page .app-sibling-icon { font-size: 1.61rem; }
+   local page to mark): the app-context strip is 30% bigger here than the
+   4.6rem/2.3rem site-wide default, and always exactly two rows (grid with
+   two explicit rows, auto-flowing into columns) rather than whatever
+   flex-wrap happens to land at the current width - a fixed, predictable
+   shape instead of a variable one. */
+.civic-app-page .app-siblings {
+  display: grid; grid-template-rows: repeat(2, auto); grid-auto-flow: column; gap: .5rem;
+  justify-content: start;
 }
+.civic-app-page .app-sibling { inline-size: 5.98rem; }
+.civic-app-page .app-sibling-icon { font-size: 2.99rem; }
