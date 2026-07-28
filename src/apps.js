@@ -125,16 +125,19 @@ export function renderAppContext(node, apps, currentId) {
 
   const homeHtml = `
     <a class="app-sibling" href="./apps.html" title="כל האפליקציות" dir="auto">
-      <span aria-hidden="true">🏠</span>
+      <span class="app-sibling-icon" aria-hidden="true">🏠</span>
+      <span class="app-sibling-label">כל האפליקציות</span>
     </a>`;
 
   const siblingsHtml = inCategory.map((a) => (a.id === currentId
     ? `<span class="app-sibling app-sibling-current" title="${esc(a.name_he)}" aria-current="page" dir="auto">
-         <span aria-hidden="true">${APP_ICON[a.id] || '🔗'}</span>
+         <span class="app-sibling-icon" aria-hidden="true">${APP_ICON[a.id] || '🔗'}</span>
+         <span class="app-sibling-label">${esc(a.name_he)}</span>
        </span>`
     : `<a class="app-sibling" href="${esc(a.href)}"${a.external ? ' target="_blank" rel="noopener"' : ''}
          title="${esc(a.name_he)}" dir="auto">
-         <span aria-hidden="true">${APP_ICON[a.id] || '🔗'}</span>
+         <span class="app-sibling-icon" aria-hidden="true">${APP_ICON[a.id] || '🔗'}</span>
+         <span class="app-sibling-label">${esc(a.name_he)}</span>
        </a>`)).join('');
 
   node.innerHTML = `

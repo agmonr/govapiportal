@@ -810,23 +810,41 @@ button.stat { cursor: pointer; }
    page. Small and understated on purpose - this is a footnote to the page,
    not a second hero section competing with the one above it. */
 .app-context { margin-block-end: 1.2rem; }
-.app-siblings { display: flex; flex-wrap: wrap; gap: .35rem; }
+.app-siblings { display: flex; flex-wrap: wrap; gap: .5rem; }
+/* Icon + a visible caption underneath, not just a hover title - relying on
+   hover alone means the icon is the only identifier at a glance, and in
+   zebra mode (grayscale, see [data-theme="zebra"] .app-sibling-icon below)
+   color stops being a differentiator too, so a permanent label matters
+   more here than most places on the site. */
 .app-sibling {
-  display: flex; align-items: center; justify-content: center;
-  inline-size: 4rem; block-size: 4rem; font-size: 2.3rem; line-height: 1;
-  border-radius: 999px; border: 1px solid var(--border); background: var(--card);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .2rem;
+  inline-size: 4.6rem; padding: .5rem .2rem;
+  border-radius: 12px; border: 1px solid var(--border); background: var(--card);
   text-decoration: none; transition: border-color .15s ease, transform .15s ease;
 }
+.app-sibling-icon { font-size: 2.3rem; line-height: 1; }
+.app-sibling-label { font-size: .62rem; line-height: 1.15; text-align: center; color: var(--muted); }
 .app-sibling:hover, .app-sibling:focus-visible { border-color: var(--accent); transform: translateY(-1px); }
 .app-sibling-current { border-color: var(--accent); background: var(--surface); box-shadow: inset 0 0 0 1px var(--accent); cursor: default; }
 
-/* Mobile keeps the same size as desktop now that desktop's own base above
-   doubled to match it (a touch target still earns at least as much room as
-   a pointer one) - kept as its own rule rather than folded into the base
-   so a future desktop-only change here doesn't need to be re-checked
-   against mobile too. */
+/* Mobile keeps the same icon size as desktop (a touch target still earns
+   at least as much room as a pointer one) - kept as its own rule rather
+   than folded into the base so a future desktop-only change here doesn't
+   need to be re-checked against mobile too. */
 @media (max-width: 640px) {
-  .app-sibling { inline-size: 4rem; block-size: 4rem; font-size: 2.3rem; }
+  .app-sibling { inline-size: 4.6rem; }
+  .app-sibling-icon { font-size: 2.3rem; }
+}
+
+/* Colorblind/low-vision high-contrast theme: emoji glyphs are pre-rendered
+   full-color pixels, not CSS colors, so the --accent/--card variable
+   overrides above have no effect on them at all - grayscale(1) is the only
+   way to actually desaturate them, same principle as the theme's own name
+   (zebra: no hue anywhere, not even in the icons). */
+[data-theme="zebra"] .app-icon,
+[data-theme="zebra"] .app-sibling-icon,
+[data-theme="zebra"] .theme-pick button {
+  filter: grayscale(1);
 }
 
 /* ---------- "continue" disclosure past the portals ----------
@@ -1273,8 +1291,9 @@ a:focus-visible, button:focus-visible {
 /* Section titles and card/portal names carry the "fashion editorial" voice:
    serif, tracked, quiet weight. Everything that is UI chrome (buttons,
    tags, labels) stays sans but gains the same tracking instead - that
-   split is what a fashion-house site actually looks like. */
-[data-theme="fashion"] header.site h1,
+   split is what a fashion-house site actually looks like. Header h1 used
+   to be in this list too - split out below, since app pages now opt out
+   of the whole fashion header treatment, this one included. */
 [data-theme="fashion"] .section,
 [data-theme="fashion"] .card h3, [data-theme="fashion"] .card h3 a,
 [data-theme="fashion"] .p-name, [data-theme="fashion"] .ck-title,
@@ -1285,24 +1304,22 @@ a:focus-visible, button:focus-visible {
   letter-spacing: .03em;
 }
 
-/* Flat, high-contrast header per request - replaces the shine/gradient-text
-   look above and the striped background this theme inherited from
-   body.accidents-page/committees-page/etc by default. That page-specific
-   striped rule is (0,2,2) specificity (body+class+header+class); the plain
-   [data-theme="fashion"] header.site selector alone is only (0,2,1) and
-   would silently lose to it, so the second selector below repeats
-   body.accidents-page explicitly to win outright rather than relying on
-   source order. Same reasoning applies to h1 - text-decoration/background/
-   animation are reset with real values, not just omitted, since the
-   earlier rule already set them and CSS cascade doesn't "un-set" on its own. */
-[data-theme="fashion"] header.site,
-[data-theme="fashion"] body.accidents-page header.site {
+/* Flat, high-contrast editorial header - by request, but ONLY for the
+   hub pages (index.html/apps.html, neither carries body.accidents-page).
+   Every individual app page (body.accidents-page - accidents/area-cleanup/
+   blue-lines/committees/companies/local-finance/tree-canopy/welfare/
+   trip-report) explicitly opts back out to the plain day-theme header,
+   same font included: picking night on an app page shouldn't also change
+   its header's look or size (the 1.8rem h1 below read as "everything got
+   bigger" - it was the one part of the page that actually did). */
+[data-theme="fashion"] body:not(.accidents-page) header.site {
   background: #1e1e1e;
   background-image: none;
   border-block-end: 1px solid #333333;
   box-shadow: none;
 }
-[data-theme="fashion"] header.site h1 {
+[data-theme="fashion"] body:not(.accidents-page) header.site h1 {
+  font-family: var(--font-display);
   text-transform: none;
   letter-spacing: normal;
   background: none;
@@ -1314,7 +1331,7 @@ a:focus-visible, button:focus-visible {
   font-size: 1.8rem;
   font-weight: 700;
 }
-[data-theme="fashion"] header.site a {
+[data-theme="fashion"] body:not(.accidents-page) header.site a {
   text-transform: uppercase;
   font-size: .72rem;
   letter-spacing: .08em;
@@ -1323,9 +1340,9 @@ a:focus-visible, button:focus-visible {
      rule below, so this needs to declare color explicitly to win it back. */
   color: var(--accent);
 }
-[data-theme="fashion"] header.site .site-by { color: #ffd54f; font-size: 1.1rem; }
+[data-theme="fashion"] body:not(.accidents-page) header.site .site-by { color: #ffd54f; font-size: 1.1rem; }
 [data-theme="fashion"] .meta { color: #b0bec5; }
-[data-theme="fashion"] header.site .meta { color: #b0bec5; }
+[data-theme="fashion"] body:not(.accidents-page) header.site .meta { color: #b0bec5; }
 [data-theme="fashion"] .theme-pick button {
   background: #333333;
   color: #ffffff;
@@ -1333,16 +1350,17 @@ a:focus-visible, button:focus-visible {
   border-radius: 16px;
   padding: 4px 12px;
 }
-/* Wins back the fashion look inside the header specifically - the light
-   header.site .theme-pick rules above are (0,2,2)/(0,3,2), higher than the
-   plain fashion rules here, so without this fashion's dark pill would get
-   overridden by the light-header treatment while this theme is active. */
-[data-theme="fashion"] header.site .theme-pick button {
+/* Wins back the fashion look inside the (non-app-page) header specifically -
+   the light header.site .theme-pick rules above are (0,2,2)/(0,3,2), higher
+   than the plain fashion rules here, so without this fashion's dark pill
+   would get overridden by the light-header treatment while this theme is
+   active. */
+[data-theme="fashion"] body:not(.accidents-page) header.site .theme-pick button {
   background: #333333;
   color: #ffffff;
   border-color: #555555;
 }
-[data-theme="fashion"] header.site .theme-pick button[aria-pressed="true"] {
+[data-theme="fashion"] body:not(.accidents-page) header.site .theme-pick button[aria-pressed="true"] {
   background: var(--accent);
   color: var(--bg);
   border-color: var(--accent);
@@ -1743,6 +1761,12 @@ body.accidents-page header.site h1 { inline-size: 100%; }
 }
 .lead-details[open] summary { margin-block-end: .6rem; }
 
+/* apps.html's embed snippet: the <pre> scrolls on its own (already had
+   overflow-x:auto inline) so the copy button stays put beside it rather
+   than sliding out of view with a long iframe line. */
+.embed-code-wrap { display: flex; align-items: flex-start; gap: .6rem; flex-wrap: wrap; }
+.embed-code-wrap pre { flex: 1 1 auto; min-inline-size: 0; margin: 0; }
+
 /* apps.html only: the intro collapses on mobile only, not desktop - unlike
    tree-canopy.html's own .lead-details, which collapses on every width.
    Desktop forces the paragraph open and hides the now-redundant toggle,
@@ -1920,13 +1944,16 @@ body.accidents-page header.site h1 { inline-size: 100%; }
 /* Civic-category pages only (.civic-app-page - accidents.html,
    area-cleanup.html, trip-report.html; tree-plans/trees are external, no
    local page to mark), mobile only: the app-context strip (category
-   siblings, normally 4rem/2.3rem everywhere else - see .app-sibling's own
+   siblings, normally 4.6rem/2.3rem everywhere else - see .app-sibling's own
    base rule) shrinks 30% here, matching trip-report.html's own original
    treatment (a driving screen a visitor is about to use hands-free
    shouldn't linger on this strip) - extended to the whole category so
-   every civic app agrees on the same mobile weight for it. */
+   every civic app agrees on the same mobile weight for it. The caption
+   stays legible rather than shrinking with it - it's the part doing the
+   identifying work now that the icon is smaller. */
 @media (max-width: 640px) {
-  .civic-app-page .app-sibling { inline-size: 2.8rem; block-size: 2.8rem; font-size: 1.61rem; }
+  .civic-app-page .app-sibling { inline-size: 3.2rem; }
+  .civic-app-page .app-sibling-icon { font-size: 1.61rem; }
 }
 </style>
 </head>
@@ -1958,14 +1985,19 @@ body.accidents-page header.site h1 { inline-size: 100%; }
       <div id="apps"></div>
 
       <section class="acc-section" aria-labelledby="embedH">
-        <h2 id="embedH">הטמעה באתר אחר</h2>
-        <p class="lead" dir="auto">
-          רוצים את רשימת האפליקציות הזו - כולל עתידיות - באתר משלכם, למשל בלוק "Custom HTML" ב-WordPress?
-          <a href="./dist/wordpress-embed.html">dist/wordpress-embed.html</a> היא גרסה עצמאית של הרשת
-          שלמעלה בדיוק לכך, שנראית זהה ומתעדכנת אוטומטית בכל שינוי ב<a href="./apis.json">apis.json</a>.
-          הדרך הפשוטה ביותר - iframe שתמיד מציג את הגרסה החיה, בלי צורך להדביק מחדש כשמתווספת אפליקציה:
-        </p>
-        <pre dir="ltr" style="overflow-x:auto"><code>&lt;iframe src="https://agmonr.github.io/govapiportal/dist/wordpress-embed.html" loading="lazy" style="width:100%;border:0;min-height:900px" title="כל האפליקציות"&gt;&lt;/iframe&gt;</code></pre>
+        <details class="lead-details">
+          <summary id="embedH">הטמעה באתר אחר</summary>
+          <p class="lead" dir="auto">
+            רוצים את רשימת האפליקציות הזו - כולל עתידיות - באתר משלכם, למשל בלוק "Custom HTML" ב-WordPress?
+            <a href="./dist/wordpress-embed.html">dist/wordpress-embed.html</a> היא גרסה עצמאית של הרשת
+            שלמעלה בדיוק לכך, שנראית זהה ומתעדכנת אוטומטית בכל שינוי ב<a href="./apis.json">apis.json</a>.
+            הדרך הפשוטה ביותר - iframe שתמיד מציג את הגרסה החיה, בלי צורך להדביק מחדש כשמתווספת אפליקציה:
+          </p>
+          <div class="embed-code-wrap">
+            <pre dir="ltr" style="overflow-x:auto"><code id="embedCode">&lt;iframe src="https://agmonr.github.io/govapiportal/dist/wordpress-embed.html" loading="lazy" style="width:100%;border:0;min-height:900px" title="כל האפליקציות"&gt;&lt;/iframe&gt;</code></pre>
+            <button type="button" id="embedCopyBtn" class="drill-dl">העתקה ⧉</button>
+          </div>
+        </details>
       </section>
     </div>
   </main>
@@ -2242,16 +2274,19 @@ function renderAppContext(node, apps, currentId) {
 
   const homeHtml = `
     <a class="app-sibling" href="./apps.html" title="כל האפליקציות" dir="auto">
-      <span aria-hidden="true">🏠</span>
+      <span class="app-sibling-icon" aria-hidden="true">🏠</span>
+      <span class="app-sibling-label">כל האפליקציות</span>
     </a>`;
 
   const siblingsHtml = inCategory.map((a) => (a.id === currentId
     ? `<span class="app-sibling app-sibling-current" title="${esc(a.name_he)}" aria-current="page" dir="auto">
-         <span aria-hidden="true">${APP_ICON[a.id] || '🔗'}</span>
+         <span class="app-sibling-icon" aria-hidden="true">${APP_ICON[a.id] || '🔗'}</span>
+         <span class="app-sibling-label">${esc(a.name_he)}</span>
        </span>`
     : `<a class="app-sibling" href="${esc(a.href)}"${a.external ? ' target="_blank" rel="noopener"' : ''}
          title="${esc(a.name_he)}" dir="auto">
-         <span aria-hidden="true">${APP_ICON[a.id] || '🔗'}</span>
+         <span class="app-sibling-icon" aria-hidden="true">${APP_ICON[a.id] || '🔗'}</span>
+         <span class="app-sibling-label">${esc(a.name_he)}</span>
        </a>`)).join('');
 
   node.innerHTML = `
@@ -2271,6 +2306,24 @@ function renderAppContext(node, apps, currentId) {
 
 
 initThemePicker(el('themePick'));
+
+/** Copies the embed <iframe> snippet as plain text - Clipboard API, no
+ * fallback textarea/execCommand: every browser this site otherwise targets
+ * (Chrome/Edge/Firefox/Safari, all recent enough for the rest of the JS
+ * here) already supports navigator.clipboard.writeText over https/localhost. */
+const embedCopyBtn = el('embedCopyBtn');
+if (embedCopyBtn) {
+  const prevLabel = embedCopyBtn.textContent;
+  embedCopyBtn.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(el('embedCode').textContent);
+      embedCopyBtn.textContent = 'הועתק ✓';
+    } catch {
+      embedCopyBtn.textContent = 'ההעתקה נכשלה - יש להעתיק ידנית';
+    }
+    setTimeout(() => { embedCopyBtn.textContent = prevLabel; }, 2000);
+  });
+}
 
 async function load() {
   try {

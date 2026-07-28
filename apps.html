@@ -57,14 +57,19 @@
       <div id="apps"></div>
 
       <section class="acc-section" aria-labelledby="embedH">
-        <h2 id="embedH">הטמעה באתר אחר</h2>
-        <p class="lead" dir="auto">
-          רוצים את רשימת האפליקציות הזו - כולל עתידיות - באתר משלכם, למשל בלוק "Custom HTML" ב-WordPress?
-          <a href="./dist/wordpress-embed.html">dist/wordpress-embed.html</a> היא גרסה עצמאית של הרשת
-          שלמעלה בדיוק לכך, שנראית זהה ומתעדכנת אוטומטית בכל שינוי ב<a href="./apis.json">apis.json</a>.
-          הדרך הפשוטה ביותר - iframe שתמיד מציג את הגרסה החיה, בלי צורך להדביק מחדש כשמתווספת אפליקציה:
-        </p>
-        <pre dir="ltr" style="overflow-x:auto"><code>&lt;iframe src="https://agmonr.github.io/govapiportal/dist/wordpress-embed.html" loading="lazy" style="width:100%;border:0;min-height:900px" title="כל האפליקציות"&gt;&lt;/iframe&gt;</code></pre>
+        <details class="lead-details">
+          <summary id="embedH">הטמעה באתר אחר</summary>
+          <p class="lead" dir="auto">
+            רוצים את רשימת האפליקציות הזו - כולל עתידיות - באתר משלכם, למשל בלוק "Custom HTML" ב-WordPress?
+            <a href="./dist/wordpress-embed.html">dist/wordpress-embed.html</a> היא גרסה עצמאית של הרשת
+            שלמעלה בדיוק לכך, שנראית זהה ומתעדכנת אוטומטית בכל שינוי ב<a href="./apis.json">apis.json</a>.
+            הדרך הפשוטה ביותר - iframe שתמיד מציג את הגרסה החיה, בלי צורך להדביק מחדש כשמתווספת אפליקציה:
+          </p>
+          <div class="embed-code-wrap">
+            <pre dir="ltr" style="overflow-x:auto"><code id="embedCode">&lt;iframe src="https://agmonr.github.io/govapiportal/dist/wordpress-embed.html" loading="lazy" style="width:100%;border:0;min-height:900px" title="כל האפליקציות"&gt;&lt;/iframe&gt;</code></pre>
+            <button type="button" id="embedCopyBtn" class="drill-dl">העתקה ⧉</button>
+          </div>
+        </details>
       </section>
     </div>
   </main>
