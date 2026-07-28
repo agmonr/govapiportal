@@ -1791,6 +1791,9 @@ body.accidents-page header.site h1 { inline-size: 100%; }
 }
 .tr-vehicle-opt:has(input:checked) { border-color: var(--accent); background: var(--surface); }
 .tr-start-btn { font-size: 1.1rem; padding: .8rem 2rem; }
+.tr-bus-line-row { text-align: center; margin-block-end: 1rem; }
+.tr-bus-line-row input { width: 6rem; padding: .3rem .5rem; margin-inline-start: .3rem; }
+.tr-bus-line-row .acc-hint { display: block; margin-top: .3rem; }
 
 .tr-topbar {
   display: flex; flex-wrap: wrap; gap: 1rem; justify-content: center; align-items: baseline;
@@ -1798,6 +1801,19 @@ body.accidents-page header.site h1 { inline-size: 100%; }
 }
 .tr-badge { font-size: 1.1rem; }
 .tr-speed-now { font-size: 1.8rem; color: var(--accent); }
+.tr-start-time { font-size: .85rem; color: var(--muted); font-weight: 400; }
+.tr-screen-warning { text-align: center; font-size: .85rem; color: var(--muted); margin-block-end: .8rem; }
+
+/* Icon-only pause/stop - a driving screen is glanced at, not read; a bare
+   glyph this size reads faster than a labelled pill button would. */
+.tr-icon-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 4.5rem; height: 4.5rem; border-radius: 50%; font-size: 2.2rem; line-height: 1;
+  border: 2px solid var(--border); background: var(--card); cursor: pointer;
+  transition: transform .15s ease, border-color .15s ease;
+}
+.tr-icon-btn:hover:not(:disabled) { border-color: var(--accent); transform: scale(1.08); }
+.tr-newtrip-btn { font-size: 1.3rem; padding: .9rem 1.8rem; }
 
 /* Conic-gradient dial - plain CSS, no chart library, matching every other
    visual on this site. --score-deg (set in JS on every render) is the score
@@ -1820,6 +1836,11 @@ body.accidents-page header.site h1 { inline-size: 100%; }
   display: flex; flex-direction: column; align-items: center; justify-content: center;
 }
 .tr-score-inner #trScoreNum { font-size: 2.4rem; font-weight: 700; line-height: 1; }
+/* Calm, silent "an event just logged" feedback - a brief ring pulse on the
+   gauge already on screen, not a new element and not a color anyone would
+   mistake for the score itself changing color. */
+@keyframes tr-pulse { 0%, 100% { box-shadow: none; } 35% { box-shadow: 0 0 0 10px rgba(221, 0, 0, 0.35); } }
+.tr-score-pulse { animation: tr-pulse 1.4s ease; }
 .tr-score-max { font-size: .8rem; color: var(--muted); }
 .tr-score-meta { max-width: 26rem; }
 .tr-score-label { font-size: 1.2rem; font-weight: 700; }
@@ -1857,6 +1878,22 @@ body.accidents-page header.site h1 { inline-size: 100%; }
 }
 .tr-ev-type { font-weight: 600; }
 .tr-ev-time { color: var(--muted); font-variant-numeric: tabular-nums; }
+
+.tr-history-list { list-style: none; padding: 0; margin: 0 0 1.5rem; }
+.tr-history-item {
+  border: 1px solid var(--border); border-radius: .6rem; padding: .8rem 1rem; margin-block-end: .8rem;
+}
+.tr-history-info { display: flex; flex-wrap: wrap; gap: .6rem; justify-content: space-between; margin-block-end: .6rem; }
+.tr-history-date { font-weight: 600; }
+
+/* This page only, mobile only: the app-context strip (category siblings,
+   normally 4rem/2.3rem everywhere else - see .app-sibling's own base rule)
+   shrinks 30% here, since on a phone this strip sits above a driving
+   screen a visitor is about to use hands-free, not a browsing one it's
+   worth lingering on. */
+@media (max-width: 640px) {
+  .trip-report-page .app-sibling { inline-size: 2.8rem; block-size: 2.8rem; font-size: 1.61rem; }
+}
 </style>
 </head>
 <body class="apps-page">

@@ -1,9 +1,8 @@
 /**
  * דוח נסיעה - live vehicle monitoring. GPS + accelerometer -> a driving
- * score and route map, computed entirely client-side. See CLAUDE-adjacent
- * spec discussion: this file deliberately covers only the MVP + OSM slice
- * (no PDF export, no Service Worker background tracking, no IndexedDB) -
- * those were explicitly deferred, not forgotten.
+ * score and route map, computed entirely client-side. Scope is still MVP +
+ * OSM + PDF/raw-data export - no background Service Worker tracking, no
+ * IndexedDB trip history - those remain explicitly deferred, not forgotten.
  *
  * ---------- why harsh-event direction (brake vs accelerate) isn't read
  * straight off the accelerometer sign ----------
@@ -23,6 +22,8 @@ import { initThemePicker } from './theme.js';
 import { renderAppContext, loadAppsData } from './apps.js';
 import { getSpeedLimitAt } from './trip-speed-limits.js';
 import { createTripMap } from './trip-map.js';
+import { buildPdf, downloadBlob } from './pdf.js';
+import { saveTripToHistory, listTripHistory, deleteTripFromHistory } from './trip-history.js';
 import {
   computeScore, scoreBand, speedZoneDistribution, SPEED_BANDS, SCORE_EXPLANATION, violationSeverity,
 } from './trip-score.js';
@@ -57,6 +58,32 @@ function formatDuration(ms) {
   return h ? `${h}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}` : `${m}:${String(sec).padStart(2, '0')}`;
 }
 
+function formatStartTime(ms) {
+  return new Date(ms).toLocaleString('he-IL', {
+    day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
+  });
+}
+
+/** date/time/vehicle-type filename stem, shared by the PDF and JSON
+ * exports - spec's own `trip_[YYYY-MM-DD]_[HH-MM-SS]_[vehicletype]` format. */
+function tripFilenameBase(t) {
+  const d = new Date(t.startTime);
+  const pad = (n) => String(n).padStart(2, '0');
+  const date = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const time = `${pad(d.getHours())}-${pad(d.getMinutes())}-${pad(d.getSeconds())}`;
+  return `trip_${date}_${time}_${t.vehicleType}`;
+}
+
+/** Hides (driving) / restores (setup, complete) the site header and the
+ * app-context sibling strip - a screen meant to be glanced at hands-free
+ * while moving shouldn't also be a page you could navigate away from by
+ * accident, and the extra chrome is one more thing competing for
+ * attention it doesn't need while a trip is actually running. */
+function setChromeVisible(visible) {
+  el('trSiteHeader').hidden = !visible;
+  el('appContext').hidden = !visible;
+}
+
 /* ---------- trip state ---------- */
 
 let trip = null;
@@ -68,20 +95,65 @@ let activeMs = 0;
 let lastTickAt = null;
 let motionAvailable = false;
 let gravity = null;
+let accelSensor = null;
 let lastEventAt = 0;
 let violationState = { active: false };
 let storageDegraded = false;
+let wakeLock = null;
+let historyMode = false;
 
-function newTrip(vehicleType) {
+/** Best-effort - GPS + accelerometer tracking is useless if the OS locks
+ * the screen mid-trip and suspends the tab; the on-screen reminder (see
+ * trip-report.html's .tr-screen-warning) covers browsers/situations where
+ * this API isn't available or the lock gets silently released (e.g. the
+ * visibility change docs describe), but this makes the common case need no
+ * reminder at all. Never throws - a rejected request just means the
+ * reminder text is now doing all the work, same as browsers without the
+ * API at all. */
+async function acquireWakeLock() {
+  try {
+    if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen');
+  } catch (err) {
+    console.warn('trip-report: wake lock unavailable', err);
+  }
+}
+
+async function releaseWakeLock() {
+  try {
+    await wakeLock?.release();
+  } catch { /* already released or never acquired - nothing to do */ }
+  wakeLock = null;
+}
+
+function newTrip(vehicleType, busLine) {
   return {
     tripId: uid(),
     startTime: Date.now(),
     endTime: null,
     vehicleType,
+    busLine: busLine || null,
+    city: null,
     status: 'active',
     points: [],
     events: [],
   };
+}
+
+/** Nominatim reverse geocode - lat/lon -> a city name, same OSM service
+ * (forward direction) blue-lines.js/area-cleanup.js already use for address
+ * search. Fired once per bus trip (see onPosition's first-fix check), not
+ * on every fix - a city doesn't change fix-to-fix, and Nominatim's usage
+ * policy is 1 request/second, not a live-tracking budget. */
+const NOMINATIM_REVERSE = 'https://nominatim.openstreetmap.org/reverse';
+async function reverseGeocodeCity(lat, lon) {
+  const params = new URLSearchParams({
+    lat, lon, format: 'jsonv2', 'accept-language': 'he', zoom: '10',
+  });
+  const res = await fetch(`${NOMINATIM_REVERSE}?${params}`);
+  if (!res.ok) throw new Error(`Nominatim HTTP ${res.status}`);
+  const data = await res.json();
+  const a = data.address || {};
+  return a.city || a.town || a.village || a.municipality || null;
 }
 
 function recentSpeedTrendKmhPerS() {
@@ -93,17 +165,49 @@ function recentSpeedTrendKmhPerS() {
   return dtS > 0 ? (b.speedKmh - a.speedKmh) / dtS : null;
 }
 
+/** Calm, silent feedback for a just-logged event - a brief color pulse on
+ * the score gauge (already on screen, so this adds no new visual element)
+ * plus a vibration where supported. Deliberately NOT sound or a flashing
+ * full-screen takeover: those would be a bigger distraction, mid-drive,
+ * than the event they're reacting to. */
+function pulseAlert() {
+  const gauge = el('trScoreGauge');
+  if (!gauge) return;
+  gauge.classList.remove('tr-score-pulse');
+  // eslint-disable-next-line no-void
+  void gauge.offsetWidth; // restart the CSS animation if it's still running from a previous event
+  gauge.classList.add('tr-score-pulse');
+  if (navigator.vibrate) navigator.vibrate(200);
+}
+
 function logHarshEvent(type, magnitude) {
   const last = trip.points[trip.points.length - 1];
   trip.events.push({
     eventId: uid(), t: Date.now(), lat: last?.lat, lon: last?.lon, type, magnitude,
   });
   lastEventAt = Date.now();
+  pulseAlert();
   renderAll();
 }
 
-function onMotion(e) {
+/** Shared by both sensor sources below (Generic Sensor API and the
+ * DeviceMotionEvent fallback) - same threshold/cooldown/GPS-trend-direction
+ * logic regardless of which API actually supplied the sample. `ax/ay/az`
+ * must already be gravity-compensated (linear acceleration only). */
+function handleAccelSample(ax, ay, az) {
   if (!trip || trip.status !== 'active') return;
+  motionAvailable = true;
+  const magnitude = Math.sqrt(ax * ax + ay * ay + az * az);
+  const now = Date.now();
+  if (magnitude < HARSH_ACCEL_MPS2 || now - lastEventAt < EVENT_COOLDOWN_MS) return;
+
+  const trend = recentSpeedTrendKmhPerS();
+  if (trend == null) return;
+  if (trend <= -SPEED_TREND_THRESHOLD_KMH_S) logHarshEvent('brake', -magnitude);
+  else if (trend >= SPEED_TREND_THRESHOLD_KMH_S) logHarshEvent('accel', magnitude);
+}
+
+function onMotion(e) {
   let ax, ay, az;
   if (e.acceleration && e.acceleration.x != null) {
     ({ x: ax, y: ay, z: az } = e.acceleration);
@@ -117,16 +221,59 @@ function onMotion(e) {
     }
     ax = g.x - gravity.x; ay = g.y - gravity.y; az = g.z - gravity.z;
   } else return;
+  handleAccelSample(ax, ay, az);
+}
 
-  motionAvailable = true;
-  const magnitude = Math.sqrt(ax * ax + ay * ay + az * az);
-  const now = Date.now();
-  if (magnitude < HARSH_ACCEL_MPS2 || now - lastEventAt < EVENT_COOLDOWN_MS) return;
-
-  const trend = recentSpeedTrendKmhPerS();
-  if (trend == null) return;
-  if (trend <= -SPEED_TREND_THRESHOLD_KMH_S) logHarshEvent('brake', -magnitude);
-  else if (trend >= SPEED_TREND_THRESHOLD_KMH_S) logHarshEvent('accel', magnitude);
+/** Generic Sensor API (LinearAccelerationSensor/Accelerometer) - Chrome/
+ * Android only today, no Safari/iOS support at all, which is why this is a
+ * preferred path attempted FIRST rather than a replacement for the
+ * DeviceMotionEvent fallback below: startTrip() falls back to devicemotion
+ * whenever this returns false. LinearAccelerationSensor (gravity already
+ * removed by the platform) is preferred over the raw Accelerometer class,
+ * which - like accelerationIncludingGravity - needs this file's own
+ * gravity low-pass filter. Returns whether it actually started; never
+ * throws (a permission denial or missing Permissions-Policy is exactly the
+ * "fall back to devicemotion" case, not an error to surface). */
+async function startAccelerometer() {
+  const SensorClass = window.LinearAccelerationSensor || window.Accelerometer;
+  if (!SensorClass) return false;
+  const isLinear = SensorClass === window.LinearAccelerationSensor;
+  try {
+    if (navigator.permissions?.query) {
+      const status = await navigator.permissions.query({ name: 'accelerometer' });
+      if (status.state === 'denied') return false;
+    }
+    const sensor = new SensorClass({ frequency: 30 });
+    let sensorGravity = null;
+    sensor.addEventListener('reading', () => {
+      if (isLinear) { handleAccelSample(sensor.x, sensor.y, sensor.z); return; }
+      if (!sensorGravity) sensorGravity = { x: sensor.x, y: sensor.y, z: sensor.z };
+      else {
+        sensorGravity.x = sensorGravity.x * GRAVITY_ALPHA + sensor.x * (1 - GRAVITY_ALPHA);
+        sensorGravity.y = sensorGravity.y * GRAVITY_ALPHA + sensor.y * (1 - GRAVITY_ALPHA);
+        sensorGravity.z = sensorGravity.z * GRAVITY_ALPHA + sensor.z * (1 - GRAVITY_ALPHA);
+      }
+      handleAccelSample(sensor.x - sensorGravity.x, sensor.y - sensorGravity.y, sensor.z - sensorGravity.z);
+    });
+    sensor.addEventListener('error', (ev) => {
+      console.warn('trip-report: accelerometer sensor error', ev.error);
+      // start() can resolve without throwing even when no physical sensor
+      // ever answers (e.g. desktop Chrome, no hardware) - the failure only
+      // shows up here, asynchronously. No devicemotion fallback is wired
+      // up at this point (startAccelerometer already reported success), but
+      // checkGpsOnlyHarshEvent()'s own motionAvailable guard already covers
+      // this case functionally - this notice is purely so the driver knows
+      // detection is running on GPS alone, not silently degraded.
+      if (!motionAvailable) showNotice('trPermStatus', 'לא ניתן להתחבר לחיישן התאוצה - זיהוי בלימות/האצות חדות יתבסס על מהירות ה-GPS בלבד.', 'info');
+    });
+    sensor.start();
+    accelSensor = sensor;
+    return true;
+  } catch (err) {
+    console.warn('trip-report: Generic Sensor API accelerometer unavailable', err);
+    accelSensor = null;
+    return false;
+  }
 }
 
 /** Only runs when no accelerometer data has ever arrived (denied permission,
@@ -170,10 +317,11 @@ function closeViolation(atT) {
       lat: violationState.lat,
       lon: violationState.lon,
       type: 'violation',
-      severity: violationSeverity(percentOver),
+      severity: violationSeverity(percentOver, durationMs),
       durationMs,
       data: { percentOver },
     });
+    pulseAlert();
   }
   violationState = { active: false };
 }
@@ -197,6 +345,12 @@ function onPosition(position) {
   checkGpsOnlyHarshEvent();
   tripMap.update(trip.points, trip.events, { lat, lon });
   renderAll();
+
+  if (trip.vehicleType === 'bus' && !trip.city && trip.points.length === 1) {
+    reverseGeocodeCity(lat, lon)
+      .then((city) => { if (city) { trip.city = city; renderAll(); } })
+      .catch(() => {});
+  }
 
   getSpeedLimitAt(lat, lon).then((res) => {
     if (res) { point.limitKmh = res.kmh; point.limitSource = res.source; }
@@ -304,6 +458,16 @@ function renderStatsPanel(stats) {
   el('trSpeedLimit').textContent = last?.limitKmh != null ? Math.round(last.limitKmh) : '—';
 }
 
+function renderBusInfo() {
+  const node = el('trBusInfo');
+  if (trip.vehicleType !== 'bus') { node.hidden = true; return; }
+  const parts = [];
+  if (trip.busLine) parts.push(`קו ${trip.busLine}`);
+  if (trip.city) parts.push(trip.city);
+  node.textContent = parts.join(' · ');
+  node.hidden = parts.length === 0;
+}
+
 function renderAll() {
   if (!trip) return;
   const stats = computeStats();
@@ -311,12 +475,13 @@ function renderAll() {
   renderScoreGauge(score);
   renderProblemMeter(stats);
   renderStatsPanel(stats);
+  renderBusInfo();
 }
 
 /* ---------- screens ---------- */
 
 function showScreen(name) {
-  ['Setup', 'Active', 'Complete'].forEach((s) => {
+  ['Setup', 'Active', 'Complete', 'History'].forEach((s) => {
     el(`trScreen${s}`).hidden = s.toLowerCase() !== name;
   });
 }
@@ -325,20 +490,269 @@ function renderCompleteScreen() {
   const stats = computeStats();
   const score = computeScore(trip.events);
   const band = scoreBand(score);
+  const busLine = trip.vehicleType === 'bus' && (trip.busLine || trip.city)
+    ? ` (${[trip.busLine ? `קו ${trip.busLine}` : null, trip.city].filter(Boolean).join(' · ')})` : '';
   el('trCompleteSummary').innerHTML = `
     <p class="tr-complete-score ${band.cls}">ציון הנסיעה: <strong>${score}</strong> - ${esc(band.label)}</p>
-    <p>${trip.vehicleType === 'bus' ? 'אוטובוס' : 'רכב פרטי'} · ${formatDuration(stats.durationMs)} · ${(stats.distanceM / 1000).toFixed(2)} ק"מ</p>
+    <p>${trip.vehicleType === 'bus' ? 'אוטובוס' : 'רכב פרטי'}${esc(busLine)} · התחלה: ${esc(formatStartTime(trip.startTime))}</p>
+    <p>${formatDuration(stats.durationMs)} · ${(stats.distanceM / 1000).toFixed(2)} ק"מ</p>
     <p>מהירות מרבית: ${Math.round(stats.maxSpeedKmh)} קמ"ש · ממוצעת: ${Math.round(stats.avgSpeedKmh)} קמ"ש</p>
-    <p>חריגות מהירות: ${stats.violations.length} · בלימות חדות: ${stats.brakes.length} · האצות חדות: ${stats.accels.length}</p>`;
+    <p>חריגות מהירות: ${stats.violations.length}</p>
+    <p>בלימות חדות: ${stats.brakes.length} · האצות חדות: ${stats.accels.length}</p>`;
 
   const sorted = [...trip.events].sort((a, b) => a.t - b.t);
   const typeLabel = { brake: '🟣 בלימה חדה', accel: '🔵 האצה חדה', violation: '🔴 חריגת מהירות' };
   el('trEventLog').innerHTML = sorted.length ? sorted.map((e) => `
     <li>
-      <span class="tr-ev-type">${typeLabel[e.type] || e.type}</span>
+      <span class="tr-ev-type">${typeLabel[e.type] || e.type}${e.severity === 'sustained' ? ' ממושכת' : ''}</span>
       <span class="tr-ev-time">${new Date(e.t).toLocaleTimeString('he-IL')}</span>
       ${e.type === 'violation' ? `<span>${e.data.percentOver}% מעל המותר, ${Math.round(e.durationMs / 1000)} שנ'</span>` : ''}
     </li>`).join('') : '<li class="acc-hint">לא נרשמו אירועים בנסיעה זו.</li>';
+}
+
+/* ---------- trip history (view / export / delete past rides) ---------- */
+
+/** Loads `record` as the "current" trip purely for review/export - never a
+ * live trip (no watchers/timers attached, no localStorage write) - reuses
+ * renderCompleteScreen()/exportTripPdf()/exportTripJson() as-is rather than
+ * duplicating them, since all three already just read the module-level
+ * `trip` variable. historyMode gates the PDF's map page (see
+ * buildTripPdfBlob) since #trCanvas belongs to whichever trip was last
+ * actively driven, not necessarily this one. */
+function viewHistoryTrip(record) {
+  trip = record;
+  historyMode = true;
+  renderCompleteScreen();
+  el('trBackToHistory').hidden = false;
+  showScreen('complete');
+}
+
+function renderHistoryList() {
+  listTripHistory().then((records) => {
+    const list = el('trHistoryList');
+    if (!records.length) { list.innerHTML = '<li class="acc-hint">אין עדיין נסיעות שמורות.</li>'; return; }
+    list.innerHTML = records.map((r) => {
+      const score = computeScoreFor(r);
+      const distanceKm = totalDistanceFor(r);
+      const busLine = r.vehicleType === 'bus' && (r.busLine || r.city)
+        ? ` · ${[r.busLine ? `קו ${r.busLine}` : null, r.city].filter(Boolean).join(' · ')}` : '';
+      return `
+        <li class="tr-history-item" data-trip-id="${esc(r.tripId)}">
+          <div class="tr-history-info">
+            <span class="tr-history-date">${esc(formatStartTime(r.startTime))}</span>
+            <span>${r.vehicleType === 'bus' ? 'אוטובוס' : 'רכב פרטי'}${esc(busLine)} · ${distanceKm} ק"מ · ציון ${score}</span>
+          </div>
+          <div class="fin-export-row">
+            <button type="button" class="drill-dl tr-hist-view">👁 צפייה</button>
+            <button type="button" class="drill-dl tr-hist-pdf">📄 PDF</button>
+            <button type="button" class="drill-dl tr-hist-json">⬇ JSON</button>
+            <button type="button" class="drill-dl tr-hist-delete">🗑 מחיקה</button>
+          </div>
+        </li>`;
+    }).join('');
+
+    list.querySelectorAll('.tr-history-item').forEach((li) => {
+      const tripId = li.dataset.tripId;
+      const record = records.find((r) => r.tripId === tripId);
+      li.querySelector('.tr-hist-view').addEventListener('click', () => viewHistoryTrip(record));
+      li.querySelector('.tr-hist-pdf').addEventListener('click', () => {
+        trip = record; historyMode = true;
+        exportTripPdf().catch((err) => console.warn('trip-report: history PDF export failed', err));
+      });
+      li.querySelector('.tr-hist-json').addEventListener('click', () => {
+        trip = record; historyMode = true;
+        exportTripJson();
+      });
+      const delBtn = li.querySelector('.tr-hist-delete');
+      delBtn.addEventListener('click', () => {
+        if (delBtn.dataset.armed) {
+          deleteTripFromHistory(tripId).then(renderHistoryList)
+            .catch((err) => console.warn('trip-report: delete from history failed', err));
+          return;
+        }
+        delBtn.dataset.armed = '1';
+        delBtn.textContent = 'למחוק בוודאות?';
+        setTimeout(() => { delBtn.dataset.armed = ''; delBtn.textContent = '🗑 מחיקה'; }, 3000);
+      });
+    });
+  }).catch((err) => {
+    el('trHistoryList').innerHTML = `<li class="notice error">טעינת ההיסטוריה נכשלה: ${esc(err.message)}</li>`;
+  });
+}
+
+/** computeStats()/computeScore() both read the module-level `trip` - these
+ * two one-line wrappers let the history list compute a score/distance per
+ * row without swapping `trip` in and out of scope for every row it draws. */
+function computeScoreFor(record) { return computeScore(record.events); }
+function totalDistanceFor(record) {
+  let m = 0;
+  for (let i = 1; i < record.points.length; i += 1) {
+    m += haversineM(record.points[i - 1].lat, record.points[i - 1].lon, record.points[i].lat, record.points[i].lon);
+  }
+  return (m / 1000).toFixed(1);
+}
+
+/* ---------- PDF / raw-data export ----------
+ * Same hand-rolled approach as area-cleanup.html/blue-lines.html (src/pdf.js
+ * - no jsPDF, no CDN): a JPEG-encoded canvas page for the map (the current
+ * #trCanvas snapshot, whatever it last drew - no separate re-render step),
+ * plus a second canvas page with the summary/event log rendered as text
+ * (a canvas already gets Hebrew right via the browser's own font stack,
+ * which this hand-written PDF writer has no font embedding to do itself). */
+
+function canvasToJpegBytes(canvas, quality = 0.85) {
+  return new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', quality))
+    .then((blob) => blob.arrayBuffer())
+    .then((buf) => new Uint8Array(buf));
+}
+
+function wrapText(ctx, text, maxWidth) {
+  const words = text.split(' ');
+  const lines = [];
+  let line = '';
+  for (const word of words) {
+    const test = line ? `${line} ${word}` : word;
+    if (ctx.measureText(test).width > maxWidth && line) { lines.push(line); line = word; } else line = test;
+  }
+  if (line) lines.push(line);
+  return lines;
+}
+
+function buildTripSummaryLines(stats, score, band) {
+  const busLine = trip.vehicleType === 'bus' && (trip.busLine || trip.city)
+    ? ` (${[trip.busLine ? `קו ${trip.busLine}` : null, trip.city].filter(Boolean).join(' · ')})` : '';
+  return [
+    `ציון הנסיעה: ${score} - ${band.label}`,
+    `${trip.vehicleType === 'bus' ? 'אוטובוס' : 'רכב פרטי'}${busLine}`,
+    `התחלה: ${formatStartTime(trip.startTime)}`,
+    `משך: ${formatDuration(stats.durationMs)} · מרחק: ${(stats.distanceM / 1000).toFixed(2)} ק"מ`,
+    `מהירות מרבית: ${Math.round(stats.maxSpeedKmh)} קמ"ש · ממוצעת: ${Math.round(stats.avgSpeedKmh)} קמ"ש`,
+    `חריגות מהירות: ${stats.violations.length}`,
+    `בלימות חדות: ${stats.brakes.length} · האצות חדות: ${stats.accels.length}`,
+    '',
+    'יומן אירועים:',
+    ...(trip.events.length ? [...trip.events].sort((a, b) => a.t - b.t).map((e) => {
+      const time = new Date(e.t).toLocaleTimeString('he-IL');
+      const type = { brake: 'בלימה חדה', accel: 'האצה חדה', violation: 'חריגת מהירות' }[e.type] || e.type;
+      const sustained = e.severity === 'sustained' ? ' ממושכת' : '';
+      const detail = e.type === 'violation' ? ` - ${e.data.percentOver}% מעל המותר, ${Math.round(e.durationMs / 1000)} שנ'` : '';
+      return `${time} - ${type}${sustained}${detail}`;
+    }) : ['לא נרשמו אירועים בנסיעה זו.']),
+  ];
+}
+
+/** Text-only PDF page: title + buildTripSummaryLines(), word-wrapped to the
+ * map page's own width so both pages read as one document. */
+function buildTripDataPageCanvas(stats, score, band) {
+  const width = 640;
+  const pad = 28;
+  const lineH = 24;
+  const titleH = 44;
+  const measurer = document.createElement('canvas').getContext('2d');
+  measurer.font = '15px sans-serif';
+  const rendered = buildTripSummaryLines(stats, score, band)
+    .flatMap((line) => (line === '' ? [''] : wrapText(measurer, line, width - pad * 2)));
+
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = titleH + pad * 2 + rendered.length * lineH;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.direction = 'rtl';
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'top';
+  ctx.fillStyle = '#2e7d46';
+  ctx.font = 'bold 19px sans-serif';
+  ctx.fillText('דוח נסיעה — סיכום', width - pad, pad);
+
+  let y = pad + titleH;
+  ctx.font = '15px sans-serif';
+  ctx.fillStyle = '#24331f';
+  for (const line of rendered) {
+    ctx.fillText(line, width - pad, y);
+    y += lineH;
+  }
+  return canvas;
+}
+
+async function buildTripPdfBlob() {
+  const stats = computeStats();
+  const score = computeScore(trip.events);
+  const band = scoreBand(score);
+  const mapCanvas = el('trCanvas');
+  const pages = [];
+  // historyMode: #trCanvas still shows whichever trip was last actively
+  // driven, not necessarily this one - including it here would silently
+  // attach the wrong route to a re-exported older trip's PDF.
+  if (!historyMode && mapCanvas.width && mapCanvas.height) {
+    pages.push({ jpegBytes: await canvasToJpegBytes(mapCanvas), width: mapCanvas.width, height: mapCanvas.height });
+  }
+  const dataCanvas = buildTripDataPageCanvas(stats, score, band);
+  pages.push({ jpegBytes: await canvasToJpegBytes(dataCanvas), width: dataCanvas.width, height: dataCanvas.height });
+  return buildPdf({ pages });
+}
+
+/** `silent`: true for the automatic on-stop download (no button-label
+ * feedback to restore - there is no button click to react to). */
+async function exportTripPdf({ silent = false } = {}) {
+  const btn = el('trExportPdf');
+  const prevLabel = btn?.textContent;
+  if (!silent && btn) { btn.disabled = true; btn.textContent = 'בונה PDF…'; }
+  try {
+    const pdfBlob = await buildTripPdfBlob();
+    downloadBlob(pdfBlob, `${tripFilenameBase(trip)}.pdf`);
+    return pdfBlob;
+  } finally {
+    if (!silent && btn) { btn.disabled = false; btn.textContent = prevLabel; }
+  }
+}
+
+/** Same navigator.share()-with-files-first, wa.me-fallback pattern as
+ * area-cleanup.js's shareToWhatsApp - WhatsApp registers as a native OS
+ * share target, so the PDF goes along as a real attachment wherever that's
+ * supported; wa.me is a plain link with no file-carrying capability at all,
+ * so on a desktop browser without file-sharing the PDF is downloaded first
+ * and the visitor attaches it by hand. */
+function canShareFiles(type) {
+  return !!(navigator.canShare && navigator.canShare({ files: [new File([], 'x', { type })] }));
+}
+
+async function shareTripToWhatsApp() {
+  const status = el('trExportStatus');
+  const filename = `${tripFilenameBase(trip)}.pdf`;
+  if (canShareFiles('application/pdf')) {
+    status.textContent = 'בונה PDF לשיתוף…';
+    try {
+      const pdfBlob = await buildTripPdfBlob();
+      const file = new File([pdfBlob], filename, { type: 'application/pdf' });
+      status.textContent = '';
+      await navigator.share({ files: [file] });
+    } catch (err) {
+      if (err.name !== 'AbortError') showNotice('trExportStatus', `שיתוף נכשל: ${esc(err.message)}`, 'error');
+      else status.textContent = '';
+    }
+    return;
+  }
+  status.textContent = 'בונה PDF…';
+  try {
+    const pdfBlob = await buildTripPdfBlob();
+    downloadBlob(pdfBlob, filename);
+    const score = computeScore(trip.events);
+    const text = `דוח נסיעה - ציון ${score}/100`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank', 'noopener');
+    status.textContent = `נפתח וואטסאפ; קובץ ה-PDF גם הורד למכשיר (${filename}) - צרפו אותו ידנית (לחצו על סיכת הנייר 📎 בוואטסאפ).`;
+  } catch (err) {
+    showNotice('trExportStatus', `בניית ה-PDF נכשלה: ${esc(err.message)}`, 'error');
+  }
+}
+
+/** The full trip object as-is (points + events + everything derived from
+ * them) - a JSON dump, not a curated export, since anyone wanting the raw
+ * data wants exactly what was recorded, not a lossy summary of it. */
+function exportTripJson() {
+  const blob = new Blob([JSON.stringify(trip, null, 2)], { type: 'application/json' });
+  downloadBlob(blob, `${tripFilenameBase(trip)}.json`);
 }
 
 /* ---------- lifecycle ---------- */
@@ -373,23 +787,30 @@ function stopTicking() {
   autosaveTimer = null;
 }
 
-async function startTrip(vehicleType, resumed) {
+async function startTrip(vehicleType, resumed, busLine) {
   // DeviceMotionEvent.requestPermission() must run synchronously within the
   // click gesture on iOS - called first, before the geolocation permission
   // prompt (which can itself take a moment) has any chance to consume it.
   const motionPromise = requestMotionPermission();
 
-  trip = resumed || newTrip(vehicleType);
+  trip = resumed || newTrip(vehicleType, busLine);
+  historyMode = false;
   activeMs = resumed ? (resumed.activeMs || 0) : 0;
   tripMap = createTripMap(el('trCanvas'));
+  setChromeVisible(false);
+  acquireWakeLock();
   showScreen('active');
   el('trVehicleBadge').textContent = trip.vehicleType === 'bus' ? '🚌 אוטובוס' : '🚗 רכב פרטי';
-  el('trPauseResume').textContent = trip.status === 'paused' ? '▶ המשך' : '⏸ השהה';
+  el('trStartTime').textContent = formatStartTime(trip.startTime);
+  el('trPauseResume').textContent = trip.status === 'paused' ? '▶' : '⏸';
   el('trStopConfirm').hidden = true;
 
-  const motionGranted = await motionPromise;
-  if (motionGranted) window.addEventListener('devicemotion', onMotion);
-  else showNotice('trPermStatus', 'אין גישה לחיישן התאוצה - זיהוי בלימות/האצות חדות יתבסס על מהירות ה-GPS בלבד.', 'info');
+  const sensorStarted = await startAccelerometer();
+  if (!sensorStarted) {
+    const motionGranted = await motionPromise;
+    if (motionGranted) window.addEventListener('devicemotion', onMotion);
+    else showNotice('trPermStatus', 'אין גישה לחיישן התאוצה - זיהוי בלימות/האצות חדות יתבסס על מהירות ה-GPS בלבד.', 'info');
+  }
 
   watchId = navigator.geolocation.watchPosition(onPosition, onPositionError, {
     enableHighAccuracy: true, maximumAge: 0, timeout: 15000,
@@ -407,13 +828,13 @@ async function startTrip(vehicleType, resumed) {
 function pauseTrip() {
   trip.status = 'paused';
   if (violationState.active) closeViolation(Date.now());
-  el('trPauseResume').textContent = '▶ המשך';
+  el('trPauseResume').textContent = '▶';
   persistActive();
 }
 
 function resumeTrip() {
   trip.status = 'active';
-  el('trPauseResume').textContent = '⏸ השהה';
+  el('trPauseResume').textContent = '⏸';
   persistActive();
 }
 
@@ -423,20 +844,30 @@ function stopTrip() {
   trip.endTime = Date.now();
   if (watchId != null) navigator.geolocation.clearWatch(watchId);
   window.removeEventListener('devicemotion', onMotion);
+  if (accelSensor) { accelSensor.stop(); accelSensor = null; }
   stopTicking();
+  releaseWakeLock();
   try {
     localStorage.setItem(STORAGE_LAST_COMPLETE, JSON.stringify(trip));
     localStorage.removeItem(STORAGE_ACTIVE);
   } catch { /* best-effort only - the complete screen already has everything in memory */ }
+  saveTripToHistory(trip).catch((err) => console.warn('trip-report: saving to history failed', err));
+  setChromeVisible(true);
   renderCompleteScreen();
   showScreen('complete');
+  exportTripPdf({ silent: true }).catch((err) => console.warn('trip-report: auto PDF export failed', err));
 }
 
 /* ---------- wiring ---------- */
 
+document.querySelectorAll('input[name="vehicleType"]').forEach((r) => r.addEventListener('change', () => {
+  el('trBusLineRow').hidden = document.querySelector('input[name="vehicleType"]:checked')?.value !== 'bus';
+}));
+
 el('trStart').addEventListener('click', () => {
   const vehicleType = document.querySelector('input[name="vehicleType"]:checked')?.value || 'car';
-  startTrip(vehicleType, null);
+  const busLine = vehicleType === 'bus' ? el('trBusLine').value.trim() : null;
+  startTrip(vehicleType, null, busLine);
 });
 
 el('trPauseResume').addEventListener('click', () => {
@@ -449,10 +880,33 @@ el('trStopNo').addEventListener('click', () => { el('trStopConfirm').hidden = tr
 
 el('trAutoPan').addEventListener('change', (e) => tripMap?.setAutoPan(e.target.checked));
 
+el('trExportPdf').addEventListener('click', () => {
+  exportTripPdf().catch((err) => showNotice('trExportStatus', `ייצוא ה-PDF נכשל: ${esc(err.message)}`, 'error'));
+});
+el('trShareWhatsapp').addEventListener('click', () => shareTripToWhatsApp());
+el('trExportJson').addEventListener('click', () => exportTripJson());
+
 el('trNewTrip').addEventListener('click', () => {
   trip = null;
+  historyMode = false;
   el('trPermStatus').hidden = true;
+  el('trBusLine').value = '';
+  el('trBusLineRow').hidden = true;
+  el('trBackToHistory').hidden = true;
+  setChromeVisible(true);
   showScreen('setup');
+});
+
+function openHistory() {
+  showScreen('history');
+  renderHistoryList();
+}
+el('trShowHistorySetup').addEventListener('click', openHistory);
+el('trShowHistoryComplete').addEventListener('click', openHistory);
+el('trHistoryBack').addEventListener('click', () => showScreen('setup'));
+el('trBackToHistory').addEventListener('click', () => {
+  el('trBackToHistory').hidden = true;
+  openHistory();
 });
 
 el('trScoreExplain').textContent = SCORE_EXPLANATION;

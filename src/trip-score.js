@@ -22,13 +22,22 @@ export const DEDUCTIONS = {
   violation_minor: 1,
   violation_moderate: 3,
   violation_severe: 6,
+  violation_sustained: 10,
 };
 
 /** magnitude in m/s²; severe past 0.8g (~7.84 m/s²), the point past which
  * spec's own 0.5g threshold reads more like "hard" than "firm". */
 const SEVERE_ACCEL_MPS2 = 0.8 * 9.80665;
 
-export function violationSeverity(percentageOver) {
+/** Past this long continuously over the limit, duration itself is the
+ * signal - a genuine overtake ends with a tuck-back-in well before this;
+ * staying over the limit this long is deliberate, not a maneuver, so it
+ * outranks the percentage-over-based tiers regardless of how far over the
+ * limit it actually was. */
+export const SUSTAINED_VIOLATION_MS = 30000;
+
+export function violationSeverity(percentageOver, durationMs = 0) {
+  if (durationMs >= SUSTAINED_VIOLATION_MS) return 'sustained';
   if (percentageOver >= 30) return 'severe';
   if (percentageOver >= 10) return 'moderate';
   return 'minor';
@@ -99,6 +108,6 @@ export function speedZoneDistribution(points) {
 
 export const SCORE_EXPLANATION = `
 הציון מתחיל מ-100 ויורד עם כל אירוע שנרשם בנסיעה (לא לפי כל דגימה בנפרד, אלא פעם אחת לכל אירוע שלם):
-בלימה חדה: −3 נק' (−5 אם עוצמתה מעל 0.8g) · האצה חדה: −2 נק' (−4 אם מעל 0.8g) · חריגת מהירות: −1 נק' (קלה, עד 10% מעל המותר), −3 (בינונית, 10%–30%) או −6 (חמורה, מעל 30%).
+בלימה חדה: −3 נק' (−5 אם עוצמתה מעל 0.8g) · האצה חדה: −2 נק' (−4 אם מעל 0.8g) · חריגת מהירות: −1 נק' (קלה, עד 10% מעל המותר), −3 (בינונית, 10%–30%) או −6 (חמורה, מעל 30%) - וללא קשר לאחוז החריגה, −10 אם החריגה נמשכה 30 שניות רצופות ומעלה (ארוך מדי בשביל עקיפה - נהיגה מהירה מכוונת, לא תמרון).
 הציון לא יורד מתחת ל-0 ומתעדכן חי לאורך הנסיעה. מד הבעיות שלמטה מציג את אותם חמישה טווחי מהירות שצובעים את המסלול על המפה, לפי זמן נהיגה בפועל בכל טווח - לא לפי מספר הדגימות.
 `.trim();

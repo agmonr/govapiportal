@@ -16,7 +16,7 @@
   <link rel="stylesheet" href="./src/style.css">
 </head>
 <body class="accidents-page trip-report-page">
-  <header class="site">
+  <header class="site" id="trSiteHeader">
     <div class="wrap">
       <h1>דוח נסיעה — מעקב נהיגה חי</h1>
       <span class="site-by">פרויקט של רם אגמון<span class="site-disclaimer">המידע באתר עלול להיות שגוי</span></span>
@@ -68,18 +68,35 @@
             <input type="radio" name="vehicleType" value="bus"> 🚌 אוטובוס
           </label>
         </div>
+        <div id="trBusLineRow" class="tr-bus-line-row" hidden>
+          <label>מספר קו: <input type="text" id="trBusLine" inputmode="numeric" autocomplete="off" placeholder="לדוגמה: 5"></label>
+          <span class="acc-hint">העיר מזוהה אוטומטית מה-GPS בתחילת הנסיעה.</span>
+        </div>
         <div class="fin-export-row" style="justify-content:center">
           <button type="button" id="trStart" class="drill-dl tr-start-btn">▶ התחל נסיעה</button>
         </div>
+        <div class="fin-export-row" style="justify-content:center">
+          <button type="button" id="trShowHistorySetup" class="drill-dl">🕘 נסיעות קודמות</button>
+        </div>
       </section>
 
-      <!-- ---------- active trip screen ---------- -->
+      <!-- ---------- active trip screen ----------
+           Order is deliberate: live info (topbar + score) first, the
+           problems this trip has actually had right under it, then stats,
+           then the map last - the map is what you'd glance at least often
+           while actually driving; the numbers above it are what you'd
+           check most. Header + app-context strip are hidden for the
+           whole active/paused duration (see setChromeVisible in
+           trip-report.js) - a driving screen, not a browsing one. -->
       <section id="trScreenActive" class="acc-section" hidden>
+        <p class="tr-screen-warning">📱 השאר את המסך פועל כל משך הנסיעה</p>
         <div class="tr-topbar">
           <span id="trVehicleBadge" class="tr-badge"></span>
+          <span id="trBusInfo" class="tr-badge" hidden></span>
           <span class="tr-speed-now"><span id="trSpeedNow">—</span> <small>קמ"ש</small></span>
           <span class="tr-speed-limit">מותר: <span id="trSpeedLimit">—</span> קמ"ש</span>
           <span class="tr-elapsed">⏱ <span id="trElapsed">0:00</span></span>
+          <span class="tr-start-time">התחלה: <span id="trStartTime">—</span></span>
         </div>
 
         <div class="tr-score-row">
@@ -98,15 +115,11 @@
           </div>
         </div>
 
-        <div class="tr-map-wrap">
-          <canvas id="trCanvas"></canvas>
-        </div>
-        <label class="tr-autopan-toggle">
-          <input type="checkbox" id="trAutoPan" checked> מעקב אוטומטי אחר המיקום על המפה
-        </label>
-
         <h2>מד הבעיות</h2>
-        <p class="acc-hint">זמן נהיגה בפועל בכל טווח מהירות ביחס למותר בדרך - אותם טווחים שצובעים את המסלול על המפה.</p>
+        <details class="lead-details">
+          <summary>מה זה מודד?</summary>
+          <p class="acc-hint">זמן נהיגה בפועל בכל טווח מהירות ביחס למותר בדרך - אותם טווחים שצובעים את המסלול על המפה.</p>
+        </details>
         <div id="trProblemMeter" class="tr-problem-meter"></div>
         <div id="trProblemLegend" class="tr-legend"></div>
 
@@ -119,9 +132,16 @@
           <div class="stat"><span class="stat-n" id="trAvgSpeed">0</span><span class="stat-l">מהירות ממוצעת</span></div>
         </div>
 
+        <div class="tr-map-wrap">
+          <canvas id="trCanvas"></canvas>
+        </div>
+        <label class="tr-autopan-toggle">
+          <input type="checkbox" id="trAutoPan" checked> מעקב אוטומטי אחר המיקום על המפה
+        </label>
+
         <div class="fin-export-row" style="justify-content:center">
-          <button type="button" id="trPauseResume" class="drill-dl">⏸ השהה</button>
-          <button type="button" id="trStop" class="drill-dl">⏹ סיים נסיעה</button>
+          <button type="button" id="trPauseResume" class="tr-icon-btn" aria-label="השהה" title="השהה">⏸</button>
+          <button type="button" id="trStop" class="tr-icon-btn" aria-label="סיים נסיעה" title="סיים נסיעה">⏹</button>
         </div>
         <div id="trStopConfirm" class="fin-export-row" style="justify-content:center" hidden>
           <span class="acc-hint">לסיים את הנסיעה?</span>
@@ -136,8 +156,26 @@
         <div id="trCompleteSummary" class="tr-complete-summary" dir="auto"></div>
         <h3>יומן אירועים</h3>
         <ul id="trEventLog" class="tr-event-log"></ul>
+        <div id="trExportStatus" aria-live="polite"></div>
         <div class="fin-export-row" style="justify-content:center">
-          <button type="button" id="trNewTrip" class="drill-dl">🚗 נסיעה חדשה</button>
+          <button type="button" id="trExportPdf" class="drill-dl">📄 ייצוא ל-PDF</button>
+          <button type="button" id="trShareWhatsapp" class="drill-dl">💬 שליחה בוואטסאפ</button>
+          <button type="button" id="trExportJson" class="drill-dl">⬇ נתונים גולמיים (JSON)</button>
+        </div>
+        <div class="fin-export-row" style="justify-content:center">
+          <button type="button" id="trNewTrip" class="drill-dl tr-newtrip-btn">🚗 חדשה</button>
+          <button type="button" id="trShowHistoryComplete" class="drill-dl">🕘 נסיעות קודמות</button>
+          <button type="button" id="trBackToHistory" class="drill-dl" hidden>← חזרה לרשימה</button>
+        </div>
+      </section>
+
+      <!-- ---------- previous rides ---------- -->
+      <section id="trScreenHistory" class="acc-section" hidden>
+        <h2>נסיעות קודמות</h2>
+        <p class="acc-hint">שמורות מקומית במכשיר זה בלבד (IndexedDB) - לא נשלחות לשרת.</p>
+        <ul id="trHistoryList" class="tr-history-list"></ul>
+        <div class="fin-export-row" style="justify-content:center">
+          <button type="button" id="trHistoryBack" class="drill-dl">← חזרה</button>
         </div>
       </section>
     </div>
