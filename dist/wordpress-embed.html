@@ -5,18 +5,13 @@
   WordPress "Custom HTML" block. Every app's long description lives only
   in the JSON-LD block below (search-engine metadata) - it is deliberately
   not rendered as visible text, to match apps.html's plain icon tiles.
+
+  Alternative to pasting the fragment itself: embed this file live via
+  iframe (always current, no re-pasting needed when apis.json changes):
+  <iframe src="https://agmonr.github.io/govapiportal/dist/wordpress-embed.html" loading="lazy" style="width:100%;border:0;min-height:900px" title="כל האפליקציות"></iframe>
 -->
 <div class="ram-govapps-embed" dir="rtl" lang="he">
   <style>
-    .ram-govapps-embed-howto {
-      border: 1px dashed #b9c9ae; border-radius: 8px; padding: .85rem 1rem;
-      margin-block-end: 1.25rem; background: #f7faf4;
-    }
-    .ram-govapps-embed-howto-label { margin: 0 0 .4rem; font-size: .85rem; font-weight: 600; color: #24331f; }
-    .ram-govapps-embed-howto-code {
-      margin: 0; padding: .6rem .75rem; overflow-x: auto; border-radius: 6px;
-      background: #24331f; color: #eafbe7; font-size: .8rem; direction: ltr; text-align: left;
-    }
     .ram-govapps-embed {
       font: 16px/1.55 system-ui, "Segoe UI", Arial, sans-serif;
       color: #24331f; max-width: 100%;
@@ -48,11 +43,6 @@
     }
     .ram-govapps-embed-icon-small { font-size: .6em; vertical-align: middle; }
   </style>
-
-  <div class="ram-govapps-embed-howto">
-    <p class="ram-govapps-embed-howto-label" dir="auto">דוגמה לקוד הטמעה (iframe, תמיד מעודכן - בלי צורך להדביק מחדש):</p>
-    <pre class="ram-govapps-embed-howto-code"><code>&lt;iframe src=&quot;https://agmonr.github.io/govapiportal/dist/wordpress-embed.html&quot; loading=&quot;lazy&quot; style=&quot;width:100%;border:0;min-height:900px&quot; title=&quot;כל האפליקציות&quot;&gt;&lt;/iframe&gt;</code></pre>
-  </div>
 
       <section class="ram-govapps-embed-apps-category" aria-labelledby="ram-govapps-embed-cat-home">
         <h3 class="ram-govapps-embed-apps-category-h" id="ram-govapps-embed-cat-home" dir="auto">הבית והשכונה שלי</h3>
