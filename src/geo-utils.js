@@ -78,6 +78,23 @@ export async function fetchBasemapCanvas(bbox, size) {
   const [xmin, ymin, xmax, ymax] = bbox;
   const cornersItm = [[xmin, ymin], [xmax, ymin], [xmax, ymax], [xmin, ymax]];
   const cornersWgs84 = await projectPoints(cornersItm, ITM_WKID, WGS84_WKID);
+  return (await stitchBasemap(cornersWgs84, size)).canvas;
+}
+
+/** Same basemap, for a WGS84 (lon/lat) bbox directly - no iplan Geometry
+ * round-trip, since GPS fixes and OSM data are already WGS84 native (unlike
+ * blue-lines.js/area-cleanup.js's ITM-native Xplan/GovMap layers above). Also
+ * returns `project`, a closure over this same fetch's zoom/tile origin, so a
+ * caller can place further points (a live route, not just a static centre
+ * pin) on the same canvas without re-deriving the transform. */
+export async function fetchBasemapCanvasWGS84([lonMin, latMin, lonMax, latMax], size) {
+  const cornersWgs84 = [[lonMin, latMin], [lonMax, latMin], [lonMax, latMax], [lonMin, latMax]];
+  return stitchBasemap(cornersWgs84, size);
+}
+
+/** Shared tail of both basemap fetchers above: WGS84 corners -> a stitched
+ * OSM canvas plus a lon/lat -> pixel projector for that same canvas. */
+async function stitchBasemap(cornersWgs84, size) {
   const cornersMerc = cornersWgs84.map(([lon, lat]) => lonLatToMercator(lon, lat));
 
   const mxs = cornersMerc.map((c) => c[0]);
@@ -135,7 +152,12 @@ export async function fetchBasemapCanvas(bbox, size) {
   octx.fillRect(0, size - 16, tw + 8, 16);
   octx.fillStyle = '#000';
   octx.fillText(label, 4, size - 4);
-  return out;
+
+  const project = (lon, lat) => {
+    const [px, py] = mercatorToPixel(...lonLatToMercator(lon, lat), zoom);
+    return [(px - pxMin) / (pxMax - pxMin) * size, (py - pyMin) / (pyMax - pyMin) * size];
+  };
+  return { canvas: out, project };
 }
 
 /** A map-pin marker at the image centre - the requested address/location, by

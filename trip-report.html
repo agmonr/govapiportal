@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>דוח נסיעה — מעקב נהיגה חי</title>
+  <!-- Sets data-theme before the stylesheet is applied, so a returning
+       visitor who picked "fashion" never sees a flash of the clouds theme
+       first. See src/theme.js for the picker itself. -->
+  <script>
+    try {
+      var t = localStorage.getItem('theme');
+      if (t && t !== 'clouds') document.documentElement.setAttribute('data-theme', t);
+    } catch (e) {}
+  </script>
+  <link rel="stylesheet" href="./src/style.css">
+</head>
+<body class="accidents-page trip-report-page">
+  <header class="site">
+    <div class="wrap">
+      <h1>דוח נסיעה — מעקב נהיגה חי</h1>
+      <span class="site-by">פרויקט של רם אגמון<span class="site-disclaimer">המידע באתר עלול להיות שגוי</span></span>
+      <div class="theme-pick" id="themePick" role="group" aria-label="ערכת נושא">
+        <button type="button" data-theme="clouds">יום</button>
+        <button type="button" data-theme="fashion">לילה</button>
+        <button type="button" data-theme="zebra">זברה</button>
+      </div>
+      <span class="meta"><a href="./index.html">← חזרה למפת ה-API</a></span>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <div id="fileproto" class="notice error" dir="auto" hidden>
+      <strong>הדף נפתח כקובץ מקומי (<code dir="ltr">file://</code>) ולכן אינו יכול לטעון את הנתונים.</strong>
+      <p>
+        הדפדפן חוסם מודולי ES ממקור <code dir="ltr">null</code> — זו הגבלת אבטחה של הדפדפן, לא תקלה באתר.
+        הפעל שרת מקומי מתיקיית הפרויקט:
+      </p>
+      <pre dir="ltr"><code>python3 -m http.server 8000</code></pre>
+      <p>ולאחר מכן פתח <a href="http://localhost:8000/trip-report.html" dir="ltr">http://localhost:8000/trip-report.html</a>.</p>
+    </div>
+
+    <div id="app">
+      <div id="appContext" class="app-context"></div>
+
+      <div id="trResumeBox" class="notice info" dir="auto" hidden>
+        נמצאה נסיעה שלא הסתיימה, שנשמרה מקומית במכשיר זה. להמשיך אותה?
+        <div class="fin-export-row">
+          <button type="button" class="drill-dl tr-resume-yes">כן, המשך נסיעה</button>
+          <button type="button" class="drill-dl tr-resume-no">לא, מחק</button>
+        </div>
+      </div>
+
+      <div id="trPermStatus" class="notice info" dir="auto" hidden></div>
+
+      <!-- ---------- setup screen ---------- -->
+      <section id="trScreenSetup" class="acc-section">
+        <p class="acc-hint">
+          עוקב אחרי הנסיעה שלך בזמן אמת - מיקום GPS וחיישן התאוצה של המכשיר, ומחשב ציון נהיגה חי לפי בלימות/האצות
+          חדות וחריגות מהירות מול המהירות המותרת בפועל (OpenStreetMap). הכול מחושב בדפדפן בלבד; שום נתון לא נשלח
+          לשרת. נדרשת הרשאת מיקום (ותאוצה, במכשירים שתומכים) כדי להתחיל.
+        </p>
+        <div class="tr-vehicle-pick" role="radiogroup" aria-label="סוג הרכב">
+          <label class="tr-vehicle-opt">
+            <input type="radio" name="vehicleType" value="car" checked> 🚗 רכב פרטי
+          </label>
+          <label class="tr-vehicle-opt">
+            <input type="radio" name="vehicleType" value="bus"> 🚌 אוטובוס
+          </label>
+        </div>
+        <div class="fin-export-row" style="justify-content:center">
+          <button type="button" id="trStart" class="drill-dl tr-start-btn">▶ התחל נסיעה</button>
+        </div>
+      </section>
+
+      <!-- ---------- active trip screen ---------- -->
+      <section id="trScreenActive" class="acc-section" hidden>
+        <div class="tr-topbar">
+          <span id="trVehicleBadge" class="tr-badge"></span>
+          <span class="tr-speed-now"><span id="trSpeedNow">—</span> <small>קמ"ש</small></span>
+          <span class="tr-speed-limit">מותר: <span id="trSpeedLimit">—</span> קמ"ש</span>
+          <span class="tr-elapsed">⏱ <span id="trElapsed">0:00</span></span>
+        </div>
+
+        <div class="tr-score-row">
+          <div id="trScoreGauge" class="tr-score-gauge">
+            <div class="tr-score-inner">
+              <span id="trScoreNum">100</span>
+              <span class="tr-score-max">/100</span>
+            </div>
+          </div>
+          <div class="tr-score-meta">
+            <span id="trScoreLabel" class="tr-score-label">נהיגה מצוינת</span>
+            <details class="lead-details">
+              <summary>איך מחושב הציון?</summary>
+              <p id="trScoreExplain" dir="auto"></p>
+            </details>
+          </div>
+        </div>
+
+        <div class="tr-map-wrap">
+          <canvas id="trCanvas"></canvas>
+        </div>
+        <label class="tr-autopan-toggle">
+          <input type="checkbox" id="trAutoPan" checked> מעקב אוטומטי אחר המיקום על המפה
+        </label>
+
+        <h2>מד הבעיות</h2>
+        <p class="acc-hint">זמן נהיגה בפועל בכל טווח מהירות ביחס למותר בדרך - אותם טווחים שצובעים את המסלול על המפה.</p>
+        <div id="trProblemMeter" class="tr-problem-meter"></div>
+        <div id="trProblemLegend" class="tr-legend"></div>
+
+        <div class="stat-row tr-stats-row">
+          <div class="stat"><span class="stat-n" id="trViolationCount">0</span><span class="stat-l">חריגות מהירות</span></div>
+          <div class="stat"><span class="stat-n" id="trBrakeCount">0</span><span class="stat-l">בלימות חדות</span></div>
+          <div class="stat"><span class="stat-n" id="trAccelCount">0</span><span class="stat-l">האצות חדות</span></div>
+          <div class="stat"><span class="stat-n" id="trDistance">0 ק"מ</span><span class="stat-l">מרחק</span></div>
+          <div class="stat"><span class="stat-n" id="trMaxSpeed">0</span><span class="stat-l">מהירות מרבית</span></div>
+          <div class="stat"><span class="stat-n" id="trAvgSpeed">0</span><span class="stat-l">מהירות ממוצעת</span></div>
+        </div>
+
+        <div class="fin-export-row" style="justify-content:center">
+          <button type="button" id="trPauseResume" class="drill-dl">⏸ השהה</button>
+          <button type="button" id="trStop" class="drill-dl">⏹ סיים נסיעה</button>
+        </div>
+        <div id="trStopConfirm" class="fin-export-row" style="justify-content:center" hidden>
+          <span class="acc-hint">לסיים את הנסיעה?</span>
+          <button type="button" id="trStopYes" class="drill-dl">כן, סיים</button>
+          <button type="button" id="trStopNo" class="drill-dl">ביטול</button>
+        </div>
+      </section>
+
+      <!-- ---------- trip complete screen ---------- -->
+      <section id="trScreenComplete" class="acc-section" hidden>
+        <h2>סיכום הנסיעה</h2>
+        <div id="trCompleteSummary" class="tr-complete-summary" dir="auto"></div>
+        <h3>יומן אירועים</h3>
+        <ul id="trEventLog" class="tr-event-log"></ul>
+        <div class="fin-export-row" style="justify-content:center">
+          <button type="button" id="trNewTrip" class="drill-dl">🚗 נסיעה חדשה</button>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!--
+    Same guard as index.html/accidents.html: opened from disk nothing below
+    can load, because ES module scripts are refused from origin 'null'. Must
+    be a classic inline script - a module would be the first thing blocked.
+  -->
+  <script>
+    if (location.protocol === 'file:') {
+      document.getElementById('fileproto').hidden = false;
+      document.getElementById('app').hidden = true;
+    }
+  </script>
+  <script type="module" src="./src/trip-report.js"></script>
+</body>
+</html>

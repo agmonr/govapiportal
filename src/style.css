@@ -1755,3 +1755,84 @@ body.accidents-page header.site h1 { inline-size: 100%; }
   }
   .tc-pick-confirm.tc-pick-confirm-show { opacity: 1; }
 }
+
+/* ---------- trip-report.html ---------- */
+
+/* .fin-export-row's own `display: flex` ties the UA [hidden] rule's
+   specificity and was declared later, so it wins - hidden alone doesn't
+   hide this row without this override. */
+#trStopConfirm[hidden] { display: none; }
+
+.tr-vehicle-pick { display: flex; gap: 1rem; justify-content: center; margin-block: 1rem; }
+.tr-vehicle-opt {
+  display: flex; align-items: center; gap: .4rem; padding: .6rem 1.2rem;
+  border: 1px solid var(--border); border-radius: .6rem; cursor: pointer; font-weight: 600;
+}
+.tr-vehicle-opt:has(input:checked) { border-color: var(--accent); background: var(--surface); }
+.tr-start-btn { font-size: 1.1rem; padding: .8rem 2rem; }
+
+.tr-topbar {
+  display: flex; flex-wrap: wrap; gap: 1rem; justify-content: center; align-items: baseline;
+  font-weight: 600; margin-block-end: 1rem;
+}
+.tr-badge { font-size: 1.1rem; }
+.tr-speed-now { font-size: 1.8rem; color: var(--accent); }
+
+/* Conic-gradient dial - plain CSS, no chart library, matching every other
+   visual on this site. --score-deg (set in JS on every render) is the score
+   as an angle out of 360°; the band class only picks the gradient's own
+   color, so a dial reading 40 in the red band still visibly differs from
+   one reading 95 in green, at a glance and without reading the number. */
+.tr-score-row { display: flex; gap: 1.5rem; align-items: center; justify-content: center; flex-wrap: wrap; margin-block-end: 1.5rem; }
+.tr-score-gauge {
+  --score-deg: 360deg;
+  width: 140px; height: 140px; border-radius: 50%;
+  background: conic-gradient(var(--tr-score-color, var(--accent)) var(--score-deg), var(--border) var(--score-deg));
+  display: flex; align-items: center; justify-content: center;
+}
+.tr-score-gauge.sc-great { --tr-score-color: #2e7d46; }
+.tr-score-gauge.sc-good  { --tr-score-color: #8bc34a; }
+.tr-score-gauge.sc-fair  { --tr-score-color: #ff8800; }
+.tr-score-gauge.sc-poor  { --tr-score-color: #dd0000; }
+.tr-score-inner {
+  width: 108px; height: 108px; border-radius: 50%; background: var(--card);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+}
+.tr-score-inner #trScoreNum { font-size: 2.4rem; font-weight: 700; line-height: 1; }
+.tr-score-max { font-size: .8rem; color: var(--muted); }
+.tr-score-meta { max-width: 26rem; }
+.tr-score-label { font-size: 1.2rem; font-weight: 700; }
+
+.tr-map-wrap { display: flex; justify-content: center; margin-block-end: .5rem; }
+.tr-map-wrap canvas { max-width: 100%; height: auto; aspect-ratio: 1 / 1; border-radius: .5rem; border: 1px solid var(--border); }
+.tr-autopan-toggle { display: block; text-align: center; font-size: .85rem; color: var(--muted); margin-block-end: 2rem; }
+
+.tr-problem-meter {
+  display: flex; height: 22px; border-radius: .4rem; overflow: hidden; border: 1px solid var(--border);
+  margin-block-end: .6rem;
+}
+.tr-meter-seg { height: 100%; }
+.tr-meter-unknown {
+  background: repeating-linear-gradient(45deg, var(--border), var(--border) 4px, transparent 4px, transparent 8px);
+}
+.tr-legend { display: flex; flex-wrap: wrap; gap: .8rem; font-size: .8rem; color: var(--muted); margin-block-end: 1.5rem; }
+.tr-legend-item { display: inline-flex; align-items: center; gap: .3rem; }
+.tr-legend-swatch { width: .8rem; height: .8rem; border-radius: .2rem; display: inline-block; }
+.tr-legend-swatch-unknown {
+  background: repeating-linear-gradient(45deg, var(--border), var(--border) 2px, transparent 2px, transparent 4px);
+}
+
+.tr-stats-row { margin-block-end: 1.5rem; }
+
+.tr-complete-summary p { margin-block: .4rem; }
+.tr-complete-score { font-size: 1.3rem; }
+.tr-complete-score.sc-great, .tr-complete-score.sc-good { color: #2e7d46; }
+.tr-complete-score.sc-fair { color: #ff8800; }
+.tr-complete-score.sc-poor { color: #dd0000; }
+
+.tr-event-log { list-style: none; padding: 0; margin: 0 0 1.5rem; }
+.tr-event-log li {
+  display: flex; gap: .8rem; padding: .5rem 0; border-bottom: 1px solid var(--border); font-size: .9rem;
+}
+.tr-ev-type { font-weight: 600; }
+.tr-ev-time { color: var(--muted); font-variant-numeric: tabular-nums; }
