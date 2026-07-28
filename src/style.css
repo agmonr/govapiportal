@@ -133,6 +133,14 @@ header.site .meta { color: #d7ecd2; }
   border-color: var(--accent);
 }
 
+/* Icon + word on desktop, icon-only on mobile - same convention as
+   yeela-license-tracker's own theme toggle (☀️/🌙/🦓), which frees up
+   header room on a phone without losing the word for anyone with room to
+   spare for it. */
+@media (max-width: 640px) {
+  .theme-pick .theme-btn-label { display: none; }
+}
+
 /* Mixed Hebrew/Latin content reorders incorrectly without per-element dir.
    Anything holding API-sourced text gets dir="auto" in the markup. */
 [dir="auto"] { unicode-bidi: plaintext; }

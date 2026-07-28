@@ -154,6 +154,14 @@ header.site .meta { color: #d7ecd2; }
   border-color: var(--accent);
 }
 
+/* Icon + word on desktop, icon-only on mobile - same convention as
+   yeela-license-tracker's own theme toggle (☀️/🌙/🦓), which frees up
+   header room on a phone without losing the word for anyone with room to
+   spare for it. */
+@media (max-width: 640px) {
+  .theme-pick .theme-btn-label { display: none; }
+}
+
 /* Mixed Hebrew/Latin content reorders incorrectly without per-element dir.
    Anything holding API-sourced text gets dir="auto" in the markup. */
 [dir="auto"] { unicode-bidi: plaintext; }
@@ -1928,9 +1936,9 @@ body.accidents-page header.site h1 { inline-size: 100%; }
       <h1>המטרו והבית שלי</h1>
       <span class="site-by">פרויקט של רם אגמון<span class="site-disclaimer">המידע באתר עלול להיות שגוי</span></span>
       <div class="theme-pick" id="themePick" role="group" aria-label="ערכת נושא">
-        <button type="button" data-theme="clouds">יום</button>
-        <button type="button" data-theme="fashion">לילה</button>
-        <button type="button" data-theme="zebra">זברה</button>
+        <button type="button" data-theme="clouds">☀️<span class="theme-btn-label"> יום</span></button>
+        <button type="button" data-theme="fashion">🌙<span class="theme-btn-label"> לילה</span></button>
+        <button type="button" data-theme="zebra">🦓<span class="theme-btn-label"> זברה</span></button>
       </div>
       <span class="meta" id="created"></span>
       <span class="meta"><a href="./index.html">← חזרה למפת ה-API</a></span>
