@@ -1818,22 +1818,36 @@ body.accidents-page header.site h1 { inline-size: 100%; }
   font-weight: 600; margin-block-end: 1rem;
 }
 .tr-badge { font-size: 1.1rem; }
+.tr-speed-row { display: flex; align-items: center; gap: .8rem; }
 .tr-speed-now { font-size: 1.8rem; color: var(--accent); }
-/* Its own full-width row, right under the speed - not squeezed onto the
-   same line as everything else in the topbar. */
-.tr-speed-limit { flex-basis: 100%; text-align: center; }
+/* A real speed-limit road sign (תמרור) - red ring, white face, bare number,
+   no unit/label - the same reason no real dashboard captions its own speed-
+   limit sign either: the shape already says what it is. Sits right beside
+   the current speed rather than on its own line, so the two numbers - what
+   you're doing, what you're allowed - read as one comparison at a glance. */
+.tr-sign {
+  display: inline-flex; align-items: center; justify-content: center;
+  inline-size: 2.6rem; block-size: 2.6rem; border-radius: 50%;
+  background: #fff; border: 4px solid #d21f1f; color: #111;
+  font-size: 1.15rem; font-weight: 700; line-height: 1; flex: none;
+}
 .tr-start-time { font-size: .85rem; color: var(--muted); font-weight: 400; }
+/* Moved below the map (see trip-report.html) - a plain centered line, not
+   part of the topbar's flex row anymore. */
+.tr-elapsed { text-align: center; font-weight: 600; margin-block: .8rem; }
 
 /* Loud on purpose for its first 30s (a trip just started, worth a real
    glance), then recedes to a quiet persistent reminder rather than
    competing with the live info below it for the rest of the drive. Sticky
    so it stays at the very top of the viewport through scrolling instead of
-   being scrolled past once the page fills up (map, stats, etc). */
+   being scrolled past once the page fills up (map, stats, etc). Sized to
+   fit the whole line without wrapping - a two-line sticky banner would eat
+   even more permanent space than this already does. */
 .tr-screen-warning {
   position: sticky; top: 0; z-index: 5;
-  text-align: center; font-weight: 700; font-size: 1.2rem;
+  text-align: center; font-weight: 700; font-size: .95rem;
   background: var(--card); border-bottom: 1px solid var(--border);
-  padding: .7rem; margin: 0 0 1rem;
+  padding: .5rem; margin: 0 0 1rem;
   transition: font-size .3s ease, font-weight .3s ease, padding .3s ease, color .3s ease;
 }
 .tr-screen-warning.tr-warning-shrink { font-size: .8rem; font-weight: 400; color: var(--muted); padding: .3rem; }

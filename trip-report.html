@@ -90,10 +90,11 @@
       <section id="trScreenActive" class="acc-section" hidden>
         <p id="trScreenWarning" class="tr-screen-warning">📱 השאר את המסך פועל כל משך הנסיעה</p>
         <div class="tr-topbar">
-          <span class="tr-speed-now"><span id="trSpeedNow">—</span> <small>קמ"ש</small></span>
-          <span class="tr-speed-limit">מותר: <span id="trSpeedLimit">—</span> קמ"ש</span>
+          <div class="tr-speed-row">
+            <span class="tr-speed-now"><span id="trSpeedNow">—</span> <small>קמ"ש</small></span>
+            <span id="trSpeedLimitSign" class="tr-sign" title="מהירות מותרת"><span id="trSpeedLimit">—</span></span>
+          </div>
           <span id="trBusInfo" class="tr-badge" hidden></span>
-          <span class="tr-elapsed">⏱ <span id="trElapsed">0:00</span></span>
           <span class="tr-start-time">התחלה: <span id="trStartTime">—</span></span>
         </div>
 
@@ -117,9 +118,11 @@
           <div class="stat"><span class="stat-n" id="trViolationCount">0</span><span class="stat-l">חריגות מהירות</span></div>
           <div class="stat"><span class="stat-n" id="trBrakeCount">0</span><span class="stat-l">בלימות חדות</span></div>
           <div class="stat"><span class="stat-n" id="trAccelCount">0</span><span class="stat-l">האצות חדות</span></div>
-          <div class="stat"><span class="stat-n" id="trDistance">0 ק"מ</span><span class="stat-l">מרחק</span></div>
+        </div>
+        <div class="stat-row tr-stats-row">
           <div class="stat"><span class="stat-n" id="trMaxSpeed">0</span><span class="stat-l">מהירות מרבית</span></div>
           <div class="stat"><span class="stat-n" id="trAvgSpeed">0</span><span class="stat-l">מהירות ממוצעת</span></div>
+          <div class="stat"><span class="stat-n" id="trDistance">0 ק"מ</span><span class="stat-l">מרחק</span></div>
         </div>
 
         <div class="tr-map-wrap">
@@ -128,6 +131,7 @@
         <label class="tr-autopan-toggle">
           <input type="checkbox" id="trAutoPan" checked> מעקב אוטומטי אחר המיקום על המפה
         </label>
+        <p class="tr-elapsed">⏱ <span id="trElapsed">0:00</span></p>
 
         <h2>מד הבעיות</h2>
         <details class="lead-details">

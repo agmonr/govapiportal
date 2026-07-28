@@ -182,6 +182,25 @@ TARGETS = [
         ],
         "data": True,
     },
+    {
+        "html": "trip-report.html",
+        "out": "dist/trip-report.html",
+        "entry": "src/trip-report.js",
+        # GPS + accelerometer + OSM Overpass, all live - no shared portal.js
+        # machinery. trip-map.js extends geo-utils.js's tile-stitching (WGS84
+        # variant, no iplan GeometryServer round-trip - GPS is already
+        # WGS84). pdf.js is the same hand-rolled writer blue-lines.js/
+        # area-cleanup.js use. trip-history.js is IndexedDB, not reachable
+        # from file:// at all in some browsers, but degrades to "no history"
+        # rather than breaking the rest of the page. apis.json is only for
+        # apps.js's under-header category strip.
+        "sources": [
+            "src/ui.js", "src/theme.js", "src/geo-utils.js", "src/pdf.js",
+            "src/trip-score.js", "src/trip-speed-limits.js", "src/trip-history.js",
+            "src/trip-map.js", "src/apps.js", "src/trip-report.js",
+        ],
+        "data": True,
+    },
 ]
 
 IMPORT_RE = re.compile(r"^\s*import\s.*?;\s*$", re.M)

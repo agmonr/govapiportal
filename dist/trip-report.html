@@ -8,7 +8,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>כל האפליקציות</title>
+  <title>דוח נסיעה — מעקב נהיגה חי</title>
   <!-- Sets data-theme before the stylesheet is applied, so a returning
        visitor who picked "fashion" never sees a flash of the clouds theme
        first. See src/theme.js for the picker itself. -->
@@ -1971,47 +1971,160 @@ body.accidents-page header.site h1 { inline-size: 100%; }
 }
 </style>
 </head>
-<body class="apps-page">
-  <header class="site">
+<body class="accidents-page trip-report-page civic-app-page">
+  <header class="site" id="trSiteHeader">
     <div class="wrap">
-      <h1>כל האפליקציות</h1>
-      <span class="site-by">פרויקט של רם אגמון<span class="site-disclaimer">המידע באתר עלול להיות שגוי</span><a href="https://hod-hasharon.org/" target="_blank" rel="noopener">הירוקים הוד השרון</a></span>
+      <h1>דוח נסיעה — מעקב נהיגה חי</h1>
+      <span class="site-by">פרויקט של רם אגמון<span class="site-disclaimer">המידע באתר עלול להיות שגוי</span></span>
       <div class="theme-pick" id="themePick" role="group" aria-label="ערכת נושא">
         <button type="button" data-theme="clouds">☀️<span class="theme-btn-label"> יום</span></button>
         <button type="button" data-theme="fashion">🌙<span class="theme-btn-label"> לילה</span></button>
         <button type="button" data-theme="zebra">🦓<span class="theme-btn-label"> זברה</span></button>
       </div>
-      <span class="meta"><a href="./index.html">← חזרה למפת ה-API</a></span>
     </div>
   </header>
 
   <main class="wrap">
     <div id="app">
-      <details class="lead-details" dir="auto">
-        <summary>על העמוד הזה</summary>
-        <p class="lead" dir="auto">
-          כל האפליקציות שבנויות על גבי נתונים ממשלתיים באתר הזה, מקובצות לפי מה שרלוונטי למי שמגיע -
-          לא לפי מקור הנתונים הטכני. מפת ה-API המלאה, עם כל הפורטלים והממשקים, נמצאת ב<a
-            href="./index.html" class="apps-home-link" title="עמוד הבית"
-          ><span class="apps-home-icon" aria-hidden="true">🏠</span><span class="apps-home-text">עמוד הבית</span></a>.
-        </p>
-      </details>
-      <div id="apps"></div>
+      <div id="appContext" class="app-context"></div>
 
-      <section class="acc-section" aria-labelledby="embedH">
-        <details class="lead-details">
-          <summary id="embedH">הטמעה באתר אחר</summary>
-          <p class="lead" dir="auto">
-            רוצים את רשימת האפליקציות הזו - כולל עתידיות - באתר משלכם, למשל בלוק "Custom HTML" ב-WordPress?
-            <a href="./dist/wordpress-embed.html">dist/wordpress-embed.html</a> היא גרסה עצמאית של הרשת
-            שלמעלה בדיוק לכך, שנראית זהה ומתעדכנת אוטומטית בכל שינוי ב<a href="./apis.json">apis.json</a>.
-            הדרך הפשוטה ביותר - iframe שתמיד מציג את הגרסה החיה, בלי צורך להדביק מחדש כשמתווספת אפליקציה:
-          </p>
-          <div class="embed-code-wrap">
-            <pre dir="ltr" style="overflow-x:auto"><code id="embedCode">&lt;iframe src="https://agmonr.github.io/govapiportal/dist/wordpress-embed.html" loading="lazy" style="width:100%;border:0;min-height:900px" title="כל האפליקציות"&gt;&lt;/iframe&gt;</code></pre>
-            <button type="button" id="embedCopyBtn" class="drill-dl">העתקה ⧉</button>
+      <div id="trResumeBox" class="notice info" dir="auto" hidden>
+        נמצאה נסיעה שלא הסתיימה, שנשמרה מקומית במכשיר זה. להמשיך אותה?
+        <div class="fin-export-row">
+          <button type="button" class="drill-dl tr-resume-yes">כן, המשך נסיעה</button>
+          <button type="button" class="drill-dl tr-resume-no">לא, מחק</button>
+        </div>
+      </div>
+
+      <div id="trPermStatus" class="notice info" dir="auto" hidden></div>
+
+      <!-- ---------- setup screen ---------- -->
+      <section id="trScreenSetup" class="acc-section">
+        <p class="acc-hint">
+          עוקב אחרי הנסיעה שלך בזמן אמת - מיקום GPS וחיישן התאוצה של המכשיר, ומחשב ציון נהיגה חי לפי בלימות/האצות
+          חדות וחריגות מהירות מול המהירות המותרת בפועל (OpenStreetMap). הכול מחושב בדפדפן בלבד; שום נתון לא נשלח
+          לשרת. נדרשת הרשאת מיקום (ותאוצה, במכשירים שתומכים) כדי להתחיל.
+        </p>
+        <div class="tr-vehicle-pick" role="radiogroup" aria-label="סוג הרכב">
+          <label class="tr-vehicle-opt">
+            <input type="radio" name="vehicleType" value="car" checked> 🚗 רכב פרטי
+          </label>
+          <label class="tr-vehicle-opt">
+            <input type="radio" name="vehicleType" value="bus"> 🚌 אוטובוס
+          </label>
+        </div>
+        <div id="trBusLineRow" class="tr-bus-line-row" hidden>
+          <label>מספר קו: <input type="text" id="trBusLine" inputmode="numeric" autocomplete="off" placeholder="לדוגמה: 5"></label>
+          <span class="acc-hint">העיר מזוהה אוטומטית מה-GPS בתחילת הנסיעה.</span>
+        </div>
+        <div class="fin-export-row" style="justify-content:center">
+          <button type="button" id="trStart" class="drill-dl tr-start-btn">▶ התחל נסיעה</button>
+        </div>
+        <div class="fin-export-row" style="justify-content:center">
+          <button type="button" id="trShowHistorySetup" class="drill-dl">🕘 נסיעות קודמות</button>
+        </div>
+      </section>
+
+      <!-- ---------- active trip screen ----------
+           Order is deliberate: live info (topbar + score) first, the
+           problems this trip has actually had right under it, then stats,
+           then the map last - the map is what you'd glance at least often
+           while actually driving; the numbers above it are what you'd
+           check most. Header + app-context strip are hidden for the
+           whole active/paused duration (see setChromeVisible in
+           trip-report.js) - a driving screen, not a browsing one. -->
+      <section id="trScreenActive" class="acc-section" hidden>
+        <p id="trScreenWarning" class="tr-screen-warning">📱 השאר את המסך פועל כל משך הנסיעה</p>
+        <div class="tr-topbar">
+          <div class="tr-speed-row">
+            <span class="tr-speed-now"><span id="trSpeedNow">—</span> <small>קמ"ש</small></span>
+            <span id="trSpeedLimitSign" class="tr-sign" title="מהירות מותרת"><span id="trSpeedLimit">—</span></span>
           </div>
+          <span id="trBusInfo" class="tr-badge" hidden></span>
+          <span class="tr-start-time">התחלה: <span id="trStartTime">—</span></span>
+        </div>
+
+        <div class="tr-score-row">
+          <div id="trScoreGauge" class="tr-score-gauge">
+            <div class="tr-score-inner">
+              <span id="trScoreNum">100</span>
+              <span class="tr-score-max">/100</span>
+            </div>
+          </div>
+          <div class="tr-score-meta">
+            <span id="trScoreLabel" class="tr-score-label">נהיגה מצוינת</span>
+            <details class="lead-details">
+              <summary>איך מחושב הציון?</summary>
+              <p id="trScoreExplain" dir="auto"></p>
+            </details>
+          </div>
+        </div>
+
+        <div class="stat-row tr-stats-row">
+          <div class="stat"><span class="stat-n" id="trViolationCount">0</span><span class="stat-l">חריגות מהירות</span></div>
+          <div class="stat"><span class="stat-n" id="trBrakeCount">0</span><span class="stat-l">בלימות חדות</span></div>
+          <div class="stat"><span class="stat-n" id="trAccelCount">0</span><span class="stat-l">האצות חדות</span></div>
+        </div>
+        <div class="stat-row tr-stats-row">
+          <div class="stat"><span class="stat-n" id="trMaxSpeed">0</span><span class="stat-l">מהירות מרבית</span></div>
+          <div class="stat"><span class="stat-n" id="trAvgSpeed">0</span><span class="stat-l">מהירות ממוצעת</span></div>
+          <div class="stat"><span class="stat-n" id="trDistance">0 ק"מ</span><span class="stat-l">מרחק</span></div>
+        </div>
+
+        <div class="tr-map-wrap">
+          <canvas id="trCanvas"></canvas>
+        </div>
+        <label class="tr-autopan-toggle">
+          <input type="checkbox" id="trAutoPan" checked> מעקב אוטומטי אחר המיקום על המפה
+        </label>
+        <p class="tr-elapsed">⏱ <span id="trElapsed">0:00</span></p>
+
+        <h2>מד הבעיות</h2>
+        <details class="lead-details">
+          <summary>מה זה מודד?</summary>
+          <p class="acc-hint">זמן נהיגה בפועל בכל טווח מהירות ביחס למותר בדרך - אותם טווחים שצובעים את המסלול על המפה.</p>
         </details>
+        <div id="trProblemMeter" class="tr-problem-meter"></div>
+        <div id="trProblemLegend" class="tr-legend"></div>
+
+        <div class="fin-export-row" style="justify-content:center">
+          <button type="button" id="trPauseResume" class="tr-icon-btn" aria-label="השהה" title="השהה">⏸</button>
+          <button type="button" id="trStop" class="tr-icon-btn" aria-label="סיים נסיעה" title="סיים נסיעה">⏹</button>
+        </div>
+        <div id="trStopConfirm" class="fin-export-row" style="justify-content:center" hidden>
+          <span class="acc-hint">לסיים את הנסיעה?</span>
+          <button type="button" id="trStopYes" class="drill-dl">כן, סיים</button>
+          <button type="button" id="trStopNo" class="drill-dl">ביטול</button>
+        </div>
+      </section>
+
+      <!-- ---------- trip complete screen ---------- -->
+      <section id="trScreenComplete" class="acc-section" hidden>
+        <h2>סיכום הנסיעה</h2>
+        <div id="trCompleteSummary" class="tr-complete-summary" dir="auto"></div>
+        <h3>יומן אירועים</h3>
+        <ul id="trEventLog" class="tr-event-log"></ul>
+        <div id="trExportStatus" aria-live="polite"></div>
+        <div class="fin-export-row" style="justify-content:center">
+          <button type="button" id="trExportPdf" class="drill-dl">📄 ייצוא ל-PDF</button>
+          <button type="button" id="trShareWhatsapp" class="drill-dl">💬 שליחה בוואטסאפ</button>
+          <button type="button" id="trExportJson" class="drill-dl">⬇ נתונים גולמיים (JSON)</button>
+        </div>
+        <div class="fin-export-row" style="justify-content:center">
+          <button type="button" id="trNewTrip" class="drill-dl tr-newtrip-btn">🚗 חדשה</button>
+          <button type="button" id="trShowHistoryComplete" class="drill-dl">🕘 נסיעות קודמות</button>
+          <button type="button" id="trBackToHistory" class="drill-dl" hidden>← חזרה לרשימה</button>
+        </div>
+      </section>
+
+      <!-- ---------- previous rides ---------- -->
+      <section id="trScreenHistory" class="acc-section" hidden>
+        <h2>נסיעות קודמות</h2>
+        <p class="acc-hint">שמורות מקומית במכשיר זה בלבד (IndexedDB) - לא נשלחות לשרת.</p>
+        <ul id="trHistoryList" class="tr-history-list"></ul>
+        <div class="fin-export-row" style="justify-content:center">
+          <button type="button" id="trHistoryBack" class="drill-dl">← חזרה</button>
+        </div>
       </section>
     </div>
   </main>
@@ -2164,6 +2277,811 @@ function initThemePicker(root) {
 }
 
 /**
+ * Shared ITM<->WGS84 reprojection and OSM-tile basemap stitching - originally
+ * built for blue-lines.js (see that file's own docstring, steps 2 and 4),
+ * extracted here once area-cleanup.js needed the exact same "draw a basemap
+ * aligned to an ITM bbox, with a pin at its centre" piece. Both pages
+ * genuinely need the identical math (Xplan layers and GovMap's WFS layers
+ * are both ITM-native), not just similar-looking code.
+ */
+
+const GEOMETRY = 'https://ags.iplan.gov.il/arcgisiplan/rest/services/Utilities/Geometry/GeometryServer';
+const OSM_TILE = (z, x, y) => `https://tile.openstreetmap.org/${z}/${x}/${y}.png`;
+
+const ITM_WKID = 2039;
+const WGS84_WKID = 4326;
+const MERCATOR_R = 6378137.0;
+const TILE_PX = 256;
+const MAX_ZOOM = 19;
+const MAX_TILES = 64;
+
+function fetchGeoJson(url, opts) {
+  return fetch(url, opts).then((r) => {
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    return r.json();
+  });
+}
+
+/** Points (list of [x,y]) -> the same points in outSR, via iplan's own
+ * GeometryServer - a generic coordinate-transform service, not iplan-
+ * specific data, so reusing it for GovMap layers (area-cleanup.js) is
+ * legitimate, not a layering violation. Beats letting a WFS/MapServer's own
+ * bboxSR reproject a WGS84 bbox itself - that shortcut measurably does NOT
+ * centre an address (a ~40-70m offset, verified directly against this same
+ * Geometry service when this was first built for blue-lines.js). */
+async function projectPoints(points, inSR, outSR) {
+  const body = new URLSearchParams({
+    geometries: JSON.stringify({
+      geometryType: 'esriGeometryPoint',
+      geometries: points.map(([x, y]) => ({ x, y })),
+    }),
+    inSR: String(inSR),
+    outSR: String(outSR),
+    f: 'json',
+  });
+  const result = await fetchGeoJson(`${GEOMETRY}/project`, { method: 'POST', body });
+  if (!result.geometries) throw new Error(`בקשת ה-project נכשלה: ${JSON.stringify(result)}`);
+  return result.geometries.map((p) => [p.x, p.y]);
+}
+
+const bboxAround = (x, y, radius) => [x - radius, y - radius, x + radius, y + radius];
+
+/** ITM point -> pixel coords for a size x size image covering `bbox` exactly. */
+function itmToPx([xmin, ymin, xmax, ymax], size, x, y) {
+  return [(x - xmin) / (xmax - xmin) * size, (ymax - y) / (ymax - ymin) * size];
+}
+
+function lonLatToMercator(lon, lat) {
+  const mx = (lon * Math.PI) / 180 * MERCATOR_R;
+  const my = Math.log(Math.tan(Math.PI / 4 + (lat * Math.PI) / 360)) * MERCATOR_R;
+  return [mx, my];
+}
+
+function mercatorToPixel(mx, my, zoom) {
+  const worldPx = TILE_PX * 2 ** zoom;
+  const px = (mx + Math.PI * MERCATOR_R) / (2 * Math.PI * MERCATOR_R) * worldPx;
+  const py = (Math.PI * MERCATOR_R - my) / (2 * Math.PI * MERCATOR_R) * worldPx;
+  return [px, py];
+}
+
+async function fetchTileBitmap(z, x, y) {
+  const res = await fetch(OSM_TILE(z, x, y));
+  if (!res.ok) throw new Error(`tile ${z}/${x}/${y}: HTTP ${res.status}`);
+  return createImageBitmap(await res.blob());
+}
+
+/** A basemap canvas (size x size), stitched from OSM tiles and aligned to
+ * `bbox` (ITM). */
+async function fetchBasemapCanvas(bbox, size) {
+  const [xmin, ymin, xmax, ymax] = bbox;
+  const cornersItm = [[xmin, ymin], [xmax, ymin], [xmax, ymax], [xmin, ymax]];
+  const cornersWgs84 = await projectPoints(cornersItm, ITM_WKID, WGS84_WKID);
+  return (await stitchBasemap(cornersWgs84, size)).canvas;
+}
+
+/** Same basemap, for a WGS84 (lon/lat) bbox directly - no iplan Geometry
+ * round-trip, since GPS fixes and OSM data are already WGS84 native (unlike
+ * blue-lines.js/area-cleanup.js's ITM-native Xplan/GovMap layers above). Also
+ * returns `project`, a closure over this same fetch's zoom/tile origin, so a
+ * caller can place further points (a live route, not just a static centre
+ * pin) on the same canvas without re-deriving the transform. */
+async function fetchBasemapCanvasWGS84([lonMin, latMin, lonMax, latMax], size) {
+  const cornersWgs84 = [[lonMin, latMin], [lonMax, latMin], [lonMax, latMax], [lonMin, latMax]];
+  return stitchBasemap(cornersWgs84, size);
+}
+
+/** Shared tail of both basemap fetchers above: WGS84 corners -> a stitched
+ * OSM canvas plus a lon/lat -> pixel projector for that same canvas. */
+async function stitchBasemap(cornersWgs84, size) {
+  const cornersMerc = cornersWgs84.map(([lon, lat]) => lonLatToMercator(lon, lat));
+
+  const mxs = cornersMerc.map((c) => c[0]);
+  const mercWidth = Math.max(...mxs) - Math.min(...mxs);
+  let zoom = Math.round(Math.log2((2 * Math.PI * MERCATOR_R) / (TILE_PX * mercWidth / size)));
+  zoom = Math.max(0, Math.min(MAX_ZOOM, zoom));
+
+  const pxPts = cornersMerc.map(([mx, my]) => mercatorToPixel(mx, my, zoom));
+  const pxMin = Math.min(...pxPts.map((p) => p[0]));
+  const pxMax = Math.max(...pxPts.map((p) => p[0]));
+  const pyMin = Math.min(...pxPts.map((p) => p[1]));
+  const pyMax = Math.max(...pxPts.map((p) => p[1]));
+
+  const txMin = Math.floor(pxMin / TILE_PX);
+  const txMax = Math.floor(pxMax / TILE_PX);
+  const tyMin = Math.floor(pyMin / TILE_PX);
+  const tyMax = Math.floor(pyMax / TILE_PX);
+  const tiles = [];
+  for (let tx = txMin; tx <= txMax; tx += 1) {
+    for (let ty = tyMin; ty <= tyMax; ty += 1) tiles.push([tx, ty]);
+  }
+  if (tiles.length > MAX_TILES) throw new Error(`רדיוס גדול מדי לבסיס מפה (${tiles.length} אריחים)`);
+
+  const canvas = document.createElement('canvas');
+  canvas.width = (txMax - txMin + 1) * TILE_PX;
+  canvas.height = (tyMax - tyMin + 1) * TILE_PX;
+  const ctx = canvas.getContext('2d');
+
+  // OSM's tile usage policy: no more than 2 simultaneous connections.
+  const queue = tiles.slice();
+  async function worker() {
+    let next;
+    // eslint-disable-next-line no-cond-assign
+    while ((next = queue.shift())) {
+      const [tx, ty] = next;
+      const bmp = await fetchTileBitmap(zoom, tx, ty);
+      ctx.drawImage(bmp, (tx - txMin) * TILE_PX, (ty - tyMin) * TILE_PX);
+    }
+  }
+  await Promise.all([worker(), worker()]);
+
+  const out = document.createElement('canvas');
+  out.width = size;
+  out.height = size;
+  const octx = out.getContext('2d');
+  octx.drawImage(
+    canvas,
+    pxMin - txMin * TILE_PX, pyMin - tyMin * TILE_PX, pxMax - pxMin, pyMax - pyMin,
+    0, 0, size, size,
+  );
+  octx.font = '11px sans-serif';
+  const label = '© OpenStreetMap contributors';
+  const tw = octx.measureText(label).width;
+  octx.fillStyle = 'rgba(255,255,255,0.75)';
+  octx.fillRect(0, size - 16, tw + 8, 16);
+  octx.fillStyle = '#000';
+  octx.fillText(label, 4, size - 4);
+
+  const project = (lon, lat) => {
+    const [px, py] = mercatorToPixel(...lonLatToMercator(lon, lat), zoom);
+    return [(px - pxMin) / (pxMax - pxMin) * size, (py - pyMin) / (pyMax - pyMin) * size];
+  };
+  return { canvas: out, project };
+}
+
+/** A map-pin marker at the image centre - the requested address/location, by
+ * construction: bbox is built symmetrically around it (bboxAround), so it
+ * always lands at (size/2, size/2) regardless of radius. Drawn onto the
+ * canvas itself (not as a DOM overlay) so it survives a copy/export of the
+ * canvas too, not just the on-page view. */
+function drawAddressPin(ctx, size) {
+  const cx = size / 2;
+  const cy = size / 2;
+  const r = 9;
+  const tipY = cy + 6; // point of the pin sits slightly below the circle,
+  // marking the exact address point rather than the circle's own centre.
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(cx - r * 0.85, cy - r * 0.4);
+  ctx.arc(cx, cy - r * 0.4, r, Math.PI, 0, false);
+  ctx.lineTo(cx + r * 0.85, cy - r * 0.4);
+  ctx.lineTo(cx, tipY);
+  ctx.closePath();
+  ctx.fillStyle = '#e0301e';
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 2;
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.arc(cx, cy - r * 0.4, r * 0.4, 0, Math.PI * 2);
+  ctx.fillStyle = '#fff';
+  ctx.fill();
+  ctx.restore();
+}
+
+/**
+ * A minimal, hand-rolled single-page PDF writer: one JPEG image filling the
+ * page, plus clickable Link annotations over it. No library, no CDN - the
+ * one thing this site has never needed until now is genuinely small enough
+ * to write by hand: a PDF page is just text-format objects plus one binary
+ * stream, and DCTDecode lets a JPEG's own bytes go in as-is, with no need to
+ * implement JPEG or Flate compression ourselves.
+ *
+ * Verified against pypdf (Python) while developing this: image decodes to
+ * the exact source pixels, annotation Rects and URIs round-trip exactly,
+ * including URLs containing '(', ')' or '\' (escaped per the PDF string
+ * spec below).
+ */
+
+/** Triggers a browser download of `blob` as `name` - a throwaway <a> element
+ * with a download attribute, the standard no-server way to save a
+ * client-built Blob. Shared by blue-lines.js and area-cleanup.js, both of
+ * which build a PDF via buildPdf() below and need to save it the same way. */
+function downloadBlob(blob, name) {
+  const href = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = href;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(href), 10000);
+}
+
+/** A free-text label (an address, a plan name) -> a safe download filename -
+ * strips anything that isn't a letter/number in ANY script (so Hebrew
+ * survives, unlike a plain [a-zA-Z0-9] filter would), collapsing runs of
+ * everything else to a single underscore. */
+function safeFilename(label, fallback) {
+  return label.replace(/[^\p{L}\p{N}]+/gu, '_').replace(/^_+|_+$/g, '').slice(0, 60) || fallback;
+}
+
+/**
+ * @param {Object} args
+ * @param {{
+ *   jpegBytes: Uint8Array,
+ *   width: number,
+ *   height: number,
+ *   links?: {url: string, x0: number, y0: number, x1: number, y1: number}[],
+ * }[]} args.pages
+ *   One entry per page, each its own image + own link Rects (top-down pixel
+ *   space, same page's own width/height - this function flips each to PDF's
+ *   bottom-up convention internally). area-cleanup.html's own PDF is the
+ *   reason this is a list rather than a single page: map+links page, a
+ *   plain-text "everything found" page, then one page per attached photo -
+ *   each independent of the others, so a page with no clickable area at all
+ *   (a photo) just passes an empty/omitted `links`.
+ * @returns {Blob} application/pdf
+ */
+function buildPdf({ pages }) {
+  const chunks = [];
+  let offset = 0;
+  const enc = new TextEncoder();
+
+  const push = (bytes) => { chunks.push(bytes); offset += bytes.length; };
+  const pushText = (s) => push(enc.encode(s));
+
+  const offsets = [];
+  const beginObj = (n) => { offsets[n] = offset; pushText(`${n} 0 obj\n`); };
+  const endObj = () => pushText('endobj\n');
+
+  // Object numbering: 1 catalog, 2 pages tree, then 3 objects per page (page,
+  // image, content stream) plus that page's own link annotations, allocated
+  // in one pass so every /Parent, /Contents, /XObject and /Annots reference
+  // below already knows every object number it needs before any bytes are
+  // actually written.
+  let next = 3;
+  const pageObjs = pages.map((p) => {
+    const pageNum = next; next += 1;
+    const imageNum = next; next += 1;
+    const contentNum = next; next += 1;
+    const links = p.links || [];
+    const annotNums = links.map(() => { const n = next; next += 1; return n; });
+    return { pageNum, imageNum, contentNum, links, annotNums };
+  });
+
+  pushText('%PDF-1.4\n');
+
+  beginObj(1);
+  pushText('<< /Type /Catalog /Pages 2 0 R >>\n');
+  endObj();
+
+  beginObj(2);
+  const kids = pageObjs.map((p) => `${p.pageNum} 0 R`).join(' ');
+  pushText(`<< /Type /Pages /Kids [${kids}] /Count ${pageObjs.length} >>\n`);
+  endObj();
+
+  pages.forEach((page, i) => {
+    const { pageNum, imageNum, contentNum, links, annotNums } = pageObjs[i];
+    const { width, height, jpegBytes } = page;
+    const annotRefs = annotNums.map((n) => `${n} 0 R`).join(' ');
+
+    beginObj(pageNum);
+    pushText(
+      `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${width} ${height}] `
+      + `/Resources << /XObject << /Im0 ${imageNum} 0 R >> >> /Contents ${contentNum} 0 R`
+      + (annotNums.length ? ` /Annots [ ${annotRefs} ]` : '')
+      + ' >>\n',
+    );
+    endObj();
+
+    beginObj(imageNum);
+    pushText(
+      `<< /Type /XObject /Subtype /Image /Width ${width} /Height ${height} `
+      + `/ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpegBytes.length} >>\nstream\n`,
+    );
+    push(jpegBytes);
+    pushText('\nendstream\n');
+    endObj();
+
+    // cm scales the default 1x1 image space to the full page, positioned at
+    // the origin - the standard "one image, whole page" content stream.
+    const content = `q\n${width} 0 0 ${height} 0 0 cm\n/Im0 Do\nQ\n`;
+    beginObj(contentNum);
+    pushText(`<< /Length ${enc.encode(content).length} >>\nstream\n${content}endstream\n`);
+    endObj();
+
+    links.forEach((link, j) => {
+      beginObj(annotNums[j]);
+      // PDF literal-string escaping: backslash and parens are the only
+      // characters that must be escaped for a URI to round-trip safely.
+      const uri = link.url.replace(/[()\\]/g, (c) => `\\${c}`);
+      // PDF y is bottom-up; the caller's rect is in top-down pixel space.
+      const y0 = height - link.y1;
+      const y1 = height - link.y0;
+      pushText(
+        `<< /Type /Annot /Subtype /Link /Rect [${link.x0.toFixed(2)} ${y0.toFixed(2)} `
+        + `${link.x1.toFixed(2)} ${y1.toFixed(2)}] /Border [0 0 0] `
+        + `/A << /Type /Action /S /URI /URI (${uri}) >> >>\n`,
+      );
+      endObj();
+    });
+  });
+
+  const xrefStart = offset;
+  const totalObjs = next - 1;
+  pushText(`xref\n0 ${totalObjs + 1}\n`);
+  pushText('0000000000 65535 f \n');
+  for (let i = 1; i <= totalObjs; i++) {
+    pushText(`${String(offsets[i]).padStart(10, '0')} 00000 n \n`);
+  }
+  pushText(`trailer\n<< /Size ${totalObjs + 1} /Root 1 0 R >>\nstartxref\n${xrefStart}\n%%EOF`);
+
+  return new Blob(chunks, { type: 'application/pdf' });
+}
+
+/**
+ * The driving score's entire formula, kept in one small file on purpose -
+ * trip-report.html has a "how is this built?" panel that shows the same
+ * numbers used here, so the score has to be legible enough to print, not
+ * just correct enough to compute. If the formula ever changes, that panel's
+ * text (SCORE_EXPLANATION below) must change with it - they are meant to be
+ * read side by side.
+ *
+ * Deductions apply once per closed event (a whole braking episode, a whole
+ * over-limit stretch), not once per 100ms sample - a 4-second hard stop
+ * costs the same as a 1-second one, matching how a human passenger would
+ * judge it ("that was one scary stop"), not how the sensor sampled it.
+ */
+
+const SCORE_START = 100;
+
+const DEDUCTIONS = {
+  brake: 3,
+  brake_severe: 5,
+  accel: 2,
+  accel_severe: 4,
+  violation_minor: 1,
+  violation_moderate: 3,
+  violation_severe: 6,
+  violation_sustained: 10,
+};
+
+/** magnitude in m/s²; severe past 0.8g (~7.84 m/s²), the point past which
+ * spec's own 0.5g threshold reads more like "hard" than "firm". */
+const SEVERE_ACCEL_MPS2 = 0.8 * 9.80665;
+
+/** Past this long continuously over the limit, duration itself is the
+ * signal - a genuine overtake ends with a tuck-back-in well before this;
+ * staying over the limit this long is deliberate, not a maneuver, so it
+ * outranks the percentage-over-based tiers regardless of how far over the
+ * limit it actually was. */
+const SUSTAINED_VIOLATION_MS = 30000;
+
+function violationSeverity(percentageOver, durationMs = 0) {
+  if (durationMs >= SUSTAINED_VIOLATION_MS) return 'sustained';
+  if (percentageOver >= 30) return 'severe';
+  if (percentageOver >= 10) return 'moderate';
+  return 'minor';
+}
+
+/** One deduction per event object (as logged by trip-report.js's
+ * EventDetector): {type: 'brake'|'accel'|'violation', magnitude?, severity?}. */
+function deductionFor(event) {
+  if (event.type === 'brake') return Math.abs(event.magnitude) >= SEVERE_ACCEL_MPS2 ? DEDUCTIONS.brake_severe : DEDUCTIONS.brake;
+  if (event.type === 'accel') return Math.abs(event.magnitude) >= SEVERE_ACCEL_MPS2 ? DEDUCTIONS.accel_severe : DEDUCTIONS.accel;
+  if (event.type === 'violation') return DEDUCTIONS[`violation_${event.severity}`] ?? DEDUCTIONS.violation_minor;
+  return 0;
+}
+
+/** The live score itself: 100 minus every closed event's deduction so far,
+ * never below 0 (a terrible trip reads as 0, not negative - there's no
+ * meaningful "worse than the floor"). */
+function computeScore(events) {
+  const total = events.reduce((sum, e) => sum + deductionFor(e), 0);
+  return Math.max(0, Math.round(SCORE_START - total));
+}
+
+function scoreBand(score) {
+  if (score >= 90) return { cls: 'sc-great', label: 'נהיגה מצוינת' };
+  if (score >= 75) return { cls: 'sc-good', label: 'נהיגה טובה' };
+  if (score >= 55) return { cls: 'sc-fair', label: 'יש מקום לשיפור' };
+  return { cls: 'sc-poor', label: 'נהיגה מסוכנת' };
+}
+
+/* ---------- the "problem meter" - time spent in each speed-vs-limit band --------
+ * Same five bands the route polyline itself is colored by (see trip-map.js),
+ * so the meter and the map read as the same fact told two ways: a bar you
+ * can scan at a glance, and a trace you can point to on the road. Bucketed
+ * by TIME (seconds at that ratio), not by point count - GPS fixes don't
+ * arrive at a fixed rate, so counting points would silently overweight
+ * whatever stretch happened to get denser sampling. */
+const SPEED_BANDS = [
+  { key: 'under50', max: 0.5, color: '#00AA00', label: 'עד 50% מהמותר' },
+  { key: 'under80', max: 0.8, color: '#FFD400', label: '50%–80% מהמותר' },
+  { key: 'under100', max: 1.0, color: '#FF8800', label: '80%–100% מהמותר' },
+  { key: 'under120', max: 1.2, color: '#DD0000', label: '100%–120% מהמותר' },
+  { key: 'over120', max: Infinity, color: '#990000', label: 'מעל 120% מהמותר' },
+];
+
+function bandFor(ratio) {
+  return SPEED_BANDS.find((b) => ratio <= b.max) || SPEED_BANDS[SPEED_BANDS.length - 1];
+}
+
+/** `points`: [{t, speedKmh, limitKmh}], limitKmh nullable when no OSM data
+ * was resolved for that fix - such stretches are excluded from the
+ * distribution rather than guessed into a band, and their total time is
+ * returned separately as `unknownMs` so the caller can still show "X min
+ * without speed-limit data" instead of silently understating the trip. */
+function speedZoneDistribution(points) {
+  const msByBand = Object.fromEntries(SPEED_BANDS.map((b) => [b.key, 0]));
+  let unknownMs = 0;
+  for (let i = 1; i < points.length; i += 1) {
+    const prev = points[i - 1];
+    const cur = points[i];
+    const dt = cur.t - prev.t;
+    if (dt <= 0 || dt > 15000) continue; // a gap this large is a dropped fix, not driving
+    if (!cur.limitKmh) { unknownMs += dt; continue; }
+    const ratio = cur.speedKmh / cur.limitKmh;
+    msByBand[bandFor(ratio).key] += dt;
+  }
+  return { msByBand, unknownMs };
+}
+
+const SCORE_EXPLANATION = `
+הציון מתחיל מ-100 ויורד עם כל אירוע שנרשם בנסיעה (לא לפי כל דגימה בנפרד, אלא פעם אחת לכל אירוע שלם):
+בלימה חדה: −3 נק' (−5 אם עוצמתה מעל 0.8g) · האצה חדה: −2 נק' (−4 אם מעל 0.8g) · חריגת מהירות: −1 נק' (קלה, עד 10% מעל המותר), −3 (בינונית, 10%–30%) או −6 (חמורה, מעל 30%) - וללא קשר לאחוז החריגה, −10 אם החריגה נמשכה 30 שניות רצופות ומעלה (ארוך מדי בשביל עקיפה - נהיגה מהירה מכוונת, לא תמרון).
+הציון לא יורד מתחת ל-0 ומתעדכן חי לאורך הנסיעה. מד הבעיות שלמטה מציג את אותם חמישה טווחי מהירות שצובעים את המסלול על המפה, לפי זמן נהיגה בפועל בכל טווח - לא לפי מספר הדגימות.
+`.trim();
+
+/**
+ * Live posted-speed lookup via OSM's Overpass API - the only source in this
+ * spec that isn't a straight tag read: Overpass returns every tagged road in
+ * an area, not "the speed limit at this exact point", so nearest-segment
+ * matching happens here too. That match is a nearest-line heuristic (see
+ * nearestWay below), not real map-matching (no heading/topology check) - at
+ * highway-interchange scale it can pick the wrong carriageway. Acceptable
+ * for a driving-score estimate; not something to cite in a dispute.
+ *
+ * Caching is per-session only (an in-memory Map, not localStorage) - a trip
+ * lasts at most a few hours, and Overpass's fair-use ask is "don't hammer
+ * us", not "persist across visits". A ~1.1km grid cell is fetched once and
+ * reused for every fix that lands in it for the rest of the trip.
+ */
+
+const OVERPASS = 'https://overpass-api.de/api/interpreter';
+const CELL_DEG = 0.01; // roughly 1.1km N-S, ~0.9km E-W at Israel's latitude
+const CELL_PADDING_DEG = 0.003; // query slightly past the cell so roads near its edge still match
+const CELL_TTL_MS = 24 * 60 * 60 * 1000;
+
+// Used only when a matched road carries no maxspeed tag (common on
+// residential streets) - typical Israeli signed limits by road class, not a
+// guess pulled from nowhere.
+const DEFAULT_KMH_BY_HIGHWAY = {
+  motorway: 110,
+  trunk: 90,
+  primary: 80,
+  secondary: 70,
+  tertiary: 60,
+  unclassified: 50,
+  residential: 50,
+  living_street: 30,
+  service: 30,
+};
+const VEHICLE_HIGHWAYS = Object.keys(DEFAULT_KMH_BY_HIGHWAY);
+
+const cellCache = new Map(); // "latIdx_lonIdx" -> { ways, fetchedAt }
+
+function cellIndex(lat, lon) {
+  return [Math.floor(lat / CELL_DEG), Math.floor(lon / CELL_DEG)];
+}
+
+function parseMaxspeed(raw) {
+  if (!raw) return null;
+  const m = String(raw).match(/(\d+(?:\.\d+)?)\s*(mph)?/i);
+  if (!m) return null;
+  const value = Number(m[1]);
+  return m[2] ? Math.round(value * 1.60934) : value;
+}
+
+async function fetchWaysForCell(latIdx, lonIdx) {
+  const south = latIdx * CELL_DEG - CELL_PADDING_DEG;
+  const north = (latIdx + 1) * CELL_DEG + CELL_PADDING_DEG;
+  const west = lonIdx * CELL_DEG - CELL_PADDING_DEG;
+  const east = (lonIdx + 1) * CELL_DEG + CELL_PADDING_DEG;
+  const highwayAlt = VEHICLE_HIGHWAYS.join('|');
+  const query = `[out:json][timeout:25];way["highway"~"^(${highwayAlt})$"](${south},${west},${north},${east});out geom;`;
+
+  const res = await fetch(OVERPASS, { method: 'POST', body: new URLSearchParams({ data: query }) });
+  if (!res.ok) throw new Error(`Overpass HTTP ${res.status}`);
+  const json = await res.json();
+  return (json.elements || [])
+    .filter((el) => el.type === 'way' && Array.isArray(el.geometry) && el.geometry.length >= 2)
+    .map((el) => ({
+      highway: el.tags?.highway,
+      maxspeedKmh: parseMaxspeed(el.tags?.maxspeed),
+      geometry: el.geometry.map((p) => [p.lat, p.lon]),
+    }));
+}
+
+/** Ways covering every cell within `radiusCells` of (lat,lon) - the fix
+ * itself might sit right at a cell boundary, so nearestWay needs the
+ * neighbours too, not just the fix's own cell. */
+async function waysNear(lat, lon) {
+  const [latIdx, lonIdx] = cellIndex(lat, lon);
+  const cells = [];
+  for (let di = -1; di <= 1; di += 1) {
+    for (let dj = -1; dj <= 1; dj += 1) cells.push([latIdx + di, lonIdx + dj]);
+  }
+  const ways = [];
+  for (const [li, lj] of cells) {
+    const key = `${li}_${lj}`;
+    let entry = cellCache.get(key);
+    if (!entry || Date.now() - entry.fetchedAt > CELL_TTL_MS) {
+      try {
+        entry = { ways: await fetchWaysForCell(li, lj), fetchedAt: Date.now() };
+        cellCache.set(key, entry);
+      } catch (err) {
+        console.warn('trip-speed-limits: Overpass fetch failed for cell', key, err);
+        entry = { ways: [], fetchedAt: Date.now() };
+      }
+    }
+    ways.push(...entry.ways);
+  }
+  return ways;
+}
+
+/** lat/lon -> local flat meters relative to (lat0,lon0), accurate enough at
+ * road-segment scale (a few hundred meters) without a full projection. */
+function metersXY(lat0, lon0, lat, lon) {
+  const cos = Math.cos((lat0 * Math.PI) / 180);
+  return [(lon - lon0) * cos * 111320, (lat - lat0) * 111320];
+}
+
+function distToSegmentMeters(p, a, b) {
+  const [px, py] = p, [ax, ay] = a, [bx, by] = b;
+  const abx = bx - ax, aby = by - ay;
+  const lenSq = abx * abx + aby * aby;
+  const t = lenSq ? Math.max(0, Math.min(1, ((px - ax) * abx + (py - ay) * aby) / lenSq)) : 0;
+  const cx = ax + t * abx, cy = ay + t * aby;
+  return Math.hypot(px - cx, py - cy);
+}
+
+const MAX_MATCH_METERS = 40; // past this, "nearest road" is noise, not the road you're on
+
+function nearestWay(lat, lon, ways) {
+  let best = null;
+  let bestDist = Infinity;
+  for (const way of ways) {
+    const pts = way.geometry.map(([la, lo]) => metersXY(lat, lon, la, lo));
+    for (let i = 1; i < pts.length; i += 1) {
+      const d = distToSegmentMeters([0, 0], pts[i - 1], pts[i]);
+      if (d < bestDist) { bestDist = d; best = way; }
+    }
+  }
+  return bestDist <= MAX_MATCH_METERS ? best : null;
+}
+
+/**
+ * @returns {Promise<{kmh: number, source: 'osm'|'default', highway: string}|null>}
+ * null means no road matched close enough to trust - callers must treat
+ * that fix as "no limit data" (excluded from violation checks and from the
+ * problem-meter's speed-zone bands), never silently default to some number.
+ */
+async function getSpeedLimitAt(lat, lon) {
+  const ways = await waysNear(lat, lon);
+  const way = nearestWay(lat, lon, ways);
+  if (!way) return null;
+  if (way.maxspeedKmh) return { kmh: way.maxspeedKmh, source: 'osm', highway: way.highway };
+  const fallback = DEFAULT_KMH_BY_HIGHWAY[way.highway];
+  return fallback ? { kmh: fallback, source: 'default', highway: way.highway } : null;
+}
+
+/**
+ * IndexedDB-backed store of every completed trip - "previous rides" the
+ * visitor can come back to, view, re-export as PDF, or delete. Separate
+ * from STORAGE_LAST_COMPLETE (a single-slot localStorage entry
+ * trip-report.js already kept for "show the trip I just finished even
+ * after a reload"): that one entry is fine for the most recent trip, but a
+ * real history needs many, and a single 8-hour trip's own point array can
+ * already approach localStorage's ~5-10MB quota on its own - a history of
+ * several trips would blow past it fast. IndexedDB has no such practical
+ * ceiling for this size of data.
+ */
+
+const DB_NAME = 'tripReportHistory';
+const STORE = 'trips';
+const DB_VERSION = 1;
+
+function openDb() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains(STORE)) {
+        db.createObjectStore(STORE, { keyPath: 'tripId' }).createIndex('startTime', 'startTime');
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function saveTripToHistory(trip) {
+  const db = await openDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE, 'readwrite');
+    tx.objectStore(STORE).put(trip);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+/** Newest first - that's the order anyone browsing "previous rides" wants. */
+async function listTripHistory() {
+  const db = await openDb();
+  return new Promise((resolve, reject) => {
+    const req = db.transaction(STORE, 'readonly').objectStore(STORE).getAll();
+    req.onsuccess = () => resolve(req.result.sort((a, b) => b.startTime - a.startTime));
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function deleteTripFromHistory(tripId) {
+  const db = await openDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE, 'readwrite');
+    tx.objectStore(STORE).delete(tripId);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+/**
+ * Live trip map: a canvas basemap (via geo-utils.js's WGS84 tile stitcher,
+ * same no-CDN approach as every other map on this site) that recenters as
+ * the vehicle moves, with the trip's route redrawn on top of it after every
+ * fix. Recentering refetches OSM tiles, so it only happens when the current
+ * position actually nears the edge of what's on screen - not on every GPS
+ * update - to stay well inside OSM's tile usage policy (already the reason
+ * geo-utils.js caps concurrent tile fetches at 2).
+ *
+ * Unlike blue-lines.html/area-cleanup.html (one static pin, one fetch, done),
+ * this basemap is refetched repeatedly through a trip, so recenter() always
+ * replaces the previous cached canvas+projector rather than composing with
+ * it - there is never more than one live basemap in memory at a time.
+ */
+
+
+const MAP_SIZE = 640;
+const RECENTER_RADIUS_M = 450; // half-width of the fetched bbox
+const RECENTER_TRIGGER_RATIO = 0.7; // recenter once the fix passes 70% of the way to the edge
+
+function metersPerDegree(lat) {
+  const dLat = 111320;
+  const dLon = 111320 * Math.cos((lat * Math.PI) / 180);
+  return { dLat, dLon };
+}
+
+function createTripMap(canvas) {
+  const ctx = canvas.getContext('2d');
+  canvas.width = MAP_SIZE;
+  canvas.height = MAP_SIZE;
+
+  let center = null; // {lat, lon}
+  let basemap = null; // {canvas, project}
+  let autoPan = true;
+  let loading = false;
+
+  async function recenter(lat, lon) {
+    if (loading) return; // a slow tile fetch already in flight; the next redraw() will retry
+    loading = true;
+    try {
+      const { dLat, dLon } = metersPerDegree(lat);
+      const bbox = [
+        lon - RECENTER_RADIUS_M / dLon, lat - RECENTER_RADIUS_M / dLat,
+        lon + RECENTER_RADIUS_M / dLon, lat + RECENTER_RADIUS_M / dLat,
+      ];
+      basemap = await fetchBasemapCanvasWGS84(bbox, MAP_SIZE);
+      center = { lat, lon };
+    } catch (err) {
+      console.warn('trip-map: basemap fetch failed', err);
+    } finally {
+      loading = false;
+    }
+  }
+
+  function needsRecenter(lat, lon) {
+    if (!center) return true;
+    const { dLat, dLon } = metersPerDegree(lat);
+    const dxM = (lon - center.lon) * dLon;
+    const dyM = (lat - center.lat) * dLat;
+    const distM = Math.hypot(dxM, dyM);
+    return distM > RECENTER_RADIUS_M * RECENTER_TRIGGER_RATIO;
+  }
+
+  function bandColor(ratio) {
+    return (SPEED_BANDS.find((b) => ratio <= b.max) || SPEED_BANDS[SPEED_BANDS.length - 1]).color;
+  }
+
+  const EVENT_STYLE = {
+    brake: { color: '#8800FF', label: 'בלימה חדה' },
+    accel: { color: '#00FFFF', label: 'האצה חדה' },
+    violation: { color: '#FF0000', label: 'חריגת מהירות' },
+  };
+
+  /**
+   * @param points [{lat, lon, speedKmh, limitKmh}] full trip so far - points
+   *   that fall outside the current basemap simply render off-canvas
+   *   (canvas draws those segments partially or not at all, same as any
+   *   slippy map showing only what's currently in view).
+   * @param events same shape as trip-score.js's event log, each carrying its
+   *   own lat/lon
+   * @param current {lat, lon} the live position, drawn as the blue dot
+   */
+  function redraw(points, events, current) {
+    if (!basemap) return;
+    ctx.drawImage(basemap.canvas, 0, 0);
+
+    ctx.lineWidth = 4;
+    ctx.lineCap = 'round';
+    for (let i = 1; i < points.length; i += 1) {
+      const prev = points[i - 1];
+      const cur = points[i];
+      const [x0, y0] = basemap.project(prev.lon, prev.lat);
+      const [x1, y1] = basemap.project(cur.lon, cur.lat);
+      ctx.strokeStyle = cur.limitKmh ? bandColor(cur.speedKmh / cur.limitKmh) : '#888888';
+      ctx.beginPath();
+      ctx.moveTo(x0, y0);
+      ctx.lineTo(x1, y1);
+      ctx.stroke();
+    }
+
+    events.forEach((ev) => {
+      const style = EVENT_STYLE[ev.type];
+      if (!style || ev.lat == null) return;
+      const [x, y] = basemap.project(ev.lon, ev.lat);
+      ctx.beginPath();
+      ctx.arc(x, y, 8, 0, Math.PI * 2);
+      ctx.fillStyle = style.color;
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 2;
+      ctx.fill();
+      ctx.stroke();
+    });
+
+    if (current) {
+      const [x, y] = basemap.project(current.lon, current.lat);
+      ctx.beginPath();
+      ctx.arc(x, y, 9, 0, Math.PI * 2);
+      ctx.fillStyle = '#1a73e8';
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 3;
+      ctx.fill();
+      ctx.stroke();
+    }
+  }
+
+  /** Called on every new fix. Recenters first (awaited) when needed and
+   * auto-pan is on, then always redraws - so a frozen (auto-pan off) map
+   * still reflects new route/event data on the basemap it already has. */
+  async function update(points, events, current) {
+    if (autoPan && current && needsRecenter(current.lat, current.lon)) {
+      await recenter(current.lat, current.lon);
+    }
+    redraw(points, events, current);
+  }
+
+  return {
+    update,
+    recenter,
+    setAutoPan: (value) => { autoPan = value; },
+    getAutoPan: () => autoPan,
+  };
+}
+
+/**
  * Shared "app card" rendering - the grid of tools built on top of (or, for
  * the tree tracker, adjacent to) a government API, as opposed to the portal/
  * API map itself. Grouped by what a visitor is actually trying to do
@@ -2310,49 +3228,949 @@ function renderAppContext(node, apps, currentId) {
 }
 
 /**
- * Entry point for apps.html - every app in one place, grouped the same way
- * as the "אפליקציות" section on index.html (src/apps.js), just without the
- * portal/API map underneath it. Its own page/URL because "just the apps,
- * nothing else" is a real thing someone might want to link to or bookmark -
- * the map stays a map.
+ * דוח נסיעה - live vehicle monitoring. GPS + accelerometer -> a driving
+ * score and route map, computed entirely client-side. Scope is still MVP +
+ * OSM + PDF/raw-data export - no background Service Worker tracking, no
+ * IndexedDB trip history - those remain explicitly deferred, not forgotten.
+ *
+ * ---------- why harsh-event direction (brake vs accelerate) isn't read
+ * straight off the accelerometer sign ----------
+ * A phone's mounting angle/orientation in the vehicle is unknown and
+ * arbitrary, so "positive x" carries no fixed meaning ("forward" for one
+ * mount is "sideways" for another). What IS reliable is GPS ground speed:
+ * if speed is falling sharply at the same moment the accelerometer spikes,
+ * that is a brake, full stop. So the accelerometer supplies the magnitude
+ * and timing (matching the spec's >0.5g / <-0.5g thresholds exactly); GPS's
+ * own speed trend supplies the direction. An accel spike with no
+ * corroborating GPS trend (e.g. right at trip start, or a pothole jolt with
+ * no speed change) is dropped rather than mislabeled.
  */
 
 
 
-initThemePicker(el('themePick'));
 
-/** Copies the embed <iframe> snippet as plain text - Clipboard API, no
- * fallback textarea/execCommand: every browser this site otherwise targets
- * (Chrome/Edge/Firefox/Safari, all recent enough for the rest of the JS
- * here) already supports navigator.clipboard.writeText over https/localhost. */
-const embedCopyBtn = el('embedCopyBtn');
-if (embedCopyBtn) {
-  const prevLabel = embedCopyBtn.textContent;
-  embedCopyBtn.addEventListener('click', async () => {
-    try {
-      await navigator.clipboard.writeText(el('embedCode').textContent);
-      embedCopyBtn.textContent = 'הועתק ✓';
-    } catch {
-      embedCopyBtn.textContent = 'ההעתקה נכשלה - יש להעתיק ידנית';
-    }
-    setTimeout(() => { embedCopyBtn.textContent = prevLabel; }, 2000);
+
+
+
+
+const STORAGE_ACTIVE = 'tripReport:activeTrip';
+const STORAGE_LAST_COMPLETE = 'tripReport:lastCompletedTrip';
+const AUTOSAVE_MS = 5000;
+const HARSH_ACCEL_MPS2 = 0.5 * 9.80665; // spec's own threshold, verbatim
+const EVENT_COOLDOWN_MS = 2000; // one hard stop shouldn't log a dozen events around the threshold
+const SPEED_TREND_THRESHOLD_KMH_S = 3; // corroborating GPS trend, alongside an accel spike
+const GPS_ONLY_TREND_THRESHOLD_KMH_S = 8; // no accelerometer at all - GPS alone is noisier, so the bar is higher
+const VIOLATION_MIN_DURATION_MS = 3000; // below this, it's GPS jitter over the line, not a real violation
+const VIOLATION_RATIO_MARGIN = 1.03; // 3% buffer so a limit's own rounding doesn't flap true/false
+const GRAVITY_ALPHA = 0.8;
+
+const uid = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+
+function haversineM(lat1, lon1, lat2, lon2) {
+  const R = 6371000;
+  const toRad = (d) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function formatDuration(ms) {
+  const s = Math.max(0, Math.round(ms / 1000));
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  return h ? `${h}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}` : `${m}:${String(sec).padStart(2, '0')}`;
+}
+
+function formatStartTime(ms) {
+  return new Date(ms).toLocaleString('he-IL', {
+    day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
   });
 }
 
-async function load() {
+/** date/time/vehicle-type filename stem, shared by the PDF and JSON
+ * exports - spec's own `trip_[YYYY-MM-DD]_[HH-MM-SS]_[vehicletype]` format. */
+function tripFilenameBase(t) {
+  const d = new Date(t.startTime);
+  const pad = (n) => String(n).padStart(2, '0');
+  const date = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const time = `${pad(d.getHours())}-${pad(d.getMinutes())}-${pad(d.getSeconds())}`;
+  return `trip_${date}_${time}_${t.vehicleType}`;
+}
+
+/** Hides (driving) / restores (setup, complete) the site header and the
+ * app-context sibling strip - a screen meant to be glanced at hands-free
+ * while moving shouldn't also be a page you could navigate away from by
+ * accident, and the extra chrome is one more thing competing for
+ * attention it doesn't need while a trip is actually running. */
+function setChromeVisible(visible) {
+  el('trSiteHeader').hidden = !visible;
+  el('appContext').hidden = !visible;
+}
+
+/* ---------- trip state ---------- */
+
+let trip = null;
+let tripMap = null;
+let watchId = null;
+let tickTimer = null;
+let autosaveTimer = null;
+let activeMs = 0;
+let lastTickAt = null;
+let motionAvailable = false;
+let gravity = null;
+let accelSensor = null;
+let lastEventAt = 0;
+let violationState = { active: false };
+let storageDegraded = false;
+let wakeLock = null;
+let historyMode = false;
+let screenWarningTimer = null;
+
+/** Best-effort - GPS + accelerometer tracking is useless if the OS locks
+ * the screen mid-trip and suspends the tab; the on-screen reminder (see
+ * trip-report.html's .tr-screen-warning) covers browsers/situations where
+ * this API isn't available or the lock gets silently released (e.g. the
+ * visibility change docs describe), but this makes the common case need no
+ * reminder at all. Never throws - a rejected request just means the
+ * reminder text is now doing all the work, same as browsers without the
+ * API at all. */
+async function acquireWakeLock() {
   try {
-    const data = globalThis.__API_DATA__ || await (async () => {
-      const res = await fetch(new URL('../apis.json', import.meta.url));
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      return res.json();
-    })();
-    renderAppsByCategory(el('apps'), data.apps);
+    if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen');
   } catch (err) {
-    showError(el('apps'), err);
+    console.warn('trip-report: wake lock unavailable', err);
   }
 }
 
-load();
+async function releaseWakeLock() {
+  try {
+    await wakeLock?.release();
+  } catch { /* already released or never acquired - nothing to do */ }
+  wakeLock = null;
+}
+
+function newTrip(vehicleType, busLine) {
+  return {
+    tripId: uid(),
+    startTime: Date.now(),
+    endTime: null,
+    vehicleType,
+    busLine: busLine || null,
+    city: null,
+    status: 'active',
+    points: [],
+    events: [],
+  };
+}
+
+/** Nominatim reverse geocode - lat/lon -> a city name, same OSM service
+ * (forward direction) blue-lines.js/area-cleanup.js already use for address
+ * search. Fired once per bus trip (see onPosition's first-fix check), not
+ * on every fix - a city doesn't change fix-to-fix, and Nominatim's usage
+ * policy is 1 request/second, not a live-tracking budget. */
+const NOMINATIM_REVERSE = 'https://nominatim.openstreetmap.org/reverse';
+async function reverseGeocodeCity(lat, lon) {
+  const params = new URLSearchParams({
+    lat, lon, format: 'jsonv2', 'accept-language': 'he', zoom: '10',
+  });
+  const res = await fetch(`${NOMINATIM_REVERSE}?${params}`);
+  if (!res.ok) throw new Error(`Nominatim HTTP ${res.status}`);
+  const data = await res.json();
+  const a = data.address || {};
+  return a.city || a.town || a.village || a.municipality || null;
+}
+
+function recentSpeedTrendKmhPerS() {
+  const pts = trip.points.filter((p) => p.speedKmh != null);
+  if (pts.length < 2) return null;
+  const a = pts[pts.length - 2];
+  const b = pts[pts.length - 1];
+  const dtS = (b.t - a.t) / 1000;
+  return dtS > 0 ? (b.speedKmh - a.speedKmh) / dtS : null;
+}
+
+/** Calm, silent feedback for a just-logged event - a brief color pulse on
+ * the score gauge (already on screen, so this adds no new visual element)
+ * plus a vibration where supported. Deliberately NOT sound or a flashing
+ * full-screen takeover: those would be a bigger distraction, mid-drive,
+ * than the event they're reacting to. */
+function pulseAlert() {
+  const gauge = el('trScoreGauge');
+  if (!gauge) return;
+  gauge.classList.remove('tr-score-pulse');
+  // eslint-disable-next-line no-void
+  void gauge.offsetWidth; // restart the CSS animation if it's still running from a previous event
+  gauge.classList.add('tr-score-pulse');
+  if (navigator.vibrate) navigator.vibrate(200);
+}
+
+function logHarshEvent(type, magnitude) {
+  const last = trip.points[trip.points.length - 1];
+  trip.events.push({
+    eventId: uid(), t: Date.now(), lat: last?.lat, lon: last?.lon, type, magnitude,
+  });
+  lastEventAt = Date.now();
+  pulseAlert();
+  renderAll();
+}
+
+/** Shared by both sensor sources below (Generic Sensor API and the
+ * DeviceMotionEvent fallback) - same threshold/cooldown/GPS-trend-direction
+ * logic regardless of which API actually supplied the sample. `ax/ay/az`
+ * must already be gravity-compensated (linear acceleration only). */
+function handleAccelSample(ax, ay, az) {
+  if (!trip || trip.status !== 'active') return;
+  motionAvailable = true;
+  const magnitude = Math.sqrt(ax * ax + ay * ay + az * az);
+  const now = Date.now();
+  if (magnitude < HARSH_ACCEL_MPS2 || now - lastEventAt < EVENT_COOLDOWN_MS) return;
+
+  const trend = recentSpeedTrendKmhPerS();
+  if (trend == null) return;
+  if (trend <= -SPEED_TREND_THRESHOLD_KMH_S) logHarshEvent('brake', -magnitude);
+  else if (trend >= SPEED_TREND_THRESHOLD_KMH_S) logHarshEvent('accel', magnitude);
+}
+
+function onMotion(e) {
+  let ax, ay, az;
+  if (e.acceleration && e.acceleration.x != null) {
+    ({ x: ax, y: ay, z: az } = e.acceleration);
+  } else if (e.accelerationIncludingGravity && e.accelerationIncludingGravity.x != null) {
+    const g = e.accelerationIncludingGravity;
+    if (!gravity) gravity = { x: g.x, y: g.y, z: g.z };
+    else {
+      gravity.x = gravity.x * GRAVITY_ALPHA + g.x * (1 - GRAVITY_ALPHA);
+      gravity.y = gravity.y * GRAVITY_ALPHA + g.y * (1 - GRAVITY_ALPHA);
+      gravity.z = gravity.z * GRAVITY_ALPHA + g.z * (1 - GRAVITY_ALPHA);
+    }
+    ax = g.x - gravity.x; ay = g.y - gravity.y; az = g.z - gravity.z;
+  } else return;
+  handleAccelSample(ax, ay, az);
+}
+
+/** Generic Sensor API (LinearAccelerationSensor/Accelerometer) - Chrome/
+ * Android only today, no Safari/iOS support at all, which is why this is a
+ * preferred path attempted FIRST rather than a replacement for the
+ * DeviceMotionEvent fallback below: startTrip() falls back to devicemotion
+ * whenever this returns false. LinearAccelerationSensor (gravity already
+ * removed by the platform) is preferred over the raw Accelerometer class,
+ * which - like accelerationIncludingGravity - needs this file's own
+ * gravity low-pass filter. Returns whether it actually started; never
+ * throws (a permission denial or missing Permissions-Policy is exactly the
+ * "fall back to devicemotion" case, not an error to surface). */
+async function startAccelerometer() {
+  const SensorClass = window.LinearAccelerationSensor || window.Accelerometer;
+  if (!SensorClass) return false;
+  const isLinear = SensorClass === window.LinearAccelerationSensor;
+  try {
+    if (navigator.permissions?.query) {
+      const status = await navigator.permissions.query({ name: 'accelerometer' });
+      if (status.state === 'denied') return false;
+    }
+    const sensor = new SensorClass({ frequency: 30 });
+    let sensorGravity = null;
+    sensor.addEventListener('reading', () => {
+      if (isLinear) { handleAccelSample(sensor.x, sensor.y, sensor.z); return; }
+      if (!sensorGravity) sensorGravity = { x: sensor.x, y: sensor.y, z: sensor.z };
+      else {
+        sensorGravity.x = sensorGravity.x * GRAVITY_ALPHA + sensor.x * (1 - GRAVITY_ALPHA);
+        sensorGravity.y = sensorGravity.y * GRAVITY_ALPHA + sensor.y * (1 - GRAVITY_ALPHA);
+        sensorGravity.z = sensorGravity.z * GRAVITY_ALPHA + sensor.z * (1 - GRAVITY_ALPHA);
+      }
+      handleAccelSample(sensor.x - sensorGravity.x, sensor.y - sensorGravity.y, sensor.z - sensorGravity.z);
+    });
+    sensor.addEventListener('error', (ev) => {
+      console.warn('trip-report: accelerometer sensor error', ev.error);
+      // start() can resolve without throwing even when no physical sensor
+      // ever answers (e.g. desktop Chrome, no hardware) - the failure only
+      // shows up here, asynchronously. No devicemotion fallback is wired
+      // up at this point (startAccelerometer already reported success), but
+      // checkGpsOnlyHarshEvent()'s own motionAvailable guard already covers
+      // this case functionally - this notice is purely so the driver knows
+      // detection is running on GPS alone, not silently degraded.
+      if (!motionAvailable) showNotice('trPermStatus', 'לא ניתן להתחבר לחיישן התאוצה - זיהוי בלימות/האצות חדות יתבסס על מהירות ה-GPS בלבד.', 'info');
+    });
+    sensor.start();
+    accelSensor = sensor;
+    return true;
+  } catch (err) {
+    console.warn('trip-report: Generic Sensor API accelerometer unavailable', err);
+    accelSensor = null;
+    return false;
+  }
+}
+
+/** Only runs when no accelerometer data has ever arrived (denied permission,
+ * unsupported browser) - per spec's own "Fallback for Non-SW Browsers"-
+ * adjacent limitation table entry for iOS/no-motion devices. Coarser (GPS
+ * updates every 1-5s, not 50-100Hz) so the bar for "harsh" is higher. */
+function checkGpsOnlyHarshEvent() {
+  if (motionAvailable) return;
+  const trend = recentSpeedTrendKmhPerS();
+  if (trend == null) return;
+  const now = Date.now();
+  if (now - lastEventAt < EVENT_COOLDOWN_MS) return;
+  const magnitude = (trend / 3.6); // km/h/s -> m/s²-ish, for the score's severity check
+  if (trend <= -GPS_ONLY_TREND_THRESHOLD_KMH_S) logHarshEvent('brake', -Math.abs(magnitude));
+  else if (trend >= GPS_ONLY_TREND_THRESHOLD_KMH_S) logHarshEvent('accel', Math.abs(magnitude));
+}
+
+function evaluateViolation(point) {
+  if (point.limitKmh == null) return;
+  const ratio = point.speedKmh / point.limitKmh;
+  if (ratio > VIOLATION_RATIO_MARGIN) {
+    if (!violationState.active) {
+      violationState = {
+        active: true, startT: point.t, lat: point.lat, lon: point.lon, peakRatio: ratio,
+      };
+    } else {
+      violationState.peakRatio = Math.max(violationState.peakRatio, ratio);
+    }
+  } else if (violationState.active) {
+    closeViolation(point.t);
+  }
+}
+
+function closeViolation(atT) {
+  const durationMs = atT - violationState.startT;
+  if (durationMs >= VIOLATION_MIN_DURATION_MS) {
+    const percentOver = Math.round((violationState.peakRatio - 1) * 100);
+    trip.events.push({
+      eventId: uid(),
+      t: violationState.startT,
+      lat: violationState.lat,
+      lon: violationState.lon,
+      type: 'violation',
+      severity: violationSeverity(percentOver, durationMs),
+      durationMs,
+      data: { percentOver },
+    });
+    pulseAlert();
+  }
+  violationState = { active: false };
+}
+
+function onPosition(position) {
+  if (!trip || trip.status !== 'active') return;
+  const {
+    latitude: lat, longitude: lon, accuracy, speed, heading,
+  } = position.coords;
+  const t = position.timestamp || Date.now();
+  let speedMps = speed;
+  const prev = trip.points[trip.points.length - 1];
+  if (speedMps == null && prev) {
+    const dtS = (t - prev.t) / 1000;
+    if (dtS > 0) speedMps = haversineM(prev.lat, prev.lon, lat, lon) / dtS;
+  }
+  const point = {
+    t, lat, lon, accuracy, speedKmh: speedMps != null ? speedMps * 3.6 : null, headingDeg: heading, limitKmh: null, limitSource: null,
+  };
+  trip.points.push(point);
+  checkGpsOnlyHarshEvent();
+  tripMap.update(trip.points, trip.events, { lat, lon });
+  renderAll();
+
+  if (trip.vehicleType === 'bus' && !trip.city && trip.points.length === 1) {
+    reverseGeocodeCity(lat, lon)
+      .then((city) => { if (city) { trip.city = city; renderAll(); } })
+      .catch(() => {});
+  }
+
+  getSpeedLimitAt(lat, lon).then((res) => {
+    if (res) { point.limitKmh = res.kmh; point.limitSource = res.source; }
+    evaluateViolation(point);
+    renderAll();
+  }).catch(() => {});
+}
+
+function onPositionError(err) {
+  showNotice('trPermStatus', `שגיאת מיקום: ${esc(err.message)} - המעקב ממשיך, אך ייתכן שהנתונים יהיו חלקיים.`, 'error');
+}
+
+/* ---------- persistence ---------- */
+
+function persistActive() {
+  if (storageDegraded || !trip) return;
+  try {
+    localStorage.setItem(STORAGE_ACTIVE, JSON.stringify(trip));
+  } catch (err) {
+    storageDegraded = true;
+    showNotice('trPermStatus', 'אחסון מקומי מלא - הנסיעה ממשיכה, אך לא תישמר אם הדף ייסגר.', 'error');
+  }
+}
+
+function loadActiveFromStorage() {
+  try {
+    const raw = localStorage.getItem(STORAGE_ACTIVE);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+
+function loadLastCompleted() {
+  try {
+    const raw = localStorage.getItem(STORAGE_LAST_COMPLETE);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+
+/* ---------- stats ---------- */
+
+function computeStats() {
+  let distanceM = 0;
+  let maxSpeedKmh = 0;
+  const speeds = [];
+  for (let i = 0; i < trip.points.length; i += 1) {
+    const p = trip.points[i];
+    if (p.speedKmh != null) { maxSpeedKmh = Math.max(maxSpeedKmh, p.speedKmh); speeds.push(p.speedKmh); }
+    if (i > 0) distanceM += haversineM(trip.points[i - 1].lat, trip.points[i - 1].lon, p.lat, p.lon);
+  }
+  const durationMs = trip.status === 'completed' ? trip.endTime - trip.startTime : activeMs;
+  const avgSpeedKmh = durationMs > 0 ? distanceM / (durationMs / 1000) * 3.6 : 0;
+  const violations = trip.events.filter((e) => e.type === 'violation');
+  const brakes = trip.events.filter((e) => e.type === 'brake');
+  const accels = trip.events.filter((e) => e.type === 'accel');
+  return {
+    distanceM, maxSpeedKmh, avgSpeedKmh, durationMs, violations, brakes, accels,
+  };
+}
+
+/* ---------- rendering ---------- */
+
+function showNotice(id, text, kind = 'info') {
+  const node = el(id);
+  if (!node) return;
+  node.className = `notice ${kind}`;
+  node.textContent = text;
+  node.hidden = false;
+}
+
+function renderScoreGauge(score) {
+  const band = scoreBand(score);
+  const gauge = el('trScoreGauge');
+  gauge.style.setProperty('--score-deg', `${(score / 100) * 360}deg`);
+  gauge.className = `tr-score-gauge ${band.cls}`;
+  el('trScoreNum').textContent = score;
+  el('trScoreLabel').textContent = band.label;
+}
+
+function renderProblemMeter(stats) {
+  el('trViolationCount').textContent = stats.violations.length;
+  el('trBrakeCount').textContent = stats.brakes.length;
+  el('trAccelCount').textContent = stats.accels.length;
+
+  const { msByBand, unknownMs } = speedZoneDistribution(trip.points);
+  const totalMs = Object.values(msByBand).reduce((a, b) => a + b, 0) + unknownMs;
+  const segs = SPEED_BANDS.map((b) => {
+    const pct = totalMs ? (msByBand[b.key] / totalMs) * 100 : 0;
+    return `<div class="tr-meter-seg" style="inline-size:${pct}%;background:${b.color}" title="${esc(b.label)}: ${Math.round(pct)}%"></div>`;
+  }).join('');
+  const unknownPct = totalMs ? (unknownMs / totalMs) * 100 : 0;
+  el('trProblemMeter').innerHTML = segs + (unknownPct
+    ? `<div class="tr-meter-seg tr-meter-unknown" style="inline-size:${unknownPct}%" title="אין נתוני מהירות מותרת: ${Math.round(unknownPct)}%"></div>` : '');
+  el('trProblemLegend').innerHTML = SPEED_BANDS.map((b) => `
+    <span class="tr-legend-item"><span class="tr-legend-swatch" style="background:${b.color}"></span>${esc(b.label)}</span>
+  `).join('') + '<span class="tr-legend-item"><span class="tr-legend-swatch tr-legend-swatch-unknown"></span>ללא נתוני מהירות מותרת</span>';
+}
+
+function renderStatsPanel(stats) {
+  el('trDistance').textContent = `${(stats.distanceM / 1000).toFixed(2)} ק"מ`;
+  el('trMaxSpeed').textContent = `${Math.round(stats.maxSpeedKmh)} קמ"ש`;
+  el('trAvgSpeed').textContent = `${Math.round(stats.avgSpeedKmh)} קמ"ש`;
+  el('trElapsed').textContent = formatDuration(stats.durationMs);
+  const last = trip.points[trip.points.length - 1];
+  el('trSpeedNow').textContent = last?.speedKmh != null ? Math.round(last.speedKmh) : '—';
+  el('trSpeedLimit').textContent = last?.limitKmh != null ? Math.round(last.limitKmh) : '—';
+}
+
+function renderBusInfo() {
+  const node = el('trBusInfo');
+  if (trip.vehicleType !== 'bus') { node.hidden = true; return; }
+  const parts = [];
+  if (trip.busLine) parts.push(`קו ${trip.busLine}`);
+  if (trip.city) parts.push(trip.city);
+  node.textContent = parts.join(' · ');
+  node.hidden = parts.length === 0;
+}
+
+function renderAll() {
+  if (!trip) return;
+  const stats = computeStats();
+  const score = computeScore(trip.events);
+  renderScoreGauge(score);
+  renderProblemMeter(stats);
+  renderStatsPanel(stats);
+  renderBusInfo();
+}
+
+/* ---------- screens ---------- */
+
+function showScreen(name) {
+  ['Setup', 'Active', 'Complete', 'History'].forEach((s) => {
+    el(`trScreen${s}`).hidden = s.toLowerCase() !== name;
+  });
+}
+
+function renderCompleteScreen() {
+  const stats = computeStats();
+  const score = computeScore(trip.events);
+  const band = scoreBand(score);
+  const busLine = trip.vehicleType === 'bus' && (trip.busLine || trip.city)
+    ? ` (${[trip.busLine ? `קו ${trip.busLine}` : null, trip.city].filter(Boolean).join(' · ')})` : '';
+  el('trCompleteSummary').innerHTML = `
+    <p class="tr-complete-score ${band.cls}">ציון הנסיעה: <strong>${score}</strong> - ${esc(band.label)}</p>
+    <p>${trip.vehicleType === 'bus' ? 'אוטובוס' : 'רכב פרטי'}${esc(busLine)} · התחלה: ${esc(formatStartTime(trip.startTime))}</p>
+    <p>${formatDuration(stats.durationMs)} · ${(stats.distanceM / 1000).toFixed(2)} ק"מ</p>
+    <p>מהירות מרבית: ${Math.round(stats.maxSpeedKmh)} קמ"ש · ממוצעת: ${Math.round(stats.avgSpeedKmh)} קמ"ש</p>
+    <p>חריגות מהירות: ${stats.violations.length}</p>
+    <p>בלימות חדות: ${stats.brakes.length} · האצות חדות: ${stats.accels.length}</p>`;
+
+  const sorted = [...trip.events].sort((a, b) => a.t - b.t);
+  const typeLabel = { brake: '🟣 בלימה חדה', accel: '🔵 האצה חדה', violation: '🔴 חריגת מהירות' };
+  el('trEventLog').innerHTML = sorted.length ? sorted.map((e) => `
+    <li>
+      <span class="tr-ev-type">${typeLabel[e.type] || e.type}${e.severity === 'sustained' ? ' ממושכת' : ''}</span>
+      <span class="tr-ev-time">${new Date(e.t).toLocaleTimeString('he-IL')}</span>
+      ${e.type === 'violation' ? `<span>${e.data.percentOver}% מעל המותר, ${Math.round(e.durationMs / 1000)} שנ'</span>` : ''}
+    </li>`).join('') : '<li class="acc-hint">לא נרשמו אירועים בנסיעה זו.</li>';
+}
+
+/* ---------- trip history (view / export / delete past rides) ---------- */
+
+/** Loads `record` as the "current" trip purely for review/export - never a
+ * live trip (no watchers/timers attached, no localStorage write) - reuses
+ * renderCompleteScreen()/exportTripPdf()/exportTripJson() as-is rather than
+ * duplicating them, since all three already just read the module-level
+ * `trip` variable. historyMode gates the PDF's map page (see
+ * buildTripPdfBlob) since #trCanvas belongs to whichever trip was last
+ * actively driven, not necessarily this one. */
+function viewHistoryTrip(record) {
+  trip = record;
+  historyMode = true;
+  renderCompleteScreen();
+  el('trBackToHistory').hidden = false;
+  showScreen('complete');
+}
+
+function renderHistoryList() {
+  listTripHistory().then((records) => {
+    const list = el('trHistoryList');
+    if (!records.length) { list.innerHTML = '<li class="acc-hint">אין עדיין נסיעות שמורות.</li>'; return; }
+    list.innerHTML = records.map((r) => {
+      const score = computeScoreFor(r);
+      const distanceKm = totalDistanceFor(r);
+      const busLine = r.vehicleType === 'bus' && (r.busLine || r.city)
+        ? ` · ${[r.busLine ? `קו ${r.busLine}` : null, r.city].filter(Boolean).join(' · ')}` : '';
+      return `
+        <li class="tr-history-item" data-trip-id="${esc(r.tripId)}">
+          <div class="tr-history-info">
+            <span class="tr-history-date">${esc(formatStartTime(r.startTime))}</span>
+            <span>${r.vehicleType === 'bus' ? 'אוטובוס' : 'רכב פרטי'}${esc(busLine)} · ${distanceKm} ק"מ · ציון ${score}</span>
+          </div>
+          <div class="fin-export-row">
+            <button type="button" class="drill-dl tr-hist-view">👁 צפייה</button>
+            <button type="button" class="drill-dl tr-hist-pdf">📄 PDF</button>
+            <button type="button" class="drill-dl tr-hist-json">⬇ JSON</button>
+            <button type="button" class="drill-dl tr-hist-delete">🗑 מחיקה</button>
+          </div>
+        </li>`;
+    }).join('');
+
+    list.querySelectorAll('.tr-history-item').forEach((li) => {
+      const tripId = li.dataset.tripId;
+      const record = records.find((r) => r.tripId === tripId);
+      li.querySelector('.tr-hist-view').addEventListener('click', () => viewHistoryTrip(record));
+      li.querySelector('.tr-hist-pdf').addEventListener('click', () => {
+        trip = record; historyMode = true;
+        exportTripPdf().catch((err) => console.warn('trip-report: history PDF export failed', err));
+      });
+      li.querySelector('.tr-hist-json').addEventListener('click', () => {
+        trip = record; historyMode = true;
+        exportTripJson();
+      });
+      const delBtn = li.querySelector('.tr-hist-delete');
+      delBtn.addEventListener('click', () => {
+        if (delBtn.dataset.armed) {
+          deleteTripFromHistory(tripId).then(renderHistoryList)
+            .catch((err) => console.warn('trip-report: delete from history failed', err));
+          return;
+        }
+        delBtn.dataset.armed = '1';
+        delBtn.textContent = 'למחוק בוודאות?';
+        setTimeout(() => { delBtn.dataset.armed = ''; delBtn.textContent = '🗑 מחיקה'; }, 3000);
+      });
+    });
+  }).catch((err) => {
+    el('trHistoryList').innerHTML = `<li class="notice error">טעינת ההיסטוריה נכשלה: ${esc(err.message)}</li>`;
+  });
+}
+
+/** computeStats()/computeScore() both read the module-level `trip` - these
+ * two one-line wrappers let the history list compute a score/distance per
+ * row without swapping `trip` in and out of scope for every row it draws. */
+function computeScoreFor(record) { return computeScore(record.events); }
+function totalDistanceFor(record) {
+  let m = 0;
+  for (let i = 1; i < record.points.length; i += 1) {
+    m += haversineM(record.points[i - 1].lat, record.points[i - 1].lon, record.points[i].lat, record.points[i].lon);
+  }
+  return (m / 1000).toFixed(1);
+}
+
+/* ---------- PDF / raw-data export ----------
+ * Same hand-rolled approach as area-cleanup.html/blue-lines.html (src/pdf.js
+ * - no jsPDF, no CDN): a JPEG-encoded canvas page for the map (the current
+ * #trCanvas snapshot, whatever it last drew - no separate re-render step),
+ * plus a second canvas page with the summary/event log rendered as text
+ * (a canvas already gets Hebrew right via the browser's own font stack,
+ * which this hand-written PDF writer has no font embedding to do itself). */
+
+function canvasToJpegBytes(canvas, quality = 0.85) {
+  return new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', quality))
+    .then((blob) => blob.arrayBuffer())
+    .then((buf) => new Uint8Array(buf));
+}
+
+function wrapText(ctx, text, maxWidth) {
+  const words = text.split(' ');
+  const lines = [];
+  let line = '';
+  for (const word of words) {
+    const test = line ? `${line} ${word}` : word;
+    if (ctx.measureText(test).width > maxWidth && line) { lines.push(line); line = word; } else line = test;
+  }
+  if (line) lines.push(line);
+  return lines;
+}
+
+function buildTripSummaryLines(stats, score, band) {
+  const busLine = trip.vehicleType === 'bus' && (trip.busLine || trip.city)
+    ? ` (${[trip.busLine ? `קו ${trip.busLine}` : null, trip.city].filter(Boolean).join(' · ')})` : '';
+  return [
+    `ציון הנסיעה: ${score} - ${band.label}`,
+    `${trip.vehicleType === 'bus' ? 'אוטובוס' : 'רכב פרטי'}${busLine}`,
+    `התחלה: ${formatStartTime(trip.startTime)}`,
+    `משך: ${formatDuration(stats.durationMs)} · מרחק: ${(stats.distanceM / 1000).toFixed(2)} ק"מ`,
+    `מהירות מרבית: ${Math.round(stats.maxSpeedKmh)} קמ"ש · ממוצעת: ${Math.round(stats.avgSpeedKmh)} קמ"ש`,
+    `חריגות מהירות: ${stats.violations.length}`,
+    `בלימות חדות: ${stats.brakes.length} · האצות חדות: ${stats.accels.length}`,
+    '',
+    'יומן אירועים:',
+    ...(trip.events.length ? [...trip.events].sort((a, b) => a.t - b.t).map((e) => {
+      const time = new Date(e.t).toLocaleTimeString('he-IL');
+      const type = { brake: 'בלימה חדה', accel: 'האצה חדה', violation: 'חריגת מהירות' }[e.type] || e.type;
+      const sustained = e.severity === 'sustained' ? ' ממושכת' : '';
+      const detail = e.type === 'violation' ? ` - ${e.data.percentOver}% מעל המותר, ${Math.round(e.durationMs / 1000)} שנ'` : '';
+      return `${time} - ${type}${sustained}${detail}`;
+    }) : ['לא נרשמו אירועים בנסיעה זו.']),
+  ];
+}
+
+/** Text-only PDF page: title + buildTripSummaryLines(), word-wrapped to the
+ * map page's own width so both pages read as one document. */
+function buildTripDataPageCanvas(stats, score, band) {
+  const width = 640;
+  const pad = 28;
+  const lineH = 24;
+  const titleH = 44;
+  const measurer = document.createElement('canvas').getContext('2d');
+  measurer.font = '15px sans-serif';
+  const rendered = buildTripSummaryLines(stats, score, band)
+    .flatMap((line) => (line === '' ? [''] : wrapText(measurer, line, width - pad * 2)));
+
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = titleH + pad * 2 + rendered.length * lineH;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.direction = 'rtl';
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'top';
+  ctx.fillStyle = '#2e7d46';
+  ctx.font = 'bold 19px sans-serif';
+  ctx.fillText('דוח נסיעה — סיכום', width - pad, pad);
+
+  let y = pad + titleH;
+  ctx.font = '15px sans-serif';
+  ctx.fillStyle = '#24331f';
+  for (const line of rendered) {
+    ctx.fillText(line, width - pad, y);
+    y += lineH;
+  }
+  return canvas;
+}
+
+async function buildTripPdfBlob() {
+  const stats = computeStats();
+  const score = computeScore(trip.events);
+  const band = scoreBand(score);
+  const mapCanvas = el('trCanvas');
+  const pages = [];
+  // historyMode: #trCanvas still shows whichever trip was last actively
+  // driven, not necessarily this one - including it here would silently
+  // attach the wrong route to a re-exported older trip's PDF.
+  if (!historyMode && mapCanvas.width && mapCanvas.height) {
+    pages.push({ jpegBytes: await canvasToJpegBytes(mapCanvas), width: mapCanvas.width, height: mapCanvas.height });
+  }
+  const dataCanvas = buildTripDataPageCanvas(stats, score, band);
+  pages.push({ jpegBytes: await canvasToJpegBytes(dataCanvas), width: dataCanvas.width, height: dataCanvas.height });
+  return buildPdf({ pages });
+}
+
+/** `silent`: true for the automatic on-stop download (no button-label
+ * feedback to restore - there is no button click to react to). */
+async function exportTripPdf({ silent = false } = {}) {
+  const btn = el('trExportPdf');
+  const prevLabel = btn?.textContent;
+  if (!silent && btn) { btn.disabled = true; btn.textContent = 'בונה PDF…'; }
+  try {
+    const pdfBlob = await buildTripPdfBlob();
+    downloadBlob(pdfBlob, `${tripFilenameBase(trip)}.pdf`);
+    return pdfBlob;
+  } finally {
+    if (!silent && btn) { btn.disabled = false; btn.textContent = prevLabel; }
+  }
+}
+
+/** Same navigator.share()-with-files-first, wa.me-fallback pattern as
+ * area-cleanup.js's shareToWhatsApp - WhatsApp registers as a native OS
+ * share target, so the PDF goes along as a real attachment wherever that's
+ * supported; wa.me is a plain link with no file-carrying capability at all,
+ * so on a desktop browser without file-sharing the PDF is downloaded first
+ * and the visitor attaches it by hand. */
+function canShareFiles(type) {
+  return !!(navigator.canShare && navigator.canShare({ files: [new File([], 'x', { type })] }));
+}
+
+async function shareTripToWhatsApp() {
+  const status = el('trExportStatus');
+  const filename = `${tripFilenameBase(trip)}.pdf`;
+  if (canShareFiles('application/pdf')) {
+    status.textContent = 'בונה PDF לשיתוף…';
+    try {
+      const pdfBlob = await buildTripPdfBlob();
+      const file = new File([pdfBlob], filename, { type: 'application/pdf' });
+      status.textContent = '';
+      await navigator.share({ files: [file] });
+    } catch (err) {
+      if (err.name !== 'AbortError') showNotice('trExportStatus', `שיתוף נכשל: ${esc(err.message)}`, 'error');
+      else status.textContent = '';
+    }
+    return;
+  }
+  status.textContent = 'בונה PDF…';
+  try {
+    const pdfBlob = await buildTripPdfBlob();
+    downloadBlob(pdfBlob, filename);
+    const score = computeScore(trip.events);
+    const text = `דוח נסיעה - ציון ${score}/100`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank', 'noopener');
+    status.textContent = `נפתח וואטסאפ; קובץ ה-PDF גם הורד למכשיר (${filename}) - צרפו אותו ידנית (לחצו על סיכת הנייר 📎 בוואטסאפ).`;
+  } catch (err) {
+    showNotice('trExportStatus', `בניית ה-PDF נכשלה: ${esc(err.message)}`, 'error');
+  }
+}
+
+/** The full trip object as-is (points + events + everything derived from
+ * them) - a JSON dump, not a curated export, since anyone wanting the raw
+ * data wants exactly what was recorded, not a lossy summary of it. */
+function exportTripJson() {
+  const blob = new Blob([JSON.stringify(trip, null, 2)], { type: 'application/json' });
+  downloadBlob(blob, `${tripFilenameBase(trip)}.json`);
+}
+
+/* ---------- lifecycle ---------- */
+
+async function requestMotionPermission() {
+  if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+    try {
+      const result = await DeviceMotionEvent.requestPermission();
+      return result === 'granted';
+    } catch { return false; }
+  }
+  return typeof DeviceMotionEvent !== 'undefined';
+}
+
+function startTicking() {
+  lastTickAt = Date.now();
+  tickTimer = setInterval(() => {
+    if (trip.status === 'active') {
+      activeMs += Date.now() - lastTickAt;
+      trip.activeMs = activeMs; // kept on the trip object so a reload can resume the clock, not just the points
+      renderAll();
+    }
+    lastTickAt = Date.now();
+  }, 1000);
+  autosaveTimer = setInterval(persistActive, AUTOSAVE_MS);
+}
+
+function stopTicking() {
+  clearInterval(tickTimer);
+  clearInterval(autosaveTimer);
+  tickTimer = null;
+  autosaveTimer = null;
+}
+
+async function startTrip(vehicleType, resumed, busLine) {
+  // DeviceMotionEvent.requestPermission() must run synchronously within the
+  // click gesture on iOS - called first, before the geolocation permission
+  // prompt (which can itself take a moment) has any chance to consume it.
+  const motionPromise = requestMotionPermission();
+
+  trip = resumed || newTrip(vehicleType, busLine);
+  historyMode = false;
+  activeMs = resumed ? (resumed.activeMs || 0) : 0;
+  tripMap = createTripMap(el('trCanvas'));
+  setChromeVisible(false);
+  acquireWakeLock();
+  showScreen('active');
+  el('trStartTime').textContent = formatStartTime(trip.startTime);
+  el('trPauseResume').textContent = trip.status === 'paused' ? '▶' : '⏸';
+  el('trStopConfirm').hidden = true;
+  el('trScreenWarning').classList.remove('tr-warning-shrink');
+  clearTimeout(screenWarningTimer);
+  screenWarningTimer = setTimeout(() => el('trScreenWarning').classList.add('tr-warning-shrink'), 30000);
+
+  const sensorStarted = await startAccelerometer();
+  if (!sensorStarted) {
+    const motionGranted = await motionPromise;
+    if (motionGranted) window.addEventListener('devicemotion', onMotion);
+    else showNotice('trPermStatus', 'אין גישה לחיישן התאוצה - זיהוי בלימות/האצות חדות יתבסס על מהירות ה-GPS בלבד.', 'info');
+  }
+
+  watchId = navigator.geolocation.watchPosition(onPosition, onPositionError, {
+    enableHighAccuracy: true, maximumAge: 0, timeout: 15000,
+  });
+
+  if (trip.points.length) {
+    const last = trip.points[trip.points.length - 1];
+    await tripMap.recenter(last.lat, last.lon);
+  }
+  startTicking();
+  renderAll();
+  persistActive();
+}
+
+function pauseTrip() {
+  trip.status = 'paused';
+  if (violationState.active) closeViolation(Date.now());
+  el('trPauseResume').textContent = '▶';
+  persistActive();
+}
+
+function resumeTrip() {
+  trip.status = 'active';
+  el('trPauseResume').textContent = '⏸';
+  persistActive();
+}
+
+function stopTrip() {
+  if (violationState.active) closeViolation(Date.now());
+  trip.status = 'completed';
+  trip.endTime = Date.now();
+  if (watchId != null) navigator.geolocation.clearWatch(watchId);
+  window.removeEventListener('devicemotion', onMotion);
+  if (accelSensor) { accelSensor.stop(); accelSensor = null; }
+  stopTicking();
+  releaseWakeLock();
+  clearTimeout(screenWarningTimer);
+  try {
+    localStorage.setItem(STORAGE_LAST_COMPLETE, JSON.stringify(trip));
+    localStorage.removeItem(STORAGE_ACTIVE);
+  } catch { /* best-effort only - the complete screen already has everything in memory */ }
+  saveTripToHistory(trip).catch((err) => console.warn('trip-report: saving to history failed', err));
+  setChromeVisible(true);
+  renderCompleteScreen();
+  showScreen('complete');
+  exportTripPdf({ silent: true }).catch((err) => console.warn('trip-report: auto PDF export failed', err));
+}
+
+/* ---------- wiring ---------- */
+
+document.querySelectorAll('input[name="vehicleType"]').forEach((r) => r.addEventListener('change', () => {
+  el('trBusLineRow').hidden = document.querySelector('input[name="vehicleType"]:checked')?.value !== 'bus';
+}));
+
+el('trStart').addEventListener('click', () => {
+  const vehicleType = document.querySelector('input[name="vehicleType"]:checked')?.value || 'car';
+  const busLine = vehicleType === 'bus' ? el('trBusLine').value.trim() : null;
+  startTrip(vehicleType, null, busLine);
+});
+
+el('trPauseResume').addEventListener('click', () => {
+  if (trip.status === 'active') pauseTrip(); else resumeTrip();
+});
+
+el('trStop').addEventListener('click', () => { el('trStopConfirm').hidden = false; });
+el('trStopYes').addEventListener('click', () => stopTrip());
+el('trStopNo').addEventListener('click', () => { el('trStopConfirm').hidden = true; });
+
+el('trAutoPan').addEventListener('change', (e) => tripMap?.setAutoPan(e.target.checked));
+
+el('trExportPdf').addEventListener('click', () => {
+  exportTripPdf().catch((err) => showNotice('trExportStatus', `ייצוא ה-PDF נכשל: ${esc(err.message)}`, 'error'));
+});
+el('trShareWhatsapp').addEventListener('click', () => shareTripToWhatsApp());
+el('trExportJson').addEventListener('click', () => exportTripJson());
+
+el('trNewTrip').addEventListener('click', () => {
+  trip = null;
+  historyMode = false;
+  el('trPermStatus').hidden = true;
+  el('trBusLine').value = '';
+  el('trBusLineRow').hidden = true;
+  el('trBackToHistory').hidden = true;
+  setChromeVisible(true);
+  showScreen('setup');
+});
+
+function openHistory() {
+  showScreen('history');
+  renderHistoryList();
+}
+el('trShowHistorySetup').addEventListener('click', openHistory);
+el('trShowHistoryComplete').addEventListener('click', openHistory);
+el('trHistoryBack').addEventListener('click', () => showScreen('setup'));
+el('trBackToHistory').addEventListener('click', () => {
+  el('trBackToHistory').hidden = true;
+  openHistory();
+});
+
+el('trScoreExplain').textContent = SCORE_EXPLANATION;
+
+/* ---------- resume-after-reload prompt ---------- */
+
+function initResumePrompt() {
+  const saved = loadActiveFromStorage();
+  if (!saved || saved.status === 'completed') return;
+  const box = el('trResumeBox');
+  box.hidden = false;
+  box.querySelector('.tr-resume-yes').addEventListener('click', () => {
+    box.hidden = true;
+    startTrip(saved.vehicleType, saved);
+  });
+  box.querySelector('.tr-resume-no').addEventListener('click', () => {
+    localStorage.removeItem(STORAGE_ACTIVE);
+    box.hidden = true;
+  });
+}
+
+function initLastCompletedBanner() {
+  const last = loadLastCompleted();
+  if (!last) return;
+  trip = last;
+  renderCompleteScreen();
+  showScreen('complete');
+}
+
+/* ---------- boot ---------- */
+
+initThemePicker(el('themePick'));
+loadAppsData().then((data) => renderAppContext(el('appContext'), data.apps, 'trip-report')).catch(() => {});
+if (loadActiveFromStorage()) initResumePrompt();
+else initLastCompletedBanner();
 
 </script>
 </body>

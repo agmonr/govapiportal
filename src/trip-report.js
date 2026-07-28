@@ -24,9 +24,7 @@ import { getSpeedLimitAt } from './trip-speed-limits.js';
 import { createTripMap } from './trip-map.js';
 import { buildPdf, downloadBlob } from './pdf.js';
 import { saveTripToHistory, listTripHistory, deleteTripFromHistory } from './trip-history.js';
-import {
-  computeScore, scoreBand, speedZoneDistribution, SPEED_BANDS, SCORE_EXPLANATION, violationSeverity,
-} from './trip-score.js';
+import { computeScore, scoreBand, speedZoneDistribution, SPEED_BANDS, SCORE_EXPLANATION, violationSeverity } from './trip-score.js';
 
 const STORAGE_ACTIVE = 'tripReport:activeTrip';
 const STORAGE_LAST_COMPLETE = 'tripReport:lastCompletedTrip';
