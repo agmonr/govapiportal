@@ -1304,21 +1304,22 @@ a:focus-visible, button:focus-visible {
   letter-spacing: .03em;
 }
 
-/* Flat, high-contrast editorial header - by request, but ONLY for the
-   hub pages (index.html/apps.html, neither carries body.accidents-page).
-   Every individual app page (body.accidents-page - accidents/area-cleanup/
-   blue-lines/committees/companies/local-finance/tree-canopy/welfare/
-   trip-report) explicitly opts back out to the plain day-theme header,
-   same font included: picking night on an app page shouldn't also change
-   its header's look or size (the 1.8rem h1 below read as "everything got
-   bigger" - it was the one part of the page that actually did). */
-[data-theme="fashion"] body:not(.accidents-page) header.site {
+/* Flat, high-contrast editorial header - by request, but ONLY for
+   index.html now (apps.html joined the opt-out below by request too - its
+   own h1 was 28.8px in fashion vs 18.4px in every other theme, the same
+   "everything got bigger" complaint the per-app-page exclusion already
+   fixed elsewhere). Every individual app page (body.accidents-page -
+   accidents/area-cleanup/blue-lines/committees/companies/local-finance/
+   tree-canopy/welfare/trip-report) and now body.apps-page explicitly opt
+   back out to the plain day-theme header, same font included: picking
+   night shouldn't also change a page's header look or size. */
+[data-theme="fashion"] body:not(.accidents-page):not(.apps-page) header.site {
   background: #1e1e1e;
   background-image: none;
   border-block-end: 1px solid #333333;
   box-shadow: none;
 }
-[data-theme="fashion"] body:not(.accidents-page) header.site h1 {
+[data-theme="fashion"] body:not(.accidents-page):not(.apps-page) header.site h1 {
   font-family: var(--font-display);
   text-transform: none;
   letter-spacing: normal;
@@ -1331,7 +1332,7 @@ a:focus-visible, button:focus-visible {
   font-size: 1.8rem;
   font-weight: 700;
 }
-[data-theme="fashion"] body:not(.accidents-page) header.site a {
+[data-theme="fashion"] body:not(.accidents-page):not(.apps-page) header.site a {
   text-transform: uppercase;
   font-size: .72rem;
   letter-spacing: .08em;
@@ -1340,9 +1341,9 @@ a:focus-visible, button:focus-visible {
      rule below, so this needs to declare color explicitly to win it back. */
   color: var(--accent);
 }
-[data-theme="fashion"] body:not(.accidents-page) header.site .site-by { color: #ffd54f; font-size: 1.1rem; }
+[data-theme="fashion"] body:not(.accidents-page):not(.apps-page) header.site .site-by { color: #ffd54f; font-size: 1.1rem; }
 [data-theme="fashion"] .meta { color: #b0bec5; }
-[data-theme="fashion"] body:not(.accidents-page) header.site .meta { color: #b0bec5; }
+[data-theme="fashion"] body:not(.accidents-page):not(.apps-page) header.site .meta { color: #b0bec5; }
 [data-theme="fashion"] .theme-pick button {
   background: #333333;
   color: #ffffff;
@@ -1355,12 +1356,12 @@ a:focus-visible, button:focus-visible {
    than the plain fashion rules here, so without this fashion's dark pill
    would get overridden by the light-header treatment while this theme is
    active. */
-[data-theme="fashion"] body:not(.accidents-page) header.site .theme-pick button {
+[data-theme="fashion"] body:not(.accidents-page):not(.apps-page) header.site .theme-pick button {
   background: #333333;
   color: #ffffff;
   border-color: #555555;
 }
-[data-theme="fashion"] body:not(.accidents-page) header.site .theme-pick button[aria-pressed="true"] {
+[data-theme="fashion"] body:not(.accidents-page):not(.apps-page) header.site .theme-pick button[aria-pressed="true"] {
   background: var(--accent);
   color: var(--bg);
   border-color: var(--accent);
@@ -1988,13 +1989,14 @@ body.accidents-page header.site h1 { inline-size: 100%; }
 .civic-app-page .app-sibling { inline-size: 5.98rem; }
 .civic-app-page .app-sibling-icon { font-size: 2.99rem; }
 
-/* trip-report.html only, not the rest of the civic group - measured
-   128px tall at the civic-group size above; 90px is ~30% shorter. Width
-   stays the group's own 5.98rem; icon/label shrink just enough to still
-   fit comfortably (centered) in the lower box rather than overflowing it. */
-.trip-report-page .app-sibling { block-size: 90px; padding-block: .2rem; }
-.trip-report-page .app-sibling-icon { font-size: 2rem; }
-.trip-report-page .app-sibling-label { font-size: .55rem; }
+/* Whole civic group again (not trip-report.html alone anymore) - measured
+   128px tall at the sizing above; 90px is ~30% shorter, matching what
+   trip-report.html already had on its own. Width stays the group's own
+   5.98rem; icon/label shrink just enough to still fit comfortably
+   (centered) in the shorter box rather than overflowing it. */
+.civic-app-page .app-sibling { block-size: 90px; padding-block: .2rem; }
+.civic-app-page .app-sibling-icon { font-size: 2rem; }
+.civic-app-page .app-sibling-label { font-size: .55rem; }
 </style>
 </head>
 <body class="accidents-page blue-lines-page">
