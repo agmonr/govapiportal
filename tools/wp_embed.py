@@ -4,18 +4,25 @@ Generates dist/wordpress-embed.html - a self-contained HTML fragment meant
 to be pasted into a WordPress "Custom HTML" block (not a full document: no
 <!doctype>/<html>/<head>, since WordPress supplies those itself).
 
-Every app in apis.json becomes one card, grouped by category exactly like
-apps.html (see src/apps.js - CATEGORY_ORDER below is kept in sync with it
-by hand, not imported, since this script has no JS runtime). "Future apps"
-just means: add the entry to apis.json, re-run this script, re-paste the
-output - the same discipline already used for dist/*.html (tools/bundle.py).
+Visually this must look exactly like the "אפליקציות" grid on apps.html -
+same icon+name tiles, same grouping/heading/colors - so the markup and CSS
+values below are ported by hand from src/apps.js (appCard,
+renderAppsByCategory) and src/style.css (.apps-grid/.app-tile/.app-icon/
+.app-name/.apps-category-h and friends), scoped under one wrapper class so
+they can't leak into - or be overridden by - the host WordPress theme.
 
-All text (name, kind, full description) is baked in as real HTML at
-generation time - nothing here depends on JavaScript running for the
-content to exist, which matters both for search engines that don't execute
-JS and for WordPress installs that strip <script> tags from untrusted
-authors. A JSON-LD ItemList is included too, for search engines that do
-parse structured data.
+Every app's long "about" text is NOT rendered as visible copy (that would
+no longer look like apps.html's plain icon tiles) - it exists only as
+metadata for search engines: the JSON-LD ItemList's "description" field.
+The only visible per-tile text mirrors the real site exactly too: a
+one-line hover title (oneLineSummary, same first-sentence/90-char rule as
+src/apps.js), not the full paragraph.
+
+Every app in apis.json becomes one tile, grouped by category exactly like
+apps.html (CATEGORY_ORDER below is kept in sync with src/apps.js by hand,
+since this script has no JS runtime). "Future apps" just means: add the
+entry to apis.json, re-run this script, re-paste the output - the same
+discipline already used for dist/*.html (tools/bundle.py).
 
 Usage:
     ./tools/wp_embed.py           # write dist/wordpress-embed.html
@@ -45,6 +52,28 @@ CATEGORY_ORDER = ["home", "civic", "money"]
 
 WRAP = "ram-govapps-embed"
 
+# Ported verbatim from APP_ICON in src/apps.js - same glyph per app id, so
+# the tiles read identically to the live site. Not escaped when interpolated
+# below (matching apps.js), since tree/tree-canopy embed real markup, not text.
+APP_ICON = {
+    "accidents": "🚦",
+    "trees": '🌳<span class="{w}-icon-small">🚑</span>',
+    "committees": "🏛️",
+    "local-finance": "💰",
+    "agriculture": "🌾",
+    "companies": "🏢",
+    "welfare": "🤝",
+    "budgetkey": "🔑",
+    "blue-lines": "🚇",
+    "area-cleanup": "🧹",
+    "tree-canopy": '<span class="{w}-tc-icon">🌳<span class="{w}-tc-icon-badge">🏠</span></span>',
+}
+
+# Same rule as oneLineSummary in src/apps.js: the native title= tooltip
+# can't be styled, so it gets one real sentence rather than the full
+# (sometimes 500+ character) about text, with a hard length cap as backstop.
+HOVER_MAX = 90
+
 
 def abs_url(href: str) -> str:
     if href.startswith("http://") or href.startswith("https://"):
@@ -69,39 +98,32 @@ def group_by_category(apps: list[dict]) -> list[tuple[str, str, list[dict]]]:
     return [(k, buckets[k][0], buckets[k][1]) for k in ordered_keys]
 
 
-def render_card(a: dict) -> str:
+def one_line_summary(about: str) -> str:
+    first_sentence = about.split(". ")[0]
+    return first_sentence if len(first_sentence) <= HOVER_MAX else f"{first_sentence[:HOVER_MAX]}…"
+
+
+def render_tile(a: dict) -> str:
     url = abs_url(a["href"])
+    icon = APP_ICON.get(a["id"], "🔗").format(w=WRAP)
+    title = escape(one_line_summary(a["about"]))
     name_he = escape(a["name_he"])
-    name_en = escape(a["name"])
-    kind = escape(a["kind"])
-    about = escape(a["about"])
-    home_link = ""
-    if a.get("home"):
-        home_link = (
-            f' · <a href="{escape(abs_url(a["home"]))}" target="_blank" rel="noopener nofollow">'
-            f"מקור הנתונים ↗</a>"
-        )
     return f"""
-      <article class="{WRAP}-card">
-        <h4 class="{WRAP}-card-title">
-          <a href="{escape(url)}" target="_blank" rel="noopener">{name_he}</a>
-        </h4>
-        <p class="{WRAP}-card-meta" dir="auto">{kind} · <span lang="en">{name_en}</span></p>
-        <p class="{WRAP}-card-desc" dir="auto">{about}</p>
-        <p class="{WRAP}-card-links">
-          <a href="{escape(url)}" target="_blank" rel="noopener">פתיחת האפליקציה ↗</a>{home_link}
-        </p>
-      </article>"""
+        <a class="{WRAP}-app-tile" href="{escape(url)}" target="_blank" rel="noopener"
+           title="{title}" dir="auto">
+          <span class="{WRAP}-app-icon" aria-hidden="true">{icon}</span>
+          <span class="{WRAP}-app-name" dir="auto">{name_he}</span>
+        </a>"""
 
 
 def render_section(key: str, label: str, items: list[dict]) -> str:
-    cards = "".join(render_card(a) for a in items)
+    tiles = "".join(render_tile(a) for a in items)
     return f"""
-    <section class="{WRAP}-section" aria-labelledby="{WRAP}-cat-{escape(key)}">
-      <h3 class="{WRAP}-section-h" id="{WRAP}-cat-{escape(key)}" dir="auto">{escape(label)}</h3>
-      <div class="{WRAP}-grid">{cards}
-      </div>
-    </section>"""
+      <section class="{WRAP}-apps-category" aria-labelledby="{WRAP}-cat-{escape(key)}">
+        <h3 class="{WRAP}-apps-category-h" id="{WRAP}-cat-{escape(key)}" dir="auto">{escape(label)}</h3>
+        <div class="{WRAP}-apps-grid">{tiles}
+        </div>
+      </section>"""
 
 
 def render_jsonld(apps: list[dict]) -> str:
@@ -131,56 +153,77 @@ def render_jsonld(apps: list[dict]) -> str:
     return json.dumps(payload, ensure_ascii=False, indent=2).replace("</", "<\\/")
 
 
+# A ready-to-copy alternative to pasting the whole fragment into a Custom
+# HTML block: an <iframe> pointing straight at this generated file, for
+# whoever would rather embed it as a live, always-current include than
+# paste (and eventually go stale against) a snapshot of the markup.
+def render_iframe_example() -> str:
+    src = escape(f"{BASE_URL}dist/wordpress-embed.html")
+    return (
+        f'<iframe src="{src}" loading="lazy" style="width:100%;border:0;min-height:900px" '
+        f'title="כל האפליקציות"></iframe>'
+    )
+
+
 def render(apps: list[dict]) -> str:
     sections = "".join(render_section(k, label, items) for k, label, items in group_by_category(apps))
     jsonld = render_jsonld(apps)
+    iframe_example = escape(render_iframe_example())
     return f"""<!--
   Generated by tools/wp_embed.py from apis.json - do not hand-edit.
   To pick up new or changed apps: update apis.json, run
   ./tools/wp_embed.py, and re-paste this file's contents into the
-  WordPress "Custom HTML" block.
+  WordPress "Custom HTML" block. Every app's long description lives only
+  in the JSON-LD block below (search-engine metadata) - it is deliberately
+  not rendered as visible text, to match apps.html's plain icon tiles.
 -->
 <div class="{WRAP}" dir="rtl" lang="he">
   <style>
+    .{WRAP}-howto {{
+      border: 1px dashed #b9c9ae; border-radius: 8px; padding: .85rem 1rem;
+      margin-block-end: 1.25rem; background: #f7faf4;
+    }}
+    .{WRAP}-howto-label {{ margin: 0 0 .4rem; font-size: .85rem; font-weight: 600; color: #24331f; }}
+    .{WRAP}-howto-code {{
+      margin: 0; padding: .6rem .75rem; overflow-x: auto; border-radius: 6px;
+      background: #24331f; color: #eafbe7; font-size: .8rem; direction: ltr; text-align: left;
+    }}
     .{WRAP} {{
-      --ram-bg: #f2f7ee; --ram-fg: #24331f; --ram-muted: #5b6f56; --ram-border: #dfe9d8;
-      --ram-accent: #2e7d46; --ram-surface: #eaf3e6; --ram-card: #ffffff;
-      --ram-forest-dark: #1b5e34; --ram-leaf: #4caf50; --ram-shadow: rgba(27, 94, 52, .16);
-      font-family: -apple-system, "Segoe UI", Arial, sans-serif; color: var(--ram-fg);
-      background: var(--ram-bg); border-radius: 14px; padding: 1.5rem 1.25rem;
-      max-width: 100%; box-sizing: border-box;
+      font: 16px/1.55 system-ui, "Segoe UI", Arial, sans-serif;
+      color: #24331f; max-width: 100%;
     }}
     .{WRAP} * {{ box-sizing: border-box; }}
-    .{WRAP}-intro {{ margin: 0 0 1.5rem; line-height: 1.6; color: var(--ram-fg); }}
-    .{WRAP}-intro a {{ color: var(--ram-accent); font-weight: 600; }}
-    .{WRAP}-section {{ margin-block-end: 2rem; }}
-    .{WRAP}-section-h {{
-      font-size: 1.05rem; margin: 0 0 .75rem; padding-inline-start: .6rem;
-      border-inline-start: 4px solid var(--ram-leaf); color: var(--ram-forest-dark);
+    .{WRAP}-apps-category + .{WRAP}-apps-category {{ margin-block-start: 1.5rem; }}
+    .{WRAP}-apps-category-h {{ font-size: 1rem; margin-block: 0 .6rem; color: #5b6f56; font-weight: 600; }}
+    .{WRAP}-apps-grid {{
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr)); gap: .85rem;
     }}
-    .{WRAP}-grid {{
-      display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1rem;
+    .{WRAP}-app-tile {{
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: .5rem; text-align: center; text-decoration: none; padding: 1.5rem 1rem;
+      border-radius: 1.1rem; border: 1px solid #f0d9bc;
+      background: linear-gradient(160deg, #fffaf3, #ffe6c2); color: #3a2c17;
+      box-shadow: 0 3px 10px -6px rgba(0, 0, 0, .35);
+      transition: transform .15s ease, box-shadow .15s ease;
     }}
-    .{WRAP}-card {{
-      background: var(--ram-card); border: 1px solid var(--ram-border); border-radius: 10px;
-      padding: 1rem 1.1rem; box-shadow: 0 2px 8px var(--ram-shadow); display: flex;
-      flex-direction: column; gap: .4rem;
+    .{WRAP}-app-tile:hover, .{WRAP}-app-tile:focus-visible {{
+      transform: translateY(-3px); box-shadow: 0 10px 22px -10px rgba(0, 0, 0, .4);
     }}
-    .{WRAP}-card-title {{ margin: 0; font-size: 1rem; }}
-    .{WRAP}-card-title a {{ color: var(--ram-forest-dark); text-decoration: none; }}
-    .{WRAP}-card-title a:hover {{ text-decoration: underline; }}
-    .{WRAP}-card-meta {{ margin: 0; font-size: .78rem; color: var(--ram-muted); }}
-    .{WRAP}-card-desc {{ margin: 0; font-size: .88rem; line-height: 1.55; color: var(--ram-fg); }}
-    .{WRAP}-card-links {{ margin: .3rem 0 0; font-size: .82rem; }}
-    .{WRAP}-card-links a {{ color: var(--ram-accent); font-weight: 600; text-decoration: none; }}
-    .{WRAP}-card-links a:hover {{ text-decoration: underline; }}
+    .{WRAP}-app-icon {{ font-size: 2.3rem; line-height: 1; }}
+    .{WRAP}-app-name {{ font-weight: 600; font-size: .95rem; }}
+    .{WRAP}-tc-icon {{ position: relative; display: inline-block; }}
+    .{WRAP}-tc-icon-badge {{
+      position: absolute; inset-block-end: -.15em; inset-inline-end: -.15em;
+      font-size: .55em; line-height: 1; background: #fff; border-radius: 999px;
+      box-shadow: 0 0 0 2px #fff;
+    }}
+    .{WRAP}-icon-small {{ font-size: .6em; vertical-align: middle; }}
   </style>
 
-  <p class="{WRAP}-intro">
-    כל האפליקציות שבנויות על גבי נתונים ממשלתיים פתוחים (data.gov.il ומקורות רשמיים נוספים) בפרויקט
-    "מפת ה-API הממשלתי" - מקובצות לפי מה שרלוונטי לכם, לא לפי מקור הנתונים הטכני. הרשימה המלאה והעדכנית
-    ביותר, כולל אפליקציות עתידיות, נמצאת תמיד ב<a href="{escape(BASE_URL)}apps.html" target="_blank" rel="noopener">עמוד כל האפליקציות</a>.
-  </p>
+  <div class="{WRAP}-howto">
+    <p class="{WRAP}-howto-label" dir="auto">דוגמה לקוד הטמעה (iframe, תמיד מעודכן - בלי צורך להדביק מחדש):</p>
+    <pre class="{WRAP}-howto-code"><code>{iframe_example}</code></pre>
+  </div>
 {sections}
   <script type="application/ld+json">
 {jsonld}

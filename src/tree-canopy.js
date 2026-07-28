@@ -329,13 +329,20 @@ function renderTopStreets(entries) {
 const PRIORITY_CITY_N = 25;
 const PRIORITY_NATIONAL_N = 100;
 
-/** Every street with a known length, ranked by (pct × lengthM) descending -
- * shared by the city-scoped and national tables below (the only
- * difference between them is which subset of `streets` is passed in, and
- * whether the city name needs to be shown per row). */
+// Below this, a street reads as "basically bare" rather than "already
+// benefiting from some coverage" - length alone would otherwise let a very
+// long, near-0% street outscore a shorter street that's actually green,
+// which defeats the point of a priority ranking.
+const PRIORITY_MIN_PCT = 10;
+
+/** Every street with a known length and at least PRIORITY_MIN_PCT%
+ * coverage, ranked by (pct × lengthM) descending - shared by the
+ * city-scoped and national tables below (the only difference between them
+ * is which subset of `streets` is passed in, and whether the city name
+ * needs to be shown per row). */
 function priorityRanked(streets) {
   return streets
-    .filter((e) => e.lengthM > 0)
+    .filter((e) => e.lengthM > 0 && e.pct >= PRIORITY_MIN_PCT)
     .map((e) => ({ ...e, priority: e.pct * e.lengthM }))
     .sort((a, b) => b.priority - a.priority);
 }
