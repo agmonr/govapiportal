@@ -140,3 +140,61 @@ export async function getSpeedLimitAt(lat, lon) {
   const fallback = DEFAULT_KMH_BY_HIGHWAY[way.highway];
   return fallback ? { kmh: fallback, source: 'default', highway: way.highway } : null;
 }
+
+/* ---------- school-zone confirmation ----------
+ * Israeli law only actually limits a road to 30 near a school where a real
+ * sign (approved by the local traffic committee) has been posted - there is
+ * no blanket "30 within X meters of any school" rule, so "near a school"
+ * alone is never treated as a speed limit. This just confirms the OTHER
+ * direction: when the road's own tagged/matched limit already reads 30,
+ * checking for a school nearby turns "some road happens to be 30" into
+ * "this 30 is a school zone" - a UI distinction, not a different limit. */
+const SCHOOL_CELL_DEG = 0.005; // ~550m - finer than the road-way cache, schools need less padding to catch
+const schoolCellCache = new Map();
+const SCHOOL_RADIUS_M = 150;
+
+function schoolCellIndex(lat, lon) {
+  return [Math.floor(lat / SCHOOL_CELL_DEG), Math.floor(lon / SCHOOL_CELL_DEG)];
+}
+
+async function fetchSchoolsForCell(latIdx, lonIdx) {
+  const south = latIdx * SCHOOL_CELL_DEG;
+  const north = (latIdx + 1) * SCHOOL_CELL_DEG;
+  const west = lonIdx * SCHOOL_CELL_DEG;
+  const east = (lonIdx + 1) * SCHOOL_CELL_DEG;
+  const query = `[out:json][timeout:25];node["amenity"~"^(school|kindergarten)$"](${south},${west},${north},${east});out;`;
+  const res = await fetch(OVERPASS, { method: 'POST', body: new URLSearchParams({ data: query }) });
+  if (!res.ok) throw new Error(`Overpass HTTP ${res.status}`);
+  const json = await res.json();
+  return (json.elements || [])
+    .filter((el) => el.type === 'node' && el.lat != null && el.lon != null)
+    .map((el) => [el.lat, el.lon]);
+}
+
+/** True when a school/kindergarten node sits within SCHOOL_RADIUS_M of
+ * (lat,lon) - only meant to be called when the road's own limit already
+ * came back 30 (see onPosition's caller), not on every fix: a school's
+ * existence nearby says nothing about the limit on a DIFFERENT road. */
+export async function hasSchoolNearby(lat, lon) {
+  const [latIdx, lonIdx] = schoolCellIndex(lat, lon);
+  const cells = [];
+  for (let di = -1; di <= 1; di += 1) {
+    for (let dj = -1; dj <= 1; dj += 1) cells.push([latIdx + di, lonIdx + dj]);
+  }
+  const schools = [];
+  for (const [li, lj] of cells) {
+    const key = `${li}_${lj}`;
+    let entry = schoolCellCache.get(key);
+    if (!entry || Date.now() - entry.fetchedAt > CELL_TTL_MS) {
+      try {
+        entry = { schools: await fetchSchoolsForCell(li, lj), fetchedAt: Date.now() };
+        schoolCellCache.set(key, entry);
+      } catch (err) {
+        console.warn('trip-speed-limits: school lookup failed for cell', key, err);
+        entry = { schools: [], fetchedAt: Date.now() };
+      }
+    }
+    schools.push(...entry.schools);
+  }
+  return schools.some(([sLat, sLon]) => Math.hypot(...metersXY(lat, lon, sLat, sLon)) <= SCHOOL_RADIUS_M);
+}

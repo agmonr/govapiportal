@@ -20,7 +20,7 @@
 import { el, esc } from './ui.js';
 import { initThemePicker } from './theme.js';
 import { renderAppContext, loadAppsData } from './apps.js';
-import { getSpeedLimitAt } from './trip-speed-limits.js';
+import { getSpeedLimitAt, hasSchoolNearby } from './trip-speed-limits.js';
 import { createTripMap } from './trip-map.js';
 import { buildPdf, downloadBlob } from './pdf.js';
 import { saveTripToHistory, listTripHistory, deleteTripFromHistory } from './trip-history.js';
@@ -351,8 +351,14 @@ function onPosition(position) {
       .catch(() => {});
   }
 
-  getSpeedLimitAt(lat, lon).then((res) => {
-    if (res) { point.limitKmh = res.kmh; point.limitSource = res.source; }
+  getSpeedLimitAt(lat, lon).then(async (res) => {
+    if (res) {
+      point.limitKmh = res.kmh; point.limitSource = res.source;
+      // Only worth checking when the road's own limit already reads 30 -
+      // a school existing nearby says nothing about a DIFFERENT road's
+      // limit, so this never runs (or renders) otherwise.
+      if (res.kmh === 30) point.schoolZone = await hasSchoolNearby(lat, lon).catch(() => false);
+    }
     evaluateViolation(point);
     renderAll();
   }).catch(() => {});
@@ -455,6 +461,7 @@ function renderStatsPanel(stats) {
   const last = trip.points[trip.points.length - 1];
   el('trSpeedNow').textContent = last?.speedKmh != null ? Math.round(last.speedKmh) : '—';
   el('trSpeedLimit').textContent = last?.limitKmh != null ? Math.round(last.limitKmh) : '—';
+  el('trSchoolBadge').hidden = !last?.schoolZone;
 }
 
 function renderBusInfo() {

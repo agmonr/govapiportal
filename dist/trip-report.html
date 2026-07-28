@@ -1849,12 +1849,22 @@ body.accidents-page header.site h1 { inline-size: 100%; }
    inside either one. */
 .tr-sign {
   display: inline-flex; align-items: center; justify-content: center;
-  inline-size: 2.6rem; block-size: 2.6rem; border-radius: 50%;
+  inline-size: 3.38rem; block-size: 3.38rem; border-radius: 50%;
   background: #fff; border: 4px solid #d21f1f; color: #111;
-  font-size: 1.15rem; font-weight: 700; line-height: 1; flex: none;
+  font-size: 1.5rem; font-weight: 700; line-height: 1; flex: none;
 }
 .tr-sign-speed { border-color: var(--accent); }
 .tr-speed-unit { font-size: .7rem; color: var(--muted); font-weight: 400; }
+/* Only ever shown alongside a 30 limit (see trip-report.js's onPosition) -
+   a school existing nearby is never itself treated as a speed limit,
+   Israeli law only actually limits a road there when a real sign is
+   posted, so this reads as "this 30 is a school zone", not "30 because
+   school". */
+.tr-school-badge {
+  font-size: .78rem; font-weight: 600; color: #b8860b;
+  background: color-mix(in srgb, #b8860b 12%, transparent);
+  border: 1px solid #b8860b; border-radius: 999px; padding: .25rem .6rem;
+}
 .tr-start-time { font-size: .85rem; color: var(--muted); font-weight: 400; }
 /* Moved below the map (see trip-report.html) - a plain centered line, not
    part of the topbar's flex row anymore. */
@@ -1895,7 +1905,7 @@ body.accidents-page header.site h1 { inline-size: 100%; }
 .tr-score-row { display: flex; gap: 1.5rem; align-items: center; justify-content: center; flex-wrap: wrap; margin-block-end: 1.5rem; }
 .tr-score-gauge {
   --score-deg: 360deg;
-  width: 116px; height: 116px; border-radius: 50%;
+  width: 93px; height: 93px; border-radius: 50%;
   background: conic-gradient(var(--tr-score-color, var(--accent)) var(--score-deg), var(--border) var(--score-deg));
   display: flex; align-items: center; justify-content: center;
 }
@@ -1904,10 +1914,10 @@ body.accidents-page header.site h1 { inline-size: 100%; }
 .tr-score-gauge.sc-fair  { --tr-score-color: #ff8800; }
 .tr-score-gauge.sc-poor  { --tr-score-color: #dd0000; }
 .tr-score-inner {
-  width: 90px; height: 90px; border-radius: 50%; background: var(--card);
+  width: 72px; height: 72px; border-radius: 50%; background: var(--card);
   display: flex; flex-direction: column; align-items: center; justify-content: center;
 }
-.tr-score-inner #trScoreNum { font-size: 2rem; font-weight: 700; line-height: 1; }
+.tr-score-inner #trScoreNum { font-size: 1.6rem; font-weight: 700; line-height: 1; }
 /* Calm, silent "an event just logged" feedback - a brief ring pulse on the
    gauge already on screen, not a new element and not a color anyone would
    mistake for the score itself changing color. */
@@ -2047,13 +2057,14 @@ body.accidents-page header.site h1 { inline-size: 100%; }
       <section id="trScreenActive" class="acc-section" hidden>
         <p id="trScreenWarning" class="tr-screen-warning">📱 השאר את המסך פועל כל משך הנסיעה</p>
         <div class="tr-topbar">
+          <span class="tr-start-time">התחלה: <span id="trStartTime">—</span></span>
+          <span id="trBusInfo" class="tr-badge" hidden></span>
           <div class="tr-speed-row">
             <span id="trSpeedNowSign" class="tr-sign tr-sign-speed"><span id="trSpeedNow">—</span></span>
             <small class="tr-speed-unit">קמ"ש</small>
             <span id="trSpeedLimitSign" class="tr-sign" title="מהירות מותרת"><span id="trSpeedLimit">—</span></span>
+            <span id="trSchoolBadge" class="tr-school-badge" title="אזור בית ספר - יש בית ספר בקרבת מקום ומהירות מותרת 30" hidden>🏫 אזור בית ספר</span>
           </div>
-          <span id="trBusInfo" class="tr-badge" hidden></span>
-          <span class="tr-start-time">התחלה: <span id="trStartTime">—</span></span>
         </div>
 
         <div class="tr-score-row">
@@ -2110,6 +2121,10 @@ body.accidents-page header.site h1 { inline-size: 100%; }
 
       <!-- ---------- trip complete screen ---------- -->
       <section id="trScreenComplete" class="acc-section" hidden>
+        <div class="fin-export-row" style="justify-content:center">
+          <button type="button" id="trNewTrip" class="drill-dl tr-newtrip-btn">🚗 חדשה</button>
+          <button type="button" id="trShowHistoryComplete" class="drill-dl">🕘 נסיעות קודמות</button>
+        </div>
         <h2>סיכום הנסיעה</h2>
         <div id="trCompleteSummary" class="tr-complete-summary" dir="auto"></div>
         <h3>יומן אירועים</h3>
@@ -2121,8 +2136,6 @@ body.accidents-page header.site h1 { inline-size: 100%; }
           <button type="button" id="trExportJson" class="drill-dl">⬇ נתונים גולמיים (JSON)</button>
         </div>
         <div class="fin-export-row" style="justify-content:center">
-          <button type="button" id="trNewTrip" class="drill-dl tr-newtrip-btn">🚗 חדשה</button>
-          <button type="button" id="trShowHistoryComplete" class="drill-dl">🕘 נסיעות קודמות</button>
           <button type="button" id="trBackToHistory" class="drill-dl" hidden>← חזרה לרשימה</button>
         </div>
       </section>
@@ -2888,6 +2901,64 @@ async function getSpeedLimitAt(lat, lon) {
   return fallback ? { kmh: fallback, source: 'default', highway: way.highway } : null;
 }
 
+/* ---------- school-zone confirmation ----------
+ * Israeli law only actually limits a road to 30 near a school where a real
+ * sign (approved by the local traffic committee) has been posted - there is
+ * no blanket "30 within X meters of any school" rule, so "near a school"
+ * alone is never treated as a speed limit. This just confirms the OTHER
+ * direction: when the road's own tagged/matched limit already reads 30,
+ * checking for a school nearby turns "some road happens to be 30" into
+ * "this 30 is a school zone" - a UI distinction, not a different limit. */
+const SCHOOL_CELL_DEG = 0.005; // ~550m - finer than the road-way cache, schools need less padding to catch
+const schoolCellCache = new Map();
+const SCHOOL_RADIUS_M = 150;
+
+function schoolCellIndex(lat, lon) {
+  return [Math.floor(lat / SCHOOL_CELL_DEG), Math.floor(lon / SCHOOL_CELL_DEG)];
+}
+
+async function fetchSchoolsForCell(latIdx, lonIdx) {
+  const south = latIdx * SCHOOL_CELL_DEG;
+  const north = (latIdx + 1) * SCHOOL_CELL_DEG;
+  const west = lonIdx * SCHOOL_CELL_DEG;
+  const east = (lonIdx + 1) * SCHOOL_CELL_DEG;
+  const query = `[out:json][timeout:25];node["amenity"~"^(school|kindergarten)$"](${south},${west},${north},${east});out;`;
+  const res = await fetch(OVERPASS, { method: 'POST', body: new URLSearchParams({ data: query }) });
+  if (!res.ok) throw new Error(`Overpass HTTP ${res.status}`);
+  const json = await res.json();
+  return (json.elements || [])
+    .filter((el) => el.type === 'node' && el.lat != null && el.lon != null)
+    .map((el) => [el.lat, el.lon]);
+}
+
+/** True when a school/kindergarten node sits within SCHOOL_RADIUS_M of
+ * (lat,lon) - only meant to be called when the road's own limit already
+ * came back 30 (see onPosition's caller), not on every fix: a school's
+ * existence nearby says nothing about the limit on a DIFFERENT road. */
+async function hasSchoolNearby(lat, lon) {
+  const [latIdx, lonIdx] = schoolCellIndex(lat, lon);
+  const cells = [];
+  for (let di = -1; di <= 1; di += 1) {
+    for (let dj = -1; dj <= 1; dj += 1) cells.push([latIdx + di, lonIdx + dj]);
+  }
+  const schools = [];
+  for (const [li, lj] of cells) {
+    const key = `${li}_${lj}`;
+    let entry = schoolCellCache.get(key);
+    if (!entry || Date.now() - entry.fetchedAt > CELL_TTL_MS) {
+      try {
+        entry = { schools: await fetchSchoolsForCell(li, lj), fetchedAt: Date.now() };
+        schoolCellCache.set(key, entry);
+      } catch (err) {
+        console.warn('trip-speed-limits: school lookup failed for cell', key, err);
+        entry = { schools: [], fetchedAt: Date.now() };
+      }
+    }
+    schools.push(...entry.schools);
+  }
+  return schools.some(([sLat, sLon]) => Math.hypot(...metersXY(lat, lon, sLat, sLon)) <= SCHOOL_RADIUS_M);
+}
+
 /**
  * IndexedDB-backed store of every completed trip - "previous rides" the
  * visitor can come back to, view, re-export as PDF, or delete. Separate
@@ -3588,8 +3659,14 @@ function onPosition(position) {
       .catch(() => {});
   }
 
-  getSpeedLimitAt(lat, lon).then((res) => {
-    if (res) { point.limitKmh = res.kmh; point.limitSource = res.source; }
+  getSpeedLimitAt(lat, lon).then(async (res) => {
+    if (res) {
+      point.limitKmh = res.kmh; point.limitSource = res.source;
+      // Only worth checking when the road's own limit already reads 30 -
+      // a school existing nearby says nothing about a DIFFERENT road's
+      // limit, so this never runs (or renders) otherwise.
+      if (res.kmh === 30) point.schoolZone = await hasSchoolNearby(lat, lon).catch(() => false);
+    }
     evaluateViolation(point);
     renderAll();
   }).catch(() => {});
@@ -3692,6 +3769,7 @@ function renderStatsPanel(stats) {
   const last = trip.points[trip.points.length - 1];
   el('trSpeedNow').textContent = last?.speedKmh != null ? Math.round(last.speedKmh) : '—';
   el('trSpeedLimit').textContent = last?.limitKmh != null ? Math.round(last.limitKmh) : '—';
+  el('trSchoolBadge').hidden = !last?.schoolZone;
 }
 
 function renderBusInfo() {

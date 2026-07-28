@@ -93,13 +93,14 @@
       <section id="trScreenActive" class="acc-section" hidden>
         <p id="trScreenWarning" class="tr-screen-warning">📱 השאר את המסך פועל כל משך הנסיעה</p>
         <div class="tr-topbar">
+          <span class="tr-start-time">התחלה: <span id="trStartTime">—</span></span>
+          <span id="trBusInfo" class="tr-badge" hidden></span>
           <div class="tr-speed-row">
             <span id="trSpeedNowSign" class="tr-sign tr-sign-speed"><span id="trSpeedNow">—</span></span>
             <small class="tr-speed-unit">קמ"ש</small>
             <span id="trSpeedLimitSign" class="tr-sign" title="מהירות מותרת"><span id="trSpeedLimit">—</span></span>
+            <span id="trSchoolBadge" class="tr-school-badge" title="אזור בית ספר - יש בית ספר בקרבת מקום ומהירות מותרת 30" hidden>🏫 אזור בית ספר</span>
           </div>
-          <span id="trBusInfo" class="tr-badge" hidden></span>
-          <span class="tr-start-time">התחלה: <span id="trStartTime">—</span></span>
         </div>
 
         <div class="tr-score-row">
@@ -156,6 +157,10 @@
 
       <!-- ---------- trip complete screen ---------- -->
       <section id="trScreenComplete" class="acc-section" hidden>
+        <div class="fin-export-row" style="justify-content:center">
+          <button type="button" id="trNewTrip" class="drill-dl tr-newtrip-btn">🚗 חדשה</button>
+          <button type="button" id="trShowHistoryComplete" class="drill-dl">🕘 נסיעות קודמות</button>
+        </div>
         <h2>סיכום הנסיעה</h2>
         <div id="trCompleteSummary" class="tr-complete-summary" dir="auto"></div>
         <h3>יומן אירועים</h3>
@@ -167,8 +172,6 @@
           <button type="button" id="trExportJson" class="drill-dl">⬇ נתונים גולמיים (JSON)</button>
         </div>
         <div class="fin-export-row" style="justify-content:center">
-          <button type="button" id="trNewTrip" class="drill-dl tr-newtrip-btn">🚗 חדשה</button>
-          <button type="button" id="trShowHistoryComplete" class="drill-dl">🕘 נסיעות קודמות</button>
           <button type="button" id="trBackToHistory" class="drill-dl" hidden>← חזרה לרשימה</button>
         </div>
       </section>
