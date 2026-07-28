@@ -1886,13 +1886,16 @@ body.accidents-page header.site h1 { inline-size: 100%; }
 .tr-history-info { display: flex; flex-wrap: wrap; gap: .6rem; justify-content: space-between; margin-block-end: .6rem; }
 .tr-history-date { font-weight: 600; }
 
-/* This page only, mobile only: the app-context strip (category siblings,
-   normally 4rem/2.3rem everywhere else - see .app-sibling's own base rule)
-   shrinks 30% here, since on a phone this strip sits above a driving
-   screen a visitor is about to use hands-free, not a browsing one it's
-   worth lingering on. */
+/* Civic-category pages only (.civic-app-page - accidents.html,
+   area-cleanup.html, trip-report.html; tree-plans/trees are external, no
+   local page to mark), mobile only: the app-context strip (category
+   siblings, normally 4rem/2.3rem everywhere else - see .app-sibling's own
+   base rule) shrinks 30% here, matching trip-report.html's own original
+   treatment (a driving screen a visitor is about to use hands-free
+   shouldn't linger on this strip) - extended to the whole category so
+   every civic app agrees on the same mobile weight for it. */
 @media (max-width: 640px) {
-  .trip-report-page .app-sibling { inline-size: 2.8rem; block-size: 2.8rem; font-size: 1.61rem; }
+  .civic-app-page .app-sibling { inline-size: 2.8rem; block-size: 2.8rem; font-size: 1.61rem; }
 }
 </style>
 </head>
