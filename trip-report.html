@@ -115,11 +115,6 @@
           </div>
         </div>
 
-        <h2>מד הבעיות</h2>
-        <details class="lead-details">
-          <summary>מה זה מודד?</summary>
-          <p class="acc-hint">זמן נהיגה בפועל בכל טווח מהירות ביחס למותר בדרך - אותם טווחים שצובעים את המסלול על המפה.</p>
-        </details>
         <div id="trProblemMeter" class="tr-problem-meter"></div>
 
         <div class="stat-row tr-stats-row">
@@ -131,14 +126,19 @@
           <div class="stat"><span class="stat-n" id="trAvgSpeed">0</span><span class="stat-l">מהירות ממוצעת</span></div>
         </div>
 
-        <div id="trProblemLegend" class="tr-legend"></div>
-
         <div class="tr-map-wrap">
           <canvas id="trCanvas"></canvas>
         </div>
         <label class="tr-autopan-toggle">
           <input type="checkbox" id="trAutoPan" checked> מעקב אוטומטי אחר המיקום על המפה
         </label>
+
+        <h2>מד הבעיות</h2>
+        <details class="lead-details">
+          <summary>מה זה מודד?</summary>
+          <p class="acc-hint">זמן נהיגה בפועל בכל טווח מהירות ביחס למותר בדרך - אותם טווחים שצובעים את המסלול על המפה.</p>
+        </details>
+        <div id="trProblemLegend" class="tr-legend"></div>
 
         <div class="fin-export-row" style="justify-content:center">
           <button type="button" id="trPauseResume" class="tr-icon-btn" aria-label="השהה" title="השהה">⏸</button>
