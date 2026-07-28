@@ -1987,6 +1987,14 @@ body.accidents-page header.site h1 { inline-size: 100%; }
 }
 .civic-app-page .app-sibling { inline-size: 5.98rem; }
 .civic-app-page .app-sibling-icon { font-size: 2.99rem; }
+
+/* trip-report.html only, not the rest of the civic group - measured
+   128px tall at the civic-group size above; 90px is ~30% shorter. Width
+   stays the group's own 5.98rem; icon/label shrink just enough to still
+   fit comfortably (centered) in the lower box rather than overflowing it. */
+.trip-report-page .app-sibling { block-size: 90px; padding-block: .2rem; }
+.trip-report-page .app-sibling-icon { font-size: 2rem; }
+.trip-report-page .app-sibling-label { font-size: .55rem; }
 </style>
 </head>
 <body class="accidents-page trip-report-page civic-app-page">
