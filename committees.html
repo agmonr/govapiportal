@@ -76,6 +76,10 @@
             <select id="cmType"></select>
           </div>
           <div class="acc-year-pick">
+            <label for="cmMonthsBack">כמה חודשים אחורה:</label>
+            <input id="cmMonthsBack" type="number" min="1" max="120" inputmode="numeric">
+          </div>
+          <div class="acc-year-pick">
             <label for="cmFrom">מתאריך:</label>
             <input id="cmFrom" type="date">
           </div>
@@ -107,6 +111,52 @@
         </div>
       </section>
 
+      <section class="acc-section" aria-labelledby="cmSearchH">
+        <h2 id="cmSearchH">חיפוש בתוך הפרוטוקולים שהורדתם</h2>
+        <details class="lead-details">
+          <summary>הסבר</summary>
+          <p class="acc-hint">
+            חיפוש בתוך תוכן ה-PDF עצמו לא יכול לרוץ מול הקבצים באינטרנט: הדפדפן
+            חוסם קריאת תוכן קובץ ממקור אחר (CORS) - זו אותה סיבה שבגללה גם
+            "סקריפט ההורדה" למטה בונה קובץ להרצה עצמאית ב-<code dir="ltr">curl</code>
+            במקום להוריד ישירות מכאן. לכן: קודם הורידו את המסמכים הרלוונטיים
+            למכשיר (לחיצה על קישור מסמך, או הרצת סקריפט ההורדה), ואז בחרו
+            אותם כאן <strong>מהמכשיר עצמו</strong> - החיפוש רץ על הקבצים המקומיים
+            בלבד, בדפדפן, בלי לשלוח אותם לשום מקום.
+          </p>
+          <p class="acc-hint">
+            פענוח הטקסט מתוך ה-PDF הוא ידני (ללא ספריה חיצונית) ולכן חלקי במקרים
+            מסוימים - לרוב יעבוד היטב על פרוטוקולים אמיתיים מהמקור הזה, אך אינו
+            מובטח לכל קובץ.
+          </p>
+          <p class="acc-hint">
+            לקבלת התאמה בין קובץ למסמך המקורי (כדי שרשימת התוצאות תציג תאריך/סוג
+            ישיבה, וכדי שאפשר יהיה לבנות PDF עם קישורים אמיתיים למסמכים) - מומלץ
+            קודם להרחיב שורות בטבלה למטה או ללחוץ על "בניית הרשימה" עבור
+            הרשימה המסוננת, כך שרשימת המסמכים כבר טעונה כשהקבצים נבחרים כאן.
+            קובץ שלא נמצאה לו התאמה עדיין מוצג ומחפש בו, רק בלי קישור מקור.
+          </p>
+          <p class="acc-hint">
+            בחירת הקבצים והקלדת החיפוש עצמם נמצאות בסרגל הצף בתחתית המסך - כך אפשר
+            לחפש בלי לגלול חזרה לכאן בכל פעם שמתווסף קובץ. אפשר לבחור יותר מקובץ אחד בבת אחת.
+          </p>
+          <p class="acc-hint">
+            כמה מילים בלי "AND" - מספיקה אחת מהן (OR), למשל
+            <code dir="ltr">עץ עצים כריתה</code> (מסמך עם כל אחת מהמילים האלה תואם).
+            הוספת "AND" בין קבוצות מילים דורשת את כל הקבוצות, למשל
+            <code dir="ltr">כריתה AND תמ"א 38</code> (כאן: "כריתה" חייבת להופיע,
+            וגם אחת מ"תמ"א"/"38"). ביטוי עטוף בלוכסנים - למשל
+            <code dir="ltr">/תכנית\s+\d+/i</code> - מתפרש כביטוי רגולרי (JavaScript RegExp).
+            ברירת המחדל למטה מחפשת מונחי כריתת/העתקת עצים.
+          </p>
+        </details>
+        <div id="cmSearchResults"></div>
+        <div class="fin-export-row">
+          <button type="button" id="cmSearchDownloadList" class="drill-dl">הורדת רשימת קבצים תואמים (טקסט) ⭳</button>
+          <button type="button" id="cmSearchDownloadPdf" class="drill-dl">הורדת PDF עם כל הקישורים התואמים ⭳</button>
+        </div>
+      </section>
+
       <section class="acc-section" aria-labelledby="tableH">
         <h2 id="tableH">ריכוז ישיבות ופרוטוקולים</h2>
         <button type="button" id="cmCsv" class="drill-dl">הורדת CSV של הרשימה המסוננת ⭳</button>
@@ -114,71 +164,53 @@
       </section>
 
       <section class="acc-section" aria-labelledby="allDocsH">
-        <h2 id="allDocsH">סקריפט הורדה לכל המסמכים ברשימה המסוננת</h2>
-        <p class="acc-hint">
-          במקום להוריד דרך הדפדפן - הכפתור בונה סקריפט <code dir="ltr">bash</code>, מוכן להעתקה
-          ולהרצה בטרמינל. פקודת <code dir="ltr">curl</code> <strong>אחת בלבד</strong> קוראת רשימת
-          קבצים (<code dir="ltr">-K</code>, קובץ תצורה של curl עצמו - כתובת ושם קובץ לכל שורה) ומורידה
-          את כולם ברצף, בקצב מתון (<code dir="ltr">--rate</code>) במקום השהיה נפרדת אחרי כל קובץ -
-          כך שהסקריפט נשאר קטן גם לרשימה ארוכה, לא שורת curl מלאה לכל קובץ. אין כאן הורדה מרוכזת
-          כ-ZIP: ארכיון הפרוטוקולים (<code dir="ltr">archive.gis-net.co.il</code>) חוסם גישה
-          אוטומטית (<code dir="ltr">robots.txt: Disallow: /</code>) - הרצה כסקריפט, קובץ בכל פעם,
-          היא בדיוק אותה פעולה כמו לחיצה ידנית על כל קישור בתורו, רק ממוכנת.
-        </p>
-        <button type="button" id="cmLoadAllDocs" class="drill-dl">בניית סקריפט ההורדה</button>
-        <div id="cmAllDocs"></div>
-      </section>
-
-      <section class="acc-section" aria-labelledby="cmSearchH">
-        <h2 id="cmSearchH">חיפוש בתוך הפרוטוקולים שהורדתם</h2>
-        <p class="acc-hint">
-          חיפוש בתוך תוכן ה-PDF עצמו לא יכול לרוץ מול הקבצים באינטרנט: הדפדפן
-          חוסם קריאת תוכן קובץ ממקור אחר (CORS) - זו אותה סיבה שבגללה גם
-          "סקריפט ההורדה" למעלה בונה קובץ להרצה עצמאית ב-<code dir="ltr">curl</code>
-          במקום להוריד ישירות מכאן. לכן: קודם הורידו את המסמכים הרלוונטיים
-          למכשיר (לחיצה על קישור מסמך למעלה, או הרצת סקריפט ההורדה), ואז בחרו
-          אותם כאן <strong>מהמכשיר עצמו</strong> - החיפוש רץ על הקבצים המקומיים
-          בלבד, בדפדפן, בלי לשלוח אותם לשום מקום.
-        </p>
-        <p class="acc-hint">
-          פענוח הטקסט מתוך ה-PDF הוא ידני (ללא ספריה חיצונית) ולכן חלקי במקרים
-          מסוימים - לרוב יעבוד היטב על פרוטוקולים אמיתיים מהמקור הזה, אך אינו
-          מובטח לכל קובץ.
-        </p>
-        <p class="acc-hint">
-          לקבלת התאמה בין קובץ למסמך המקורי (כדי שרשימת התוצאות תציג תאריך/סוג
-          ישיבה, וכדי שאפשר יהיה לבנות PDF עם קישורים אמיתיים למסמכים) - מומלץ
-          קודם להרחיב שורות בטבלה למעלה או ללחוץ על "בניית סקריפט ההורדה" עבור
-          הרשימה המסוננת, כך שרשימת המסמכים כבר טעונה כשהקבצים נבחרים כאן.
-          קובץ שלא נמצאה לו התאמה עדיין מוצג ומחפש בו, רק בלי קישור מקור.
-        </p>
-        <div class="cm-filters">
-          <div class="acc-year-pick">
-            <label for="cmPdfFiles">בחירת קובצי PDF שהורדתם:</label>
-            <input type="file" id="cmPdfFiles" accept="application/pdf,.pdf" multiple>
-          </div>
-          <div class="acc-year-pick">
-            <label for="cmSearchQuery">חיפוש:</label>
-            <input type="text" id="cmSearchQuery" autocomplete="off" spellcheck="false" dir="auto"
-                   placeholder="מילה / כמה מילים / מילה1 OR מילה2 / ‎/ביטוי רגולרי/‎">
-          </div>
-        </div>
-        <p class="acc-hint">
-          כמה מילים בלי "OR" - כולן חייבות להופיע (AND), למשל
-          <code dir="ltr">תכנית 423</code>. הוספת "OR" בין קבוצות מילים מחפשת כל
-          קבוצה בנפרד, למשל <code dir="ltr">חניה OR תמ"א 38</code> (כאן: "חניה",
-          או "תמ"א" ו-"38" יחד). ביטוי עטוף בלוכסנים - למשל
-          <code dir="ltr">/תכנית\s+\d+/i</code> - מתפרש כביטוי רגולרי (JavaScript RegExp).
-        </p>
-        <div id="cmSearchStatus" class="acc-hint" aria-live="polite"></div>
-        <div id="cmSearchResults"></div>
-        <div class="fin-export-row">
-          <button type="button" id="cmSearchDownloadList" class="drill-dl">הורדת רשימת קבצים תואמים (טקסט) ⭳</button>
-          <button type="button" id="cmSearchDownloadPdf" class="drill-dl">הורדת PDF עם כל הקישורים התואמים ⭳</button>
-        </div>
+        <details class="lead-details">
+          <summary id="allDocsH">רשימת המסמכים להורדה - כל הרשימה המסוננת</summary>
+          <p class="acc-hint">
+            שתי צורות לאותה רשימה, מהכפתור היחיד למטה - אין כאן הורדה מרוכזת כ-ZIP: ארכיון הפרוטוקולים
+            (<code dir="ltr">archive.gis-net.co.il</code>) חוסם גישה אוטומטית
+            (<code dir="ltr">robots.txt: Disallow: /</code>), כך ששתי הצורות נשארות בעצם "קובץ בכל
+            פעם", בדיוק כמו לחיצה ידנית על כל קישור בתורו - רק מאורגן.
+          </p>
+          <p class="acc-hint">
+            <strong>סקריפט</strong> - במקום להוריד דרך הדפדפן, סקריפט <code dir="ltr">bash</code> מוכן
+            להעתקה ולהרצה בטרמינל. פקודת <code dir="ltr">curl</code> <strong>אחת בלבד</strong> קוראת
+            רשימת קבצים (<code dir="ltr">-K</code>, קובץ תצורה של curl עצמו - כתובת ושם קובץ לכל שורה)
+            ומורידה את כולם ברצף, בקצב מתון (<code dir="ltr">--rate</code>) במקום השהיה נפרדת אחרי כל
+            קובץ - כך שהסקריפט נשאר קטן גם לרשימה ארוכה.
+          </p>
+          <p class="acc-hint">
+            <strong>רשימה ללחיצה ידנית</strong> - בלי טרמינל: כל מסמך כקישור לפתיחה, עם תיבת סימון
+            לסמן מה כבר נפתח/הורד. הסימונים נשמרים במכשיר (לא נשלחים לשום מקום), כך שאפשר להמשיך
+            מאוחר יותר בלי לאבד את המקום.
+          </p>
+          <button type="button" id="cmLoadAllDocs" class="drill-dl">בניית הרשימה</button>
+          <div id="cmAllDocs"></div>
+          <div id="cmChecklistProgress" class="acc-hint" aria-live="polite"></div>
+          <ul id="cmChecklist" class="cm-checklist"></ul>
+          <button type="button" id="cmChecklistReset" class="drill-dl" hidden>איפוס הסימונים</button>
+        </details>
       </section>
     </div>
   </main>
+
+  <!--
+    Floating, always-on-screen search bar - a sibling of <main>, not nested
+    inside it, so `position: fixed` below is never accidentally contained by
+    an ancestor. Lets a visitor search whatever PDFs are already picked
+    without scrolling back up to the search section every time - especially
+    useful while still picking files a few at a time. Same #cmPdfFiles/
+    #cmSearchQuery/#cmSearchStatus ids src/committees.js already wires up;
+    only their position in the page moved, not their behavior.
+  -->
+  <div id="cmFloatingSearch" class="cm-floating-search" dir="rtl">
+    <label class="cm-floating-search-file" title="בחירת קובצי PDF שהורדתם - אפשר לבחור יותר מקובץ אחד">
+      📎<input type="file" id="cmPdfFiles" accept="application/pdf,.pdf" multiple>
+    </label>
+    <input type="text" id="cmSearchQuery" autocomplete="off" spellcheck="false" dir="auto"
+           placeholder="חיפוש בתוך הפרוטוקולים…" aria-label="חיפוש בתוך הפרוטוקולים">
+    <span id="cmSearchStatus" class="cm-floating-search-status" aria-live="polite"></span>
+  </div>
 
   <!--
     Same guard as index.html/accidents.html: opened from disk nothing below can

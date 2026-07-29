@@ -18,6 +18,7 @@
     }
     .ram-govapps-embed * { box-sizing: border-box; }
     .ram-govapps-embed-apps-category + .ram-govapps-embed-apps-category { margin-block-start: 1.5rem; }
+    .ram-govapps-embed-apps-pinned { margin-block-end: 1.5rem; }
     .ram-govapps-embed-apps-category-h { font-size: 1rem; margin-block: 0 .6rem; color: #5b6f56; font-weight: 600; }
     .ram-govapps-embed-apps-grid {
       display: grid; grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr)); gap: .85rem;
@@ -43,15 +44,16 @@
     }
     .ram-govapps-embed-icon-small { font-size: .6em; vertical-align: middle; }
   </style>
-
-      <section class="ram-govapps-embed-apps-category" aria-labelledby="ram-govapps-embed-cat-civic">
-        <h3 class="ram-govapps-embed-apps-category-h" id="ram-govapps-embed-cat-civic" dir="auto">פעילות חברתית ומעורבות אזרחית</h3>
-        <div class="ram-govapps-embed-apps-grid">
+<div class="ram-govapps-embed-apps-grid ram-govapps-embed-apps-pinned">
         <a class="ram-govapps-embed-app-tile" href="https://agmonr.github.io/govapiportal/accidents.html" target="_blank" rel="noopener"
            title="נתוני הלמ&quot;ס ברמת התאונה הבודדת, מתפרסמים דרך data.gov.il" dir="auto">
           <span class="ram-govapps-embed-app-icon" aria-hidden="true">🚦</span>
           <span class="ram-govapps-embed-app-name" dir="auto">תאונות דרכים עם נפגעים</span>
         </a>
+        </div>
+      <section class="ram-govapps-embed-apps-category" aria-labelledby="ram-govapps-embed-cat-civic">
+        <h3 class="ram-govapps-embed-apps-category-h" id="ram-govapps-embed-cat-civic" dir="auto">פעילות חברתית ומעורבות אזרחית</h3>
+        <div class="ram-govapps-embed-apps-grid">
         <a class="ram-govapps-embed-app-tile" href="https://agmonr.github.io/govapiportal/area-cleanup.html" target="_blank" rel="noopener"
            title="כתובת או מיקום דפדפן -&gt; מי אחראי לנקות את האזור, לא תמיד גורם אחד: לניקיון כללי (רחובות, מ…" dir="auto">
           <span class="ram-govapps-embed-app-icon" aria-hidden="true">🧹</span>
@@ -61,21 +63,6 @@
            title="מעקב נסיעה חי - GPS וחיישן התאוצה של המכשיר - עם ציון נהיגה חי (מתחיל מ-100, יורד עם כל בל…" dir="auto">
           <span class="ram-govapps-embed-app-icon" aria-hidden="true">🚗<span class="ram-govapps-embed-icon-small">🎯</span></span>
           <span class="ram-govapps-embed-app-name" dir="auto">דוח נסיעה</span>
-        </a>
-        </div>
-      </section>
-      <section class="ram-govapps-embed-apps-category" aria-labelledby="ram-govapps-embed-cat-trees">
-        <h3 class="ram-govapps-embed-apps-category-h" id="ram-govapps-embed-cat-trees" dir="auto">עצים</h3>
-        <div class="ram-govapps-embed-apps-grid">
-        <a class="ram-govapps-embed-app-tile" href="https://agmonr.github.io/yeela-license-tracker/statics/reports/open_for_objection.html" target="_blank" rel="noopener"
-           title="דוח סטטי - לא API - העוקב אחר רישיונות כריתה/העתקה של עצים שפתוחים כרגע להגשת השגה" dir="auto">
-          <span class="ram-govapps-embed-app-icon" aria-hidden="true">🌳<span class="ram-govapps-embed-icon-small">🚑</span></span>
-          <span class="ram-govapps-embed-app-name" dir="auto">להציל עץ</span>
-        </a>
-        <a class="ram-govapps-embed-app-tile" href="https://agmonr.github.io/yeela-license-tracker/statics/reports/by_city.html" target="_blank" rel="noopener"
-           title="דוח סטטי - לא API - עוקב אחרי תוכניות בניין (מנהל התכנון, קווים כחולים) שמסמנות עצים לכרית…" dir="auto">
-          <span class="ram-govapps-embed-app-icon" aria-hidden="true">🌳<span class="ram-govapps-embed-icon-small">📋</span></span>
-          <span class="ram-govapps-embed-app-name" dir="auto">עצים בתוכניות בניין</span>
         </a>
         </div>
       </section>
@@ -91,6 +78,21 @@
            title="כתובת בישראל -&gt; מפה חיה (שכבות Xplan של מנהל התכנון על בסיס מפה אמיתי מ-OpenStreetMap), בד…" dir="auto">
           <span class="ram-govapps-embed-app-icon" aria-hidden="true">🚇</span>
           <span class="ram-govapps-embed-app-name" dir="auto">המטרו והבית שלי</span>
+        </a>
+        </div>
+      </section>
+      <section class="ram-govapps-embed-apps-category" aria-labelledby="ram-govapps-embed-cat-trees">
+        <h3 class="ram-govapps-embed-apps-category-h" id="ram-govapps-embed-cat-trees" dir="auto">עצים</h3>
+        <div class="ram-govapps-embed-apps-grid">
+        <a class="ram-govapps-embed-app-tile" href="https://agmonr.github.io/yeela-license-tracker/statics/reports/open_for_objection.html" target="_blank" rel="noopener"
+           title="דוח סטטי - לא API - העוקב אחר רישיונות כריתה/העתקה של עצים שפתוחים כרגע להגשת השגה" dir="auto">
+          <span class="ram-govapps-embed-app-icon" aria-hidden="true">🌳<span class="ram-govapps-embed-icon-small">🚑</span></span>
+          <span class="ram-govapps-embed-app-name" dir="auto">להציל עץ</span>
+        </a>
+        <a class="ram-govapps-embed-app-tile" href="https://agmonr.github.io/yeela-license-tracker/statics/reports/by_city.html" target="_blank" rel="noopener"
+           title="דוח סטטי - לא API - עוקב אחרי תוכניות בניין (מנהל התכנון, קווים כחולים) שמסמנות עצים לכרית…" dir="auto">
+          <span class="ram-govapps-embed-app-icon" aria-hidden="true">🌳<span class="ram-govapps-embed-icon-small">📋</span></span>
+          <span class="ram-govapps-embed-app-name" dir="auto">עצים בתוכניות בניין</span>
         </a>
         </div>
       </section>

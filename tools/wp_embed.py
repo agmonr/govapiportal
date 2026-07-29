@@ -45,11 +45,15 @@ OUT = ROOT / "dist" / "wordpress-embed.html"
 BASE_URL = "https://agmonr.github.io/govapiportal/"
 
 # Kept in the same order as CATEGORY_ORDER in src/apps.js - civic-action
-# items first, then the tree-specific tools, then whatever's tied to your
-# own address, then money/accountability. Anything outside this list
+# items first, then whatever's tied to your own address, then the
+# tree-specific tools, then money/accountability. Anything outside this list
 # (currently just "external") still renders, after these, under its own
 # category_he heading.
-CATEGORY_ORDER = ["civic", "trees", "home", "money"]
+CATEGORY_ORDER = ["civic", "home", "trees", "money"]
+
+# Kept in sync with PINNED_APP_ID in src/apps.js - pulled out of its own
+# category and rendered first, standalone, with no category heading.
+PINNED_APP_ID = "accidents"
 
 WRAP = "ram-govapps-embed"
 
@@ -92,6 +96,8 @@ def load_apps() -> list[dict]:
 def group_by_category(apps: list[dict]) -> list[tuple[str, str, list[dict]]]:
     buckets: dict[str, tuple[str, list[dict]]] = {}
     for a in apps:
+        if a["id"] == PINNED_APP_ID:
+            continue
         key = a.get("category") or "other"
         label = a.get("category_he") or "אחר"
         buckets.setdefault(key, (label, []))[1].append(a)
@@ -169,7 +175,13 @@ def render_iframe_example() -> str:
 
 
 def render(apps: list[dict]) -> str:
-    sections = "".join(render_section(k, label, items) for k, label, items in group_by_category(apps))
+    pinned = next((a for a in apps if a["id"] == PINNED_APP_ID), None)
+    pinned_html = (
+        f'<div class="{WRAP}-apps-grid {WRAP}-apps-pinned">{render_tile(pinned)}\n        </div>'
+        if pinned
+        else ""
+    )
+    sections = pinned_html + "".join(render_section(k, label, items) for k, label, items in group_by_category(apps))
     jsonld = render_jsonld(apps)
     iframe_example = render_iframe_example()
     return f"""<!--
@@ -192,6 +204,7 @@ def render(apps: list[dict]) -> str:
     }}
     .{WRAP} * {{ box-sizing: border-box; }}
     .{WRAP}-apps-category + .{WRAP}-apps-category {{ margin-block-start: 1.5rem; }}
+    .{WRAP}-apps-pinned {{ margin-block-end: 1.5rem; }}
     .{WRAP}-apps-category-h {{ font-size: 1rem; margin-block: 0 .6rem; color: #5b6f56; font-weight: 600; }}
     .{WRAP}-apps-grid {{
       display: grid; grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr)); gap: .85rem;

@@ -52,6 +52,14 @@ const todayIso = (offsetDays = 0) => {
   const t = new Date(); t.setDate(t.getDate() + offsetDays);
   return t.toISOString().slice(0, 10);
 };
+// Real calendar-month arithmetic (setMonth), not an N*30-days approximation -
+// "6 months back" should land on the same day-of-month 6 calendar months
+// ago, not drift by a few days over a long range.
+const monthsAgoIso = (months) => {
+  const t = new Date(); t.setMonth(t.getMonth() - months);
+  return t.toISOString().slice(0, 10);
+};
+const DEFAULT_MONTHS_BACK = 6;
 
 /* ---------- HTML-fragment parsing: ported 1:1 from
    scrape_hodhasharon_meetings.py, re-verified against live responses. ---------- */
@@ -139,8 +147,29 @@ typeSelect.innerHTML = Object.entries(MEETING_TYPES)
   .map(([code, label]) => `<option value="${code}">${esc(label)}</option>`).join('');
 typeSelect.value = '0';
 
-el('cmFrom').value = todayIso(-365 * 3);
+el('cmMonthsBack').value = DEFAULT_MONTHS_BACK;
+el('cmFrom').value = monthsAgoIso(DEFAULT_MONTHS_BACK);
 el('cmTo').value = todayIso(60);
+
+// Default query for the floating PDF search - this page's own reason for
+// existing started with tree-felling/relocation licenses (see the sibling
+// "trees" tools), so that's the one search worth running before anyone
+// types anything, not an empty box.
+el('cmSearchQuery').value = 'עץ עצים כריתה העתקה';
+runSearch(); // shows the "pick files to search" hint immediately, rather than a blank box until the first keystroke
+
+/** Quick-set shortcut for cmFrom - months back from today, real calendar
+ *  months (see monthsAgoIso). Leaves cmFrom a normal, independently-editable
+ *  date field: this only writes into it once per change here, it doesn't
+ *  keep the two in sync afterwards (matching how "last 7/30/90 days" preset
+ *  pickers elsewhere work - a shortcut into the real field, not a second
+ *  source of truth for it). */
+function onMonthsBackInput() {
+  const n = Number(el('cmMonthsBack').value);
+  if (!Number.isFinite(n) || n <= 0) return;
+  el('cmFrom').value = monthsAgoIso(n);
+  loadMeetings();
+}
 
 /* ---------- fetch + render ---------- */
 
@@ -393,13 +422,14 @@ const curlQuote = (s) => `"${String(s).replace(/\\/g, '\\\\').replace(/"/g, '\\"
 async function buildDownloadScript(gen = state.filterGen) {
   const list = state.filtered;
   if (!list.length) return;
-  if (list.length > 150 && !confirm(`הרשימה כוללת ${list.length} ישיבות - בניית הסקריפט תשלח כ-${list.length} בקשות לרשימת המסמכים בזו אחר זו ותימשך זמן מה. להמשיך?`)) return;
+  if (list.length > 150 && !confirm(`הרשימה כוללת ${list.length} ישיבות - בניית הרשימה תשלח כ-${list.length} בקשות לרשימת המסמכים בזו אחר זו ותימשך זמן מה. להמשיך?`)) return;
 
   const btn = el('cmLoadAllDocs');
   const box = el('cmAllDocs');
   btn.disabled = true;
   try {
     const lines = [];
+    const allDocs = []; // same documents as `lines`, kept as objects too for renderChecklist - one fetch pass feeds both outputs
     let failedMeetings = 0;
     let docCount = 0;
     for (let i = 0; i < list.length; i += 1) {
@@ -427,12 +457,88 @@ async function buildDownloadScript(gen = state.filterGen) {
         // per-file `sleep 0.5` to curl's own --rate flag on that one call.
         lines.push(`url = ${curlQuote(doc.url)}`);
         lines.push(`output = ${curlQuote(fname)}`);
+        allDocs.push({ url: doc.url, label: doc.title || doc.subject || 'מסמך', meeting });
       }
     }
-    if (gen === state.filterGen) renderDownloadScript(lines, docCount, failedMeetings); // stale otherwise - a newer run owns the panel now
+    if (gen === state.filterGen) {
+      renderDownloadScript(lines, docCount, failedMeetings); // stale otherwise - a newer run owns the panel now
+      renderChecklist(allDocs);
+    }
   } finally {
     btn.disabled = false;
   }
+}
+
+/* ---------- manual click-through checklist - deliberately not automated
+   (see the notice in committees.html for why: robots.txt on the archive
+   host, and browsers block scripts opening/downloading many files in a row
+   anyway). Just the same document list as the curl script, one checkbox per
+   link so a person clicking through by hand doesn't lose their place -
+   checked state persists in localStorage (by URL, not by row position, so
+   it survives a re-filter) purely on this device, nothing sent anywhere. */
+const CHECKLIST_KEY = 'cmChecklistDone';
+
+function loadCheckedUrls() {
+  try {
+    return new Set(JSON.parse(localStorage.getItem(CHECKLIST_KEY) || '[]'));
+  } catch {
+    return new Set();
+  }
+}
+
+function saveCheckedUrls(set) {
+  try {
+    localStorage.setItem(CHECKLIST_KEY, JSON.stringify([...set]));
+  } catch {
+    // storage unavailable/full/private-mode - checklist still works this
+    // session, it just won't remember checks across a reload.
+  }
+}
+
+function updateChecklistProgress(total, checked) {
+  el('cmChecklistProgress').textContent = total ? `${num(checked)} מתוך ${num(total)} סומנו כנפתחו.` : '';
+}
+
+function renderChecklist(docs) {
+  const list = el('cmChecklist');
+  const resetBtn = el('cmChecklistReset');
+  if (!docs.length) {
+    list.innerHTML = '';
+    updateChecklistProgress(0, 0);
+    resetBtn.hidden = true;
+    return;
+  }
+
+  const checkedUrls = loadCheckedUrls();
+  list.innerHTML = docs.map((d, i) => `
+    <li class="cm-checklist-row">
+      <label>
+        <input type="checkbox" data-url="${esc(d.url)}" id="cmCheck${i}" ${checkedUrls.has(d.url) ? 'checked' : ''}>
+        <a href="${esc(d.url)}" target="_blank" rel="noopener">${esc(d.label)}</a>
+        <span class="acc-hint">(${esc(d.meeting.committee)}, ${esc(d.meeting.date)})</span>
+      </label>
+    </li>`).join('');
+
+  const urlsInList = new Set(docs.map((d) => d.url));
+  updateChecklistProgress(docs.length, docs.filter((d) => checkedUrls.has(d.url)).length);
+  resetBtn.hidden = false;
+
+  list.querySelectorAll('input[type="checkbox"]').forEach((cb) => {
+    cb.addEventListener('change', () => {
+      const url = cb.dataset.url;
+      const set = loadCheckedUrls();
+      if (cb.checked) set.add(url); else set.delete(url);
+      saveCheckedUrls(set);
+      updateChecklistProgress(docs.length, docs.filter((d) => set.has(d.url)).length);
+    });
+  });
+
+  resetBtn.onclick = () => {
+    const set = loadCheckedUrls();
+    for (const url of urlsInList) set.delete(url);
+    saveCheckedUrls(set);
+    renderChecklist(docs);
+  };
 }
 
 function renderDownloadScript(lines, docCount, failedMeetings) {
@@ -550,21 +656,26 @@ function compileQuery(raw) {
       matchSpan: (text) => { re.lastIndex = 0; const m = re.exec(text); return m ? { index: m.index, length: m[0].length || 1 } : null; },
     };
   }
-  const groups = q.split(/\s+or\s+/i).map((g) => g.trim().split(/\s+/).filter(Boolean)).filter((g) => g.length);
+  // Bare space-separated words default to OR (any one is enough) - no need
+  // to spell out "מילה1 OR מילה2" for that anymore. "AND" between groups of
+  // words narrows: every group must match, but within a group any of its
+  // words still counts (mirrors the old AND-by-default/OR-by-keyword
+  // grammar, just swapped).
+  const groups = q.split(/\s+and\s+/i).map((g) => g.trim().split(/\s+/).filter(Boolean)).filter((g) => g.length);
   if (!groups.length) return null;
   return {
     test: (text) => {
       const lower = text.toLowerCase();
-      return groups.some((words) => words.every((w) => lower.includes(w.toLowerCase())));
+      return groups.every((words) => words.some((w) => lower.includes(w.toLowerCase())));
     },
     matchSpan: (text) => {
       const lower = text.toLowerCase();
-      const group = groups.find((words) => words.every((w) => lower.includes(w.toLowerCase())));
-      if (!group) return null;
       let best = null;
-      for (const w of group) {
-        const i = lower.indexOf(w.toLowerCase());
-        if (i >= 0 && (!best || i < best.index)) best = { index: i, length: w.length };
+      for (const words of groups) {
+        for (const w of words) {
+          const i = lower.indexOf(w.toLowerCase());
+          if (i >= 0 && (!best || i < best.index)) best = { index: i, length: w.length };
+        }
       }
       return best;
     },
@@ -597,7 +708,7 @@ function runSearch() {
   const resultsBox = el('cmSearchResults');
 
   if (!state.pdfFiles.length) {
-    resultsBox.innerHTML = '';
+    resultsBox.innerHTML = '<p class="acc-hint">בחרו קובצי PDF בסרגל הצף בתחתית המסך כדי להתחיל לחפש.</p>';
     return;
   }
   if (compiled?.error) {
@@ -786,6 +897,7 @@ cmSite.addEventListener('input', debounce(onSiteInput, 300));
   typeSelect.addEventListener(evt, loadMeetings);
   el('cmFrom').addEventListener(evt, loadMeetings);
   el('cmTo').addEventListener(evt, loadMeetings);
+  el('cmMonthsBack').addEventListener(evt, onMonthsBackInput);
 });
 el('cmSearch').addEventListener('input', debounce(applyQuickFilter, 250));
 

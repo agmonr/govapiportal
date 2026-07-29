@@ -326,6 +326,35 @@ button.stat { cursor: pointer; }
 .cm-search-result .cm-sr-snippet { margin-block-start: .3rem; font-size: .9rem; }
 .cm-search-result mark { background: var(--accent); color: var(--bg); border-radius: .2em; padding: 0 .1em; }
 
+/* Floating search bar (committees.html) - fixed to the viewport bottom so
+   it's reachable while scrolling the checklist/results elsewhere on the
+   page. .committees-page gets extra .wrap bottom padding so the bar never
+   sits over the last section's own content/buttons. */
+.committees-page .wrap { padding-block-end: 6rem; }
+.cm-floating-search {
+  position: fixed;
+  inset-inline: 0;
+  inset-block-end: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: .6rem;
+  padding: .6rem 1rem;
+  background: var(--card);
+  border-block-start: 1px solid var(--border);
+  box-shadow: 0 -4px 14px rgba(0, 0, 0, .15);
+}
+.cm-floating-search-file { display: flex; align-items: center; gap: .3rem; font-size: 1.1rem; cursor: pointer; }
+.cm-floating-search-file input[type="file"] { max-inline-size: 9rem; font-size: .75rem; }
+.cm-floating-search input[type="text"] { flex: 1 1 12rem; min-inline-size: 0; }
+.cm-floating-search-status { font-size: .78rem; color: var(--muted); white-space: nowrap; }
+
+.cm-checklist { list-style: none; padding: 0; margin: .5rem 0; display: flex; flex-direction: column; gap: .3rem; }
+.cm-checklist-row label { display: flex; align-items: baseline; gap: .4rem; flex-wrap: wrap; }
+.cm-checklist-row a { color: var(--accent); }
+.cm-checklist-row:has(input:checked) a { color: var(--muted); text-decoration: line-through; }
+
 .cm-script-wrap { display: flex; flex-direction: column; gap: .5rem; align-items: flex-start; }
 .cm-script {
   inline-size: 100%;
@@ -761,6 +790,10 @@ button.stat { cursor: pointer; }
    would otherwise fire on EVERY category heading (each is the first h3
    within its own separate <section>, not just the page's first one). */
 .apps-category + .apps-category { margin-block-start: 1.5rem; }
+/* The pinned app (renderAppsByCategory's PINNED_APP_ID) has no heading of
+   its own, so it can't rely on the sibling-selector rule above for spacing
+   before the first real category section. */
+.apps-pinned { margin-block-end: 1.5rem; }
 .apps-category-h { font-size: 1rem; margin-block: 0 .6rem; color: var(--muted); font-weight: 600; }
 
 .apps-grid {
@@ -2205,12 +2238,18 @@ const APP_ICON = {
 
 // Render order for categories - not alphabetical on the Hebrew label, and
 // not apis.json's own app order. Civic-action items (things asking
-// something OF you) first, the tree-specific tools right behind them (split
-// out of civic into their own category), then whatever's tied to your own
-// address, then money/accountability. A category outside this list still
-// renders (under its own heading, after these) rather than silently
-// dropping its apps.
-const CATEGORY_ORDER = ['civic', 'trees', 'home', 'money'];
+// something OF you) first, then whatever's tied to your own address, then
+// the tree-specific tools, then money/accountability. A category outside
+// this list still renders (under its own heading, after these) rather than
+// silently dropping its apps.
+const CATEGORY_ORDER = ['civic', 'home', 'trees', 'money'];
+
+// Pulled out of its own category and rendered first, standalone, with no
+// category heading at all - by explicit request, this one app is meant to
+// read as the page's own headline, not "item one of a civic-action list".
+// Still removed from its category's normal grouping below so it doesn't
+// also render a second time under "פעילות חברתית ומעורבות אזרחית".
+const PINNED_APP_ID = 'accidents';
 
 // The native hover tooltip (title=) can't be styled - the browser draws it,
 // wrapping to as many lines as the full `about` text needs (some run past
@@ -2242,8 +2281,11 @@ function appCard(a) {
  * falls into a catch-all "אחר" group at the end.
  */
 function renderAppsByCategory(node, apps) {
+  const pinned = apps.find((a) => a.id === PINNED_APP_ID);
+  const rest = pinned ? apps.filter((a) => a.id !== PINNED_APP_ID) : apps;
+
   const byCategory = new Map();
-  for (const a of apps) {
+  for (const a of rest) {
     const key = a.category || 'other';
     if (!byCategory.has(key)) byCategory.set(key, { label: a.category_he || 'אחר', items: [] });
     byCategory.get(key).items.push(a);
@@ -2253,7 +2295,8 @@ function renderAppsByCategory(node, apps) {
     ...[...byCategory.keys()].filter((k) => !CATEGORY_ORDER.includes(k)),
   ];
 
-  node.innerHTML = orderedKeys.map((key) => {
+  const pinnedHtml = pinned ? `<div class="apps-grid apps-pinned">${appCard(pinned)}</div>` : '';
+  const sectionsHtml = orderedKeys.map((key) => {
     const { label, items } = byCategory.get(key);
     return `
       <section class="apps-category" aria-labelledby="appsCat-${esc(key)}">
@@ -2261,6 +2304,8 @@ function renderAppsByCategory(node, apps) {
         <div class="apps-grid">${items.map(appCard).join('')}</div>
       </section>`;
   }).join('');
+
+  node.innerHTML = pinnedHtml + sectionsHtml;
 }
 
 /**

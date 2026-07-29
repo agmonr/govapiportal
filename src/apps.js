@@ -41,12 +41,18 @@ export const APP_ICON = {
 
 // Render order for categories - not alphabetical on the Hebrew label, and
 // not apis.json's own app order. Civic-action items (things asking
-// something OF you) first, the tree-specific tools right behind them (split
-// out of civic into their own category), then whatever's tied to your own
-// address, then money/accountability. A category outside this list still
-// renders (under its own heading, after these) rather than silently
-// dropping its apps.
-const CATEGORY_ORDER = ['civic', 'trees', 'home', 'money'];
+// something OF you) first, then whatever's tied to your own address, then
+// the tree-specific tools, then money/accountability. A category outside
+// this list still renders (under its own heading, after these) rather than
+// silently dropping its apps.
+const CATEGORY_ORDER = ['civic', 'home', 'trees', 'money'];
+
+// Pulled out of its own category and rendered first, standalone, with no
+// category heading at all - by explicit request, this one app is meant to
+// read as the page's own headline, not "item one of a civic-action list".
+// Still removed from its category's normal grouping below so it doesn't
+// also render a second time under "פעילות חברתית ומעורבות אזרחית".
+const PINNED_APP_ID = 'accidents';
 
 // The native hover tooltip (title=) can't be styled - the browser draws it,
 // wrapping to as many lines as the full `about` text needs (some run past
@@ -78,8 +84,11 @@ export function appCard(a) {
  * falls into a catch-all "אחר" group at the end.
  */
 export function renderAppsByCategory(node, apps) {
+  const pinned = apps.find((a) => a.id === PINNED_APP_ID);
+  const rest = pinned ? apps.filter((a) => a.id !== PINNED_APP_ID) : apps;
+
   const byCategory = new Map();
-  for (const a of apps) {
+  for (const a of rest) {
     const key = a.category || 'other';
     if (!byCategory.has(key)) byCategory.set(key, { label: a.category_he || 'אחר', items: [] });
     byCategory.get(key).items.push(a);
@@ -89,7 +98,8 @@ export function renderAppsByCategory(node, apps) {
     ...[...byCategory.keys()].filter((k) => !CATEGORY_ORDER.includes(k)),
   ];
 
-  node.innerHTML = orderedKeys.map((key) => {
+  const pinnedHtml = pinned ? `<div class="apps-grid apps-pinned">${appCard(pinned)}</div>` : '';
+  const sectionsHtml = orderedKeys.map((key) => {
     const { label, items } = byCategory.get(key);
     return `
       <section class="apps-category" aria-labelledby="appsCat-${esc(key)}">
@@ -97,6 +107,8 @@ export function renderAppsByCategory(node, apps) {
         <div class="apps-grid">${items.map(appCard).join('')}</div>
       </section>`;
   }).join('');
+
+  node.innerHTML = pinnedHtml + sectionsHtml;
 }
 
 /**
