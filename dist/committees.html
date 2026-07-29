@@ -1782,6 +1782,11 @@ body.accidents-page header.site h1 { inline-size: 100%; }
 }
 .lead-details[open] summary { margin-block-end: .6rem; }
 
+/* apps.html's feedback section: always visible, no toggle - same look as
+   .lead-details summary (color/weight/size) minus cursor:pointer, since
+   there's nothing to click here. */
+.plain-section-h { cursor: default; color: var(--accent); font-weight: 600; font-size: .95rem; margin: 0 0 .4rem; }
+
 /* apps.html's embed snippet: the <pre> scrolls on its own (already had
    overflow-x:auto inline) so the copy button stays put beside it rather
    than sliding out of view with a long iframe line. */

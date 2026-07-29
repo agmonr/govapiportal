@@ -1782,6 +1782,11 @@ body.accidents-page header.site h1 { inline-size: 100%; }
 }
 .lead-details[open] summary { margin-block-end: .6rem; }
 
+/* apps.html's feedback section: always visible, no toggle - same look as
+   .lead-details summary (color/weight/size) minus cursor:pointer, since
+   there's nothing to click here. */
+.plain-section-h { cursor: default; color: var(--accent); font-weight: 600; font-size: .95rem; margin: 0 0 .4rem; }
+
 /* apps.html's embed snippet: the <pre> scrolls on its own (already had
    overflow-x:auto inline) so the copy button stays put beside it rather
    than sliding out of view with a long iframe line. */
@@ -2043,6 +2048,29 @@ body.accidents-page header.site h1 { inline-size: 100%; }
       </details>
       <div id="apps"></div>
 
+      <section class="acc-section" aria-labelledby="feedbackH">
+        <h2 id="feedbackH" class="plain-section-h">משוב ותגובות</h2>
+        <p class="lead" dir="auto">
+          רעיון לאפליקציה, באג שמצאתם, או סתם משהו שרציתם להגיד? כתבו כאן - אפשר גם להשאיר תגובות אנונימיות.
+        </p>
+        <form id="feedbackForm" class="feedback-form">
+          <label for="fbComment">תגובה: <span aria-hidden="true">*</span></label>
+          <textarea id="fbComment" required rows="4" dir="auto"></textarea>
+          <div class="feedback-form-row">
+            <div>
+              <label for="fbName">שם (לא חובה):</label>
+              <input type="text" id="fbName" dir="auto">
+            </div>
+            <div>
+              <label for="fbEmail">אימייל (לא חובה, לא יפורסם):</label>
+              <input type="email" id="fbEmail" dir="ltr">
+            </div>
+          </div>
+          <button type="submit" id="feedbackSubmit" class="drill-dl">שליחת תגובה</button>
+          <div id="feedbackStatus" class="acc-hint" role="status" aria-live="polite"></div>
+        </form>
+      </section>
+
       <section class="acc-section" aria-labelledby="embedH">
         <details class="lead-details">
           <summary id="embedH">הטמעה באתר אחר</summary>
@@ -2070,33 +2098,6 @@ fetch('https://agmonr.github.io/govapiportal/dist/wordpress-embed.html')
 &lt;/script&gt;</code></pre>
             <button type="button" id="embedCopyBtnJs" class="drill-dl">העתקה ⧉</button>
           </div>
-        </details>
-      </section>
-
-      <section class="acc-section" aria-labelledby="feedbackH">
-        <details class="lead-details">
-          <summary id="feedbackH">משוב ותגובות</summary>
-          <p class="lead" dir="auto">
-            רעיון לאפליקציה, באג שמצאתם, או סתם משהו שרציתם להגיד? כתבו כאן - התגובה מתפרסמת ישירות כתגובה
-            ל<a href="https://hod-hasharon.org/%d7%a4%d7%95%d7%a8%d7%98%d7%9c-%d7%90%d7%a4%d7%9c%d7%99%d7%a7%d7%a6%d7%99%d7%95%d7%aa-%d7%94%d7%9e%d7%99%d7%93%d7%a2/" target="_blank" rel="noopener">הפוסט על הארגז הזה בבלוג הירוקים הוד השרון</a>
-            (אחרי אישור, כמו כל תגובה שם).
-          </p>
-          <form id="feedbackForm" class="feedback-form">
-            <label for="fbComment">תגובה: <span aria-hidden="true">*</span></label>
-            <textarea id="fbComment" required rows="4" dir="auto"></textarea>
-            <div class="feedback-form-row">
-              <div>
-                <label for="fbName">שם (לא חובה):</label>
-                <input type="text" id="fbName" dir="auto">
-              </div>
-              <div>
-                <label for="fbEmail">אימייל (לא חובה, לא יפורסם):</label>
-                <input type="email" id="fbEmail" dir="ltr">
-              </div>
-            </div>
-            <button type="submit" id="feedbackSubmit" class="drill-dl">שליחת תגובה</button>
-            <div id="feedbackStatus" class="acc-hint" role="status" aria-live="polite"></div>
-          </form>
         </details>
       </section>
     </div>
