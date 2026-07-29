@@ -3306,13 +3306,13 @@ const todayIso = (offsetDays = 0) => {
   return t.toISOString().slice(0, 10);
 };
 // Real calendar-month arithmetic (setMonth), not an N*30-days approximation -
-// "6 months back" should land on the same day-of-month 6 calendar months
+// "N months back" should land on the same day-of-month N calendar months
 // ago, not drift by a few days over a long range.
 const monthsAgoIso = (months) => {
   const t = new Date(); t.setMonth(t.getMonth() - months);
   return t.toISOString().slice(0, 10);
 };
-const DEFAULT_MONTHS_BACK = 6;
+const DEFAULT_MONTHS_BACK = 1;
 
 /* ---------- HTML-fragment parsing: ported 1:1 from
    scrape_hodhasharon_meetings.py, re-verified against live responses. ---------- */
@@ -4103,7 +4103,15 @@ el('cmSearchShowBoxes').addEventListener('click', async (e) => {
     btn.textContent = 'הצג רשימת קבצים להורדה';
     return;
   }
-  if (!state.searchMatches.length) return; // nothing to show yet - matches its own status line above
+  // Unlike the "current query matches nothing" case (where runSearch()
+  // already set a status message), never having picked a local PDF at all
+  // left this a silent no-op - clicking the button did visibly nothing,
+  // anywhere on the page. Same guard/message as cmSearchDownloadPdf below.
+  if (!state.pdfFiles.length) {
+    el('cmSearchStatus').textContent = 'בחרו קובצי PDF בסרגל הצף בתחתית המסך לפני הצגת הרשימה - אחרת אין מה להציג.';
+    return;
+  }
+  if (!state.searchMatches.length) return; // query matched nothing - runSearch() already set its own status line
   if (!confirmHeavyFetch(state.filtered.length)) return;
 
   // Shown inside the (now-visible) box container itself, not just the
