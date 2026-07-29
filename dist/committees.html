@@ -2141,9 +2141,10 @@ body.accidents-page header.site h1 { inline-size: 100%; }
         </details>
         <div id="cmSearchResults"></div>
         <div class="fin-export-row">
-          <button type="button" id="cmSearchDownloadList" class="drill-dl">הורדת רשימת קבצים תואמים (טקסט) ⭳</button>
+          <button type="button" id="cmSearchShowBoxes" class="drill-dl">הצג רשימת קבצים להורדה</button>
           <button type="button" id="cmSearchDownloadPdf" class="drill-dl">הורדת PDF עם כל הקישורים התואמים ⭳</button>
         </div>
+        <ul id="cmSearchBoxes" class="cm-checklist" hidden></ul>
       </section>
 
       <section class="acc-section" aria-labelledby="tableH">
@@ -3665,36 +3666,59 @@ const shQuote = (s) => `'${String(s).replace(/'/g, "'\"'\"'")}'`;
  *  one that ever reads it, hence a different quoting rule than shQuote. */
 const curlQuote = (s) => `"${String(s).replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
 
-// `gen` lets an auto-triggered run (from typing in the quick filter) abandon
-// itself the moment a newer keystroke changes the filter again, instead of
-// two runs racing to overwrite the script panel - see applyQuickFilter().
+function confirmHeavyFetch(count) {
+  return count <= 150
+    || confirm(`הרשימה כוללת ${count} ישיבות - הפעולה תשלח כ-${count} בקשות לרשימת המסמכים בזו אחר זו ותימשך זמן מה. להמשיך?`);
+}
+
+/** Fetches and caches document lists for every meeting in `meetings` not
+ *  already in state.docsCache - the one place that actually populates it on
+ *  demand. Shared by buildDownloadScript (which also needs the raw docs to
+ *  build its own lists/cards) and anything that only needs the *correlation*
+ *  buildFilenameIndex() reads from that cache - the search-side PDF/box
+ *  exports used to silently show "no known source" for everything unless
+ *  someone had separately run "בניית הרשימה" first, since buildFilenameIndex
+ *  itself never fetches anything. `gen` lets an auto-triggered run abandon
+ *  itself the moment a newer one takes over, same as buildDownloadScript
+ *  always did. */
+async function ensureDocsCachedFor(meetings, gen, onProgress) {
+  let failedMeetings = 0;
+  for (let i = 0; i < meetings.length; i += 1) {
+    if (gen !== state.filterGen) return failedMeetings; // a newer filter/run took over mid-loop
+    const meeting = meetings[i];
+    if (state.docsCache.has(docsKeyFor(meeting))) continue;
+    onProgress?.(i + 1, meetings.length);
+    try {
+      await fetchDocsFor(meeting);
+    } catch {
+      failedMeetings += 1;
+      continue;
+    }
+    await sleep(150); // politeness pacing on the listing engine, same spirit as the original scraper's rate limiter
+  }
+  return failedMeetings;
+}
+
 async function buildDownloadScript(gen = state.filterGen) {
   const list = state.filtered;
   if (!list.length) return;
-  if (list.length > 150 && !confirm(`הרשימה כוללת ${list.length} ישיבות - בניית הרשימה תשלח כ-${list.length} בקשות לרשימת המסמכים בזו אחר זו ותימשך זמן מה. להמשיך?`)) return;
+  if (!confirmHeavyFetch(list.length)) return;
 
   const btn = el('cmLoadAllDocs');
   const box = el('cmAllDocs');
   btn.disabled = true;
   try {
+    const failedFetches = await ensureDocsCachedFor(list, gen, (i, total) => {
+      if (gen === state.filterGen) box.innerHTML = `<p class="acc-hint">בונה רשימת קבצים… (ישיבה ${i}/${total})</p>`;
+    });
+    if (gen !== state.filterGen) return; // stale otherwise - a newer run owns the panel now
+
     const lines = [];
     const allDocs = []; // same documents as `lines`, kept as objects too for renderChecklist - one fetch pass feeds both outputs
-    let failedMeetings = 0;
     let docCount = 0;
-    for (let i = 0; i < list.length; i += 1) {
-      if (gen !== state.filterGen) return; // a newer filter took over mid-loop
-      const meeting = list[i];
-      box.innerHTML = `<p class="acc-hint">בונה רשימת קבצים… (ישיבה ${i + 1}/${list.length})</p>`;
-      let docs = state.docsCache.get(docsKeyFor(meeting));
-      if (!docs) {
-        try {
-          docs = await fetchDocsFor(meeting);
-        } catch {
-          failedMeetings += 1;
-          continue;
-        }
-        await sleep(150); // politeness pacing on the listing engine, same spirit as the original scraper's rate limiter
-      }
+    for (const meeting of list) {
+      const docs = state.docsCache.get(docsKeyFor(meeting));
+      if (!docs) continue; // failed to fetch above - already counted in failedFetches
       for (const doc of docs) {
         docCount += 1;
         const fname = sanitizeFilename(
@@ -3709,10 +3733,8 @@ async function buildDownloadScript(gen = state.filterGen) {
         allDocs.push({ url: doc.url, label: doc.title || doc.subject || 'מסמך', meeting });
       }
     }
-    if (gen === state.filterGen) {
-      renderDownloadScript(lines, docCount, failedMeetings); // stale otherwise - a newer run owns the panel now
-      renderChecklist(allDocs);
-    }
+    renderDownloadScript(lines, docCount, failedFetches);
+    renderChecklist(allDocs);
   } finally {
     btn.disabled = false;
   }
@@ -3748,6 +3770,41 @@ function updateChecklistProgress(total, checked) {
   el('cmChecklistProgress').textContent = total ? `${num(checked)} מתוך ${num(total)} סומנו כנפתחו.` : '';
 }
 
+// Six accent colors, cycled by index - same "happy palette" tokens used
+// site-wide (see :root in style.css), not a new color scheme invented just
+// for these grids.
+const CARD_ACCENTS = ['--leaf', '--sun', '--sky', '--berry', '--bark', '--terracotta'];
+
+/** Shared by the download-list checklist and the search-results "show as
+ *  boxes" view, so both look and behave identically - one small colorful
+ *  card per document, real link, no full title (that's what the title=
+ *  tooltip and the detailed list above it are for). `items`: {url, title,
+ *  dateLabel}. Checkbox tracking shares one localStorage key (CHECKLIST_KEY)
+ *  across both call sites - checking a document off in either place shows
+ *  as checked in the other too, since they're keyed by the same real URL,
+ *  not by which grid rendered it. */
+function docCardGridHtml(items, checkedUrls) {
+  return items.map((d, i) => `
+    <li class="cm-checklist-row" style="--cm-card-accent: var(${CARD_ACCENTS[i % CARD_ACCENTS.length]})">
+      <input type="checkbox" data-url="${esc(d.url)}" ${checkedUrls.has(d.url) ? 'checked' : ''} title="סימון כנפתח/הורד">
+      <a href="${esc(d.url)}" target="_blank" rel="noopener" title="${esc(d.title)}">
+        <span class="cm-checklist-num">${i + 1}</span>
+        <span class="cm-checklist-date">${esc(d.dateLabel || '')}</span>
+      </a>
+    </li>`).join('');
+}
+
+function wireDocCardCheckboxes(container, items, onProgress) {
+  container.querySelectorAll('input[type="checkbox"]').forEach((cb) => {
+    cb.addEventListener('change', () => {
+      const set = loadCheckedUrls();
+      if (cb.checked) set.add(cb.dataset.url); else set.delete(cb.dataset.url);
+      saveCheckedUrls(set);
+      onProgress?.(items.length, items.filter((d) => set.has(d.url)).length);
+    });
+  });
+}
+
 function renderChecklist(docs) {
   const list = el('cmChecklist');
   const resetBtn = el('cmChecklistReset');
@@ -3758,36 +3815,18 @@ function renderChecklist(docs) {
     return;
   }
 
-  // Six accent colors, cycled by index - same "happy palette" tokens used
-  // site-wide (see :root in style.css), not a new color scheme invented
-  // just for this grid.
-  const ACCENTS = ['--leaf', '--sun', '--sky', '--berry', '--bark', '--terracotta'];
+  const items = docs.map((d) => ({
+    url: d.url,
+    title: `${d.label} (${d.meeting.committee}, ${d.meeting.date})`,
+    dateLabel: d.meeting.date,
+  }));
   const checkedUrls = loadCheckedUrls();
-  list.innerHTML = docs.map((d, i) => `
-    <li class="cm-checklist-row" style="--cm-card-accent: var(${ACCENTS[i % ACCENTS.length]})">
-      <input type="checkbox" data-url="${esc(d.url)}" id="cmCheck${i}" ${checkedUrls.has(d.url) ? 'checked' : ''}
-             title="סימון כנפתח/הורד">
-      <a href="${esc(d.url)}" target="_blank" rel="noopener"
-         title="${esc(d.label)} (${esc(d.meeting.committee)}, ${esc(d.meeting.date)})">
-        <span class="cm-checklist-num">${i + 1}</span>
-        <span class="cm-checklist-date">${esc(d.meeting.date)}</span>
-      </a>
-    </li>`).join('');
-
-  const urlsInList = new Set(docs.map((d) => d.url));
-  updateChecklistProgress(docs.length, docs.filter((d) => checkedUrls.has(d.url)).length);
+  list.innerHTML = docCardGridHtml(items, checkedUrls);
+  updateChecklistProgress(items.length, items.filter((d) => checkedUrls.has(d.url)).length);
   resetBtn.hidden = false;
+  wireDocCardCheckboxes(list, items, updateChecklistProgress);
 
-  list.querySelectorAll('input[type="checkbox"]').forEach((cb) => {
-    cb.addEventListener('change', () => {
-      const url = cb.dataset.url;
-      const set = loadCheckedUrls();
-      if (cb.checked) set.add(url); else set.delete(url);
-      saveCheckedUrls(set);
-      updateChecklistProgress(docs.length, docs.filter((d) => set.has(d.url)).length);
-    });
-  });
-
+  const urlsInList = new Set(items.map((d) => d.url));
   resetBtn.onclick = () => {
     const set = loadCheckedUrls();
     for (const url of urlsInList) set.delete(url);
@@ -4032,13 +4071,57 @@ el('cmPdfFiles').addEventListener('change', async (e) => {
 
 el('cmSearchQuery').addEventListener('input', debouncedSearch);
 
-el('cmSearchDownloadList').addEventListener('click', () => {
-  if (!state.searchMatches.length) return;
-  const lines = state.searchMatches.map((m) => {
-    const meta = m.matched ? ` — ${m.matched.meeting.committee}, ${m.matched.meeting.date} — ${m.matched.doc.title || m.matched.doc.subject}` : '';
-    return `${m.name}${meta}`;
-  });
-  downloadBlob(new Blob([`${lines.join('\n')}\n`], { type: 'text/plain;charset=utf-8' }), 'קבצים_תואמים_לחיפוש.txt');
+/** Renders the current search matches as the same colorful card grid as the
+ *  download-list checklist - real link per card (the correlated source URL
+ *  when known, otherwise the local blob: so an unmatched file can still be
+ *  reopened from here), no full title (title= tooltip carries that). */
+function renderSearchBoxes() {
+  const container = el('cmSearchBoxes');
+  if (!state.searchMatches.length) {
+    container.innerHTML = ''; // the results list above already says "אין קבצים תואמים" - no need to repeat it here
+    return;
+  }
+  const items = state.searchMatches.map((m) => ({
+    url: m.matched ? m.matched.doc.url : m.blobUrl,
+    title: docLabel(m.matched, m.name),
+    dateLabel: m.matched ? m.matched.meeting.date : '',
+  }));
+  const checkedUrls = loadCheckedUrls();
+  container.innerHTML = docCardGridHtml(items, checkedUrls);
+  wireDocCardCheckboxes(container, items);
+}
+
+el('cmSearchShowBoxes').addEventListener('click', async (e) => {
+  const btn = e.currentTarget;
+  const container = el('cmSearchBoxes');
+
+  if (!container.hidden) { // already showing - toggle off, no re-fetch needed
+    container.hidden = true;
+    btn.textContent = 'הצג רשימת קבצים להורדה';
+    return;
+  }
+  if (!state.searchMatches.length) return; // nothing to show yet - matches its own status line above
+  if (!confirmHeavyFetch(state.filtered.length)) return;
+
+  // Shown inside the (now-visible) box container itself, not just the
+  // button's own label - a status message living only in a small button's
+  // text is easy to miss entirely while waiting several seconds for a large
+  // filtered range to fetch.
+  container.hidden = false;
+  container.innerHTML = '<li class="acc-hint" style="grid-column:1/-1">מתאם קישורים למסמכים…</li>';
+  btn.disabled = true;
+  try {
+    await ensureDocsCachedFor(state.filtered, state.filterGen, (i, total) => {
+      container.innerHTML = `<li class="acc-hint" style="grid-column:1/-1">מתאם קישורים למסמכים… (${i}/${total})</li>`;
+    });
+    runSearch(); // re-correlate now that docsCache actually has something to match against
+    renderSearchBoxes();
+    btn.textContent = 'הסתר רשימת קבצים להורדה';
+  } catch (err) {
+    container.innerHTML = `<li class="notice error" style="grid-column:1/-1">שגיאה בהתאמת הקישורים: ${esc(err.message || String(err))}</li>`;
+  } finally {
+    btn.disabled = false;
+  }
 });
 
 /* Word-wrap identical in spirit to area-cleanup.js's own wrapText - not
@@ -4116,15 +4199,32 @@ function buildLinksPageCanvas(matches, query) {
 
 el('cmSearchDownloadPdf').addEventListener('click', async (e) => {
   const btn = e.currentTarget;
+  if (!confirmHeavyFetch(state.filtered.length)) return;
+
   btn.disabled = true;
+  const original = btn.textContent;
   try {
+    // Same fix as cmSearchShowBoxes: without this, buildFilenameIndex() has
+    // nothing cached to correlate against, and the PDF comes out as just
+    // the "no known-source document found" placeholder line - which is
+    // exactly the bug this was (silently, every time the checklist/row-
+    // expand step had been skipped).
+    btn.textContent = 'מתאם קישורים למסמכים…';
+    await ensureDocsCachedFor(state.filtered, state.filterGen, (i, total) => {
+      btn.textContent = `מתאם קישורים למסמכים… (${i}/${total})`;
+    });
+    runSearch();
+
     const query = el('cmSearchQuery').value.trim();
     const { canvas, links } = buildLinksPageCanvas(state.searchMatches, query);
     const jpegBytes = await canvasToJpegBytes(canvas);
     const blob = buildPdf({ pages: [{ jpegBytes, width: canvas.width, height: canvas.height, links }] });
     downloadBlob(blob, `${safeFilename(query || 'כל_התוצאות', 'חיפוש-פרוטוקולים')}.pdf`);
+  } catch (err) {
+    el('cmSearchStatus').textContent = `שגיאה בבניית ה-PDF: ${err.message || err}`;
   } finally {
     btn.disabled = false;
+    btn.textContent = original;
   }
 });
 
