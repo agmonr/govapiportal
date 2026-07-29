@@ -128,6 +128,55 @@
         <button type="button" id="cmLoadAllDocs" class="drill-dl">בניית סקריפט ההורדה</button>
         <div id="cmAllDocs"></div>
       </section>
+
+      <section class="acc-section" aria-labelledby="cmSearchH">
+        <h2 id="cmSearchH">חיפוש בתוך הפרוטוקולים שהורדתם</h2>
+        <p class="acc-hint">
+          חיפוש בתוך תוכן ה-PDF עצמו לא יכול לרוץ מול הקבצים באינטרנט: הדפדפן
+          חוסם קריאת תוכן קובץ ממקור אחר (CORS) - זו אותה סיבה שבגללה גם
+          "סקריפט ההורדה" למעלה בונה קובץ להרצה עצמאית ב-<code dir="ltr">curl</code>
+          במקום להוריד ישירות מכאן. לכן: קודם הורידו את המסמכים הרלוונטיים
+          למכשיר (לחיצה על קישור מסמך למעלה, או הרצת סקריפט ההורדה), ואז בחרו
+          אותם כאן <strong>מהמכשיר עצמו</strong> - החיפוש רץ על הקבצים המקומיים
+          בלבד, בדפדפן, בלי לשלוח אותם לשום מקום.
+        </p>
+        <p class="acc-hint">
+          פענוח הטקסט מתוך ה-PDF הוא ידני (ללא ספריה חיצונית) ולכן חלקי במקרים
+          מסוימים - לרוב יעבוד היטב על פרוטוקולים אמיתיים מהמקור הזה, אך אינו
+          מובטח לכל קובץ.
+        </p>
+        <p class="acc-hint">
+          לקבלת התאמה בין קובץ למסמך המקורי (כדי שרשימת התוצאות תציג תאריך/סוג
+          ישיבה, וכדי שאפשר יהיה לבנות PDF עם קישורים אמיתיים למסמכים) - מומלץ
+          קודם להרחיב שורות בטבלה למעלה או ללחוץ על "בניית סקריפט ההורדה" עבור
+          הרשימה המסוננת, כך שרשימת המסמכים כבר טעונה כשהקבצים נבחרים כאן.
+          קובץ שלא נמצאה לו התאמה עדיין מוצג ומחפש בו, רק בלי קישור מקור.
+        </p>
+        <div class="cm-filters">
+          <div class="acc-year-pick">
+            <label for="cmPdfFiles">בחירת קובצי PDF שהורדתם:</label>
+            <input type="file" id="cmPdfFiles" accept="application/pdf,.pdf" multiple>
+          </div>
+          <div class="acc-year-pick">
+            <label for="cmSearchQuery">חיפוש:</label>
+            <input type="text" id="cmSearchQuery" autocomplete="off" spellcheck="false" dir="auto"
+                   placeholder="מילה / כמה מילים / מילה1 OR מילה2 / ‎/ביטוי רגולרי/‎">
+          </div>
+        </div>
+        <p class="acc-hint">
+          כמה מילים בלי "OR" - כולן חייבות להופיע (AND), למשל
+          <code dir="ltr">תכנית 423</code>. הוספת "OR" בין קבוצות מילים מחפשת כל
+          קבוצה בנפרד, למשל <code dir="ltr">חניה OR תמ"א 38</code> (כאן: "חניה",
+          או "תמ"א" ו-"38" יחד). ביטוי עטוף בלוכסנים - למשל
+          <code dir="ltr">/תכנית\s+\d+/i</code> - מתפרש כביטוי רגולרי (JavaScript RegExp).
+        </p>
+        <div id="cmSearchStatus" class="acc-hint" aria-live="polite"></div>
+        <div id="cmSearchResults"></div>
+        <div class="fin-export-row">
+          <button type="button" id="cmSearchDownloadList" class="drill-dl">הורדת רשימת קבצים תואמים (טקסט) ⭳</button>
+          <button type="button" id="cmSearchDownloadPdf" class="drill-dl">הורדת PDF עם כל הקישורים התואמים ⭳</button>
+        </div>
+      </section>
     </div>
   </main>
 

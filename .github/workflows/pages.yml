@@ -33,6 +33,17 @@ jobs:
             exit 1
           fi
 
+      # dist/wordpress-embed.html is a hand-ported Python re-render of the
+      # same apps.js grid (CATEGORY_ORDER/APP_ICON kept in sync by hand,
+      # since this script has no JS runtime) - nothing caught it drifting
+      # from apis.json/apps.js until this was added.
+      - name: Check the WordPress embed is in sync
+        run: |
+          if ! ./tools/wp_embed.py --check; then
+            echo "::error::dist/wordpress-embed.html has drifted from apis.json - run ./tools/wp_embed.py locally, commit dist/wordpress-embed.html, and push again."
+            exit 1
+          fi
+
       # The map is static: apis.json is hand-maintained, so there is nothing
       # to build and no nightly job. Publish the repo as-is.
       - uses: actions/upload-pages-artifact@v3

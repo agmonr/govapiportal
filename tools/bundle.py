@@ -96,7 +96,7 @@ TARGETS = [
         # machinery (its own filter/KPI/table logic; the chart renderer
         # itself is shared - see charts.js). apis.json IS now needed, purely
         # for apps.js's under-header "other apps in this category" strip.
-        "sources": ["src/ui.js", "src/theme.js", "src/committee-sites.js", "src/charts.js", "src/apps.js", "src/committees.js"],
+        "sources": ["src/ui.js", "src/theme.js", "src/committee-sites.js", "src/charts.js", "src/apps.js", "src/pdf-text.js", "src/pdf.js", "src/committees.js"],
         "data": True,
     },
     {

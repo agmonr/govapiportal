@@ -40,11 +40,13 @@ export const APP_ICON = {
 };
 
 // Render order for categories - not alphabetical on the Hebrew label, and
-// not apis.json's own app order. Whatever's tied to your own address first,
-// then civic-action items (things asking something OF you), then money/
-// accountability. A category outside this list still renders (under its
-// own heading, after these) rather than silently dropping its apps.
-const CATEGORY_ORDER = ['home', 'civic', 'money'];
+// not apis.json's own app order. Civic-action items (things asking
+// something OF you) first, the tree-specific tools right behind them (split
+// out of civic into their own category), then whatever's tied to your own
+// address, then money/accountability. A category outside this list still
+// renders (under its own heading, after these) rather than silently
+// dropping its apps.
+const CATEGORY_ORDER = ['civic', 'trees', 'home', 'money'];
 
 // The native hover tooltip (title=) can't be styled - the browser draws it,
 // wrapping to as many lines as the full `about` text needs (some run past

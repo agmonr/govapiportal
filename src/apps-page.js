@@ -12,23 +12,26 @@ import { initThemePicker } from './theme.js';
 
 initThemePicker(el('themePick'));
 
-/** Copies the embed <iframe> snippet as plain text - Clipboard API, no
- * fallback textarea/execCommand: every browser this site otherwise targets
- * (Chrome/Edge/Firefox/Safari, all recent enough for the rest of the JS
- * here) already supports navigator.clipboard.writeText over https/localhost. */
-const embedCopyBtn = el('embedCopyBtn');
-if (embedCopyBtn) {
-  const prevLabel = embedCopyBtn.textContent;
-  embedCopyBtn.addEventListener('click', async () => {
+/** Copies one embed snippet (HTML/iframe or JS) as plain text - Clipboard
+ * API, no fallback textarea/execCommand: every browser this site otherwise
+ * targets (Chrome/Edge/Firefox/Safari, all recent enough for the rest of the
+ * JS here) already supports navigator.clipboard.writeText over https/
+ * localhost. Both snippets share the same button/code pairing, just two of
+ * them (btnId/codeId) rather than one. */
+[['embedCopyBtnHtml', 'embedCodeHtml'], ['embedCopyBtnJs', 'embedCodeJs']].forEach(([btnId, codeId]) => {
+  const btn = el(btnId);
+  if (!btn) return;
+  const prevLabel = btn.textContent;
+  btn.addEventListener('click', async () => {
     try {
-      await navigator.clipboard.writeText(el('embedCode').textContent);
-      embedCopyBtn.textContent = 'הועתק ✓';
+      await navigator.clipboard.writeText(el(codeId).textContent);
+      btn.textContent = 'הועתק ✓';
     } catch {
-      embedCopyBtn.textContent = 'ההעתקה נכשלה - יש להעתיק ידנית';
+      btn.textContent = 'ההעתקה נכשלה - יש להעתיק ידנית';
     }
-    setTimeout(() => { embedCopyBtn.textContent = prevLabel; }, 2000);
+    setTimeout(() => { btn.textContent = prevLabel; }, 2000);
   });
-}
+});
 
 async function load() {
   try {

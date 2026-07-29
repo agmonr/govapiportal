@@ -29,6 +29,8 @@ import { initThemePicker } from './theme.js';
 import { COMMITTEE_SITES, MEETING_TYPES } from './committee-sites.js';
 import { renderBarChart } from './charts.js';
 import { renderAppContext, loadAppsData } from './apps.js';
+import { extractPdfText } from './pdf-text.js';
+import { buildPdf, downloadBlob, safeFilename } from './pdf.js';
 
 const CM_EMPTY_MSG = { emptyMessage: 'אין נתונים להצגה בטווח שנבחר.' };
 
@@ -106,6 +108,8 @@ const state = {
   docsCache: new Map(), // docsKeyFor(meeting) -> docs[]
   docsLoaded: 0,  // running count, across this session, of doc-lists fetched
   filterGen: 0,   // bumped on every quick-filter change; lets a stale bulk-doc loop abandon itself
+  pdfFiles: [],    // locally-picked File objects, extracted -> [{file, name, text, blobUrl, error}]
+  searchMatches: [], // last computed match list, shared by both export buttons and the results render
 };
 
 /* ---------- filter bar: committee/settlement is type-to-search, same
@@ -490,6 +494,273 @@ function renderDownloadScript(lines, docCount, failedMeetings) {
 // Not `buildDownloadScript` directly - addEventListener would pass the click
 // Event as `gen`, clobbering the default parameter.
 el('cmLoadAllDocs').addEventListener('click', () => buildDownloadScript());
+
+/* ---------- search inside locally-downloaded PDFs ----------
+ * Everything from here down runs entirely on File objects already sitting on
+ * the user's own device - never a network fetch of PDF bytes, so CORS (see
+ * the notice in committees.html) never comes up. extractPdfText (pdf-text.js)
+ * does the actual best-effort text pull; this section is just the search
+ * grammar, the results list, and the two export options on top of it. */
+
+/** Builds filename -> {doc, meeting} for every document already cached this
+ *  session (from expanding a row or running the download-script builder) for
+ *  the CURRENTLY filtered meeting list - covers both realistic ways a picked
+ *  file ended up on disk: the curl script's own sanitized name, and the raw
+ *  GUID name a phone/browser keeps when a document link is tapped and saved
+ *  by hand instead. Nothing here fetches anything new - only ever reads
+ *  state.docsCache as it already stands. */
+function buildFilenameIndex() {
+  const idx = new Map();
+  for (const meeting of state.filtered) {
+    const docs = state.docsCache.get(docsKeyFor(meeting));
+    if (!docs) continue;
+    for (const doc of docs) {
+      const guidName = doc.url.split('/').pop();
+      const scriptName = sanitizeFilename(`${meeting.date.replace(/\//g, '-')}_${meeting.meetingNumber}_${doc.title || doc.subject}.pdf`);
+      idx.set(guidName, { doc, meeting });
+      idx.set(scriptName, { doc, meeting });
+    }
+  }
+  return idx;
+}
+
+/** A single search box doubles as three query languages, picked by shape:
+ *   - `/pattern/flags` -> a JavaScript RegExp (flags default to case-
+ *     insensitive if none given).
+ *   - one or more words with " OR " between groups -> each group is its own
+ *     AND (every word in it must appear); the groups themselves are OR'd -
+ *     "חניה OR תמ״א 38" means "חניה", or "תמ״א" AND "38" together.
+ *   - one or more words with no "OR" at all -> plain AND of every word.
+ *  Returns null for an empty query (meaning "no filter, show everything
+ *  loaded"), or { test(text), describe(text) } on success, or { error } on
+ *  an invalid regex. */
+function compileQuery(raw) {
+  const q = raw.trim();
+  if (!q) return null;
+  const regexM = /^\/(.+)\/([a-z]*)$/i.exec(q);
+  if (regexM) {
+    let re;
+    try {
+      re = new RegExp(regexM[1], regexM[2] || 'i');
+    } catch (err) {
+      return { error: `ביטוי רגולרי שגוי: ${err.message}` };
+    }
+    return {
+      test: (text) => re.test(text),
+      matchSpan: (text) => { re.lastIndex = 0; const m = re.exec(text); return m ? { index: m.index, length: m[0].length || 1 } : null; },
+    };
+  }
+  const groups = q.split(/\s+or\s+/i).map((g) => g.trim().split(/\s+/).filter(Boolean)).filter((g) => g.length);
+  if (!groups.length) return null;
+  return {
+    test: (text) => {
+      const lower = text.toLowerCase();
+      return groups.some((words) => words.every((w) => lower.includes(w.toLowerCase())));
+    },
+    matchSpan: (text) => {
+      const lower = text.toLowerCase();
+      const group = groups.find((words) => words.every((w) => lower.includes(w.toLowerCase())));
+      if (!group) return null;
+      let best = null;
+      for (const w of group) {
+        const i = lower.indexOf(w.toLowerCase());
+        if (i >= 0 && (!best || i < best.index)) best = { index: i, length: w.length };
+      }
+      return best;
+    },
+  };
+}
+
+/** ±60 chars of context around the matched span, whitespace collapsed, the
+ *  matched text itself wrapped in <mark> - already-escaped HTML, safe to
+ *  insert directly (not through esc() again at the call site). */
+function snippetHtml(text, span) {
+  if (!span) return '';
+  const { index, length } = span;
+  const from = Math.max(0, index - 60);
+  const to = Math.min(text.length, index + length + 60);
+  const before = esc(text.slice(from, index).replace(/\s+/g, ' '));
+  const matched = esc(text.slice(index, index + length));
+  const after = esc(text.slice(index + length, to).replace(/\s+/g, ' '));
+  return `${from > 0 ? '… ' : ''}${before}<mark>${matched}</mark>${after}${to < text.length ? ' …' : ''}`;
+}
+
+function docLabel(matched, fallbackName) {
+  if (!matched) return fallbackName;
+  const { doc, meeting } = matched;
+  return `${doc.title || doc.subject || fallbackName} (${meeting.committee}, ${meeting.date})`;
+}
+
+function runSearch() {
+  const compiled = compileQuery(el('cmSearchQuery').value);
+  const statusBox = el('cmSearchStatus');
+  const resultsBox = el('cmSearchResults');
+
+  if (!state.pdfFiles.length) {
+    resultsBox.innerHTML = '';
+    return;
+  }
+  if (compiled?.error) {
+    statusBox.textContent = '';
+    resultsBox.innerHTML = `<p class="notice error" dir="auto">${esc(compiled.error)}</p>`;
+    state.searchMatches = [];
+    return;
+  }
+
+  const idx = buildFilenameIndex();
+  const matches = [];
+  let failed = 0;
+  for (const pf of state.pdfFiles) {
+    if (pf.error) { failed += 1; continue; }
+    if (compiled && !compiled.test(pf.text)) continue;
+    const matched = idx.get(pf.name) || null;
+    const snippet = compiled ? snippetHtml(pf.text, compiled.matchSpan(pf.text)) : '';
+    matches.push({ ...pf, matched, snippet });
+  }
+  state.searchMatches = matches;
+
+  statusBox.textContent = `${num(matches.length)} מתוך ${num(state.pdfFiles.length)} קבצים תואמים.`
+    + (failed ? ` (${num(failed)} קבצים נכשלו בפענוח.)` : '');
+
+  if (!matches.length) {
+    resultsBox.innerHTML = '<p class="acc-hint">אין קבצים תואמים.</p>';
+    return;
+  }
+  resultsBox.innerHTML = `<ul class="cm-search-results">${matches.map((m) => `
+    <li class="cm-search-result">
+      <div class="cm-sr-title"><a href="${esc(m.blobUrl)}" target="_blank" rel="noopener">${esc(docLabel(m.matched, m.name))}</a></div>
+      <div class="cm-sr-meta">
+        ${esc(m.name)}
+        ${m.matched ? ` · <a href="${esc(m.matched.doc.url)}" target="_blank" rel="noopener">קישור מקור</a>` : ' · ללא התאמה למסמך ידוע - אין קישור מקור'}
+      </div>
+      ${m.snippet ? `<div class="cm-sr-snippet" dir="auto">${m.snippet}</div>` : ''}
+    </li>`).join('')}</ul>`;
+}
+
+const debouncedSearch = debounce(runSearch, 250);
+
+el('cmPdfFiles').addEventListener('change', async (e) => {
+  const files = [...e.target.files];
+  if (!files.length) return;
+
+  for (const pf of state.pdfFiles) if (pf.blobUrl) URL.revokeObjectURL(pf.blobUrl);
+  state.pdfFiles = [];
+  state.searchMatches = [];
+  el('cmSearchResults').innerHTML = '';
+
+  const statusBox = el('cmSearchStatus');
+  for (let i = 0; i < files.length; i += 1) {
+    const file = files[i];
+    statusBox.textContent = `מעבד קובץ ${i + 1} מתוך ${files.length} (${file.name})…`;
+    let text = ''; let error = null;
+    try {
+      text = await extractPdfText(await file.arrayBuffer());
+    } catch (err) {
+      error = err.message || 'שגיאה בפענוח הקובץ';
+    }
+    state.pdfFiles.push({ file, name: file.name, text, error, blobUrl: URL.createObjectURL(file) });
+  }
+  statusBox.textContent = `נטענו ${num(state.pdfFiles.length)} קבצים.`;
+  runSearch();
+});
+
+el('cmSearchQuery').addEventListener('input', debouncedSearch);
+
+el('cmSearchDownloadList').addEventListener('click', () => {
+  if (!state.searchMatches.length) return;
+  const lines = state.searchMatches.map((m) => {
+    const meta = m.matched ? ` — ${m.matched.meeting.committee}, ${m.matched.meeting.date} — ${m.matched.doc.title || m.matched.doc.subject}` : '';
+    return `${m.name}${meta}`;
+  });
+  downloadBlob(new Blob([`${lines.join('\n')}\n`], { type: 'text/plain;charset=utf-8' }), 'קבצים_תואמים_לחיפוש.txt');
+});
+
+/* Word-wrap identical in spirit to area-cleanup.js's own wrapText - not
+   shared as a module because bundle.py flattens every page into one scope
+   and this is small enough that a tiny per-page copy costs less than a new
+   shared file. */
+function wrapText(ctx, text, maxWidth) {
+  const words = text.split(' ');
+  const lines = [];
+  let line = '';
+  for (const word of words) {
+    const test = line ? `${line} ${word}` : word;
+    if (line && ctx.measureText(test).width > maxWidth) { lines.push(line); line = word; } else line = test;
+  }
+  if (line) lines.push(line);
+  return lines;
+}
+
+function canvasToJpegBytes(canvas, quality = 0.9) {
+  return new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', quality))
+    .then((blob) => blob.arrayBuffer())
+    .then((buf) => new Uint8Array(buf));
+}
+
+/** One page, RTL text list - every matched-to-a-known-document result as a
+ *  clickable line (real archive.gis-net.co.il URL, not a local blob: URL,
+ *  since this PDF is meant to be opened by anyone, not just the browser tab
+ *  that built it); results with no known source are skipped here (a blob:
+ *  URL from this session would be dead for anyone else) but stay visible and
+ *  searchable in the on-page list above. */
+function buildLinksPageCanvas(matches, query) {
+  const width = 900;
+  const pad = 28;
+  const lineH = 24;
+  const titleH = 44;
+  const known = matches.filter((m) => m.matched);
+
+  const measurer = document.createElement('canvas').getContext('2d');
+  measurer.font = '15px sans-serif';
+  const rendered = known.length
+    ? known.flatMap((m) => wrapText(measurer, docLabel(m.matched, m.name), width - pad * 2).map((text) => ({ text, url: m.matched.doc.url })))
+    : [{ text: 'לא נמצא, מתוך התוצאות הנוכחיות, קובץ עם קישור למסמך מקור ידוע.' }];
+
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = titleH + pad * 2 + rendered.length * lineH;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.direction = 'rtl';
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'top';
+  ctx.fillStyle = '#1b5e34';
+  ctx.font = 'bold 19px sans-serif';
+  ctx.fillText(`מסמכים תואמים${query ? ` לחיפוש: ${query}` : ''}`, width - pad, pad);
+
+  const links = [];
+  let y = pad + titleH;
+  for (const line of rendered) {
+    if (line.url) {
+      ctx.font = 'bold 15px sans-serif';
+      ctx.fillStyle = '#2ba8e0';
+      ctx.fillText(line.text, width - pad, y);
+      const w = ctx.measureText(line.text).width;
+      links.push({ url: line.url, x0: width - pad - w, y0: y, x1: width - pad, y1: y + lineH });
+    } else {
+      ctx.font = '15px sans-serif';
+      ctx.fillStyle = '#24331f';
+      ctx.fillText(line.text, width - pad, y);
+    }
+    y += lineH;
+  }
+  return { canvas, links };
+}
+
+el('cmSearchDownloadPdf').addEventListener('click', async (e) => {
+  const btn = e.currentTarget;
+  btn.disabled = true;
+  try {
+    const query = el('cmSearchQuery').value.trim();
+    const { canvas, links } = buildLinksPageCanvas(state.searchMatches, query);
+    const jpegBytes = await canvasToJpegBytes(canvas);
+    const blob = buildPdf({ pages: [{ jpegBytes, width: canvas.width, height: canvas.height, links }] });
+    downloadBlob(blob, `${safeFilename(query || 'כל_התוצאות', 'חיפוש-פרוטוקולים')}.pdf`);
+  } finally {
+    btn.disabled = false;
+  }
+});
 
 /* ---------- CSV export - exactly the filtered rows on screen ---------- */
 

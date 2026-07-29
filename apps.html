@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>כל האפליקציות</title>
+  <title>ארגז הכלים לפעיל החברתי</title>
   <!-- Sets data-theme before the stylesheet is applied, so a returning
        visitor who picked "fashion" never sees a flash of the clouds theme
        first. See src/theme.js for the picker itself. -->
@@ -18,7 +18,7 @@
 <body class="apps-page">
   <header class="site">
     <div class="wrap">
-      <h1>כל האפליקציות</h1>
+      <h1>ארגז הכלים לפעיל החברתי</h1>
       <span class="site-by">פרויקט של רם אגמון<span class="site-disclaimer">המידע באתר עלול להיות שגוי</span><a href="https://hod-hasharon.org/" target="_blank" rel="noopener">הירוקים הוד השרון</a></span>
       <div class="theme-pick" id="themePick" role="group" aria-label="ערכת נושא">
         <button type="button" data-theme="clouds">☀️<span class="theme-btn-label"> יום</span></button>
@@ -63,11 +63,25 @@
             רוצים את רשימת האפליקציות הזו - כולל עתידיות - באתר משלכם, למשל בלוק "Custom HTML" ב-WordPress?
             <a href="./dist/wordpress-embed.html">dist/wordpress-embed.html</a> היא גרסה עצמאית של הרשת
             שלמעלה בדיוק לכך, שנראית זהה ומתעדכנת אוטומטית בכל שינוי ב<a href="./apis.json">apis.json</a>.
-            הדרך הפשוטה ביותר - iframe שתמיד מציג את הגרסה החיה, בלי צורך להדביק מחדש כשמתווספת אפליקציה:
+            שתי דרכים להטמיע - שתיהן תמיד מציגות את הגרסה החיה, בלי צורך להדביק מחדש כשמתווספת אפליקציה:
+          </p>
+          <p class="lead" dir="auto"><strong>HTML (iframe)</strong> - הכי פשוט, שורה אחת:</p>
+          <div class="embed-code-wrap">
+            <pre dir="ltr" style="overflow-x:auto"><code id="embedCodeHtml">&lt;iframe src="https://agmonr.github.io/govapiportal/dist/wordpress-embed.html" loading="lazy" style="width:100%;border:0;min-height:900px" title="כל האפליקציות"&gt;&lt;/iframe&gt;</code></pre>
+            <button type="button" id="embedCopyBtnHtml" class="drill-dl">העתקה ⧉</button>
+          </div>
+          <p class="lead" dir="auto">
+            <strong>JavaScript</strong> - טוען את התוכן ישירות לתוך העמוד שלכם (בלי מסגרת/גלילה נפרדת של iframe),
+            למי שהתבנית לא מאפשרת iframe:
           </p>
           <div class="embed-code-wrap">
-            <pre dir="ltr" style="overflow-x:auto"><code id="embedCode">&lt;iframe src="https://agmonr.github.io/govapiportal/dist/wordpress-embed.html" loading="lazy" style="width:100%;border:0;min-height:900px" title="כל האפליקציות"&gt;&lt;/iframe&gt;</code></pre>
-            <button type="button" id="embedCopyBtn" class="drill-dl">העתקה ⧉</button>
+            <pre dir="ltr" style="overflow-x:auto"><code id="embedCodeJs">&lt;div id="ram-govapps-embed-target"&gt;&lt;/div&gt;
+&lt;script&gt;
+fetch('https://agmonr.github.io/govapiportal/dist/wordpress-embed.html')
+  .then(function (r) { return r.text(); })
+  .then(function (html) { document.getElementById('ram-govapps-embed-target').innerHTML = html; });
+&lt;/script&gt;</code></pre>
+            <button type="button" id="embedCopyBtnJs" class="drill-dl">העתקה ⧉</button>
           </div>
         </details>
       </section>

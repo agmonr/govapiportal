@@ -44,11 +44,12 @@ OUT = ROOT / "dist" / "wordpress-embed.html"
 # repo's own Pages settings (in which case update this one constant).
 BASE_URL = "https://agmonr.github.io/govapiportal/"
 
-# Kept in the same order as CATEGORY_ORDER in src/apps.js - whatever's tied
-# to your own address first, then civic-action items, then money/
-# accountability. Anything outside this list (currently just "external")
-# still renders, after these, under its own category_he heading.
-CATEGORY_ORDER = ["home", "civic", "money"]
+# Kept in the same order as CATEGORY_ORDER in src/apps.js - civic-action
+# items first, then the tree-specific tools, then whatever's tied to your
+# own address, then money/accountability. Anything outside this list
+# (currently just "external") still renders, after these, under its own
+# category_he heading.
+CATEGORY_ORDER = ["civic", "trees", "home", "money"]
 
 WRAP = "ram-govapps-embed"
 
@@ -67,6 +68,8 @@ APP_ICON = {
     "blue-lines": "🚇",
     "area-cleanup": "🧹",
     "tree-canopy": '<span class="{w}-tc-icon">🌳<span class="{w}-tc-icon-badge">🏠</span></span>',
+    "tree-plans": '🌳<span class="{w}-icon-small">📋</span>',
+    "trip-report": '🚗<span class="{w}-icon-small">🎯</span>',
 }
 
 # Same rule as oneLineSummary in src/apps.js: the native title= tooltip

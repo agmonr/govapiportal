@@ -297,6 +297,14 @@ button.stat { cursor: pointer; }
 .cm-doclist { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: .3rem; }
 .cm-doclist a { color: var(--accent); }
 
+.cm-search-results { list-style: none; padding: 0; margin: .5rem 0; display: flex; flex-direction: column; gap: .6rem; }
+.cm-search-result { border: 1px solid var(--border); border-radius: var(--radius); padding: .5rem .75rem; background: var(--surface); }
+.cm-search-result .cm-sr-title { font-weight: 600; }
+.cm-search-result .cm-sr-title a { color: var(--accent); }
+.cm-search-result .cm-sr-meta { color: var(--muted); font-size: .85rem; }
+.cm-search-result .cm-sr-snippet { margin-block-start: .3rem; font-size: .9rem; }
+.cm-search-result mark { background: var(--accent); color: var(--bg); border-radius: .2em; padding: 0 .1em; }
+
 .cm-script-wrap { display: flex; flex-direction: column; gap: .5rem; align-items: flex-start; }
 .cm-script {
   inline-size: 100%;
@@ -1283,67 +1291,18 @@ a:focus-visible, button:focus-visible {
   letter-spacing: .03em;
 }
 
-/* Flat, high-contrast editorial header - by request, but ONLY for
-   index.html now (apps.html joined the opt-out below by request too - its
-   own h1 was 28.8px in fashion vs 18.4px in every other theme, the same
-   "everything got bigger" complaint the per-app-page exclusion already
-   fixed elsewhere). Every individual app page (body.accidents-page -
-   accidents/area-cleanup/blue-lines/committees/companies/local-finance/
-   tree-canopy/welfare/trip-report) and now body.apps-page explicitly opt
-   back out to the plain day-theme header, same font included: picking
-   night shouldn't also change a page's header look or size. */
-[data-theme="fashion"] body:not(.accidents-page):not(.apps-page) header.site {
-  background: #1e1e1e;
-  background-image: none;
-  border-block-end: 1px solid #333333;
-  box-shadow: none;
-}
-[data-theme="fashion"] body:not(.accidents-page):not(.apps-page) header.site h1 {
-  font-family: var(--font-display);
-  text-transform: none;
-  letter-spacing: normal;
-  background: none;
-  background-clip: initial;
-  -webkit-background-clip: initial;
-  color: #ffffff;
-  -webkit-text-fill-color: initial;
-  animation: none;
-  font-size: 1.8rem;
-  font-weight: 700;
-}
-[data-theme="fashion"] body:not(.accidents-page):not(.apps-page) header.site a {
-  text-transform: uppercase;
-  font-size: .72rem;
-  letter-spacing: .08em;
-  /* Fashion's gold accent, not the light-green the default header now uses -
-     header.site a's own color rule is (0,1,2), higher than the plain .meta
-     rule below, so this needs to declare color explicitly to win it back. */
-  color: var(--accent);
-}
-[data-theme="fashion"] body:not(.accidents-page):not(.apps-page) header.site .site-by { color: #ffd54f; font-size: 1.1rem; }
+/* The "flat, high-contrast editorial header" special case that used to
+   apply to index.html's header in fashion (night) mode has been removed by
+   request - every page, index.html included, now keeps the exact same
+   header look/font in every theme. Picking night changes colors, not
+   layout or type size, anywhere on the site. */
 [data-theme="fashion"] .meta { color: #b0bec5; }
-[data-theme="fashion"] body:not(.accidents-page):not(.apps-page) header.site .meta { color: #b0bec5; }
 [data-theme="fashion"] .theme-pick button {
   background: #333333;
   color: #ffffff;
   border: 1px solid #555555;
   border-radius: 16px;
   padding: 4px 12px;
-}
-/* Wins back the fashion look inside the (non-app-page) header specifically -
-   the light header.site .theme-pick rules above are (0,2,2)/(0,3,2), higher
-   than the plain fashion rules here, so without this fashion's dark pill
-   would get overridden by the light-header treatment while this theme is
-   active. */
-[data-theme="fashion"] body:not(.accidents-page):not(.apps-page) header.site .theme-pick button {
-  background: #333333;
-  color: #ffffff;
-  border-color: #555555;
-}
-[data-theme="fashion"] body:not(.accidents-page):not(.apps-page) header.site .theme-pick button[aria-pressed="true"] {
-  background: var(--accent);
-  color: var(--bg);
-  border-color: var(--accent);
 }
 
 [data-theme="fashion"] .section {
