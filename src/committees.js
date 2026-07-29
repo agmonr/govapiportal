@@ -297,8 +297,10 @@ function renderTable() {
       <td dir="auto">${esc(m.committee)}</td>
       <td dir="auto">${esc(m.date)}</td>
       <td dir="auto">${esc(m.day)}</td>
+      <td class="c-x"><button type="button" class="cm-decisions-dl" data-row="${i}"
+        title="הורדת פרוטוקול החלטות" aria-label="הורדת פרוטוקול החלטות">⭳</button></td>
     </tr>
-    <tr class="files-row" data-files="${i}" hidden><td colspan="5"></td></tr>`).join('');
+    <tr class="files-row" data-files="${i}" hidden><td colspan="6"></td></tr>`).join('');
   el('cmTableWrap').innerHTML = `
     <div class="matrix-wrap">
       <table class="matrix preview expandable">
@@ -309,6 +311,7 @@ function renderTable() {
             <th scope="col">סוג ישיבה</th>
             <th scope="col">תאריך</th>
             <th scope="col">יום</th>
+            <th scope="col">פרוטוקול החלטות</th>
           </tr>
         </thead>
         <tbody>${rows}</tbody>
@@ -319,12 +322,90 @@ function renderTable() {
 
 function bindRows() {
   document.querySelectorAll('#cmTableWrap tr.has-files').forEach((tr) => {
-    const toggle = () => toggleDocs(Number(tr.dataset.row), tr);
+    const toggle = (e) => {
+      // Ignore a click that originated from (or lands on, after the
+      // button->real-<a> swap below) the decisions-protocol icon - it
+      // keeps the same class either way, so this one check covers both
+      // the user's original click on the button AND the later a.click()
+      // downloadDecisionsProtocol fires on the <a> that replaces it
+      // (stopPropagation on the first click doesn't carry over to that
+      // second, separately-dispatched one).
+      if (e?.target?.closest?.('.cm-decisions-dl')) return;
+      toggleDocs(Number(tr.dataset.row), tr);
+    };
     tr.addEventListener('click', toggle);
     tr.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(e); }
     });
   });
+  document.querySelectorAll('#cmTableWrap .cm-decisions-dl').forEach((btn) => {
+    btn.addEventListener('click', () => downloadDecisionsProtocol(Number(btn.dataset.row), btn));
+  });
+}
+
+// Substring, not an exact match - real titles seen from the live engine
+// vary slightly ("פרוטוקול החלטות", "פרוטוקול החלטות ועדת משנה", etc.),
+// but all of them contain this exact phrase.
+const DECISIONS_PROTOCOL_PHRASE = 'פרוטוקול החלטות';
+
+/** One click either opens the meeting's decisions-protocol PDF directly (if
+ *  its doc list is already cached from an earlier row-expand/"בניית הרשימה"
+ *  run) or fetches just that one meeting's doc list first - never the whole
+ *  filtered range's, unlike "בניית הרשימה". Swaps itself for a real <a> once
+ *  the URL is known, so a second click (or a right-click to copy the link)
+ *  doesn't need to re-fetch anything. */
+async function downloadDecisionsProtocol(i, btn) {
+  const meeting = state.filtered[i];
+  let docs = state.docsCache.get(docsKeyFor(meeting));
+  if (!docs) {
+    const original = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = '…';
+    try {
+      docs = await fetchDocsFor(meeting);
+    } catch (err) {
+      btn.disabled = false;
+      btn.textContent = original;
+      btn.title = `שגיאה בטעינת מסמכים (${err.message})`;
+      return;
+    }
+    btn.disabled = false;
+    btn.textContent = original;
+  }
+
+  const match = docs.find((d) => (d.title || d.subject || '').includes(DECISIONS_PROTOCOL_PHRASE));
+  if (!match) {
+    btn.disabled = true;
+    btn.textContent = '—';
+    btn.title = 'לא נמצא פרוטוקול החלטות לישיבה זו';
+    return;
+  }
+
+  const a = document.createElement('a');
+  a.href = match.url;
+  // No `download` attribute - tried it, and for this cross-origin host
+  // (archive.gis-net.co.il, no CORS headers - see this file's own module
+  // docstring on why PDF bytes here can never be fetch()ed either) Chrome
+  // doesn't fall back to a normal navigation when it can't honor `download`:
+  // it silently does nothing at all, no request even attempted (confirmed
+  // via the network log - worse than just opening a viewer tab). Plain
+  // target=_blank, with no download attribute, is what actually opens the
+  // real PDF - verified working end-to-end.
+  a.target = '_blank';
+  a.rel = 'noopener';
+  a.className = 'cm-decisions-dl';
+  a.title = 'הורדת פרוטוקול החלטות';
+  a.setAttribute('aria-label', 'הורדת פרוטוקול החלטות');
+  a.textContent = '⭳';
+  btn.replaceWith(a);
+  // a.click() (not a manually dispatched MouseEvent) - browsers only run a
+  // link's actual default action (navigation/download) for a *trusted*
+  // click, which the click() method specifically produces; a plain
+  // dispatchEvent(new MouseEvent(...)) does not (confirmed: it silently
+  // did nothing). This does bubble, same as any real click - see bindRows'
+  // own toggle() guard above for how that's kept from also expanding the
+  // row underneath it.
+  a.click();
 }
 
 const docsKeyFor = (meeting) => `${state.siteid}_${meeting.vaadaId}_${meeting.meetingNumber}`;

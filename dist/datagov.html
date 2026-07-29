@@ -319,6 +319,16 @@ button.stat { cursor: pointer; }
 .cm-doclist { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: .3rem; }
 .cm-doclist a { color: var(--accent); }
 
+/* Per-row decisions-protocol download icon (committees.js downloadDecisionsProtocol) -
+   plain/borderless until hovered, same restrained look as .x-mark beside it,
+   so it doesn't visually compete with the row's own expand toggle. */
+.cm-decisions-dl {
+  background: none; border: none; padding: .2rem .4rem; font-size: 1rem;
+  color: var(--accent); cursor: pointer; border-radius: var(--radius);
+}
+.cm-decisions-dl:hover:not(:disabled) { background: var(--surface); }
+.cm-decisions-dl:disabled { color: var(--muted); cursor: default; opacity: .7; }
+
 .cm-search-results { list-style: none; padding: 0; margin: .5rem 0; display: flex; flex-direction: column; gap: .6rem; }
 .cm-search-result { border: 1px solid var(--border); border-radius: var(--radius); padding: .5rem .75rem; background: var(--surface); }
 .cm-search-result .cm-sr-title { font-weight: 600; }
