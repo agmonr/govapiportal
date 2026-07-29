@@ -97,6 +97,17 @@
       "category_he": "פעילות חברתית ומעורבות אזרחית"
     },
     {
+      "id": "yeela-feeds",
+      "name": "RSS/Atom Feeds by City — Licenses, Plans, Protocols",
+      "name_he": "פידים - רישיונות, תוכניות ופרוטוקולים לפי ישוב",
+      "kind": "פרויקט אישי",
+      "about": "בחרו ישוב וקבלו קישורי RSS/Atom - רישיונות כריתה, תוכניות בניה, ישיבות ועדות תכנון, או הכל ביחד - בלי הרשמה בטופס ובלי לחכות למייל יומי. נבנה מאותו יומן אירועים שמזין את שלושת בוטי המייל של הפרויקט (רישיונות/תוכניות/פרוטוקולים), חלון של 90 יום אחורה.",
+      "href": "https://agmonr.github.io/yeela-license-tracker/statics/reports/feeds.html",
+      "external": true,
+      "category": "civic",
+      "category_he": "פעילות חברתית ומעורבות אזרחית"
+    },
+    {
       "id": "local-finance",
       "name": "Local Authority Audited Financial Reports (Ministry of Interior)",
       "name_he": "דוחות כספיים מבוקרים — רשויות מקומיות",

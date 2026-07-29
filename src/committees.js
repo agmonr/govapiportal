@@ -30,7 +30,7 @@ import { COMMITTEE_SITES, MEETING_TYPES } from './committee-sites.js';
 import { renderBarChart } from './charts.js';
 import { renderAppContext, loadAppsData } from './apps.js';
 import { extractPdfText } from './pdf-text.js';
-import { buildPdf, downloadBlob, safeFilename } from './pdf.js';
+import { buildPdf, downloadBlob } from './pdf.js';
 
 const CM_EMPTY_MSG = { emptyMessage: 'אין נתונים להצגה בטווח שנבחר.' };
 
@@ -947,8 +947,28 @@ function buildLinksPageCanvas(matches, query) {
   return { canvas, links };
 }
 
+/** siteid -> display name for the currently-selected committee/settlement,
+ *  same source as the cmSite datalist (COMMITTEE_SITES) - used to name the
+ *  exported PDF after the city, not the free-text search query, so the
+ *  file still identifies itself once it's saved somewhere else. */
+function currentCityLabel() {
+  const site = COMMITTEE_SITES.find((s) => s.siteid === Number(state.siteid));
+  return (site && (site.name_he || site.slug)) || state.siteid;
+}
+
 el('cmSearchDownloadPdf').addEventListener('click', async (e) => {
   const btn = e.currentTarget;
+  // Same guard cmSearchShowBoxes already has just above: with no local PDF
+  // picked at all, state.pdfFiles is empty, runSearch() below can never
+  // produce a single match, and buildLinksPageCanvas() silently renders
+  // just its "not found" placeholder line - a real PDF file, but an empty
+  // one, with no indication anything went wrong. Stopping here instead
+  // surfaces the actual, fixable reason (no files chosen yet) in the same
+  // status line runSearch() itself already uses for it.
+  if (!state.pdfFiles.length) {
+    el('cmSearchStatus').textContent = 'בחרו קובצי PDF בסרגל הצף בתחתית המסך לפני הורדת ה-PDF - אחרת אין קישורים לכלול בו.';
+    return;
+  }
   if (!confirmHeavyFetch(state.filtered.length)) return;
 
   btn.disabled = true;
@@ -967,9 +987,28 @@ el('cmSearchDownloadPdf').addEventListener('click', async (e) => {
 
     const query = el('cmSearchQuery').value.trim();
     const { canvas, links } = buildLinksPageCanvas(state.searchMatches, query);
+    // Two more ways to end up with nothing worth downloading, beyond the
+    // no-files-picked guard above: the picked files' own text just doesn't
+    // contain the search terms (state.searchMatches empty), or it does but
+    // none of those files' names could be correlated to a known online
+    // document (buildLinksPageCanvas then has matches but zero of them
+    // produced a link). Either way, a PDF with no links isn't worth a
+    // download prompt - say why in the status line instead.
+    if (!links.length) {
+      el('cmSearchStatus').textContent = state.searchMatches.length
+        ? 'אף אחד מהקבצים שנבחרו לא הותאם למסמך מקור ידוע - אין קישורים לכלול ב-PDF.'
+        : 'אף אחד מהקבצים שנבחרו לא תואם את החיפוש הנוכחי - אין מה לכלול ב-PDF.';
+      return;
+    }
     const jpegBytes = await canvasToJpegBytes(canvas);
     const blob = buildPdf({ pages: [{ jpegBytes, width: canvas.width, height: canvas.height, links }] });
-    downloadBlob(blob, `${safeFilename(query || 'כל_התוצאות', 'חיפוש-פרוטוקולים')}.pdf`);
+    // Named after the city + date range being searched, not the free-text
+    // query (which used to be the whole filename - e.g. the default query
+    // itself, "עץ_עצים_כריתה_העתקה", however it was left in the box) - this
+    // way the saved file still says which committee/dates it covers once
+    // it's sitting in a Downloads folder next to a dozen others.
+    const filenameBase = sanitizeFilename(`${currentCityLabel()}_${el('cmFrom').value}_${el('cmTo').value}`);
+    downloadBlob(blob, `${filenameBase}.pdf`);
   } catch (err) {
     el('cmSearchStatus').textContent = `שגיאה בבניית ה-PDF: ${err.message || err}`;
   } finally {

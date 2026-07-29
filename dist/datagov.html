@@ -1787,16 +1787,19 @@ body.accidents-page header.site h1 { inline-size: 100%; }
 .embed-code-wrap { display: flex; align-items: flex-start; gap: .6rem; flex-wrap: wrap; }
 .embed-code-wrap pre { flex: 1 1 auto; min-inline-size: 0; margin: 0; }
 
-/* apps.html only: the intro collapses on mobile only, not desktop - unlike
-   tree-canopy.html's own .lead-details, which collapses on every width.
-   Desktop forces the paragraph open and hides the now-redundant toggle,
-   same [hidden]-override trick already used for the neighborhood stat
-   panel (src/tree-canopy.js) - author CSS can beat a native default (here,
-   <details> without `open`) at a wider breakpoint without touching the
-   markup itself. */
+/* apps.html only: the intro and embed sections collapse on mobile only, not
+   desktop - unlike tree-canopy.html's own .lead-details, which collapses on
+   every width. Only the now-redundant toggle is hidden here; actually
+   keeping the content open is apps-page.js's job (syncLeadDetails) - forcing
+   a child's own `display` used to be enough to show it while the <details>
+   itself stayed closed, but Chrome now wraps non-summary content in an
+   internal ::details-content box that collapses to zero height whenever
+   `open` is absent, regardless of any override on the children inside it
+   (confirmed via computed style: the override took, in-page rects were
+   still all 0x0) - so the real `open` attribute is the only thing left that
+   reliably works, which only JS can toggle. */
 @media (min-width: 641px) {
   .apps-page .lead-details summary { display: none; }
-  .apps-page .lead-details > p { display: block !important; }
 }
 
 /* apps.html only, mobile only: "עמוד הבית" collapses from a text link into

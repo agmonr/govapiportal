@@ -91,13 +91,23 @@ fetch('https://agmonr.github.io/govapiportal/dist/wordpress-embed.html')
   <!--
     Same guard as index.html: opened from disk nothing below can load, because
     ES module scripts are refused from origin 'null'. Must be a classic inline
-    script - a module would be the first thing blocked.
+    script - a module would be the first thing blocked. Also keeps
+    "על העמוד הזה"/"הטמעה באתר אחר" open on desktop (src/style.css only hides
+    their now-redundant toggle at that width) - runs here, synchronously,
+    rather than in the deferred apps-page.js module, so there's no flash of
+    an empty box before the module executes.
   -->
   <script>
     if (location.protocol === 'file:') {
       document.getElementById('fileproto').hidden = false;
       document.getElementById('app').hidden = true;
     }
+    var desktopMq = matchMedia('(min-width: 641px)');
+    function syncLeadDetails() {
+      document.querySelectorAll('.apps-page .lead-details').forEach(function (d) { d.open = desktopMq.matches; });
+    }
+    syncLeadDetails();
+    desktopMq.addEventListener('change', syncLeadDetails);
   </script>
   <script type="module" src="./src/apps-page.js"></script>
 </body>
