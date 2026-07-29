@@ -166,7 +166,7 @@ header.site .meta { color: #d7ecd2; }
    Anything holding API-sourced text gets dir="auto" in the markup. */
 [dir="auto"] { unicode-bidi: plaintext; }
 
-input[type="search"], input[type="text"], select {
+input[type="search"], input[type="text"], input[type="email"], select, textarea {
   font: inherit;
   padding: .55rem .7rem;
   border: 1px solid var(--border);
@@ -175,6 +175,7 @@ input[type="search"], input[type="text"], select {
   color: var(--fg);
   inline-size: 100%;
 }
+textarea { resize: vertical; }
 
 .searchbar { display: flex; gap: .5rem; margin-block-end: 1.25rem; }
 .searchbar input { flex: 1; }
@@ -1787,20 +1788,14 @@ body.accidents-page header.site h1 { inline-size: 100%; }
 .embed-code-wrap { display: flex; align-items: flex-start; gap: .6rem; flex-wrap: wrap; }
 .embed-code-wrap pre { flex: 1 1 auto; min-inline-size: 0; margin: 0; }
 
-/* apps.html only: the intro and embed sections collapse on mobile only, not
-   desktop - unlike tree-canopy.html's own .lead-details, which collapses on
-   every width. Only the now-redundant toggle is hidden here; actually
-   keeping the content open is apps-page.js's job (syncLeadDetails) - forcing
-   a child's own `display` used to be enough to show it while the <details>
-   itself stayed closed, but Chrome now wraps non-summary content in an
-   internal ::details-content box that collapses to zero height whenever
-   `open` is absent, regardless of any override on the children inside it
-   (confirmed via computed style: the override took, in-page rects were
-   still all 0x0) - so the real `open` attribute is the only thing left that
-   reliably works, which only JS can toggle. */
-@media (min-width: 641px) {
-  .apps-page .lead-details summary { display: none; }
-}
+/* apps.html's feedback form: name/email side by side on anything roomier
+   than a phone (matches the two-column pattern already used for cmFrom/
+   cmTo in committees.html's own filter bar), stacked below the comment box
+   which always gets the full width to itself. */
+.feedback-form label { display: block; font-weight: 500; margin-block: .5rem .3rem; }
+.feedback-form-row { display: flex; gap: .8rem; flex-wrap: wrap; }
+.feedback-form-row > div { flex: 1 1 220px; }
+.feedback-form button { margin-block-start: .8rem; }
 
 /* apps.html only, mobile only: "עמוד הבית" collapses from a text link into
    a plain home icon - 35% bigger than the app tiles' own .app-icon
