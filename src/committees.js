@@ -509,14 +509,20 @@ function renderChecklist(docs) {
     return;
   }
 
+  // Six accent colors, cycled by index - same "happy palette" tokens used
+  // site-wide (see :root in style.css), not a new color scheme invented
+  // just for this grid.
+  const ACCENTS = ['--leaf', '--sun', '--sky', '--berry', '--bark', '--terracotta'];
   const checkedUrls = loadCheckedUrls();
   list.innerHTML = docs.map((d, i) => `
-    <li class="cm-checklist-row">
-      <label>
-        <input type="checkbox" data-url="${esc(d.url)}" id="cmCheck${i}" ${checkedUrls.has(d.url) ? 'checked' : ''}>
-        <a href="${esc(d.url)}" target="_blank" rel="noopener">${esc(d.label)}</a>
-        <span class="acc-hint">(${esc(d.meeting.committee)}, ${esc(d.meeting.date)})</span>
-      </label>
+    <li class="cm-checklist-row" style="--cm-card-accent: var(${ACCENTS[i % ACCENTS.length]})">
+      <input type="checkbox" data-url="${esc(d.url)}" id="cmCheck${i}" ${checkedUrls.has(d.url) ? 'checked' : ''}
+             title="סימון כנפתח/הורד">
+      <a href="${esc(d.url)}" target="_blank" rel="noopener"
+         title="${esc(d.label)} (${esc(d.meeting.committee)}, ${esc(d.meeting.date)})">
+        <span class="cm-checklist-num">${i + 1}</span>
+        <span class="cm-checklist-date">${esc(d.meeting.date)}</span>
+      </a>
     </li>`).join('');
 
   const urlsInList = new Set(docs.map((d) => d.url));

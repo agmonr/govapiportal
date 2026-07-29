@@ -329,10 +329,30 @@ button.stat { cursor: pointer; }
 .cm-floating-search input[type="text"] { flex: 1 1 12rem; min-inline-size: 0; }
 .cm-floating-search-status { font-size: .78rem; color: var(--muted); white-space: nowrap; }
 
-.cm-checklist { list-style: none; padding: 0; margin: .5rem 0; display: flex; flex-direction: column; gap: .3rem; }
-.cm-checklist-row label { display: flex; align-items: baseline; gap: .4rem; flex-wrap: wrap; }
-.cm-checklist-row a { color: var(--accent); }
-.cm-checklist-row:has(input:checked) a { color: var(--muted); text-decoration: line-through; }
+/* Document checklist - a grid of small colorful cards (one per document,
+   real link to the real file - click straight through, no intermediate
+   step) rather than a list of full titles, same "happy" palette tokens
+   (--leaf/--sun/--sky/--berry/--bark/--terracotta) already used site-wide -
+   see the reference open_for_objection.html's own .card/.cards. Three per
+   row by explicit request, dropping to two only on very narrow phones so
+   the boxes stay tappable rather than shrinking to nothing. */
+.cm-checklist { list-style: none; padding: 0; margin: .5rem 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: .7rem; }
+@media (max-width: 480px) {
+  .cm-checklist { grid-template-columns: repeat(2, 1fr); }
+}
+.cm-checklist-row { position: relative; max-inline-size: 130px; margin-inline: auto; inline-size: 100%; }
+.cm-checklist-row a {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .2rem;
+  aspect-ratio: 1; max-inline-size: 130px; margin-inline: auto;
+  border-radius: 14px; border-top: 5px solid var(--cm-card-accent, var(--leaf));
+  background: var(--card); box-shadow: 0 4px 12px var(--shadow-soft);
+  text-decoration: none; color: var(--fg); transition: transform .12s ease, box-shadow .12s ease;
+}
+.cm-checklist-row a:hover, .cm-checklist-row a:focus-visible { transform: translateY(-3px); box-shadow: 0 8px 18px var(--shadow); }
+.cm-checklist-num { font-size: 1.3rem; font-weight: 700; color: var(--cm-card-accent, var(--leaf)); }
+.cm-checklist-date { font-size: .68rem; color: var(--muted); }
+.cm-checklist-row input[type="checkbox"] { position: absolute; inset-block-start: .3rem; inset-inline-end: .3rem; }
+.cm-checklist-row:has(input:checked) a { opacity: .45; }
 
 .cm-script-wrap { display: flex; flex-direction: column; gap: .5rem; align-items: flex-start; }
 .cm-script {
@@ -864,6 +884,13 @@ button.stat { cursor: pointer; }
 [data-theme="zebra"] .app-icon,
 [data-theme="zebra"] .app-sibling-icon,
 [data-theme="zebra"] .theme-pick button {
+  filter: grayscale(1);
+}
+/* The document-checklist cards (committees.html) cycle through the site's
+   "happy" palette per card via --cm-card-accent - zebra never redefines
+   those tokens (they're colour, not theme-aware vars), so grayscale(1) is
+   the only way to desaturate them too, same reasoning as above. */
+[data-theme="zebra"] .cm-checklist-row a {
   filter: grayscale(1);
 }
 
