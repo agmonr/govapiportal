@@ -29,8 +29,6 @@ import { initThemePicker } from './theme.js';
 import { COMMITTEE_SITES, MEETING_TYPES } from './committee-sites.js';
 import { renderBarChart } from './charts.js';
 import { renderAppContext, loadAppsData } from './apps.js';
-import { extractPdfText } from './pdf-text.js';
-import { buildPdf, downloadBlob } from './pdf.js';
 
 const CM_EMPTY_MSG = { emptyMessage: 'אין נתונים להצגה בטווח שנבחר.' };
 
@@ -116,8 +114,6 @@ const state = {
   docsCache: new Map(), // docsKeyFor(meeting) -> docs[]
   docsLoaded: 0,  // running count, across this session, of doc-lists fetched
   filterGen: 0,   // bumped on every quick-filter change; lets a stale bulk-doc loop abandon itself
-  pdfFiles: [],    // locally-picked File objects, extracted -> [{file, name, text, blobUrl, error}]
-  searchMatches: [], // last computed match list, shared by both export buttons and the results render
 };
 
 /* ---------- filter bar: committee/settlement is type-to-search, same
@@ -150,13 +146,6 @@ typeSelect.value = '0';
 el('cmMonthsBack').value = DEFAULT_MONTHS_BACK;
 el('cmFrom').value = monthsAgoIso(DEFAULT_MONTHS_BACK);
 el('cmTo').value = todayIso(60);
-
-// Default query for the floating PDF search - this page's own reason for
-// existing started with tree-felling/relocation licenses (see the sibling
-// "trees" tools), so that's the one search worth running before anyone
-// types anything, not an empty box.
-el('cmSearchQuery').value = 'עץ עצים כריתה העתקה';
-runSearch(); // shows the "pick files to search" hint immediately, rather than a blank box until the first keystroke
 
 /** Quick-set shortcut for cmFrom - months back from today, real calendar
  *  months (see monthsAgoIso). Leaves cmFrom a normal, independently-editable
@@ -293,14 +282,13 @@ function renderTable() {
   const rows = list.map((m, i) => `
     <tr class="has-files" data-row="${i}" tabindex="0" role="button">
       <td class="c-x"><span class="x-mark">▾</span></td>
-      <td dir="auto" class="ident">${esc(m.meetingNumber)}</td>
+      <td dir="auto" class="ident"><button type="button" class="cm-decisions-dl" data-row="${i}"
+        title="הורדת פרוטוקול החלטות">${esc(m.meetingNumber)}</button></td>
       <td dir="auto">${esc(m.committee)}</td>
       <td dir="auto">${esc(m.date)}</td>
       <td dir="auto">${esc(m.day)}</td>
-      <td class="c-x"><button type="button" class="cm-decisions-dl" data-row="${i}"
-        title="הורדת פרוטוקול החלטות" aria-label="הורדת פרוטוקול החלטות">⭳</button></td>
     </tr>
-    <tr class="files-row" data-files="${i}" hidden><td colspan="6"></td></tr>`).join('');
+    <tr class="files-row" data-files="${i}" hidden><td colspan="5"></td></tr>`).join('');
   el('cmTableWrap').innerHTML = `
     <div class="matrix-wrap">
       <table class="matrix preview expandable">
@@ -311,7 +299,6 @@ function renderTable() {
             <th scope="col">סוג ישיבה</th>
             <th scope="col">תאריך</th>
             <th scope="col">יום</th>
-            <th scope="col">פרוטוקול החלטות</th>
           </tr>
         </thead>
         <tbody>${rows}</tbody>
@@ -375,8 +362,10 @@ async function downloadDecisionsProtocol(i, btn) {
 
   const match = docs.find((d) => (d.title || d.subject || '').includes(DECISIONS_PROTOCOL_PHRASE));
   if (!match) {
+    // Meeting number stays visible either way (it's this column's own
+    // identifying content, not just a label for the download action) -
+    // only disable the click affordance and explain why via the title.
     btn.disabled = true;
-    btn.textContent = '—';
     btn.title = 'לא נמצא פרוטוקול החלטות לישיבה זו';
     return;
   }
@@ -395,8 +384,7 @@ async function downloadDecisionsProtocol(i, btn) {
   a.rel = 'noopener';
   a.className = 'cm-decisions-dl';
   a.title = 'הורדת פרוטוקול החלטות';
-  a.setAttribute('aria-label', 'הורדת פרוטוקול החלטות');
-  a.textContent = '⭳';
+  a.textContent = btn.textContent; // the meeting number - unchanged, just now a real link
   btn.replaceWith(a);
   // a.click() (not a manually dispatched MouseEvent) - browsers only run a
   // link's actual default action (navigation/download) for a *trusted*
@@ -505,11 +493,7 @@ function confirmHeavyFetch(count) {
 /** Fetches and caches document lists for every meeting in `meetings` not
  *  already in state.docsCache - the one place that actually populates it on
  *  demand. Shared by buildDownloadScript (which also needs the raw docs to
- *  build its own lists/cards) and anything that only needs the *correlation*
- *  buildFilenameIndex() reads from that cache - the search-side PDF/box
- *  exports used to silently show "no known source" for everything unless
- *  someone had separately run "בניית הרשימה" first, since buildFilenameIndex
- *  itself never fetches anything. `gen` lets an auto-triggered run abandon
+ *  build its own lists/cards). `gen` lets an auto-triggered run abandon
  *  itself the moment a newer one takes over, same as buildDownloadScript
  *  always did. */
 async function ensureDocsCachedFor(meetings, gen, onProgress) {
@@ -725,386 +709,6 @@ function renderDownloadScript(lines, docCount, failedMeetings) {
 // Not `buildDownloadScript` directly - addEventListener would pass the click
 // Event as `gen`, clobbering the default parameter.
 el('cmLoadAllDocs').addEventListener('click', () => buildDownloadScript());
-
-/* ---------- search inside locally-downloaded PDFs ----------
- * Everything from here down runs entirely on File objects already sitting on
- * the user's own device - never a network fetch of PDF bytes, so CORS (see
- * the notice in committees.html) never comes up. extractPdfText (pdf-text.js)
- * does the actual best-effort text pull; this section is just the search
- * grammar, the results list, and the two export options on top of it. */
-
-/** Builds filename -> {doc, meeting} for every document already cached this
- *  session (from expanding a row or running the download-script builder) for
- *  the CURRENTLY filtered meeting list - covers both realistic ways a picked
- *  file ended up on disk: the curl script's own sanitized name, and the raw
- *  GUID name a phone/browser keeps when a document link is tapped and saved
- *  by hand instead. Nothing here fetches anything new - only ever reads
- *  state.docsCache as it already stands. */
-function buildFilenameIndex() {
-  const idx = new Map();
-  for (const meeting of state.filtered) {
-    const docs = state.docsCache.get(docsKeyFor(meeting));
-    if (!docs) continue;
-    for (const doc of docs) {
-      const guidName = doc.url.split('/').pop();
-      const scriptName = sanitizeFilename(`${meeting.date.replace(/\//g, '-')}_${meeting.meetingNumber}_${doc.title || doc.subject}.pdf`);
-      idx.set(guidName, { doc, meeting });
-      idx.set(scriptName, { doc, meeting });
-    }
-  }
-  return idx;
-}
-
-/** A single search box doubles as three query languages, picked by shape:
- *   - `/pattern/flags` -> a JavaScript RegExp (flags default to case-
- *     insensitive if none given).
- *   - one or more words with " OR " between groups -> each group is its own
- *     AND (every word in it must appear); the groups themselves are OR'd -
- *     "חניה OR תמ״א 38" means "חניה", or "תמ״א" AND "38" together.
- *   - one or more words with no "OR" at all -> plain AND of every word.
- *  Returns null for an empty query (meaning "no filter, show everything
- *  loaded"), or { test(text), describe(text) } on success, or { error } on
- *  an invalid regex. */
-function compileQuery(raw) {
-  const q = raw.trim();
-  if (!q) return null;
-  const regexM = /^\/(.+)\/([a-z]*)$/i.exec(q);
-  if (regexM) {
-    let re;
-    try {
-      re = new RegExp(regexM[1], regexM[2] || 'i');
-    } catch (err) {
-      return { error: `ביטוי רגולרי שגוי: ${err.message}` };
-    }
-    return {
-      test: (text) => re.test(text),
-      matchSpan: (text) => { re.lastIndex = 0; const m = re.exec(text); return m ? { index: m.index, length: m[0].length || 1 } : null; },
-    };
-  }
-  // Bare space-separated words default to OR (any one is enough) - no need
-  // to spell out "מילה1 OR מילה2" for that anymore. "AND" between groups of
-  // words narrows: every group must match, but within a group any of its
-  // words still counts (mirrors the old AND-by-default/OR-by-keyword
-  // grammar, just swapped).
-  const groups = q.split(/\s+and\s+/i).map((g) => g.trim().split(/\s+/).filter(Boolean)).filter((g) => g.length);
-  if (!groups.length) return null;
-  return {
-    test: (text) => {
-      const lower = text.toLowerCase();
-      return groups.every((words) => words.some((w) => lower.includes(w.toLowerCase())));
-    },
-    matchSpan: (text) => {
-      const lower = text.toLowerCase();
-      let best = null;
-      for (const words of groups) {
-        for (const w of words) {
-          const i = lower.indexOf(w.toLowerCase());
-          if (i >= 0 && (!best || i < best.index)) best = { index: i, length: w.length };
-        }
-      }
-      return best;
-    },
-  };
-}
-
-/** ±60 chars of context around the matched span, whitespace collapsed, the
- *  matched text itself wrapped in <mark> - already-escaped HTML, safe to
- *  insert directly (not through esc() again at the call site). */
-function snippetHtml(text, span) {
-  if (!span) return '';
-  const { index, length } = span;
-  const from = Math.max(0, index - 60);
-  const to = Math.min(text.length, index + length + 60);
-  const before = esc(text.slice(from, index).replace(/\s+/g, ' '));
-  const matched = esc(text.slice(index, index + length));
-  const after = esc(text.slice(index + length, to).replace(/\s+/g, ' '));
-  return `${from > 0 ? '… ' : ''}${before}<mark>${matched}</mark>${after}${to < text.length ? ' …' : ''}`;
-}
-
-function docLabel(matched, fallbackName) {
-  if (!matched) return fallbackName;
-  const { doc, meeting } = matched;
-  return `${doc.title || doc.subject || fallbackName} (${meeting.committee}, ${meeting.date})`;
-}
-
-function runSearch() {
-  const compiled = compileQuery(el('cmSearchQuery').value);
-  const statusBox = el('cmSearchStatus');
-  const resultsBox = el('cmSearchResults');
-
-  if (!state.pdfFiles.length) {
-    resultsBox.innerHTML = '<p class="acc-hint">בחרו קובצי PDF בסרגל הצף בתחתית המסך כדי להתחיל לחפש.</p>';
-    return;
-  }
-  if (compiled?.error) {
-    statusBox.textContent = '';
-    resultsBox.innerHTML = `<p class="notice error" dir="auto">${esc(compiled.error)}</p>`;
-    state.searchMatches = [];
-    return;
-  }
-
-  const idx = buildFilenameIndex();
-  const matches = [];
-  let failed = 0;
-  for (const pf of state.pdfFiles) {
-    if (pf.error) { failed += 1; continue; }
-    if (compiled && !compiled.test(pf.text)) continue;
-    const matched = idx.get(pf.name) || null;
-    const snippet = compiled ? snippetHtml(pf.text, compiled.matchSpan(pf.text)) : '';
-    matches.push({ ...pf, matched, snippet });
-  }
-  state.searchMatches = matches;
-
-  statusBox.textContent = `${num(matches.length)} מתוך ${num(state.pdfFiles.length)} קבצים תואמים.`
-    + (failed ? ` (${num(failed)} קבצים נכשלו בפענוח.)` : '');
-
-  if (!matches.length) {
-    resultsBox.innerHTML = '<p class="acc-hint">אין קבצים תואמים.</p>';
-    return;
-  }
-  resultsBox.innerHTML = `<ul class="cm-search-results">${matches.map((m) => `
-    <li class="cm-search-result">
-      <div class="cm-sr-title"><a href="${esc(m.blobUrl)}" target="_blank" rel="noopener">${esc(docLabel(m.matched, m.name))}</a></div>
-      <div class="cm-sr-meta">
-        ${esc(m.name)}
-        ${m.matched ? ` · <a href="${esc(m.matched.doc.url)}" target="_blank" rel="noopener">קישור מקור</a>` : ' · ללא התאמה למסמך ידוע - אין קישור מקור'}
-      </div>
-      ${m.snippet ? `<div class="cm-sr-snippet" dir="auto">${m.snippet}</div>` : ''}
-    </li>`).join('')}</ul>`;
-}
-
-const debouncedSearch = debounce(runSearch, 250);
-
-el('cmPdfFiles').addEventListener('change', async (e) => {
-  const files = [...e.target.files];
-  if (!files.length) return;
-
-  for (const pf of state.pdfFiles) if (pf.blobUrl) URL.revokeObjectURL(pf.blobUrl);
-  state.pdfFiles = [];
-  state.searchMatches = [];
-  el('cmSearchResults').innerHTML = '';
-
-  const statusBox = el('cmSearchStatus');
-  for (let i = 0; i < files.length; i += 1) {
-    const file = files[i];
-    statusBox.textContent = `מעבד קובץ ${i + 1} מתוך ${files.length} (${file.name})…`;
-    let text = ''; let error = null;
-    try {
-      text = await extractPdfText(await file.arrayBuffer());
-    } catch (err) {
-      error = err.message || 'שגיאה בפענוח הקובץ';
-    }
-    state.pdfFiles.push({ file, name: file.name, text, error, blobUrl: URL.createObjectURL(file) });
-  }
-  statusBox.textContent = `נטענו ${num(state.pdfFiles.length)} קבצים.`;
-  runSearch();
-});
-
-el('cmSearchQuery').addEventListener('input', debouncedSearch);
-
-/** Renders the current search matches as the same colorful card grid as the
- *  download-list checklist - real link per card (the correlated source URL
- *  when known, otherwise the local blob: so an unmatched file can still be
- *  reopened from here), no full title (title= tooltip carries that). */
-function renderSearchBoxes() {
-  const container = el('cmSearchBoxes');
-  if (!state.searchMatches.length) {
-    container.innerHTML = ''; // the results list above already says "אין קבצים תואמים" - no need to repeat it here
-    return;
-  }
-  const items = state.searchMatches.map((m) => ({
-    url: m.matched ? m.matched.doc.url : m.blobUrl,
-    title: docLabel(m.matched, m.name),
-    dateLabel: m.matched ? m.matched.meeting.date : '',
-  }));
-  const checkedUrls = loadCheckedUrls();
-  container.innerHTML = docCardGridHtml(items, checkedUrls);
-  wireDocCardCheckboxes(container, items);
-}
-
-el('cmSearchShowBoxes').addEventListener('click', async (e) => {
-  const btn = e.currentTarget;
-  const container = el('cmSearchBoxes');
-
-  if (!container.hidden) { // already showing - toggle off, no re-fetch needed
-    container.hidden = true;
-    btn.textContent = 'הצג רשימת קבצים להורדה';
-    return;
-  }
-  // Unlike the "current query matches nothing" case (where runSearch()
-  // already set a status message), never having picked a local PDF at all
-  // left this a silent no-op - clicking the button did visibly nothing,
-  // anywhere on the page. Same guard/message as cmSearchDownloadPdf below.
-  if (!state.pdfFiles.length) {
-    el('cmSearchStatus').textContent = 'בחרו קובצי PDF בסרגל הצף בתחתית המסך לפני הצגת הרשימה - אחרת אין מה להציג.';
-    return;
-  }
-  if (!state.searchMatches.length) return; // query matched nothing - runSearch() already set its own status line
-  if (!confirmHeavyFetch(state.filtered.length)) return;
-
-  // Shown inside the (now-visible) box container itself, not just the
-  // button's own label - a status message living only in a small button's
-  // text is easy to miss entirely while waiting several seconds for a large
-  // filtered range to fetch.
-  container.hidden = false;
-  container.innerHTML = '<li class="acc-hint" style="grid-column:1/-1">מתאם קישורים למסמכים…</li>';
-  btn.disabled = true;
-  try {
-    await ensureDocsCachedFor(state.filtered, state.filterGen, (i, total) => {
-      container.innerHTML = `<li class="acc-hint" style="grid-column:1/-1">מתאם קישורים למסמכים… (${i}/${total})</li>`;
-    });
-    runSearch(); // re-correlate now that docsCache actually has something to match against
-    renderSearchBoxes();
-    btn.textContent = 'הסתר רשימת קבצים להורדה';
-  } catch (err) {
-    container.innerHTML = `<li class="notice error" style="grid-column:1/-1">שגיאה בהתאמת הקישורים: ${esc(err.message || String(err))}</li>`;
-  } finally {
-    btn.disabled = false;
-  }
-});
-
-/* Word-wrap identical in spirit to area-cleanup.js's own wrapText - not
-   shared as a module because bundle.py flattens every page into one scope
-   and this is small enough that a tiny per-page copy costs less than a new
-   shared file. */
-function wrapText(ctx, text, maxWidth) {
-  const words = text.split(' ');
-  const lines = [];
-  let line = '';
-  for (const word of words) {
-    const test = line ? `${line} ${word}` : word;
-    if (line && ctx.measureText(test).width > maxWidth) { lines.push(line); line = word; } else line = test;
-  }
-  if (line) lines.push(line);
-  return lines;
-}
-
-function canvasToJpegBytes(canvas, quality = 0.9) {
-  return new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', quality))
-    .then((blob) => blob.arrayBuffer())
-    .then((buf) => new Uint8Array(buf));
-}
-
-/** One page, RTL text list - every matched-to-a-known-document result as a
- *  clickable line (real archive.gis-net.co.il URL, not a local blob: URL,
- *  since this PDF is meant to be opened by anyone, not just the browser tab
- *  that built it); results with no known source are skipped here (a blob:
- *  URL from this session would be dead for anyone else) but stay visible and
- *  searchable in the on-page list above. */
-function buildLinksPageCanvas(matches, query) {
-  const width = 900;
-  const pad = 28;
-  const lineH = 24;
-  const titleH = 44;
-  const known = matches.filter((m) => m.matched);
-
-  const measurer = document.createElement('canvas').getContext('2d');
-  measurer.font = '15px sans-serif';
-  const rendered = known.length
-    ? known.flatMap((m) => wrapText(measurer, docLabel(m.matched, m.name), width - pad * 2).map((text) => ({ text, url: m.matched.doc.url })))
-    : [{ text: 'לא נמצא, מתוך התוצאות הנוכחיות, קובץ עם קישור למסמך מקור ידוע.' }];
-
-  const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = titleH + pad * 2 + rendered.length * lineH;
-  const ctx = canvas.getContext('2d');
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.direction = 'rtl';
-  ctx.textAlign = 'right';
-  ctx.textBaseline = 'top';
-  ctx.fillStyle = '#1b5e34';
-  ctx.font = 'bold 19px sans-serif';
-  ctx.fillText(`מסמכים תואמים${query ? ` לחיפוש: ${query}` : ''}`, width - pad, pad);
-
-  const links = [];
-  let y = pad + titleH;
-  for (const line of rendered) {
-    if (line.url) {
-      ctx.font = 'bold 15px sans-serif';
-      ctx.fillStyle = '#2ba8e0';
-      ctx.fillText(line.text, width - pad, y);
-      const w = ctx.measureText(line.text).width;
-      links.push({ url: line.url, x0: width - pad - w, y0: y, x1: width - pad, y1: y + lineH });
-    } else {
-      ctx.font = '15px sans-serif';
-      ctx.fillStyle = '#24331f';
-      ctx.fillText(line.text, width - pad, y);
-    }
-    y += lineH;
-  }
-  return { canvas, links };
-}
-
-/** siteid -> display name for the currently-selected committee/settlement,
- *  same source as the cmSite datalist (COMMITTEE_SITES) - used to name the
- *  exported PDF after the city, not the free-text search query, so the
- *  file still identifies itself once it's saved somewhere else. */
-function currentCityLabel() {
-  const site = COMMITTEE_SITES.find((s) => s.siteid === Number(state.siteid));
-  return (site && (site.name_he || site.slug)) || state.siteid;
-}
-
-el('cmSearchDownloadPdf').addEventListener('click', async (e) => {
-  const btn = e.currentTarget;
-  // Same guard cmSearchShowBoxes already has just above: with no local PDF
-  // picked at all, state.pdfFiles is empty, runSearch() below can never
-  // produce a single match, and buildLinksPageCanvas() silently renders
-  // just its "not found" placeholder line - a real PDF file, but an empty
-  // one, with no indication anything went wrong. Stopping here instead
-  // surfaces the actual, fixable reason (no files chosen yet) in the same
-  // status line runSearch() itself already uses for it.
-  if (!state.pdfFiles.length) {
-    el('cmSearchStatus').textContent = 'בחרו קובצי PDF בסרגל הצף בתחתית המסך לפני הורדת ה-PDF - אחרת אין קישורים לכלול בו.';
-    return;
-  }
-  if (!confirmHeavyFetch(state.filtered.length)) return;
-
-  btn.disabled = true;
-  const original = btn.textContent;
-  try {
-    // Same fix as cmSearchShowBoxes: without this, buildFilenameIndex() has
-    // nothing cached to correlate against, and the PDF comes out as just
-    // the "no known-source document found" placeholder line - which is
-    // exactly the bug this was (silently, every time the checklist/row-
-    // expand step had been skipped).
-    btn.textContent = 'מתאם קישורים למסמכים…';
-    await ensureDocsCachedFor(state.filtered, state.filterGen, (i, total) => {
-      btn.textContent = `מתאם קישורים למסמכים… (${i}/${total})`;
-    });
-    runSearch();
-
-    const query = el('cmSearchQuery').value.trim();
-    const { canvas, links } = buildLinksPageCanvas(state.searchMatches, query);
-    // Two more ways to end up with nothing worth downloading, beyond the
-    // no-files-picked guard above: the picked files' own text just doesn't
-    // contain the search terms (state.searchMatches empty), or it does but
-    // none of those files' names could be correlated to a known online
-    // document (buildLinksPageCanvas then has matches but zero of them
-    // produced a link). Either way, a PDF with no links isn't worth a
-    // download prompt - say why in the status line instead.
-    if (!links.length) {
-      el('cmSearchStatus').textContent = state.searchMatches.length
-        ? 'אף אחד מהקבצים שנבחרו לא הותאם למסמך מקור ידוע - אין קישורים לכלול ב-PDF.'
-        : 'אף אחד מהקבצים שנבחרו לא תואם את החיפוש הנוכחי - אין מה לכלול ב-PDF.';
-      return;
-    }
-    const jpegBytes = await canvasToJpegBytes(canvas);
-    const blob = buildPdf({ pages: [{ jpegBytes, width: canvas.width, height: canvas.height, links }] });
-    // Named after the city + date range being searched, not the free-text
-    // query (which used to be the whole filename - e.g. the default query
-    // itself, "עץ_עצים_כריתה_העתקה", however it was left in the box) - this
-    // way the saved file still says which committee/dates it covers once
-    // it's sitting in a Downloads folder next to a dozen others.
-    const filenameBase = sanitizeFilename(`${currentCityLabel()}_${el('cmFrom').value}_${el('cmTo').value}`);
-    downloadBlob(blob, `${filenameBase}.pdf`);
-  } catch (err) {
-    el('cmSearchStatus').textContent = `שגיאה בבניית ה-PDF: ${err.message || err}`;
-  } finally {
-    btn.disabled = false;
-    btn.textContent = original;
-  }
-});
 
 /* ---------- CSV export - exactly the filtered rows on screen ---------- */
 
