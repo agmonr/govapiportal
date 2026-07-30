@@ -42,10 +42,16 @@ export const APP_ICON = {
 // Render order for categories - not alphabetical on the Hebrew label, and
 // not apis.json's own app order. Civic-action items (things asking
 // something OF you) first, then whatever's tied to your own address, then
-// the tree-specific tools, then money/accountability. A category outside
-// this list still renders (under its own heading, after these) rather than
-// silently dropping its apps.
-const CATEGORY_ORDER = ['civic', 'home', 'trees', 'money'];
+// the tree-specific tools, then money/accountability, then direct-info
+// tools (RSS/Atom feeds etc. - no interaction, just a feed to subscribe
+// to), and external sites last. 'direct' and 'external' are listed
+// explicitly (not left to fall through to the "anything else, in whatever
+// order it's first encountered in apis.json" branch below) specifically so
+// מידע ישיר is guaranteed to render before אתרים חיצוניים regardless of
+// where either category's entries happen to sit in the apps array. A
+// category outside this list entirely still renders (under its own
+// heading, after these) rather than silently dropping its apps.
+const CATEGORY_ORDER = ['civic', 'home', 'trees', 'money', 'direct', 'external'];
 
 // Pulled out of its own category and rendered first, standalone, with no
 // category heading at all - by explicit request, this one app is meant to

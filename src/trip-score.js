@@ -19,6 +19,8 @@ export const DEDUCTIONS = {
   brake_severe: 5,
   accel: 2,
   accel_severe: 4,
+  turn: 3,
+  turn_severe: 5,
   violation_minor: 1,
   violation_moderate: 3,
   violation_severe: 6,
@@ -28,6 +30,11 @@ export const DEDUCTIONS = {
 /** magnitude in m/s²; severe past 0.8g (~7.84 m/s²), the point past which
  * spec's own 0.5g threshold reads more like "hard" than "firm". */
 const SEVERE_ACCEL_MPS2 = 0.8 * 9.80665;
+
+/** Harsh-turn magnitude (approximate lateral m/s², see trip-report.js's
+ * checkHarshTurn) past 0.5g reads as a much sharper cut than the 0.3g
+ * baseline trigger - same "firm vs hard" gap as SEVERE_ACCEL_MPS2 above. */
+const SEVERE_TURN_MPS2 = 0.5 * 9.80665;
 
 /** Past this long continuously over the limit, duration itself is the
  * signal - a genuine overtake ends with a tuck-back-in well before this;
@@ -48,6 +55,7 @@ export function violationSeverity(percentageOver, durationMs = 0) {
 export function deductionFor(event) {
   if (event.type === 'brake') return Math.abs(event.magnitude) >= SEVERE_ACCEL_MPS2 ? DEDUCTIONS.brake_severe : DEDUCTIONS.brake;
   if (event.type === 'accel') return Math.abs(event.magnitude) >= SEVERE_ACCEL_MPS2 ? DEDUCTIONS.accel_severe : DEDUCTIONS.accel;
+  if (event.type === 'turn') return Math.abs(event.magnitude) >= SEVERE_TURN_MPS2 ? DEDUCTIONS.turn_severe : DEDUCTIONS.turn;
   if (event.type === 'violation') return DEDUCTIONS[`violation_${event.severity}`] ?? DEDUCTIONS.violation_minor;
   return 0;
 }
@@ -108,6 +116,6 @@ export function speedZoneDistribution(points) {
 
 export const SCORE_EXPLANATION = `
 הציון מתחיל מ-100 ויורד עם כל אירוע שנרשם בנסיעה (לא לפי כל דגימה בנפרד, אלא פעם אחת לכל אירוע שלם):
-בלימה חדה: −3 נק' (−5 אם עוצמתה מעל 0.8g) · האצה חדה: −2 נק' (−4 אם מעל 0.8g) · חריגת מהירות: −1 נק' (קלה, עד 10% מעל המותר), −3 (בינונית, 10%–30%) או −6 (חמורה, מעל 30%) - וללא קשר לאחוז החריגה, −10 אם החריגה נמשכה 30 שניות רצופות ומעלה (ארוך מדי בשביל עקיפה - נהיגה מהירה מכוונת, לא תמרון).
+בלימה חדה: −3 נק' (−5 אם עוצמתה מעל 0.8g) · האצה חדה: −2 נק' (−4 אם מעל 0.8g) · פניה חדה: −3 נק' (−5 אם מעל 0.5g) · חריגת מהירות: −1 נק' (קלה, עד 10% מעל המותר), −3 (בינונית, 10%–30%) או −6 (חמורה, מעל 30%) - וללא קשר לאחוז החריגה, −10 אם החריגה נמשכה 30 שניות רצופות ומעלה (ארוך מדי בשביל עקיפה - נהיגה מהירה מכוונת, לא תמרון).
 הציון לא יורד מתחת ל-0 ומתעדכן חי לאורך הנסיעה. מד הבעיות שלמטה מציג את אותם חמישה טווחי מהירות שצובעים את המסלול על המפה, לפי זמן נהיגה בפועל בכל טווח - לא לפי מספר הדגימות.
 `.trim();

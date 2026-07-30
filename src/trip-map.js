@@ -71,6 +71,7 @@ function bandColor(ratio) {
 const EVENT_STYLE = {
   brake: { color: '#8800FF', label: 'בלימה חדה' },
   accel: { color: '#00FFFF', label: 'האצה חדה' },
+  turn: { color: '#0044CC', label: 'פניה חדה' },
   violation: { color: '#FF0000', label: 'חריגת מהירות' },
   sensitivity: { color: '#FFA500', label: 'שינוי רגישות' },
   comfort: { color: '#795548', label: 'מהמורה (אי-נוחות)' },

@@ -34,6 +34,15 @@ const HARSH_ACCEL_MPS2 = 0.5 * 9.80665; // spec's own threshold, verbatim - the 
 const EVENT_COOLDOWN_MS = 2000; // one hard stop shouldn't log a dozen events around the threshold
 const SPEED_TREND_THRESHOLD_KMH_S = 3; // corroborating GPS trend, alongside an accel spike - 0% baseline
 const GPS_ONLY_TREND_THRESHOLD_KMH_S = 8; // no accelerometer at all - GPS alone is noisier, so the bar is higher (0% baseline)
+// Harsh turns are detected from GPS heading alone (checkHarshTurn below),
+// not the accelerometer - unlike brake/accel, telling "sideways" apart from
+// "forward/backward" in the device's own axes needs the phone's mounting
+// orientation, which this file deliberately never assumes (see its own
+// header comment). GPS heading-rate sidesteps the whole problem: lateral
+// acceleration in a turn is approximately speed * (heading change in
+// rad/s) - basic circular-motion physics, not a device-orientation guess.
+const HARSH_TURN_LAT_MPS2 = 0.3 * 9.80665; // ~0.3g - commonly cited as where cornering starts feeling aggressive rather than comfortable - 0% baseline
+const MIN_TURN_SPEED_KMH = 15; // below this, a fast heading change is parking-lot maneuvering, not a harsh turn
 const VIOLATION_MIN_DURATION_MS = 3000; // below this, it's GPS jitter over the line, not a real violation
 // Speed-violation detection is deliberately NOT scaled by the sensitivity
 // dial (see the comment block below) - it has its own fixed rule instead:
@@ -61,8 +70,9 @@ const BUMP_VERTICAL_RATIO = 1.5;
 
 /* ---------- detection sensitivity - a single 0%-100% dial (0 = today's
  * fixed thresholds, unchanged; 100 = the most sensitive setting) that scales
- * the harsh-brake/accel thresholds together: HARSH_ACCEL_MPS2 and both
- * *_TREND_THRESHOLD_KMH_S constants. "More sensitive" means triggering more
+ * the harsh-brake/accel/turn thresholds together: HARSH_ACCEL_MPS2, both
+ * *_TREND_THRESHOLD_KMH_S constants, and HARSH_TURN_LAT_MPS2. "More
+ * sensitive" means triggering more
  * easily, i.e. a LOWER effective threshold - the dial maps linearly onto a
  * 1.0-1.7 multiplier (0% -> 1.0, 100% -> 1.7), and each effective* function
  * below divides its base constant by that multiplier, so 100% cuts the gap
@@ -90,6 +100,7 @@ function sensitivityFromPct(pct) { return 1 + (pct / 100) * 0.7; }
 function effectiveHarshAccelMps2() { return HARSH_ACCEL_MPS2 / sensitivity; }
 function effectiveSpeedTrendThresholdKmhS() { return SPEED_TREND_THRESHOLD_KMH_S / sensitivity; }
 function effectiveGpsOnlyTrendThresholdKmhS() { return GPS_ONLY_TREND_THRESHOLD_KMH_S / sensitivity; }
+function effectiveHarshTurnLatMps2() { return HARSH_TURN_LAT_MPS2 / sensitivity; }
 
 const uid = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 
@@ -150,6 +161,8 @@ let lastEventAt = 0;
 let lastComfortAt = 0; // separate cooldown from lastEventAt - a bump shouldn't suppress a real brake/accel logged moments later, or vice versa
 let harshStreakStart = null; // when the current above-threshold accel streak began, or null if not currently in one - see HARSH_MIN_DURATION_MS
 let violationState = { active: false };
+const AUTO_SPLIT_SCORE_THRESHOLD = 55; // trip-score.js's own scoreBand() 'poor' boundary - crossing below it mid-drive means "this segment is done"
+let splitting = false; // guards splitTripForLowScore() against re-entry while its own save/PDF-export await is still in flight
 // Most recent RESOLVED speed-limit lookup, separate from trip.points' own
 // newest entry - getSpeedLimitAt() is async and GPS fixes can arrive faster
 // than it resolves, so "the last point" is very often still mid-lookup
@@ -435,6 +448,33 @@ function checkGpsOnlyHarshEvent() {
   else if (trend >= gpsOnlyThreshold) logHarshEvent('accel', Math.abs(magnitude));
 }
 
+/** Smallest signed angle from heading `a` to heading `b`, in degrees,
+ * always in [-180, 180] - handles the 0/360 wraparound (e.g. 350 -> 10 is
+ * a +20 turn, not -340). */
+function headingDeltaDeg(a, b) {
+  let d = b - a;
+  while (d > 180) d -= 360;
+  while (d < -180) d += 360;
+  return d;
+}
+
+/** GPS-only harsh-turn detection (see HARSH_TURN_LAT_MPS2's own comment for
+ * why this doesn't touch the accelerometer at all). Runs on every fix
+ * regardless of whether an accelerometer is available - a turn's signature
+ * is in the GPS track itself, not a fallback for when motion data is
+ * missing the way checkGpsOnlyHarshEvent is. */
+function checkHarshTurn(prev, point) {
+  if (!prev || point.headingDeg == null || prev.headingDeg == null) return;
+  if (point.speedKmh == null || point.speedKmh < MIN_TURN_SPEED_KMH) return;
+  const dtS = (point.t - prev.t) / 1000;
+  if (dtS <= 0 || dtS > 5) return; // stale/gapped fix, not a continuous turn
+  const now = Date.now();
+  if (now - lastEventAt < EVENT_COOLDOWN_MS) return;
+  const headingRateRadS = (Math.abs(headingDeltaDeg(prev.headingDeg, point.headingDeg)) * Math.PI) / 180 / dtS;
+  const lateralMps2 = (point.speedKmh / 3.6) * headingRateRadS;
+  if (lateralMps2 >= effectiveHarshTurnLatMps2()) logHarshEvent('turn', lateralMps2);
+}
+
 function evaluateViolation(point) {
   if (point.limitKmh == null) return;
   const ratio = point.speedKmh / point.limitKmh;
@@ -487,6 +527,7 @@ function onPosition(position) {
   };
   trip.points.push(point);
   checkGpsOnlyHarshEvent();
+  checkHarshTurn(prev, point);
   tripMap.update(trip.points, trip.events, { lat, lon });
   renderAll();
 
@@ -556,9 +597,10 @@ function computeStats() {
   const violations = trip.events.filter((e) => e.type === 'violation');
   const brakes = trip.events.filter((e) => e.type === 'brake');
   const accels = trip.events.filter((e) => e.type === 'accel');
+  const turns = trip.events.filter((e) => e.type === 'turn');
   const bumps = trip.events.filter((e) => e.type === 'comfort');
   return {
-    distanceM, maxSpeedKmh, avgSpeedKmh, durationMs, violations, brakes, accels, bumps,
+    distanceM, maxSpeedKmh, avgSpeedKmh, durationMs, violations, brakes, accels, turns, bumps,
   };
 }
 
@@ -630,6 +672,7 @@ function renderAll() {
   renderProblemMeter(stats);
   renderStatsPanel(stats);
   renderBusInfo();
+  if (trip.status === 'active' && score < AUTO_SPLIT_SCORE_THRESHOLD && !splitting) splitTripForLowScore();
 }
 
 /* ---------- screens ---------- */
@@ -652,11 +695,16 @@ function renderCompleteScreen() {
     <p>${formatDuration(stats.durationMs)} · ${(stats.distanceM / 1000).toFixed(2)} ק"מ</p>
     <p>מהירות מרבית: ${Math.round(stats.maxSpeedKmh)} קמ"ש · ממוצעת: ${Math.round(stats.avgSpeedKmh)} קמ"ש</p>
     <p>חריגות מהירות: ${stats.violations.length}</p>
-    <p>בלימות חדות: ${stats.brakes.length} · האצות חדות: ${stats.accels.length}</p>`;
+    <p>בלימות חדות: ${stats.brakes.length} · האצות חדות: ${stats.accels.length} · פניות חדות: ${stats.turns.length}</p>`;
 
   const sorted = [...trip.events].sort((a, b) => a.t - b.t);
   const typeLabel = {
-    brake: '🟣 בלימה חדה', accel: '🔵 האצה חדה', violation: '🔴 חריגת מהירות', sensitivity: '🟠 שינוי רגישות', comfort: '🟤 מהמורה (אי-נוחות)',
+    brake: '🟣 בלימה חדה',
+    accel: '🔵 האצה חדה',
+    turn: '🔷 פניה חדה',
+    violation: '🔴 חריגת מהירות',
+    sensitivity: '🟠 שינוי רגישות',
+    comfort: '🟤 מהמורה (אי-נוחות)',
   };
   el('trEventLog').innerHTML = sorted.length ? sorted.map((e) => `
     <li>
@@ -773,9 +821,41 @@ function wrapText(ctx, text, maxWidth) {
   return lines;
 }
 
+const SECTION_MAX_MS = 5 * 60 * 1000; // a same-limit stretch still gets cut into a new section after this long
+
+/** Splits `points` into sections for the PDF's per-section max-speed
+ * breakdown: a new section starts whenever the resolved speed limit
+ * changes (including becoming known/unknown - `null !== null` is false,
+ * so a whole no-data stretch correctly stays one section), or once the
+ * current section has run for SECTION_MAX_MS even with an unchanged
+ * limit (a long uniform highway stretch still gets broken into readable
+ * chunks). Points with no speedKmh at all are skipped entirely - they
+ * don't start, extend, or end a section. */
+function buildSpeedSections(points) {
+  const sections = [];
+  let cur = null;
+  for (const p of points) {
+    if (p.speedKmh == null) continue;
+    const limitChanged = cur && p.limitKmh !== cur.limitKmh;
+    const timedOut = cur && (p.t - cur.startT) >= SECTION_MAX_MS;
+    if (!cur || limitChanged || timedOut) {
+      if (cur) sections.push(cur);
+      cur = {
+        startT: p.t, endT: p.t, limitKmh: p.limitKmh, maxSpeedKmh: p.speedKmh,
+      };
+    } else {
+      cur.endT = p.t;
+      cur.maxSpeedKmh = Math.max(cur.maxSpeedKmh, p.speedKmh);
+    }
+  }
+  if (cur) sections.push(cur);
+  return sections;
+}
+
 function buildTripSummaryLines(stats, score, band) {
   const busLine = trip.vehicleType === 'bus' && (trip.busLine || trip.city)
     ? ` (${[trip.busLine ? `קו ${trip.busLine}` : null, trip.city].filter(Boolean).join(' · ')})` : '';
+  const sections = buildSpeedSections(trip.points);
   return [
     `ציון הנסיעה: ${score} - ${band.label}`,
     `${trip.vehicleType === 'bus' ? 'אוטובוס' : 'רכב פרטי'}${busLine}`,
@@ -783,13 +863,19 @@ function buildTripSummaryLines(stats, score, band) {
     `משך: ${formatDuration(stats.durationMs)} · מרחק: ${(stats.distanceM / 1000).toFixed(2)} ק"מ`,
     `מהירות מרבית: ${Math.round(stats.maxSpeedKmh)} קמ"ש · ממוצעת: ${Math.round(stats.avgSpeedKmh)} קמ"ש`,
     `חריגות מהירות: ${stats.violations.length}`,
-    `בלימות חדות: ${stats.brakes.length} · האצות חדות: ${stats.accels.length}`,
+    `בלימות חדות: ${stats.brakes.length} · האצות חדות: ${stats.accels.length} · פניות חדות: ${stats.turns.length}`,
+    '',
+    'פילוח לפי קטעים (קטע חדש בכל שינוי מהירות מותרת, או כל 5 דקות ללא שינוי):',
+    ...(sections.length ? sections.map((s) => {
+      const limitText = s.limitKmh != null ? `${s.limitKmh} קמ"ש` : 'אין נתון';
+      return `${formatStartTime(s.startT)}–${formatStartTime(s.endT)} · מותר: ${limitText} · מהירות מרבית בקטע: ${Math.round(s.maxSpeedKmh)} קמ"ש`;
+    }) : ['אין נתוני מהירות זמינים.']),
     '',
     'יומן אירועים:',
     ...(trip.events.length ? [...trip.events].sort((a, b) => a.t - b.t).map((e) => {
       const time = new Date(e.t).toLocaleTimeString('he-IL');
       const type = {
-        brake: 'בלימה חדה', accel: 'האצה חדה', violation: 'חריגת מהירות', sensitivity: 'שינוי רגישות', comfort: 'מהמורה (אי-נוחות)',
+        brake: 'בלימה חדה', accel: 'האצה חדה', turn: 'פניה חדה', violation: 'חריגת מהירות', sensitivity: 'שינוי רגישות', comfort: 'מהמורה (אי-נוחות)',
       }[e.type] || e.type;
       const sustained = e.severity === 'sustained' ? ' ממושכת' : '';
       const detail = e.type === 'violation' ? ` - ${e.data.percentOver}% מעל המותר, ${Math.round(e.durationMs / 1000)} שנ'`
@@ -799,8 +885,35 @@ function buildTripSummaryLines(stats, score, band) {
   ];
 }
 
+// Same swatch-then-label reading order as the on-screen .tr-legend (a
+// swatch is the first DOM child of an RTL flex row, so it lands on the
+// RIGHT with the label reading to its left) - just drawn on canvas instead
+// of CSS, so the PDF's map page (colored by the same SPEED_BANDS) has its
+// own key instead of relying on the reader already knowing the color code
+// from the live page. The "no data" gray stands in for the on-screen
+// version's diagonal-hatch pattern - the color/meaning mapping is what
+// matters here, not reproducing the exact CSS texture on canvas.
+const LEGEND_ROW_H = 22;
+const LEGEND_SWATCH = 14;
+const LEGEND_NO_DATA = { color: '#c9c9c9', label: 'ללא נתוני מהירות מותרת' };
+
+function drawLegendRow(ctx, width, pad, y, color, label) {
+  const swatchX = width - pad - LEGEND_SWATCH;
+  ctx.fillStyle = color;
+  ctx.fillRect(swatchX, y, LEGEND_SWATCH, LEGEND_SWATCH);
+  ctx.strokeStyle = '#00000022';
+  ctx.strokeRect(swatchX + 0.5, y + 0.5, LEGEND_SWATCH - 1, LEGEND_SWATCH - 1);
+  ctx.fillStyle = '#24331f';
+  ctx.font = '13px sans-serif';
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(label, swatchX - 8, y + LEGEND_SWATCH / 2 + 1);
+}
+
 /** Text-only PDF page: title + buildTripSummaryLines(), word-wrapped to the
- * map page's own width so both pages read as one document. */
+ * map page's own width so both pages read as one document, plus a color
+ * legend for the route (SPEED_BANDS - the same bands/colors that color
+ * both the map page's polyline and the on-screen מד הבעיות). */
 function buildTripDataPageCanvas(stats, score, band) {
   const width = 640;
   const pad = 28;
@@ -811,9 +924,12 @@ function buildTripDataPageCanvas(stats, score, band) {
   const rendered = buildTripSummaryLines(stats, score, band)
     .flatMap((line) => (line === '' ? [''] : wrapText(measurer, line, width - pad * 2)));
 
+  const legendEntries = [...SPEED_BANDS, LEGEND_NO_DATA];
+  const legendH = 26 + legendEntries.length * LEGEND_ROW_H;
+
   const canvas = document.createElement('canvas');
   canvas.width = width;
-  canvas.height = titleH + pad * 2 + rendered.length * lineH;
+  canvas.height = titleH + pad * 2 + rendered.length * lineH + legendH;
   const ctx = canvas.getContext('2d');
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -830,6 +946,17 @@ function buildTripDataPageCanvas(stats, score, band) {
   for (const line of rendered) {
     ctx.fillText(line, width - pad, y);
     y += lineH;
+  }
+
+  y += 6;
+  ctx.font = 'bold 14px sans-serif';
+  ctx.fillStyle = '#2e7d46';
+  ctx.textBaseline = 'top';
+  ctx.fillText('מקרא - צבעי המסלול על המפה (מהירות בפועל מול המהירות המותרת):', width - pad, y);
+  y += 22;
+  for (const entry of legendEntries) {
+    drawLegendRow(ctx, width, pad, y, entry.color, entry.label);
+    y += LEGEND_ROW_H;
   }
   return canvas;
 }
@@ -1021,6 +1148,41 @@ function resumeTrip() {
   trip.status = 'active';
   el('trPauseResume').textContent = '⏸';
   persistActive();
+}
+
+/** Score dropping below AUTO_SPLIT_SCORE_THRESHOLD mid-drive closes out the
+ * segment so far exactly like a normal end-of-trip (saved to history, PDF
+ * auto-exported) and immediately starts a fresh one - same vehicle/bus
+ * line, score back to 100 - without touching any live hardware watcher.
+ * Unlike stopTrip(), nothing here stops geolocation/the accelerometer/the
+ * wake lock: those keep running against whatever `trip` currently points
+ * at, so reassigning that one reference is the entire "restart". A GPS fix
+ * or accel sample landing during this function's own save+export await
+ * (trip.status is already 'completed' by then) is simply dropped rather
+ * than added to either segment - a brief, bounded gap, not worth the
+ * complexity of buffering it for what should only take a moment. */
+async function splitTripForLowScore() {
+  if (splitting) return;
+  splitting = true;
+  try {
+    if (violationState.active) closeViolation(Date.now());
+    const finished = trip;
+    finished.status = 'completed';
+    finished.endTime = Date.now();
+    await saveTripToHistory(finished).catch((err) => console.warn('trip-report: saving low-score segment to history failed', err));
+    await exportTripPdf({ silent: true }).catch((err) => console.warn('trip-report: auto PDF export for low-score segment failed', err));
+
+    trip = newTrip(finished.vehicleType, finished.busLine);
+    trip.city = finished.city;
+    activeMs = 0;
+    tripMap = createTripMap(el('trCanvas'));
+    el('trStartTime').textContent = formatStartTime(trip.startTime);
+    showNotice('trPermStatus', `הציון ירד מתחת ל-${AUTO_SPLIT_SCORE_THRESHOLD} - הנסיעה עד כה נשמרה (כולל PDF), וממשיכה כנסיעה חדשה עם ציון 100.`, 'info');
+    persistActive();
+    renderAll();
+  } finally {
+    splitting = false;
+  }
 }
 
 function stopTrip() {
