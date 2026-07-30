@@ -35,23 +35,49 @@ const EVENT_COOLDOWN_MS = 2000; // one hard stop shouldn't log a dozen events ar
 const SPEED_TREND_THRESHOLD_KMH_S = 3; // corroborating GPS trend, alongside an accel spike - 0% baseline
 const GPS_ONLY_TREND_THRESHOLD_KMH_S = 8; // no accelerometer at all - GPS alone is noisier, so the bar is higher (0% baseline)
 const VIOLATION_MIN_DURATION_MS = 3000; // below this, it's GPS jitter over the line, not a real violation
-const VIOLATION_RATIO_MARGIN = 1.03; // 3% buffer so a limit's own rounding doesn't flap true/false - 0% baseline
+// Speed-violation detection is deliberately NOT scaled by the sensitivity
+// dial (see the comment block below) - it has its own fixed rule instead:
+// zero tolerance in the city, a 10% buffer once the limit itself is high
+// enough that a strict read would flag ordinary highway speed variation.
+const CITY_LIMIT_CEILING_KMH = 70;
+const HIGHWAY_VIOLATION_MARGIN = 1.10;
+function violationRatioMarginFor(limitKmh) {
+  return limitKmh <= CITY_LIMIT_CEILING_KMH ? 1 : HIGHWAY_VIOLATION_MARGIN;
+}
 const GRAVITY_ALPHA = 0.8;
+// A pothole/speed-bump jolt is a brief (well under this) impulse; real harsh
+// braking/acceleration is a driver sustaining a push on a pedal for longer -
+// requiring the spike to survive this long before classifying it as either
+// filters out most bumps even when GPS's own speed trend happens (by pure
+// coincidence of timing) to be moving in the "right" direction at that
+// instant - see handleAccelSample's own comment for a real case this caught.
+const HARSH_MIN_DURATION_MS = 200;
+// When the device's gravity direction is known (see updateGravityEstimate),
+// a jolt whose component ALONG gravity (vertical - suspension bounce) is
+// this many times its component perpendicular to gravity (horizontal -
+// actual vehicle acceleration/braking/swerving) is treated as a bump, not a
+// driving event, and logged as a separate 'comfort' marker instead.
+const BUMP_VERTICAL_RATIO = 1.5;
 
 /* ---------- detection sensitivity - a single 0%-100% dial (0 = today's
- * fixed thresholds, unchanged; 100 = the most sensitive setting) that
- * scales every trigger threshold above at once: HARSH_ACCEL_MPS2,
- * *_TREND_THRESHOLD_KMH_S and VIOLATION_RATIO_MARGIN. "More sensitive"
- * means triggering more easily, i.e. a LOWER effective threshold - the
- * dial maps linearly onto a 1.0-1.5 multiplier (0% -> 1.0, 100% -> 1.5),
- * and each effective* function below divides its base constant (or, for
- * the violation margin, just the buffer *above* 1.0) by that multiplier,
- * so 100% cuts the gap to the trigger point by a third. Persisted in
- * localStorage so it carries over between trips; deliberately NOT scaling
- * DEDUCTIONS/severity tiers in trip-score.js - those score an event
- * already logged, they don't decide whether one gets logged at all, and
- * leaving them fixed keeps the printed SCORE_EXPLANATION text accurate
- * regardless of this setting. */
+ * fixed thresholds, unchanged; 100 = the most sensitive setting) that scales
+ * the harsh-brake/accel thresholds together: HARSH_ACCEL_MPS2 and both
+ * *_TREND_THRESHOLD_KMH_S constants. "More sensitive" means triggering more
+ * easily, i.e. a LOWER effective threshold - the dial maps linearly onto a
+ * 1.0-1.7 multiplier (0% -> 1.0, 100% -> 1.7), and each effective* function
+ * below divides its base constant by that multiplier, so 100% cuts the gap
+ * to the trigger point by roughly two-fifths. Persisted in localStorage so
+ * it carries over between trips; deliberately does NOT scale speed-
+ * violation detection (see violationRatioMarginFor above - that has its own
+ * fixed city/highway rule instead) or DEDUCTIONS/severity tiers in
+ * trip-score.js - those score an event already logged, they don't decide
+ * whether one gets logged at all, and leaving them fixed keeps the printed
+ * SCORE_EXPLANATION text accurate regardless of this setting.
+ *
+ * Buses force this to 100% for the whole trip (see the vehicleType change
+ * handler and startTrip() below) rather than leaving it to the driver's
+ * slider - a bus's harsh-event bar should always be the strictest one
+ * available, not whatever was last set for a private car. */
 let sensitivity = 1;
 
 function loadSensitivityPct() {
@@ -59,12 +85,11 @@ function loadSensitivityPct() {
   return Number.isFinite(raw) && raw >= 0 && raw <= 100 ? raw : 0;
 }
 
-function sensitivityFromPct(pct) { return 1 + (pct / 100) * 0.5; }
+function sensitivityFromPct(pct) { return 1 + (pct / 100) * 0.7; }
 
 function effectiveHarshAccelMps2() { return HARSH_ACCEL_MPS2 / sensitivity; }
 function effectiveSpeedTrendThresholdKmhS() { return SPEED_TREND_THRESHOLD_KMH_S / sensitivity; }
 function effectiveGpsOnlyTrendThresholdKmhS() { return GPS_ONLY_TREND_THRESHOLD_KMH_S / sensitivity; }
-function effectiveViolationRatioMargin() { return 1 + (VIOLATION_RATIO_MARGIN - 1) / sensitivity; }
 
 const uid = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 
@@ -122,6 +147,8 @@ let motionAvailable = false;
 let gravity = null;
 let accelSensor = null;
 let lastEventAt = 0;
+let lastComfortAt = 0; // separate cooldown from lastEventAt - a bump shouldn't suppress a real brake/accel logged moments later, or vice versa
+let harshStreakStart = null; // when the current above-threshold accel streak began, or null if not currently in one - see HARSH_MIN_DURATION_MS
 let violationState = { active: false };
 // Most recent RESOLVED speed-limit lookup, separate from trip.points' own
 // newest entry - getSpeedLimitAt() is async and GPS fixes can arrive faster
@@ -225,16 +252,86 @@ function logHarshEvent(type, magnitude) {
   renderAll();
 }
 
+/** A bump/pothole, not a driving event - logged so it's still visible on the
+ * map/summary (road roughness is worth knowing about), but silently, with no
+ * vibration/pulse and no effect on the driving score (see trip-score.js's
+ * deductionFor, which already falls through to 0 for any type it doesn't
+ * recognize) - the driver didn't do anything wrong. */
+function logComfortEvent(magnitude) {
+  const last = trip.points[trip.points.length - 1];
+  trip.events.push({
+    eventId: uid(), t: Date.now(), lat: last?.lat, lon: last?.lon, type: 'comfort', magnitude,
+  });
+  lastComfortAt = Date.now();
+  renderAll();
+}
+
+/** Shared low-pass gravity estimate (see GRAVITY_ALPHA), fed by whichever
+ * sensor path actually has a raw (gravity-INCLUDING) reading available:
+ * onMotion's devicemotion fallback, and the non-linear Generic Sensor
+ * Accelerometer branch in startAccelerometer() below. The preferred
+ * LinearAccelerationSensor path has gravity removed by the platform before
+ * this file ever sees a sample, so it has nothing to feed here on its own -
+ * see startGravityTracking() for how that path gets a gravity estimate
+ * anyway (best-effort, via a separate GravitySensor). */
+function updateGravityEstimate(x, y, z) {
+  if (!gravity) gravity = { x, y, z };
+  else {
+    gravity.x = gravity.x * GRAVITY_ALPHA + x * (1 - GRAVITY_ALPHA);
+    gravity.y = gravity.y * GRAVITY_ALPHA + y * (1 - GRAVITY_ALPHA);
+    gravity.z = gravity.z * GRAVITY_ALPHA + z * (1 - GRAVITY_ALPHA);
+  }
+  return gravity;
+}
+
 /** Shared by both sensor sources below (Generic Sensor API and the
  * DeviceMotionEvent fallback) - same threshold/cooldown/GPS-trend-direction
  * logic regardless of which API actually supplied the sample. `ax/ay/az`
- * must already be gravity-compensated (linear acceleration only). */
+ * must already be gravity-compensated (linear acceleration only).
+ *
+ * ---------- telling a bump apart from real acceleration/braking ----------
+ * A road bump/pothole produces a real, often large, accelerometer spike -
+ * there is nothing physically wrong with reading it as "harsh". What was
+ * actually wrong (a real case: a sharp jolt logged as harsh acceleration
+ * while GPS speed was innocently climbing from 28->38 km/h over several
+ * seconds of ordinary traffic flow) is using total magnitude + whatever
+ * direction the GPS trend happens to be moving in *at that instant* as the
+ * only signals - a bump can land at any moment, including one where the car
+ * already happens to be speeding up or slowing down for unrelated reasons.
+ * Two independent checks narrow this down without needing the phone's
+ * mounting orientation (still unknowable in general, see this file's own
+ * header comment):
+ *   1. Duration (HARSH_MIN_DURATION_MS) - a bump is one brief impulse; a
+ *      driver actually pressing a pedal sustains the force far longer.
+ *   2. Direction relative to gravity (BUMP_VERTICAL_RATIO), when a gravity
+ *      estimate is available - a bump bounces the phone mostly vertically
+ *      (through the suspension); real acceleration/braking/swerving pushes
+ *      it mostly horizontally, regardless of how the phone is mounted,
+ *      since "vertical" here is measured against gravity's own direction,
+ *      not any fixed device axis. */
 function handleAccelSample(ax, ay, az) {
   if (!trip || trip.status !== 'active') return;
   motionAvailable = true;
   const magnitude = Math.sqrt(ax * ax + ay * ay + az * az);
   const now = Date.now();
-  if (magnitude < effectiveHarshAccelMps2() || now - lastEventAt < EVENT_COOLDOWN_MS) return;
+  if (magnitude < effectiveHarshAccelMps2()) { harshStreakStart = null; return; }
+
+  if (gravity) {
+    const gMag = Math.sqrt(gravity.x ** 2 + gravity.y ** 2 + gravity.z ** 2);
+    if (gMag > 0) {
+      const along = (ax * gravity.x + ay * gravity.y + az * gravity.z) / gMag;
+      const horizontalMag = Math.sqrt(Math.max(0, magnitude * magnitude - along * along));
+      if (Math.abs(along) > horizontalMag * BUMP_VERTICAL_RATIO) {
+        harshStreakStart = null;
+        if (now - lastComfortAt >= EVENT_COOLDOWN_MS) logComfortEvent(magnitude);
+        return;
+      }
+    }
+  }
+
+  if (now - lastEventAt < EVENT_COOLDOWN_MS) return;
+  if (harshStreakStart == null) harshStreakStart = now;
+  if (now - harshStreakStart < HARSH_MIN_DURATION_MS) return;
 
   const trend = recentSpeedTrendKmhPerS();
   if (trend == null) return;
@@ -249,12 +346,7 @@ function onMotion(e) {
     ({ x: ax, y: ay, z: az } = e.acceleration);
   } else if (e.accelerationIncludingGravity && e.accelerationIncludingGravity.x != null) {
     const g = e.accelerationIncludingGravity;
-    if (!gravity) gravity = { x: g.x, y: g.y, z: g.z };
-    else {
-      gravity.x = gravity.x * GRAVITY_ALPHA + g.x * (1 - GRAVITY_ALPHA);
-      gravity.y = gravity.y * GRAVITY_ALPHA + g.y * (1 - GRAVITY_ALPHA);
-      gravity.z = gravity.z * GRAVITY_ALPHA + g.z * (1 - GRAVITY_ALPHA);
-    }
+    updateGravityEstimate(g.x, g.y, g.z);
     ax = g.x - gravity.x; ay = g.y - gravity.y; az = g.z - gravity.z;
   } else return;
   handleAccelSample(ax, ay, az);
@@ -280,16 +372,10 @@ async function startAccelerometer() {
       if (status.state === 'denied') return false;
     }
     const sensor = new SensorClass({ frequency: 30 });
-    let sensorGravity = null;
     sensor.addEventListener('reading', () => {
       if (isLinear) { handleAccelSample(sensor.x, sensor.y, sensor.z); return; }
-      if (!sensorGravity) sensorGravity = { x: sensor.x, y: sensor.y, z: sensor.z };
-      else {
-        sensorGravity.x = sensorGravity.x * GRAVITY_ALPHA + sensor.x * (1 - GRAVITY_ALPHA);
-        sensorGravity.y = sensorGravity.y * GRAVITY_ALPHA + sensor.y * (1 - GRAVITY_ALPHA);
-        sensorGravity.z = sensorGravity.z * GRAVITY_ALPHA + sensor.z * (1 - GRAVITY_ALPHA);
-      }
-      handleAccelSample(sensor.x - sensorGravity.x, sensor.y - sensorGravity.y, sensor.z - sensorGravity.z);
+      updateGravityEstimate(sensor.x, sensor.y, sensor.z);
+      handleAccelSample(sensor.x - gravity.x, sensor.y - gravity.y, sensor.z - gravity.z);
     });
     sensor.addEventListener('error', (ev) => {
       console.warn('trip-report: accelerometer sensor error', ev.error);
@@ -312,6 +398,27 @@ async function startAccelerometer() {
   }
 }
 
+/** Best-effort only, and only worth trying when the preferred
+ * LinearAccelerationSensor path is active - that path's whole point is that
+ * the platform already strips gravity out before this file sees a sample,
+ * which is great for magnitude accuracy but leaves handleAccelSample's own
+ * bump-vs-real-event decomposition with no gravity direction to work
+ * against. GravitySensor (same Generic Sensor API family, same permission)
+ * fills exactly that gap when the browser/OS supports it; where it doesn't,
+ * decomposition just stays unavailable and everything falls back to the
+ * duration check alone - never a hard error either way. */
+function startGravityTracking() {
+  if (!window.GravitySensor) return;
+  try {
+    const sensor = new window.GravitySensor({ frequency: 30 });
+    sensor.addEventListener('reading', () => { gravity = { x: sensor.x, y: sensor.y, z: sensor.z }; });
+    sensor.addEventListener('error', (ev) => console.warn('trip-report: gravity sensor error', ev.error));
+    sensor.start();
+  } catch (err) {
+    console.warn('trip-report: GravitySensor unavailable', err);
+  }
+}
+
 /** Only runs when no accelerometer data has ever arrived (denied permission,
  * unsupported browser) - per spec's own "Fallback for Non-SW Browsers"-
  * adjacent limitation table entry for iOS/no-motion devices. Coarser (GPS
@@ -331,7 +438,7 @@ function checkGpsOnlyHarshEvent() {
 function evaluateViolation(point) {
   if (point.limitKmh == null) return;
   const ratio = point.speedKmh / point.limitKmh;
-  if (ratio > effectiveViolationRatioMargin()) {
+  if (ratio > violationRatioMarginFor(point.limitKmh)) {
     if (!violationState.active) {
       violationState = {
         active: true, startT: point.t, lat: point.lat, lon: point.lon, peakRatio: ratio,
@@ -547,7 +654,7 @@ function renderCompleteScreen() {
 
   const sorted = [...trip.events].sort((a, b) => a.t - b.t);
   const typeLabel = {
-    brake: '🟣 בלימה חדה', accel: '🔵 האצה חדה', violation: '🔴 חריגת מהירות', sensitivity: '🟠 שינוי רגישות',
+    brake: '🟣 בלימה חדה', accel: '🔵 האצה חדה', violation: '🔴 חריגת מהירות', sensitivity: '🟠 שינוי רגישות', comfort: '🟤 מהמורה (אי-נוחות)',
   };
   el('trEventLog').innerHTML = sorted.length ? sorted.map((e) => `
     <li>
@@ -679,7 +786,9 @@ function buildTripSummaryLines(stats, score, band) {
     'יומן אירועים:',
     ...(trip.events.length ? [...trip.events].sort((a, b) => a.t - b.t).map((e) => {
       const time = new Date(e.t).toLocaleTimeString('he-IL');
-      const type = { brake: 'בלימה חדה', accel: 'האצה חדה', violation: 'חריגת מהירות', sensitivity: 'שינוי רגישות' }[e.type] || e.type;
+      const type = {
+        brake: 'בלימה חדה', accel: 'האצה חדה', violation: 'חריגת מהירות', sensitivity: 'שינוי רגישות', comfort: 'מהמורה (אי-נוחות)',
+      }[e.type] || e.type;
       const sustained = e.severity === 'sustained' ? ' ממושכת' : '';
       const detail = e.type === 'violation' ? ` - ${e.data.percentOver}% מעל המותר, ${Math.round(e.durationMs / 1000)} שנ'`
         : e.type === 'sensitivity' ? ` - עודכנה ל-${e.data.pct}%` : '';
@@ -848,6 +957,18 @@ async function startTrip(vehicleType, resumed, busLine) {
   trip = resumed || newTrip(vehicleType, busLine);
   historyMode = false;
   activeMs = resumed ? (resumed.activeMs || 0) : 0;
+  // A stale gravity estimate from a previous trip (different phone mount,
+  // different orientation) would otherwise feed wrong vertical/horizontal
+  // decomposition into this trip's first few seconds of samples, until the
+  // low-pass filter re-converges - a clean trip starts with a clean slate.
+  gravity = null;
+  harshStreakStart = null;
+  // Covers the resumed-trip path too, which skips the setup screen (and
+  // its own vehicleType change handler) entirely - a resumed bus trip
+  // still needs to come back locked at max sensitivity, not whatever the
+  // active-screen slider happened to show before the reload.
+  if (trip.vehicleType === 'bus') applySensitivity(100, { persist: false });
+  el('trSensitivityActive').disabled = trip.vehicleType === 'bus';
   // A brand-new trip has no prior limit to show; a resumed one might -
   // seed from its last point instead of blanking a value that was already
   // known before the pause, same reasoning as lastKnownLimit's own comment.
@@ -867,6 +988,7 @@ async function startTrip(vehicleType, resumed, busLine) {
   screenWarningTimer = setTimeout(() => el('trScreenWarning').classList.add('tr-warning-shrink'), 30000);
 
   const sensorStarted = await startAccelerometer();
+  if (sensorStarted) startGravityTracking();
   if (!sensorStarted) {
     const motionGranted = await motionPromise;
     if (motionGranted) window.addEventListener('devicemotion', onMotion);
@@ -923,7 +1045,15 @@ function stopTrip() {
 /* ---------- wiring ---------- */
 
 document.querySelectorAll('input[name="vehicleType"]').forEach((r) => r.addEventListener('change', () => {
-  el('trBusLineRow').hidden = document.querySelector('input[name="vehicleType"]:checked')?.value !== 'bus';
+  const isBus = document.querySelector('input[name="vehicleType"]:checked')?.value === 'bus';
+  el('trBusLineRow').hidden = !isBus;
+  // A bus always drives at the strictest harsh-event bar available, not
+  // whatever a private car's driver last left the slider at - forced here
+  // (not persisted, so switching back to car restores the real saved
+  // preference) rather than left to the driver to remember to set by hand.
+  el('trSensitivity').disabled = isBus;
+  if (isBus) applySensitivity(100, { persist: false });
+  else applySensitivity(loadSensitivityPct());
 }));
 
 // Two sliders (setup screen + active-trip screen, see trip-report.html)
@@ -931,15 +1061,19 @@ document.querySelectorAll('input[name="vehicleType"]').forEach((r) => r.addEvent
 // (plus the small map-corner label) regardless of which one was dragged,
 // and takes effect immediately (read by effectiveHarshAccelMps2() etc. on
 // the very next accelerometer sample/GPS fix), not just for a trip started
-// after changing it.
-function applySensitivity(pct) {
+// after changing it. `persist: false` is for the bus auto-max override
+// above - a forced value for this trip only, never overwriting the
+// driver's own saved car preference in localStorage.
+function applySensitivity(pct, { persist = true } = {}) {
   sensitivity = sensitivityFromPct(pct);
   el('trSensitivity').value = pct;
   el('trSensitivityValue').textContent = `${pct}%`;
   el('trSensitivityActive').value = pct;
   el('trSensitivityActiveValue').textContent = `${pct}%`;
   el('trMapSensitivity').textContent = `רגישות: ${pct}%`;
-  try { localStorage.setItem(STORAGE_SENSITIVITY_PCT, String(pct)); } catch { /* private mode/full storage - setting still applies this session, just won't persist */ }
+  if (persist) {
+    try { localStorage.setItem(STORAGE_SENSITIVITY_PCT, String(pct)); } catch { /* private mode/full storage - setting still applies this session, just won't persist */ }
+  }
 }
 applySensitivity(loadSensitivityPct());
 
