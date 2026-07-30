@@ -556,8 +556,9 @@ function computeStats() {
   const violations = trip.events.filter((e) => e.type === 'violation');
   const brakes = trip.events.filter((e) => e.type === 'brake');
   const accels = trip.events.filter((e) => e.type === 'accel');
+  const bumps = trip.events.filter((e) => e.type === 'comfort');
   return {
-    distanceM, maxSpeedKmh, avgSpeedKmh, durationMs, violations, brakes, accels,
+    distanceM, maxSpeedKmh, avgSpeedKmh, durationMs, violations, brakes, accels, bumps,
   };
 }
 
@@ -584,6 +585,7 @@ function renderProblemMeter(stats) {
   el('trViolationCount').textContent = stats.violations.length;
   el('trBrakeCount').textContent = stats.brakes.length;
   el('trAccelCount').textContent = stats.accels.length;
+  el('trBumpCount').textContent = stats.bumps.length;
 
   const { msByBand, unknownMs } = speedZoneDistribution(trip.points);
   const totalMs = Object.values(msByBand).reduce((a, b) => a + b, 0) + unknownMs;
