@@ -1044,6 +1044,12 @@ function stopTrip() {
 
 /* ---------- wiring ---------- */
 
+// Double-clicking a vehicle-type option starts the trip right away instead
+// of requiring a separate tap on "התחל נסיעה" underneath - the single
+// click already selects the radio (see the 'change' handler below), so a
+// double-click means "yes, this one, go".
+document.querySelectorAll('.tr-vehicle-opt').forEach((label) => label.addEventListener('dblclick', () => el('trStart').click()));
+
 document.querySelectorAll('input[name="vehicleType"]').forEach((r) => r.addEventListener('change', () => {
   const isBus = document.querySelector('input[name="vehicleType"]:checked')?.value === 'bus';
   el('trBusLineRow').hidden = !isBus;
@@ -1169,6 +1175,14 @@ function initResumePrompt() {
     startTrip(saved.vehicleType, saved);
   });
   box.querySelector('.tr-resume-no').addEventListener('click', () => {
+    // Declining to continue no longer throws the trip away - it's closed
+    // out at its last known point (not "now", which could be hours or days
+    // later than the driver actually stopped) and saved to history, same
+    // as any other finished trip, just reachable via נסיעות קודמות instead
+    // of the complete screen.
+    const last = saved.points[saved.points.length - 1];
+    const finished = { ...saved, status: 'completed', endTime: last ? last.t : saved.startTime };
+    saveTripToHistory(finished).catch((err) => console.warn('trip-report: saving abandoned trip to history failed', err));
     localStorage.removeItem(STORAGE_ACTIVE);
     box.hidden = true;
   });
