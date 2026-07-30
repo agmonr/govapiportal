@@ -30,33 +30,36 @@ const STORAGE_ACTIVE = 'tripReport:activeTrip';
 const STORAGE_LAST_COMPLETE = 'tripReport:lastCompletedTrip';
 const STORAGE_SENSITIVITY_PCT = 'tripReport:sensitivityPct';
 const AUTOSAVE_MS = 5000;
-const HARSH_ACCEL_MPS2 = 0.5 * 9.80665; // spec's own threshold, verbatim - the 100% ("אדיש") baseline
+const HARSH_ACCEL_MPS2 = 0.5 * 9.80665; // spec's own threshold, verbatim - the 0% (baseline) sensitivity setting
 const EVENT_COOLDOWN_MS = 2000; // one hard stop shouldn't log a dozen events around the threshold
-const SPEED_TREND_THRESHOLD_KMH_S = 3; // corroborating GPS trend, alongside an accel spike - 100% baseline
-const GPS_ONLY_TREND_THRESHOLD_KMH_S = 8; // no accelerometer at all - GPS alone is noisier, so the bar is higher (100% baseline)
+const SPEED_TREND_THRESHOLD_KMH_S = 3; // corroborating GPS trend, alongside an accel spike - 0% baseline
+const GPS_ONLY_TREND_THRESHOLD_KMH_S = 8; // no accelerometer at all - GPS alone is noisier, so the bar is higher (0% baseline)
 const VIOLATION_MIN_DURATION_MS = 3000; // below this, it's GPS jitter over the line, not a real violation
-const VIOLATION_RATIO_MARGIN = 1.03; // 3% buffer so a limit's own rounding doesn't flap true/false - 100% baseline
+const VIOLATION_RATIO_MARGIN = 1.03; // 3% buffer so a limit's own rounding doesn't flap true/false - 0% baseline
 const GRAVITY_ALPHA = 0.8;
 
-/* ---------- detection sensitivity - a single 100%-150% dial (default
- * 100%, labeled "אדיש" in the UI - today's fixed thresholds, unchanged)
- * that scales every trigger threshold above at once: HARSH_ACCEL_MPS2,
+/* ---------- detection sensitivity - a single 0%-100% dial (0 = today's
+ * fixed thresholds, unchanged; 100 = the most sensitive setting) that
+ * scales every trigger threshold above at once: HARSH_ACCEL_MPS2,
  * *_TREND_THRESHOLD_KMH_S and VIOLATION_RATIO_MARGIN. "More sensitive"
- * means triggering more easily, i.e. a LOWER effective threshold - each
- * effective* function below divides its base constant (or, for the
- * violation margin, just the buffer *above* 1.0) by the sensitivity
- * multiplier, so 150% cuts the gap to the trigger point by a third.
- * Persisted in localStorage so it carries over between trips; deliberately
- * NOT scaling DEDUCTIONS/severity tiers in trip-score.js - those score an
- * event already logged, they don't decide whether one gets logged at all,
- * and leaving them fixed keeps the printed SCORE_EXPLANATION text accurate
+ * means triggering more easily, i.e. a LOWER effective threshold - the
+ * dial maps linearly onto a 1.0-1.5 multiplier (0% -> 1.0, 100% -> 1.5),
+ * and each effective* function below divides its base constant (or, for
+ * the violation margin, just the buffer *above* 1.0) by that multiplier,
+ * so 100% cuts the gap to the trigger point by a third. Persisted in
+ * localStorage so it carries over between trips; deliberately NOT scaling
+ * DEDUCTIONS/severity tiers in trip-score.js - those score an event
+ * already logged, they don't decide whether one gets logged at all, and
+ * leaving them fixed keeps the printed SCORE_EXPLANATION text accurate
  * regardless of this setting. */
 let sensitivity = 1;
 
 function loadSensitivityPct() {
   const raw = Number(localStorage.getItem(STORAGE_SENSITIVITY_PCT));
-  return Number.isFinite(raw) && raw >= 100 && raw <= 150 ? raw : 100;
+  return Number.isFinite(raw) && raw >= 0 && raw <= 100 ? raw : 0;
 }
+
+function sensitivityFromPct(pct) { return 1 + (pct / 100) * 0.5; }
 
 function effectiveHarshAccelMps2() { return HARSH_ACCEL_MPS2 / sensitivity; }
 function effectiveSpeedTrendThresholdKmhS() { return SPEED_TREND_THRESHOLD_KMH_S / sensitivity; }
@@ -83,9 +86,7 @@ function formatDuration(ms) {
 }
 
 function formatStartTime(ms) {
-  return new Date(ms).toLocaleString('he-IL', {
-    day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
-  });
+  return new Date(ms).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
 }
 
 /** date/time/vehicle-type filename stem, shared by the PDF and JSON
@@ -545,12 +546,15 @@ function renderCompleteScreen() {
     <p>בלימות חדות: ${stats.brakes.length} · האצות חדות: ${stats.accels.length}</p>`;
 
   const sorted = [...trip.events].sort((a, b) => a.t - b.t);
-  const typeLabel = { brake: '🟣 בלימה חדה', accel: '🔵 האצה חדה', violation: '🔴 חריגת מהירות' };
+  const typeLabel = {
+    brake: '🟣 בלימה חדה', accel: '🔵 האצה חדה', violation: '🔴 חריגת מהירות', sensitivity: '🟠 שינוי רגישות',
+  };
   el('trEventLog').innerHTML = sorted.length ? sorted.map((e) => `
     <li>
       <span class="tr-ev-type">${typeLabel[e.type] || e.type}${e.severity === 'sustained' ? ' ממושכת' : ''}</span>
       <span class="tr-ev-time">${new Date(e.t).toLocaleTimeString('he-IL')}</span>
       ${e.type === 'violation' ? `<span>${e.data.percentOver}% מעל המותר, ${Math.round(e.durationMs / 1000)} שנ'</span>` : ''}
+      ${e.type === 'sensitivity' ? `<span>עודכנה ל-${e.data.pct}%</span>` : ''}
     </li>`).join('') : '<li class="acc-hint">לא נרשמו אירועים בנסיעה זו.</li>';
 }
 
@@ -675,9 +679,10 @@ function buildTripSummaryLines(stats, score, band) {
     'יומן אירועים:',
     ...(trip.events.length ? [...trip.events].sort((a, b) => a.t - b.t).map((e) => {
       const time = new Date(e.t).toLocaleTimeString('he-IL');
-      const type = { brake: 'בלימה חדה', accel: 'האצה חדה', violation: 'חריגת מהירות' }[e.type] || e.type;
+      const type = { brake: 'בלימה חדה', accel: 'האצה חדה', violation: 'חריגת מהירות', sensitivity: 'שינוי רגישות' }[e.type] || e.type;
       const sustained = e.severity === 'sustained' ? ' ממושכת' : '';
-      const detail = e.type === 'violation' ? ` - ${e.data.percentOver}% מעל המותר, ${Math.round(e.durationMs / 1000)} שנ'` : '';
+      const detail = e.type === 'violation' ? ` - ${e.data.percentOver}% מעל המותר, ${Math.round(e.durationMs / 1000)} שנ'`
+        : e.type === 'sensitivity' ? ` - עודכנה ל-${e.data.pct}%` : '';
       return `${time} - ${type}${sustained}${detail}`;
     }) : ['לא נרשמו אירועים בנסיעה זו.']),
   ];
@@ -921,21 +926,54 @@ document.querySelectorAll('input[name="vehicleType"]').forEach((r) => r.addEvent
   el('trBusLineRow').hidden = document.querySelector('input[name="vehicleType"]:checked')?.value !== 'bus';
 }));
 
-// Restored from localStorage on load, applied live to `sensitivity` (read
-// by effectiveHarshAccelMps2() etc.) on every drag - takes effect on the
-// very next accelerometer sample/GPS fix, even mid-trip, not just for a
-// trip started after changing it.
-(() => {
-  const pct = loadSensitivityPct();
-  sensitivity = pct / 100;
+// Two sliders (setup screen + active-trip screen, see trip-report.html)
+// share one `sensitivity` value - applySensitivity keeps both in sync
+// (plus the small map-corner label) regardless of which one was dragged,
+// and takes effect immediately (read by effectiveHarshAccelMps2() etc. on
+// the very next accelerometer sample/GPS fix), not just for a trip started
+// after changing it.
+function applySensitivity(pct) {
+  sensitivity = sensitivityFromPct(pct);
   el('trSensitivity').value = pct;
   el('trSensitivityValue').textContent = `${pct}%`;
-})();
-el('trSensitivity').addEventListener('input', (e) => {
-  const pct = Number(e.target.value);
-  sensitivity = pct / 100;
-  el('trSensitivityValue').textContent = `${pct}%`;
+  el('trSensitivityActive').value = pct;
+  el('trSensitivityActiveValue').textContent = `${pct}%`;
+  el('trMapSensitivity').textContent = `רגישות: ${pct}%`;
   try { localStorage.setItem(STORAGE_SENSITIVITY_PCT, String(pct)); } catch { /* private mode/full storage - setting still applies this session, just won't persist */ }
+}
+applySensitivity(loadSensitivityPct());
+
+el('trSensitivity').addEventListener('input', (e) => applySensitivity(Number(e.target.value)));
+
+/** Logs a map-visible marker for a sensitivity change made mid-trip, at
+ * wherever the vehicle currently is - see trSensitivityActive's own
+ * listener below for the debounce that calls this only once a change has
+ * actually settled. Never affects the score (trip-score.js's deductionFor
+ * falls through to 0 for any event type it doesn't recognize). */
+function markSensitivityChange(pct) {
+  if (!trip || trip.status !== 'active') return;
+  const last = trip.points[trip.points.length - 1];
+  if (!last) return; // no GPS fix yet this trip - nowhere to place the marker
+  trip.events.push({ eventId: uid(), t: Date.now(), lat: last.lat, lon: last.lon, type: 'sensitivity', data: { pct } });
+  renderAll();
+}
+
+let sensitivityChangeTimer = null;
+el('trSensitivityActive').addEventListener('input', (e) => {
+  const pct = Number(e.target.value);
+  applySensitivity(pct);
+  const status = el('trSensitivityActiveStatus');
+  status.textContent = 'משתנה…';
+  // Only mark the map once the slider has been quiet for a few seconds -
+  // a bump in the road mid-drag (or changing your mind partway) shouldn't
+  // leave a marker at whatever value it briefly passed through, only the
+  // one actually settled on.
+  clearTimeout(sensitivityChangeTimer);
+  sensitivityChangeTimer = setTimeout(() => {
+    markSensitivityChange(pct);
+    status.textContent = `סומן במפה - רגישות עודכנה ל-${pct}%`;
+    setTimeout(() => { status.textContent = ''; }, 3000);
+  }, 3000);
 });
 
 el('trStart').addEventListener('click', () => {

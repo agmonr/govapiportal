@@ -72,6 +72,7 @@ const EVENT_STYLE = {
   brake: { color: '#8800FF', label: 'בלימה חדה' },
   accel: { color: '#00FFFF', label: 'האצה חדה' },
   violation: { color: '#FF0000', label: 'חריגת מהירות' },
+  sensitivity: { color: '#FFA500', label: 'שינוי רגישות' },
 };
 
 /** Draws the colored route (speed-vs-limit band per segment) and event
