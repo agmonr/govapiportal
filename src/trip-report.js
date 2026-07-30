@@ -21,21 +21,47 @@ import { el, esc } from './ui.js';
 import { initThemePicker } from './theme.js';
 import { renderAppContext, loadAppsData } from './apps.js';
 import { getSpeedLimitAt, hasSchoolNearby } from './trip-speed-limits.js';
-import { createTripMap } from './trip-map.js';
+import { createTripMap, renderStaticRouteCanvas } from './trip-map.js';
 import { buildPdf, downloadBlob } from './pdf.js';
 import { saveTripToHistory, listTripHistory, deleteTripFromHistory } from './trip-history.js';
 import { computeScore, scoreBand, speedZoneDistribution, SPEED_BANDS, SCORE_EXPLANATION, violationSeverity } from './trip-score.js';
 
 const STORAGE_ACTIVE = 'tripReport:activeTrip';
 const STORAGE_LAST_COMPLETE = 'tripReport:lastCompletedTrip';
+const STORAGE_SENSITIVITY_PCT = 'tripReport:sensitivityPct';
 const AUTOSAVE_MS = 5000;
-const HARSH_ACCEL_MPS2 = 0.5 * 9.80665; // spec's own threshold, verbatim
+const HARSH_ACCEL_MPS2 = 0.5 * 9.80665; // spec's own threshold, verbatim - the 100% ("אדיש") baseline
 const EVENT_COOLDOWN_MS = 2000; // one hard stop shouldn't log a dozen events around the threshold
-const SPEED_TREND_THRESHOLD_KMH_S = 3; // corroborating GPS trend, alongside an accel spike
-const GPS_ONLY_TREND_THRESHOLD_KMH_S = 8; // no accelerometer at all - GPS alone is noisier, so the bar is higher
+const SPEED_TREND_THRESHOLD_KMH_S = 3; // corroborating GPS trend, alongside an accel spike - 100% baseline
+const GPS_ONLY_TREND_THRESHOLD_KMH_S = 8; // no accelerometer at all - GPS alone is noisier, so the bar is higher (100% baseline)
 const VIOLATION_MIN_DURATION_MS = 3000; // below this, it's GPS jitter over the line, not a real violation
-const VIOLATION_RATIO_MARGIN = 1.03; // 3% buffer so a limit's own rounding doesn't flap true/false
+const VIOLATION_RATIO_MARGIN = 1.03; // 3% buffer so a limit's own rounding doesn't flap true/false - 100% baseline
 const GRAVITY_ALPHA = 0.8;
+
+/* ---------- detection sensitivity - a single 100%-150% dial (default
+ * 100%, labeled "אדיש" in the UI - today's fixed thresholds, unchanged)
+ * that scales every trigger threshold above at once: HARSH_ACCEL_MPS2,
+ * *_TREND_THRESHOLD_KMH_S and VIOLATION_RATIO_MARGIN. "More sensitive"
+ * means triggering more easily, i.e. a LOWER effective threshold - each
+ * effective* function below divides its base constant (or, for the
+ * violation margin, just the buffer *above* 1.0) by the sensitivity
+ * multiplier, so 150% cuts the gap to the trigger point by a third.
+ * Persisted in localStorage so it carries over between trips; deliberately
+ * NOT scaling DEDUCTIONS/severity tiers in trip-score.js - those score an
+ * event already logged, they don't decide whether one gets logged at all,
+ * and leaving them fixed keeps the printed SCORE_EXPLANATION text accurate
+ * regardless of this setting. */
+let sensitivity = 1;
+
+function loadSensitivityPct() {
+  const raw = Number(localStorage.getItem(STORAGE_SENSITIVITY_PCT));
+  return Number.isFinite(raw) && raw >= 100 && raw <= 150 ? raw : 100;
+}
+
+function effectiveHarshAccelMps2() { return HARSH_ACCEL_MPS2 / sensitivity; }
+function effectiveSpeedTrendThresholdKmhS() { return SPEED_TREND_THRESHOLD_KMH_S / sensitivity; }
+function effectiveGpsOnlyTrendThresholdKmhS() { return GPS_ONLY_TREND_THRESHOLD_KMH_S / sensitivity; }
+function effectiveViolationRatioMargin() { return 1 + (VIOLATION_RATIO_MARGIN - 1) / sensitivity; }
 
 const uid = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 
@@ -96,6 +122,15 @@ let gravity = null;
 let accelSensor = null;
 let lastEventAt = 0;
 let violationState = { active: false };
+// Most recent RESOLVED speed-limit lookup, separate from trip.points' own
+// newest entry - getSpeedLimitAt() is async and GPS fixes can arrive faster
+// than it resolves, so "the last point" is very often still mid-lookup
+// (limitKmh: null) even though an earlier point's lookup just came back.
+// Reading trip.points[len-1] directly for display meant the on-screen
+// "מהירות מותרת" could sit on "—" indefinitely under exactly that timing,
+// even though every individual OSM lookup was succeeding - see
+// renderStatsPanel below, which reads this instead.
+let lastKnownLimit = null;
 let storageDegraded = false;
 let wakeLock = null;
 let historyMode = false;
@@ -198,12 +233,13 @@ function handleAccelSample(ax, ay, az) {
   motionAvailable = true;
   const magnitude = Math.sqrt(ax * ax + ay * ay + az * az);
   const now = Date.now();
-  if (magnitude < HARSH_ACCEL_MPS2 || now - lastEventAt < EVENT_COOLDOWN_MS) return;
+  if (magnitude < effectiveHarshAccelMps2() || now - lastEventAt < EVENT_COOLDOWN_MS) return;
 
   const trend = recentSpeedTrendKmhPerS();
   if (trend == null) return;
-  if (trend <= -SPEED_TREND_THRESHOLD_KMH_S) logHarshEvent('brake', -magnitude);
-  else if (trend >= SPEED_TREND_THRESHOLD_KMH_S) logHarshEvent('accel', magnitude);
+  const trendThreshold = effectiveSpeedTrendThresholdKmhS();
+  if (trend <= -trendThreshold) logHarshEvent('brake', -magnitude);
+  else if (trend >= trendThreshold) logHarshEvent('accel', magnitude);
 }
 
 function onMotion(e) {
@@ -286,14 +322,15 @@ function checkGpsOnlyHarshEvent() {
   const now = Date.now();
   if (now - lastEventAt < EVENT_COOLDOWN_MS) return;
   const magnitude = (trend / 3.6); // km/h/s -> m/s²-ish, for the score's severity check
-  if (trend <= -GPS_ONLY_TREND_THRESHOLD_KMH_S) logHarshEvent('brake', -Math.abs(magnitude));
-  else if (trend >= GPS_ONLY_TREND_THRESHOLD_KMH_S) logHarshEvent('accel', Math.abs(magnitude));
+  const gpsOnlyThreshold = effectiveGpsOnlyTrendThresholdKmhS();
+  if (trend <= -gpsOnlyThreshold) logHarshEvent('brake', -Math.abs(magnitude));
+  else if (trend >= gpsOnlyThreshold) logHarshEvent('accel', Math.abs(magnitude));
 }
 
 function evaluateViolation(point) {
   if (point.limitKmh == null) return;
   const ratio = point.speedKmh / point.limitKmh;
-  if (ratio > VIOLATION_RATIO_MARGIN) {
+  if (ratio > effectiveViolationRatioMargin()) {
     if (!violationState.active) {
       violationState = {
         active: true, startT: point.t, lat: point.lat, lon: point.lon, peakRatio: ratio,
@@ -358,6 +395,7 @@ function onPosition(position) {
       // a school existing nearby says nothing about a DIFFERENT road's
       // limit, so this never runs (or renders) otherwise.
       if (res.kmh === 30) point.schoolZone = await hasSchoolNearby(lat, lon).catch(() => false);
+      lastKnownLimit = { limitKmh: point.limitKmh, limitSource: point.limitSource, schoolZone: point.schoolZone };
     }
     evaluateViolation(point);
     renderAll();
@@ -460,8 +498,8 @@ function renderStatsPanel(stats) {
   el('trElapsed').textContent = formatDuration(stats.durationMs);
   const last = trip.points[trip.points.length - 1];
   el('trSpeedNow').textContent = last?.speedKmh != null ? Math.round(last.speedKmh) : '—';
-  el('trSpeedLimit').textContent = last?.limitKmh != null ? Math.round(last.limitKmh) : '—';
-  el('trSchoolBadge').hidden = !last?.schoolZone;
+  el('trSpeedLimit').textContent = lastKnownLimit?.limitKmh != null ? Math.round(lastKnownLimit.limitKmh) : '—';
+  el('trSchoolBadge').hidden = !lastKnownLimit?.schoolZone;
 }
 
 function renderBusInfo() {
@@ -522,9 +560,7 @@ function renderCompleteScreen() {
  * live trip (no watchers/timers attached, no localStorage write) - reuses
  * renderCompleteScreen()/exportTripPdf()/exportTripJson() as-is rather than
  * duplicating them, since all three already just read the module-level
- * `trip` variable. historyMode gates the PDF's map page (see
- * buildTripPdfBlob) since #trCanvas belongs to whichever trip was last
- * actively driven, not necessarily this one. */
+ * `trip` variable. */
 function viewHistoryTrip(record) {
   trip = record;
   historyMode = true;
@@ -686,12 +722,17 @@ async function buildTripPdfBlob() {
   const stats = computeStats();
   const score = computeScore(trip.events);
   const band = scoreBand(score);
-  const mapCanvas = el('trCanvas');
   const pages = [];
-  // historyMode: #trCanvas still shows whichever trip was last actively
-  // driven, not necessarily this one - including it here would silently
-  // attach the wrong route to a re-exported older trip's PDF.
-  if (!historyMode && mapCanvas.width && mapCanvas.height) {
+  // A fresh fit-to-route render, not a snapshot of whatever #trCanvas
+  // currently shows - the live map used to only ever display a small area
+  // around the *current* position, so a long trip's PDF map page showed
+  // almost none of the actual route. This also fixes historyMode, which
+  // used to skip the map page entirely (the live canvas belongs to
+  // whichever trip was last actively driven, not necessarily the one being
+  // re-exported from history) - a standalone render has no such
+  // dependency, so a past trip reopened from history gets a real map too.
+  const mapCanvas = await renderStaticRouteCanvas(trip.points, trip.events);
+  if (mapCanvas) {
     pages.push({ jpegBytes: await canvasToJpegBytes(mapCanvas), width: mapCanvas.width, height: mapCanvas.height });
   }
   const dataCanvas = buildTripDataPageCanvas(stats, score, band);
@@ -802,6 +843,13 @@ async function startTrip(vehicleType, resumed, busLine) {
   trip = resumed || newTrip(vehicleType, busLine);
   historyMode = false;
   activeMs = resumed ? (resumed.activeMs || 0) : 0;
+  // A brand-new trip has no prior limit to show; a resumed one might -
+  // seed from its last point instead of blanking a value that was already
+  // known before the pause, same reasoning as lastKnownLimit's own comment.
+  const priorLast = trip.points[trip.points.length - 1];
+  lastKnownLimit = priorLast?.limitKmh != null
+    ? { limitKmh: priorLast.limitKmh, limitSource: priorLast.limitSource, schoolZone: priorLast.schoolZone }
+    : null;
   tripMap = createTripMap(el('trCanvas'));
   setChromeVisible(false);
   acquireWakeLock();
@@ -872,6 +920,23 @@ function stopTrip() {
 document.querySelectorAll('input[name="vehicleType"]').forEach((r) => r.addEventListener('change', () => {
   el('trBusLineRow').hidden = document.querySelector('input[name="vehicleType"]:checked')?.value !== 'bus';
 }));
+
+// Restored from localStorage on load, applied live to `sensitivity` (read
+// by effectiveHarshAccelMps2() etc.) on every drag - takes effect on the
+// very next accelerometer sample/GPS fix, even mid-trip, not just for a
+// trip started after changing it.
+(() => {
+  const pct = loadSensitivityPct();
+  sensitivity = pct / 100;
+  el('trSensitivity').value = pct;
+  el('trSensitivityValue').textContent = `${pct}%`;
+})();
+el('trSensitivity').addEventListener('input', (e) => {
+  const pct = Number(e.target.value);
+  sensitivity = pct / 100;
+  el('trSensitivityValue').textContent = `${pct}%`;
+  try { localStorage.setItem(STORAGE_SENSITIVITY_PCT, String(pct)); } catch { /* private mode/full storage - setting still applies this session, just won't persist */ }
+});
 
 el('trStart').addEventListener('click', () => {
   const vehicleType = document.querySelector('input[name="vehicleType"]:checked')?.value || 'car';

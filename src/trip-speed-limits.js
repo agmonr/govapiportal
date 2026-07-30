@@ -48,11 +48,7 @@ function parseMaxspeed(raw) {
   return m[2] ? Math.round(value * 1.60934) : value;
 }
 
-async function fetchWaysForCell(latIdx, lonIdx) {
-  const south = latIdx * CELL_DEG - CELL_PADDING_DEG;
-  const north = (latIdx + 1) * CELL_DEG + CELL_PADDING_DEG;
-  const west = lonIdx * CELL_DEG - CELL_PADDING_DEG;
-  const east = (lonIdx + 1) * CELL_DEG + CELL_PADDING_DEG;
+async function fetchWays(south, west, north, east) {
   const highwayAlt = VEHICLE_HIGHWAYS.join('|');
   const query = `[out:json][timeout:25];way["highway"~"^(${highwayAlt})$"](${south},${west},${north},${east});out geom;`;
 
@@ -68,29 +64,58 @@ async function fetchWaysForCell(latIdx, lonIdx) {
     }));
 }
 
-/** Ways covering every cell within `radiusCells` of (lat,lon) - the fix
- * itself might sit right at a cell boundary, so nearestWay needs the
- * neighbours too, not just the fix's own cell. */
+/** Ways covering every cell within one cell of (lat,lon) - the fix itself
+ * might sit right at a cell boundary, so nearestWay needs the neighbours
+ * too, not just the fix's own cell.
+ *
+ * Tried two other shapes for this before settling here, both verified
+ * directly against the live endpoint: a sequential loop of 9 per-cell
+ * queries (up to 9 round-trips back to back on a cold cache - entering new
+ * ~1.1km territory, which happens continuously while driving - easily
+ * outpaced by how fast GPS fixes actually arrive), and then 9 *concurrent*
+ * per-cell queries (Promise.all) to fix that - which instead tripped
+ * Overpass's public instance's own per-client concurrency limit: a real
+ * lookup took 13+ seconds, and even caused a following, unrelated single
+ * query moments later to fail outright. A single query covering the whole
+ * 3x3 area in one request came back in ~1.1s - barely slower than querying
+ * one lone cell (~0.9s) - and never exceeds one concurrent request. All 9
+ * cache entries are populated from that one response (sharing the same
+ * ways array/object, not 9 copies of it), so a later fix landing in any of
+ * those cells is still an instant cache hit with no new fetch; only
+ * refetches (the *whole* 3x3 area again) once any of the 9 has expired or
+ * was never fetched. */
 async function waysNear(lat, lon) {
   const [latIdx, lonIdx] = cellIndex(lat, lon);
-  const cells = [];
+  const keys = [];
   for (let di = -1; di <= 1; di += 1) {
-    for (let dj = -1; dj <= 1; dj += 1) cells.push([latIdx + di, lonIdx + dj]);
+    for (let dj = -1; dj <= 1; dj += 1) keys.push(`${latIdx + di}_${lonIdx + dj}`);
   }
-  const ways = [];
-  for (const [li, lj] of cells) {
-    const key = `${li}_${lj}`;
-    let entry = cellCache.get(key);
-    if (!entry || Date.now() - entry.fetchedAt > CELL_TTL_MS) {
-      try {
-        entry = { ways: await fetchWaysForCell(li, lj), fetchedAt: Date.now() };
-        cellCache.set(key, entry);
-      } catch (err) {
-        console.warn('trip-speed-limits: Overpass fetch failed for cell', key, err);
-        entry = { ways: [], fetchedAt: Date.now() };
-      }
+
+  const allFresh = keys.every((key) => {
+    const entry = cellCache.get(key);
+    return entry && Date.now() - entry.fetchedAt <= CELL_TTL_MS;
+  });
+  if (!allFresh) {
+    const south = (latIdx - 1) * CELL_DEG - CELL_PADDING_DEG;
+    const north = (latIdx + 2) * CELL_DEG + CELL_PADDING_DEG;
+    const west = (lonIdx - 1) * CELL_DEG - CELL_PADDING_DEG;
+    const east = (lonIdx + 2) * CELL_DEG + CELL_PADDING_DEG;
+    let ways;
+    try {
+      ways = await fetchWays(south, west, north, east);
+    } catch (err) {
+      console.warn('trip-speed-limits: Overpass fetch failed for area around', keys[4], err);
+      ways = [];
     }
-    ways.push(...entry.ways);
+    const entry = { ways, fetchedAt: Date.now() };
+    for (const key of keys) cellCache.set(key, entry);
+  }
+
+  const seenEntries = new Set();
+  const ways = [];
+  for (const key of keys) {
+    const entry = cellCache.get(key);
+    if (entry && !seenEntries.has(entry)) { seenEntries.add(entry); ways.push(...entry.ways); }
   }
   return ways;
 }

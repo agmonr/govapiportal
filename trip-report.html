@@ -74,6 +74,14 @@
           <label>מספר קו: <input type="text" id="trBusLine" inputmode="numeric" autocomplete="off" placeholder="לדוגמה: 5"></label>
           <span class="acc-hint">העיר מזוהה אוטומטית מה-GPS בתחילת הנסיעה.</span>
         </div>
+        <div class="tr-sensitivity-row">
+          <label for="trSensitivity">רגישות זיהוי בלימות/האצות חדות וחריגות מהירות: <span id="trSensitivityValue">100%</span> (אדיש)</label>
+          <input type="range" id="trSensitivity" min="100" max="150" step="5" value="100">
+          <span class="acc-hint">
+            100% - הסף הרגיל (אדיש), ללא שינוי. ככל שהערך גבוה יותר (עד 150%) כך הזיהוי רגיש יותר -
+            בלימות/האצות קלות יותר וחריגות מהירות קטנות יותר גם הן ייספרו כאירוע.
+          </span>
+        </div>
         <div class="fin-export-row" style="justify-content:center">
           <button type="button" id="trStart" class="drill-dl tr-start-btn">▶ התחל נסיעה</button>
         </div>

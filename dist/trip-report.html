@@ -1867,6 +1867,10 @@ body.accidents-page header.site h1 { inline-size: 100%; }
 .tr-bus-line-row { text-align: center; margin-block-end: 1rem; }
 .tr-bus-line-row input { width: 6rem; padding: .3rem .5rem; margin-inline-start: .3rem; }
 .tr-bus-line-row .acc-hint { display: block; margin-top: .3rem; }
+.tr-sensitivity-row { text-align: center; margin-block-end: 1rem; max-inline-size: 28rem; margin-inline: auto; }
+.tr-sensitivity-row label { font-weight: 600; }
+.tr-sensitivity-row input[type="range"] { width: 100%; margin-block: .5rem; }
+.tr-sensitivity-row .acc-hint { display: block; }
 
 .tr-topbar {
   display: flex; flex-wrap: wrap; gap: 1rem; justify-content: center; align-items: baseline;
@@ -2080,6 +2084,14 @@ body.accidents-page header.site h1 { inline-size: 100%; }
         <div id="trBusLineRow" class="tr-bus-line-row" hidden>
           <label>מספר קו: <input type="text" id="trBusLine" inputmode="numeric" autocomplete="off" placeholder="לדוגמה: 5"></label>
           <span class="acc-hint">העיר מזוהה אוטומטית מה-GPS בתחילת הנסיעה.</span>
+        </div>
+        <div class="tr-sensitivity-row">
+          <label for="trSensitivity">רגישות זיהוי בלימות/האצות חדות וחריגות מהירות: <span id="trSensitivityValue">100%</span> (אדיש)</label>
+          <input type="range" id="trSensitivity" min="100" max="150" step="5" value="100">
+          <span class="acc-hint">
+            100% - הסף הרגיל (אדיש), ללא שינוי. ככל שהערך גבוה יותר (עד 150%) כך הזיהוי רגיש יותר -
+            בלימות/האצות קלות יותר וחריגות מהירות קטנות יותר גם הן ייספרו כאירוע.
+          </span>
         </div>
         <div class="fin-export-row" style="justify-content:center">
           <button type="button" id="trStart" class="drill-dl tr-start-btn">▶ התחל נסיעה</button>
@@ -2851,11 +2863,7 @@ function parseMaxspeed(raw) {
   return m[2] ? Math.round(value * 1.60934) : value;
 }
 
-async function fetchWaysForCell(latIdx, lonIdx) {
-  const south = latIdx * CELL_DEG - CELL_PADDING_DEG;
-  const north = (latIdx + 1) * CELL_DEG + CELL_PADDING_DEG;
-  const west = lonIdx * CELL_DEG - CELL_PADDING_DEG;
-  const east = (lonIdx + 1) * CELL_DEG + CELL_PADDING_DEG;
+async function fetchWays(south, west, north, east) {
   const highwayAlt = VEHICLE_HIGHWAYS.join('|');
   const query = `[out:json][timeout:25];way["highway"~"^(${highwayAlt})$"](${south},${west},${north},${east});out geom;`;
 
@@ -2871,29 +2879,58 @@ async function fetchWaysForCell(latIdx, lonIdx) {
     }));
 }
 
-/** Ways covering every cell within `radiusCells` of (lat,lon) - the fix
- * itself might sit right at a cell boundary, so nearestWay needs the
- * neighbours too, not just the fix's own cell. */
+/** Ways covering every cell within one cell of (lat,lon) - the fix itself
+ * might sit right at a cell boundary, so nearestWay needs the neighbours
+ * too, not just the fix's own cell.
+ *
+ * Tried two other shapes for this before settling here, both verified
+ * directly against the live endpoint: a sequential loop of 9 per-cell
+ * queries (up to 9 round-trips back to back on a cold cache - entering new
+ * ~1.1km territory, which happens continuously while driving - easily
+ * outpaced by how fast GPS fixes actually arrive), and then 9 *concurrent*
+ * per-cell queries (Promise.all) to fix that - which instead tripped
+ * Overpass's public instance's own per-client concurrency limit: a real
+ * lookup took 13+ seconds, and even caused a following, unrelated single
+ * query moments later to fail outright. A single query covering the whole
+ * 3x3 area in one request came back in ~1.1s - barely slower than querying
+ * one lone cell (~0.9s) - and never exceeds one concurrent request. All 9
+ * cache entries are populated from that one response (sharing the same
+ * ways array/object, not 9 copies of it), so a later fix landing in any of
+ * those cells is still an instant cache hit with no new fetch; only
+ * refetches (the *whole* 3x3 area again) once any of the 9 has expired or
+ * was never fetched. */
 async function waysNear(lat, lon) {
   const [latIdx, lonIdx] = cellIndex(lat, lon);
-  const cells = [];
+  const keys = [];
   for (let di = -1; di <= 1; di += 1) {
-    for (let dj = -1; dj <= 1; dj += 1) cells.push([latIdx + di, lonIdx + dj]);
+    for (let dj = -1; dj <= 1; dj += 1) keys.push(`${latIdx + di}_${lonIdx + dj}`);
   }
-  const ways = [];
-  for (const [li, lj] of cells) {
-    const key = `${li}_${lj}`;
-    let entry = cellCache.get(key);
-    if (!entry || Date.now() - entry.fetchedAt > CELL_TTL_MS) {
-      try {
-        entry = { ways: await fetchWaysForCell(li, lj), fetchedAt: Date.now() };
-        cellCache.set(key, entry);
-      } catch (err) {
-        console.warn('trip-speed-limits: Overpass fetch failed for cell', key, err);
-        entry = { ways: [], fetchedAt: Date.now() };
-      }
+
+  const allFresh = keys.every((key) => {
+    const entry = cellCache.get(key);
+    return entry && Date.now() - entry.fetchedAt <= CELL_TTL_MS;
+  });
+  if (!allFresh) {
+    const south = (latIdx - 1) * CELL_DEG - CELL_PADDING_DEG;
+    const north = (latIdx + 2) * CELL_DEG + CELL_PADDING_DEG;
+    const west = (lonIdx - 1) * CELL_DEG - CELL_PADDING_DEG;
+    const east = (lonIdx + 2) * CELL_DEG + CELL_PADDING_DEG;
+    let ways;
+    try {
+      ways = await fetchWays(south, west, north, east);
+    } catch (err) {
+      console.warn('trip-speed-limits: Overpass fetch failed for area around', keys[4], err);
+      ways = [];
     }
-    ways.push(...entry.ways);
+    const entry = { ways, fetchedAt: Date.now() };
+    for (const key of keys) cellCache.set(key, entry);
+  }
+
+  const seenEntries = new Set();
+  const ways = [];
+  for (const key of keys) {
+    const entry = cellCache.get(key);
+    if (entry && !seenEntries.has(entry)) { seenEntries.add(entry); ways.push(...entry.ways); }
   }
   return ways;
 }
@@ -3063,24 +3100,28 @@ async function deleteTripFromHistory(tripId) {
 }
 
 /**
- * Live trip map: a canvas basemap (via geo-utils.js's WGS84 tile stitcher,
- * same no-CDN approach as every other map on this site) that recenters as
- * the vehicle moves, with the trip's route redrawn on top of it after every
- * fix. Recentering refetches OSM tiles, so it only happens when the current
- * position actually nears the edge of what's on screen - not on every GPS
- * update - to stay well inside OSM's tile usage policy (already the reason
- * geo-utils.js caps concurrent tile fetches at 2).
+ * Trip map: a canvas basemap (via geo-utils.js's WGS84 tile stitcher, same
+ * no-CDN approach as every other map on this site), fit to the WHOLE route
+ * driven so far - not a small window following the current position. The
+ * fetched area only grows (never shrinks) as the trip covers more ground,
+ * refetched (zooming out as needed) only once the route actually outgrows
+ * what's currently on screen - not on every GPS update - to stay well
+ * inside OSM's tile usage policy (already the reason geo-utils.js caps
+ * concurrent tile fetches at 2).
  *
- * Unlike blue-lines.html/area-cleanup.html (one static pin, one fetch, done),
- * this basemap is refetched repeatedly through a trip, so recenter() always
- * replaces the previous cached canvas+projector rather than composing with
- * it - there is never more than one live basemap in memory at a time.
+ * Also exports renderStaticRouteCanvas(), a one-shot version of the same
+ * fit-to-route+colored-route+event-markers rendering used for the PDF
+ * export (buildTripPdfBlob in trip-report.js) - a fresh fetch/draw
+ * independent of whatever the live #trCanvas currently shows, so the PDF
+ * always gets the full route (including for a past trip reopened from
+ * history, which has no live canvas state of its own at all).
  */
 
 
 const MAP_SIZE = 640;
-const RECENTER_RADIUS_M = 450; // half-width of the fetched bbox
-const RECENTER_TRIGGER_RATIO = 0.7; // recenter once the fix passes 70% of the way to the edge
+const MAP_PADDING_RATIO = 0.15; // extra margin around the route's own bbox, so it isn't flush against the edges
+const MIN_HALF_SPAN_M = 150; // floor for a just-started trip (1-2 points) - keeps it from zooming in absurdly tight
+const RECENTER_TRIGGER_RATIO = 0.9; // refetch once the route fills this fraction of what's currently covered
 
 function metersPerDegree(lat) {
   const dLat = 111320;
@@ -3088,27 +3129,146 @@ function metersPerDegree(lat) {
   return { dLat, dLon };
 }
 
+/** bbox-center (not a mean of all points, which would skew toward a
+ * densely-sampled segment) of every point in the trip so far. */
+function routeCenter(points) {
+  let minLat = Infinity; let maxLat = -Infinity; let minLon = Infinity; let maxLon = -Infinity;
+  for (const p of points) {
+    minLat = Math.min(minLat, p.lat); maxLat = Math.max(maxLat, p.lat);
+    minLon = Math.min(minLon, p.lon); maxLon = Math.max(maxLon, p.lon);
+  }
+  return { lat: (minLat + maxLat) / 2, lon: (minLon + maxLon) / 2 };
+}
+
+/** Half-width (meters) of the smallest centered square that contains every
+ * point, plus MAP_PADDING_RATIO margin - the basemap is always fetched
+ * square (matching the square MAP_SIZE canvas), so both axes use whichever
+ * needs the larger span. */
+function routeHalfSpanMeters(points, center) {
+  const { dLat, dLon } = metersPerDegree(center.lat);
+  let maxM = MIN_HALF_SPAN_M;
+  for (const p of points) {
+    maxM = Math.max(maxM, Math.abs((p.lon - center.lon) * dLon), Math.abs((p.lat - center.lat) * dLat));
+  }
+  return maxM * (1 + MAP_PADDING_RATIO);
+}
+
+/** True if every point still falls within the square of half-width
+ * `halfSpanM` around `center` - i.e. the currently-fetched basemap still
+ * covers the whole route, so no refetch is needed yet. */
+function stillContained(points, center, halfSpanM) {
+  if (!center) return false;
+  const { dLat, dLon } = metersPerDegree(center.lat);
+  return points.every((p) => Math.abs((p.lon - center.lon) * dLon) <= halfSpanM
+    && Math.abs((p.lat - center.lat) * dLat) <= halfSpanM);
+}
+
+function bandColor(ratio) {
+  return (SPEED_BANDS.find((b) => ratio <= b.max) || SPEED_BANDS[SPEED_BANDS.length - 1]).color;
+}
+
+const EVENT_STYLE = {
+  brake: { color: '#8800FF', label: 'בלימה חדה' },
+  accel: { color: '#00FFFF', label: 'האצה חדה' },
+  violation: { color: '#FF0000', label: 'חריגת מהירות' },
+};
+
+/** Draws the colored route (speed-vs-limit band per segment) and event
+ * markers onto `ctx`'s canvas, using `project` (from fetchBasemapCanvasWGS84)
+ * to place them - shared by the live map's own redraw() and the one-shot
+ * renderStaticRouteCanvas() below, so both draw identically. `current`
+ * (the live position dot) is optional - the static PDF render never passes
+ * one, since a finished/historical trip has no "current position". */
+function drawRoute(ctx, project, points, events, current) {
+  ctx.lineWidth = 4;
+  ctx.lineCap = 'round';
+  for (let i = 1; i < points.length; i += 1) {
+    const prev = points[i - 1];
+    const cur = points[i];
+    const [x0, y0] = project(prev.lon, prev.lat);
+    const [x1, y1] = project(cur.lon, cur.lat);
+    ctx.strokeStyle = cur.limitKmh ? bandColor(cur.speedKmh / cur.limitKmh) : '#888888';
+    ctx.beginPath();
+    ctx.moveTo(x0, y0);
+    ctx.lineTo(x1, y1);
+    ctx.stroke();
+  }
+
+  events.forEach((ev) => {
+    const style = EVENT_STYLE[ev.type];
+    if (!style || ev.lat == null) return;
+    const [x, y] = project(ev.lon, ev.lat);
+    ctx.beginPath();
+    ctx.arc(x, y, 8, 0, Math.PI * 2);
+    ctx.fillStyle = style.color;
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 2;
+    ctx.fill();
+    ctx.stroke();
+  });
+
+  if (current) {
+    const [x, y] = project(current.lon, current.lat);
+    ctx.beginPath();
+    ctx.arc(x, y, 9, 0, Math.PI * 2);
+    ctx.fillStyle = '#1a73e8';
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 3;
+    ctx.fill();
+    ctx.stroke();
+  }
+}
+
+/** One-shot fetch+draw for the PDF export - always a fresh basemap fit to
+ * `points`' full extent, independent of any live map's own state (so a
+ * re-exported trip from history, which never had a live map running this
+ * session, still gets a real map page). Returns null if there are no
+ * points at all (nothing to show) or the fetch fails. */
+async function renderStaticRouteCanvas(points, events) {
+  if (!points.length) return null;
+  const center = routeCenter(points);
+  const halfSpanM = routeHalfSpanMeters(points, center);
+  const { dLat, dLon } = metersPerDegree(center.lat);
+  const bbox = [
+    center.lon - halfSpanM / dLon, center.lat - halfSpanM / dLat,
+    center.lon + halfSpanM / dLon, center.lat + halfSpanM / dLat,
+  ];
+  let basemap;
+  try {
+    basemap = await fetchBasemapCanvasWGS84(bbox, MAP_SIZE);
+  } catch (err) {
+    console.warn('trip-map: static route basemap fetch failed', err);
+    return null;
+  }
+  const canvas = document.createElement('canvas');
+  canvas.width = MAP_SIZE;
+  canvas.height = MAP_SIZE;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(basemap.canvas, 0, 0);
+  drawRoute(ctx, basemap.project, points, events);
+  return canvas;
+}
+
 function createTripMap(canvas) {
   const ctx = canvas.getContext('2d');
   canvas.width = MAP_SIZE;
   canvas.height = MAP_SIZE;
 
-  let center = null; // {lat, lon}
+  let center = null; // {lat, lon} of the currently-fetched basemap
+  let coveredHalfSpanM = 0; // half-width (meters) that basemap actually covers
   let basemap = null; // {canvas, project}
   let autoPan = true;
   let loading = false;
 
-  async function recenter(lat, lon) {
-    if (loading) return; // a slow tile fetch already in flight; the next redraw() will retry
+  async function recenter(lat, lon, halfSpanM) {
+    if (loading) return; // a slow tile fetch already in flight; the next update() will retry
     loading = true;
     try {
       const { dLat, dLon } = metersPerDegree(lat);
-      const bbox = [
-        lon - RECENTER_RADIUS_M / dLon, lat - RECENTER_RADIUS_M / dLat,
-        lon + RECENTER_RADIUS_M / dLon, lat + RECENTER_RADIUS_M / dLat,
-      ];
+      const bbox = [lon - halfSpanM / dLon, lat - halfSpanM / dLat, lon + halfSpanM / dLon, lat + halfSpanM / dLat];
       basemap = await fetchBasemapCanvasWGS84(bbox, MAP_SIZE);
       center = { lat, lon };
+      coveredHalfSpanM = halfSpanM;
     } catch (err) {
       console.warn('trip-map: basemap fetch failed', err);
     } finally {
@@ -3116,90 +3276,29 @@ function createTripMap(canvas) {
     }
   }
 
-  function needsRecenter(lat, lon) {
-    if (!center) return true;
-    const { dLat, dLon } = metersPerDegree(lat);
-    const dxM = (lon - center.lon) * dLon;
-    const dyM = (lat - center.lat) * dLat;
-    const distM = Math.hypot(dxM, dyM);
-    return distM > RECENTER_RADIUS_M * RECENTER_TRIGGER_RATIO;
+  function redraw(points, events, current) {
+    if (!basemap) return;
+    ctx.drawImage(basemap.canvas, 0, 0);
+    drawRoute(ctx, basemap.project, points, events, current);
   }
-
-  function bandColor(ratio) {
-    return (SPEED_BANDS.find((b) => ratio <= b.max) || SPEED_BANDS[SPEED_BANDS.length - 1]).color;
-  }
-
-  const EVENT_STYLE = {
-    brake: { color: '#8800FF', label: 'בלימה חדה' },
-    accel: { color: '#00FFFF', label: 'האצה חדה' },
-    violation: { color: '#FF0000', label: 'חריגת מהירות' },
-  };
 
   /**
-   * @param points [{lat, lon, speedKmh, limitKmh}] full trip so far - points
-   *   that fall outside the current basemap simply render off-canvas
-   *   (canvas draws those segments partially or not at all, same as any
-   *   slippy map showing only what's currently in view).
+   * @param points [{lat, lon, speedKmh, limitKmh}] full trip so far
    * @param events same shape as trip-score.js's event log, each carrying its
    *   own lat/lon
    * @param current {lat, lon} the live position, drawn as the blue dot
    */
-  function redraw(points, events, current) {
-    if (!basemap) return;
-    ctx.drawImage(basemap.canvas, 0, 0);
-
-    ctx.lineWidth = 4;
-    ctx.lineCap = 'round';
-    for (let i = 1; i < points.length; i += 1) {
-      const prev = points[i - 1];
-      const cur = points[i];
-      const [x0, y0] = basemap.project(prev.lon, prev.lat);
-      const [x1, y1] = basemap.project(cur.lon, cur.lat);
-      ctx.strokeStyle = cur.limitKmh ? bandColor(cur.speedKmh / cur.limitKmh) : '#888888';
-      ctx.beginPath();
-      ctx.moveTo(x0, y0);
-      ctx.lineTo(x1, y1);
-      ctx.stroke();
-    }
-
-    events.forEach((ev) => {
-      const style = EVENT_STYLE[ev.type];
-      if (!style || ev.lat == null) return;
-      const [x, y] = basemap.project(ev.lon, ev.lat);
-      ctx.beginPath();
-      ctx.arc(x, y, 8, 0, Math.PI * 2);
-      ctx.fillStyle = style.color;
-      ctx.strokeStyle = '#fff';
-      ctx.lineWidth = 2;
-      ctx.fill();
-      ctx.stroke();
-    });
-
-    if (current) {
-      const [x, y] = basemap.project(current.lon, current.lat);
-      ctx.beginPath();
-      ctx.arc(x, y, 9, 0, Math.PI * 2);
-      ctx.fillStyle = '#1a73e8';
-      ctx.strokeStyle = '#fff';
-      ctx.lineWidth = 3;
-      ctx.fill();
-      ctx.stroke();
-    }
-  }
-
-  /** Called on every new fix. Recenters first (awaited) when needed and
-   * auto-pan is on, then always redraws - so a frozen (auto-pan off) map
-   * still reflects new route/event data on the basemap it already has. */
   async function update(points, events, current) {
-    if (autoPan && current && needsRecenter(current.lat, current.lon)) {
-      await recenter(current.lat, current.lon);
+    if (autoPan && points.length && !stillContained(points, center, coveredHalfSpanM * RECENTER_TRIGGER_RATIO)) {
+      const newCenter = routeCenter(points);
+      await recenter(newCenter.lat, newCenter.lon, routeHalfSpanMeters(points, newCenter));
     }
     redraw(points, events, current);
   }
 
   return {
     update,
-    recenter,
+    recenter: (lat, lon) => recenter(lat, lon, Math.max(coveredHalfSpanM, MIN_HALF_SPAN_M)),
     setAutoPan: (value) => { autoPan = value; },
     getAutoPan: () => autoPan,
   };
@@ -3393,14 +3492,40 @@ function renderAppContext(node, apps, currentId) {
 
 const STORAGE_ACTIVE = 'tripReport:activeTrip';
 const STORAGE_LAST_COMPLETE = 'tripReport:lastCompletedTrip';
+const STORAGE_SENSITIVITY_PCT = 'tripReport:sensitivityPct';
 const AUTOSAVE_MS = 5000;
-const HARSH_ACCEL_MPS2 = 0.5 * 9.80665; // spec's own threshold, verbatim
+const HARSH_ACCEL_MPS2 = 0.5 * 9.80665; // spec's own threshold, verbatim - the 100% ("אדיש") baseline
 const EVENT_COOLDOWN_MS = 2000; // one hard stop shouldn't log a dozen events around the threshold
-const SPEED_TREND_THRESHOLD_KMH_S = 3; // corroborating GPS trend, alongside an accel spike
-const GPS_ONLY_TREND_THRESHOLD_KMH_S = 8; // no accelerometer at all - GPS alone is noisier, so the bar is higher
+const SPEED_TREND_THRESHOLD_KMH_S = 3; // corroborating GPS trend, alongside an accel spike - 100% baseline
+const GPS_ONLY_TREND_THRESHOLD_KMH_S = 8; // no accelerometer at all - GPS alone is noisier, so the bar is higher (100% baseline)
 const VIOLATION_MIN_DURATION_MS = 3000; // below this, it's GPS jitter over the line, not a real violation
-const VIOLATION_RATIO_MARGIN = 1.03; // 3% buffer so a limit's own rounding doesn't flap true/false
+const VIOLATION_RATIO_MARGIN = 1.03; // 3% buffer so a limit's own rounding doesn't flap true/false - 100% baseline
 const GRAVITY_ALPHA = 0.8;
+
+/* ---------- detection sensitivity - a single 100%-150% dial (default
+ * 100%, labeled "אדיש" in the UI - today's fixed thresholds, unchanged)
+ * that scales every trigger threshold above at once: HARSH_ACCEL_MPS2,
+ * *_TREND_THRESHOLD_KMH_S and VIOLATION_RATIO_MARGIN. "More sensitive"
+ * means triggering more easily, i.e. a LOWER effective threshold - each
+ * effective* function below divides its base constant (or, for the
+ * violation margin, just the buffer *above* 1.0) by the sensitivity
+ * multiplier, so 150% cuts the gap to the trigger point by a third.
+ * Persisted in localStorage so it carries over between trips; deliberately
+ * NOT scaling DEDUCTIONS/severity tiers in trip-score.js - those score an
+ * event already logged, they don't decide whether one gets logged at all,
+ * and leaving them fixed keeps the printed SCORE_EXPLANATION text accurate
+ * regardless of this setting. */
+let sensitivity = 1;
+
+function loadSensitivityPct() {
+  const raw = Number(localStorage.getItem(STORAGE_SENSITIVITY_PCT));
+  return Number.isFinite(raw) && raw >= 100 && raw <= 150 ? raw : 100;
+}
+
+function effectiveHarshAccelMps2() { return HARSH_ACCEL_MPS2 / sensitivity; }
+function effectiveSpeedTrendThresholdKmhS() { return SPEED_TREND_THRESHOLD_KMH_S / sensitivity; }
+function effectiveGpsOnlyTrendThresholdKmhS() { return GPS_ONLY_TREND_THRESHOLD_KMH_S / sensitivity; }
+function effectiveViolationRatioMargin() { return 1 + (VIOLATION_RATIO_MARGIN - 1) / sensitivity; }
 
 const uid = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 
@@ -3461,6 +3586,15 @@ let gravity = null;
 let accelSensor = null;
 let lastEventAt = 0;
 let violationState = { active: false };
+// Most recent RESOLVED speed-limit lookup, separate from trip.points' own
+// newest entry - getSpeedLimitAt() is async and GPS fixes can arrive faster
+// than it resolves, so "the last point" is very often still mid-lookup
+// (limitKmh: null) even though an earlier point's lookup just came back.
+// Reading trip.points[len-1] directly for display meant the on-screen
+// "מהירות מותרת" could sit on "—" indefinitely under exactly that timing,
+// even though every individual OSM lookup was succeeding - see
+// renderStatsPanel below, which reads this instead.
+let lastKnownLimit = null;
 let storageDegraded = false;
 let wakeLock = null;
 let historyMode = false;
@@ -3563,12 +3697,13 @@ function handleAccelSample(ax, ay, az) {
   motionAvailable = true;
   const magnitude = Math.sqrt(ax * ax + ay * ay + az * az);
   const now = Date.now();
-  if (magnitude < HARSH_ACCEL_MPS2 || now - lastEventAt < EVENT_COOLDOWN_MS) return;
+  if (magnitude < effectiveHarshAccelMps2() || now - lastEventAt < EVENT_COOLDOWN_MS) return;
 
   const trend = recentSpeedTrendKmhPerS();
   if (trend == null) return;
-  if (trend <= -SPEED_TREND_THRESHOLD_KMH_S) logHarshEvent('brake', -magnitude);
-  else if (trend >= SPEED_TREND_THRESHOLD_KMH_S) logHarshEvent('accel', magnitude);
+  const trendThreshold = effectiveSpeedTrendThresholdKmhS();
+  if (trend <= -trendThreshold) logHarshEvent('brake', -magnitude);
+  else if (trend >= trendThreshold) logHarshEvent('accel', magnitude);
 }
 
 function onMotion(e) {
@@ -3651,14 +3786,15 @@ function checkGpsOnlyHarshEvent() {
   const now = Date.now();
   if (now - lastEventAt < EVENT_COOLDOWN_MS) return;
   const magnitude = (trend / 3.6); // km/h/s -> m/s²-ish, for the score's severity check
-  if (trend <= -GPS_ONLY_TREND_THRESHOLD_KMH_S) logHarshEvent('brake', -Math.abs(magnitude));
-  else if (trend >= GPS_ONLY_TREND_THRESHOLD_KMH_S) logHarshEvent('accel', Math.abs(magnitude));
+  const gpsOnlyThreshold = effectiveGpsOnlyTrendThresholdKmhS();
+  if (trend <= -gpsOnlyThreshold) logHarshEvent('brake', -Math.abs(magnitude));
+  else if (trend >= gpsOnlyThreshold) logHarshEvent('accel', Math.abs(magnitude));
 }
 
 function evaluateViolation(point) {
   if (point.limitKmh == null) return;
   const ratio = point.speedKmh / point.limitKmh;
-  if (ratio > VIOLATION_RATIO_MARGIN) {
+  if (ratio > effectiveViolationRatioMargin()) {
     if (!violationState.active) {
       violationState = {
         active: true, startT: point.t, lat: point.lat, lon: point.lon, peakRatio: ratio,
@@ -3723,6 +3859,7 @@ function onPosition(position) {
       // a school existing nearby says nothing about a DIFFERENT road's
       // limit, so this never runs (or renders) otherwise.
       if (res.kmh === 30) point.schoolZone = await hasSchoolNearby(lat, lon).catch(() => false);
+      lastKnownLimit = { limitKmh: point.limitKmh, limitSource: point.limitSource, schoolZone: point.schoolZone };
     }
     evaluateViolation(point);
     renderAll();
@@ -3825,8 +3962,8 @@ function renderStatsPanel(stats) {
   el('trElapsed').textContent = formatDuration(stats.durationMs);
   const last = trip.points[trip.points.length - 1];
   el('trSpeedNow').textContent = last?.speedKmh != null ? Math.round(last.speedKmh) : '—';
-  el('trSpeedLimit').textContent = last?.limitKmh != null ? Math.round(last.limitKmh) : '—';
-  el('trSchoolBadge').hidden = !last?.schoolZone;
+  el('trSpeedLimit').textContent = lastKnownLimit?.limitKmh != null ? Math.round(lastKnownLimit.limitKmh) : '—';
+  el('trSchoolBadge').hidden = !lastKnownLimit?.schoolZone;
 }
 
 function renderBusInfo() {
@@ -3887,9 +4024,7 @@ function renderCompleteScreen() {
  * live trip (no watchers/timers attached, no localStorage write) - reuses
  * renderCompleteScreen()/exportTripPdf()/exportTripJson() as-is rather than
  * duplicating them, since all three already just read the module-level
- * `trip` variable. historyMode gates the PDF's map page (see
- * buildTripPdfBlob) since #trCanvas belongs to whichever trip was last
- * actively driven, not necessarily this one. */
+ * `trip` variable. */
 function viewHistoryTrip(record) {
   trip = record;
   historyMode = true;
@@ -4051,12 +4186,17 @@ async function buildTripPdfBlob() {
   const stats = computeStats();
   const score = computeScore(trip.events);
   const band = scoreBand(score);
-  const mapCanvas = el('trCanvas');
   const pages = [];
-  // historyMode: #trCanvas still shows whichever trip was last actively
-  // driven, not necessarily this one - including it here would silently
-  // attach the wrong route to a re-exported older trip's PDF.
-  if (!historyMode && mapCanvas.width && mapCanvas.height) {
+  // A fresh fit-to-route render, not a snapshot of whatever #trCanvas
+  // currently shows - the live map used to only ever display a small area
+  // around the *current* position, so a long trip's PDF map page showed
+  // almost none of the actual route. This also fixes historyMode, which
+  // used to skip the map page entirely (the live canvas belongs to
+  // whichever trip was last actively driven, not necessarily the one being
+  // re-exported from history) - a standalone render has no such
+  // dependency, so a past trip reopened from history gets a real map too.
+  const mapCanvas = await renderStaticRouteCanvas(trip.points, trip.events);
+  if (mapCanvas) {
     pages.push({ jpegBytes: await canvasToJpegBytes(mapCanvas), width: mapCanvas.width, height: mapCanvas.height });
   }
   const dataCanvas = buildTripDataPageCanvas(stats, score, band);
@@ -4167,6 +4307,13 @@ async function startTrip(vehicleType, resumed, busLine) {
   trip = resumed || newTrip(vehicleType, busLine);
   historyMode = false;
   activeMs = resumed ? (resumed.activeMs || 0) : 0;
+  // A brand-new trip has no prior limit to show; a resumed one might -
+  // seed from its last point instead of blanking a value that was already
+  // known before the pause, same reasoning as lastKnownLimit's own comment.
+  const priorLast = trip.points[trip.points.length - 1];
+  lastKnownLimit = priorLast?.limitKmh != null
+    ? { limitKmh: priorLast.limitKmh, limitSource: priorLast.limitSource, schoolZone: priorLast.schoolZone }
+    : null;
   tripMap = createTripMap(el('trCanvas'));
   setChromeVisible(false);
   acquireWakeLock();
@@ -4237,6 +4384,23 @@ function stopTrip() {
 document.querySelectorAll('input[name="vehicleType"]').forEach((r) => r.addEventListener('change', () => {
   el('trBusLineRow').hidden = document.querySelector('input[name="vehicleType"]:checked')?.value !== 'bus';
 }));
+
+// Restored from localStorage on load, applied live to `sensitivity` (read
+// by effectiveHarshAccelMps2() etc.) on every drag - takes effect on the
+// very next accelerometer sample/GPS fix, even mid-trip, not just for a
+// trip started after changing it.
+(() => {
+  const pct = loadSensitivityPct();
+  sensitivity = pct / 100;
+  el('trSensitivity').value = pct;
+  el('trSensitivityValue').textContent = `${pct}%`;
+})();
+el('trSensitivity').addEventListener('input', (e) => {
+  const pct = Number(e.target.value);
+  sensitivity = pct / 100;
+  el('trSensitivityValue').textContent = `${pct}%`;
+  try { localStorage.setItem(STORAGE_SENSITIVITY_PCT, String(pct)); } catch { /* private mode/full storage - setting still applies this session, just won't persist */ }
+});
 
 el('trStart').addEventListener('click', () => {
   const vehicleType = document.querySelector('input[name="vehicleType"]:checked')?.value || 'car';
