@@ -1872,6 +1872,7 @@ body.accidents-page header.site h1 { inline-size: 100%; }
 }
 .tr-vehicle-opt:has(input:checked) { border-color: var(--accent); background: var(--surface); }
 .tr-start-btn { font-size: 1.1rem; padding: .8rem 2rem; }
+.tr-history-btn-lg { font-size: 1rem; padding: .7rem 1.7rem; }
 .tr-bus-line-row { text-align: center; margin-block-end: 1rem; }
 .tr-bus-line-row input { width: 6rem; padding: .3rem .5rem; margin-inline-start: .3rem; }
 .tr-bus-line-row .acc-hint { display: block; margin-top: .3rem; }
@@ -2060,6 +2061,14 @@ body.accidents-page header.site h1 { inline-size: 100%; }
 .civic-app-page .app-sibling { block-size: 90px; padding-block: .2rem; }
 .civic-app-page .app-sibling-icon { font-size: 2rem; }
 .civic-app-page .app-sibling-label { font-size: .55rem; }
+
+/* trip-report.html specifically renders its siblings row with includeSelf:
+   false (see renderAppContext/apps.js) - one fewer tile than every other
+   civic-app-page, and by request should read as a single row rather than
+   inheriting the two-row grid shape above (which exists for the OTHER
+   civic pages, still with their full tile count). Overrides only for this
+   page, not the whole civic-app-page group. */
+.trip-report-page .app-siblings { grid-template-rows: repeat(1, auto); }
 </style>
 </head>
 <body class="accidents-page trip-report-page civic-app-page">
@@ -2091,14 +2100,9 @@ body.accidents-page header.site h1 { inline-size: 100%; }
 
       <!-- ---------- setup screen ---------- -->
       <section id="trScreenSetup" class="acc-section">
-        <details class="lead-details">
-          <summary>איך זה עובד?</summary>
-          <p class="acc-hint">
-            עוקב אחרי הנסיעה שלך בזמן אמת - מיקום GPS וחיישן התאוצה של המכשיר, ומחשב ציון נהיגה חי לפי בלימות/האצות/פניות
-            חדות וחריגות מהירות מול המהירות המותרת בפועל (OpenStreetMap). הכול מחושב בדפדפן בלבד; שום נתון לא נשלח
-            לשרת. נדרשת הרשאת מיקום (ותאוצה, במכשירים שתומכים) כדי להתחיל.
-          </p>
-        </details>
+        <div class="fin-export-row" style="justify-content:center">
+          <button type="button" id="trStart" class="drill-dl tr-start-btn">▶ התחל נסיעה</button>
+        </div>
         <div class="tr-vehicle-pick" role="radiogroup" aria-label="סוג הרכב">
           <label class="tr-vehicle-opt">
             <input type="radio" name="vehicleType" value="car" checked> 🚗 רכב פרטי
@@ -2121,11 +2125,16 @@ body.accidents-page header.site h1 { inline-size: 100%; }
           </span>
         </div>
         <div class="fin-export-row" style="justify-content:center">
-          <button type="button" id="trStart" class="drill-dl tr-start-btn">▶ התחל נסיעה</button>
+          <button type="button" id="trShowHistorySetup" class="drill-dl tr-history-btn-lg">🕘 נסיעות קודמות</button>
         </div>
-        <div class="fin-export-row" style="justify-content:center">
-          <button type="button" id="trShowHistorySetup" class="drill-dl">🕘 נסיעות קודמות</button>
-        </div>
+        <details class="lead-details">
+          <summary>איך זה עובד?</summary>
+          <p class="acc-hint">
+            עוקב אחרי הנסיעה שלך בזמן אמת - מיקום GPS וחיישן התאוצה של המכשיר, ומחשב ציון נהיגה חי לפי בלימות/האצות/פניות
+            חדות וחריגות מהירות מול המהירות המותרת בפועל (OpenStreetMap). הכול מחושב בדפדפן בלבד; שום נתון לא נשלח
+            לשרת. נדרשת הרשאת מיקום (ותאוצה, במכשירים שתומכים) כדי להתחיל.
+          </p>
+        </details>
       </section>
 
       <!-- ---------- active trip screen ----------
@@ -3496,14 +3505,17 @@ async function loadAppsData() {
 /**
  * Renders, under an app's own page header, a 🏠 icon back to apps.html (the
  * full list, every category) plus small icon-links to every OTHER app in the
- * same category as `currentId` (the current one shown too, but inert - "you
- * are here" - not a link to itself). Cross-navigation between related tools
- * without hand-maintaining it per page.
+ * same category as `currentId`. By default the current one is shown too,
+ * but inert - "you are here" - not a link to itself; trip-report.html
+ * passes `includeSelf: false` instead (its own icon row was crowding past
+ * one line with a self-tile that, unlike every other page's siblings row,
+ * never actually needs to appear as an option). Cross-navigation between
+ * related tools without hand-maintaining it per page.
  */
-function renderAppContext(node, apps, currentId) {
+function renderAppContext(node, apps, currentId, { includeSelf = true } = {}) {
   const current = apps.find((a) => a.id === currentId);
   if (!current) { node.innerHTML = ''; return; }
-  const inCategory = apps.filter((a) => a.category === current.category);
+  const inCategory = apps.filter((a) => a.category === current.category && (includeSelf || a.id !== currentId));
 
   const homeHtml = `
     <a class="app-sibling" href="./apps.html" title="כל האפליקציות" dir="auto">
@@ -4891,7 +4903,7 @@ function initLastCompletedBanner() {
 /* ---------- boot ---------- */
 
 initThemePicker(el('themePick'));
-loadAppsData().then((data) => renderAppContext(el('appContext'), data.apps, 'trip-report')).catch(() => {});
+loadAppsData().then((data) => renderAppContext(el('appContext'), data.apps, 'trip-report', { includeSelf: false })).catch(() => {});
 if (loadActiveFromStorage()) initResumePrompt();
 else initLastCompletedBanner();
 

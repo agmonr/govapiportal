@@ -1363,6 +1363,6 @@ function initLastCompletedBanner() {
 /* ---------- boot ---------- */
 
 initThemePicker(el('themePick'));
-loadAppsData().then((data) => renderAppContext(el('appContext'), data.apps, 'trip-report')).catch(() => {});
+loadAppsData().then((data) => renderAppContext(el('appContext'), data.apps, 'trip-report', { includeSelf: false })).catch(() => {});
 if (loadActiveFromStorage()) initResumePrompt();
 else initLastCompletedBanner();

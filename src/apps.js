@@ -134,14 +134,17 @@ export async function loadAppsData() {
 /**
  * Renders, under an app's own page header, a 🏠 icon back to apps.html (the
  * full list, every category) plus small icon-links to every OTHER app in the
- * same category as `currentId` (the current one shown too, but inert - "you
- * are here" - not a link to itself). Cross-navigation between related tools
- * without hand-maintaining it per page.
+ * same category as `currentId`. By default the current one is shown too,
+ * but inert - "you are here" - not a link to itself; trip-report.html
+ * passes `includeSelf: false` instead (its own icon row was crowding past
+ * one line with a self-tile that, unlike every other page's siblings row,
+ * never actually needs to appear as an option). Cross-navigation between
+ * related tools without hand-maintaining it per page.
  */
-export function renderAppContext(node, apps, currentId) {
+export function renderAppContext(node, apps, currentId, { includeSelf = true } = {}) {
   const current = apps.find((a) => a.id === currentId);
   if (!current) { node.innerHTML = ''; return; }
-  const inCategory = apps.filter((a) => a.category === current.category);
+  const inCategory = apps.filter((a) => a.category === current.category && (includeSelf || a.id !== currentId));
 
   const homeHtml = `
     <a class="app-sibling" href="./apps.html" title="כל האפליקציות" dir="auto">

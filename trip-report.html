@@ -54,14 +54,9 @@
 
       <!-- ---------- setup screen ---------- -->
       <section id="trScreenSetup" class="acc-section">
-        <details class="lead-details">
-          <summary>איך זה עובד?</summary>
-          <p class="acc-hint">
-            עוקב אחרי הנסיעה שלך בזמן אמת - מיקום GPS וחיישן התאוצה של המכשיר, ומחשב ציון נהיגה חי לפי בלימות/האצות/פניות
-            חדות וחריגות מהירות מול המהירות המותרת בפועל (OpenStreetMap). הכול מחושב בדפדפן בלבד; שום נתון לא נשלח
-            לשרת. נדרשת הרשאת מיקום (ותאוצה, במכשירים שתומכים) כדי להתחיל.
-          </p>
-        </details>
+        <div class="fin-export-row" style="justify-content:center">
+          <button type="button" id="trStart" class="drill-dl tr-start-btn">▶ התחל נסיעה</button>
+        </div>
         <div class="tr-vehicle-pick" role="radiogroup" aria-label="סוג הרכב">
           <label class="tr-vehicle-opt">
             <input type="radio" name="vehicleType" value="car" checked> 🚗 רכב פרטי
@@ -84,11 +79,16 @@
           </span>
         </div>
         <div class="fin-export-row" style="justify-content:center">
-          <button type="button" id="trStart" class="drill-dl tr-start-btn">▶ התחל נסיעה</button>
+          <button type="button" id="trShowHistorySetup" class="drill-dl tr-history-btn-lg">🕘 נסיעות קודמות</button>
         </div>
-        <div class="fin-export-row" style="justify-content:center">
-          <button type="button" id="trShowHistorySetup" class="drill-dl">🕘 נסיעות קודמות</button>
-        </div>
+        <details class="lead-details">
+          <summary>איך זה עובד?</summary>
+          <p class="acc-hint">
+            עוקב אחרי הנסיעה שלך בזמן אמת - מיקום GPS וחיישן התאוצה של המכשיר, ומחשב ציון נהיגה חי לפי בלימות/האצות/פניות
+            חדות וחריגות מהירות מול המהירות המותרת בפועל (OpenStreetMap). הכול מחושב בדפדפן בלבד; שום נתון לא נשלח
+            לשרת. נדרשת הרשאת מיקום (ותאוצה, במכשירים שתומכים) כדי להתחיל.
+          </p>
+        </details>
       </section>
 
       <!-- ---------- active trip screen ----------
