@@ -86,6 +86,17 @@
       "category_he": "עצים"
     },
     {
+      "id": "report-pit",
+      "name": "Report an Empty Tree Pit",
+      "name_he": "דיווח על גומה ריקה",
+      "kind": "פרויקט אישי",
+      "about": "דיווח - לא API - על מקום ברחוב עם גומה ריקה שמתאימה לנטיעת עץ: מיקום (GPS ו/או כתובת חופשית), תמונה אופציונלית והערה. ההרשמה מחייבת התחברות עם חשבון Google (כדי לוודא כתובת מייל אמיתית ולמנוע דיווחי ספאם) ונכתבת ישירות לגיליון דיווחים. כלי אישי, לא ממשלתי - מוצג כאן כי הוא נשען על אותה תשתית כמו שאר משפחת יעל\"ה.",
+      "href": "https://agmonr.github.io/yeela-license-tracker/statics/report_empty_pit.html",
+      "external": true,
+      "category": "trees",
+      "category_he": "עצים"
+    },
+    {
       "id": "trip-report",
       "name": "Vehicle Monitoring & Driving Score",
       "name_he": "דוח נסיעה",

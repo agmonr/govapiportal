@@ -14,22 +14,24 @@
 import { esc } from './ui.js';
 
 // One glyph each (occasionally a short sequence, or - trees/tree-canopy/
-// tree-plans/trip-report only - a small HTML composition, see .icon-small/
-// .tc-icon in style.css) - a welcoming button reads as a destination, not a
-// document, so the icon carries it rather than a URL or an arrow-hint line.
-// trees (small 🚑), tree-canopy (🏠 badge) and tree-plans (📋 badge) all
-// start from the same 🌳 but diverge on purpose: trees is about a tree
-// already in trouble (needing rescue - the ambulance is deliberately
-// smaller, a detail riding along with the tree rather than an equal second
-// subject), tree-canopy is about how much canopy covers a city/
-// neighborhood/street - a house tucked in the corner, not a rescue call -
-// and tree-plans is earlier still: a building plan (the clipboard) that
-// marks trees, years before any tree-felling license (trees' own subject)
-// would exist. trip-report is unrelated to the tree family (🚗, with a small
-// live-score badge, not a 🌳 variant) - a live per-trip driving score, not a
-// government dataset lookup. Not escaped by appCard/renderAppContext (both
-// interpolate this directly, no esc()), so raw markup here renders as real
-// HTML, not text.
+// tree-plans/report-pit/trip-report only - a small HTML composition, see
+// .icon-small/.tc-icon in style.css) - a welcoming button reads as a
+// destination, not a document, so the icon carries it rather than a URL or
+// an arrow-hint line. trees (small 🚑), tree-canopy (🏠 badge), tree-plans
+// (📋 badge) and report-pit (🕳️ badge) all start from the same 🌳 but
+// diverge on purpose: trees is about a tree already in trouble (needing
+// rescue - the ambulance is deliberately smaller, a detail riding along
+// with the tree rather than an equal second subject), tree-canopy is about
+// how much canopy covers a city/neighborhood/street - a house tucked in the
+// corner, not a rescue call - tree-plans is earlier still: a building plan
+// (the clipboard) that marks trees, years before any tree-felling license
+// (trees' own subject) would exist - and report-pit is the opposite
+// direction entirely: not a tree at risk but an empty spot (the hole) where
+// one could be planted. trip-report is unrelated to the tree family (🚗,
+// with a small live-score badge, not a 🌳 variant) - a live per-trip
+// driving score, not a government dataset lookup. Not escaped by
+// appCard/renderAppContext (both interpolate this directly, no esc()), so
+// raw markup here renders as real HTML, not text.
 export const APP_ICON = {
   accidents: '🚦', trees: '🌳<span class="icon-small">🚑</span>', committees: '🏛️',
   'local-finance': '💰', agriculture: '🌾',
@@ -38,6 +40,7 @@ export const APP_ICON = {
   'tree-plans': '🌳<span class="icon-small">📋</span>',
   'trip-report': '🚗<span class="icon-small">🎯</span>',
   'yeela-signup': '🔔',
+  'report-pit': '🌳<span class="icon-small">🕳️</span>',
 };
 
 // Render order for categories - not alphabetical on the Hebrew label, and

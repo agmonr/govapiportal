@@ -75,6 +75,7 @@ APP_ICON = {
     "tree-plans": '🌳<span class="{w}-icon-small">📋</span>',
     "trip-report": '🚗<span class="{w}-icon-small">🎯</span>',
     "yeela-signup": "🔔",
+    "report-pit": '🌳<span class="{w}-icon-small">🕳️</span>',
 }
 
 # Same rule as oneLineSummary in src/apps.js: the native title= tooltip
