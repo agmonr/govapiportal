@@ -37,6 +37,21 @@ const expected = data.apis.reduce((acc, a) => {
 // the group count is portals-with-an-api, not portals.length.
 const portalsWithApis = new Set(data.apis.map((a) => a.portal)).size;
 
+/**
+ * The total a catalogue states, as a number - read from the `<strong>` in
+ * `X–Y מתוך <strong>N</strong> מאגרים`, not from the whole string (whose first
+ * number is the page offset, not the total).
+ *
+ * These totals are live and they move: data.gov.il went 1,197 → 1,198 and
+ * turned a hardcoded assertion red without a line changing in this repo. The
+ * claim being made is "this is the collection's size, not the page we just
+ * fetched" - so assert that, and let the number be whatever it is today.
+ */
+async function statedTotal(page, scope) {
+  const text = await page.locator(`${scope} .ck-count strong`).innerText();
+  return Number(text.replace(/[^\d]/g, ''));
+}
+
 const failures = [];
 const browser = await chromium.launch();
 
@@ -281,7 +296,7 @@ async function runCkanPass(label, url) {
     console.log('\x1b[33m  SKIP\x1b[0m  data.gov.il did not answer - explorer not asserted');
   } else {
     ok(await page.locator('#ckan .ck-card').count() === 20, 'catalogue shows a page of datasets');
-    ok((await page.locator('#ckan .ck-count').innerText()).includes('1,197'),
+    ok(await statedTotal(page, '#ckan') > await page.locator('#ckan .ck-card').count(),
       'catalogue states the full total, not the fetched count');
     ok(await page.locator('#ckan .ck-controls select').count() === 3,
       'org / format / sort controls present');
@@ -353,7 +368,7 @@ async function runMoagPass(label, url) {
     console.log('\x1b[33m  SKIP\x1b[0m  data1-moag.opendata.arcgis.com did not answer - explorer not asserted');
   } else {
     ok(await page.locator('#moag .ck-card').count() === 24, 'catalogue shows a page of datasets');
-    ok((await page.locator('#moag .ck-count').innerText()).includes('93'),
+    ok(await statedTotal(page, '#moag') > await page.locator('#moag .ck-card').count(),
       'catalogue states the full total, not just the fetched page');
     ok(await page.locator('#moag .mg-q').count() === 1, 'search box present');
     ok(await page.locator('#moag .mg-direct').count() === 1, '"direct link only" toggle present');
