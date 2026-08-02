@@ -37,6 +37,7 @@ export const APP_ICON = {
   'tree-canopy': '<span class="tc-icon">🌳<span class="tc-icon-badge">🏠</span></span>',
   'tree-plans': '🌳<span class="icon-small">📋</span>',
   'trip-report': '🚗<span class="icon-small">🎯</span>',
+  'yeela-signup': '🔔',
 };
 
 // Render order for categories - not alphabetical on the Hebrew label, and

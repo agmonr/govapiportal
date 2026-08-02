@@ -108,6 +108,17 @@
       "category_he": "מידע ישיר"
     },
     {
+      "id": "yeela-signup",
+      "name": "Alert Signup — Tree Licenses, Building Plans, Committee Protocols",
+      "name_he": "הרשמה להתראות ישירות",
+      "kind": "פרויקט אישי",
+      "about": "עמוד הרשמה - לא API - להתראות מייל ישירות על רישיונות כריתה/העתקה של עצים, שינויים בתוכניות בניין שמסמנות עצים, ומסמכי ועדות תכנון ובנייה, לפי ישוב. ההרשמה מחייבת התחברות עם חשבון Google (כדי לוודא כתובת מייל אמיתית) ונכתבת ישירות לגיליון המנויים, בלי טופס Google נפרד. כלי אישי, לא ממשלתי - מוצג כאן כי הוא נשען על נתוני רישוי ממשלתיים, כמו שאר משפחת יעל\"ה.",
+      "href": "https://agmonr.github.io/yeela-license-tracker/statics/signup.html",
+      "external": true,
+      "category": "direct",
+      "category_he": "מידע ישיר"
+    },
+    {
       "id": "local-finance",
       "name": "Local Authority Audited Financial Reports (Ministry of Interior)",
       "name_he": "דוחות כספיים מבוקרים — רשויות מקומיות",
