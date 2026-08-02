@@ -894,14 +894,21 @@
       "endpoint": "https://next.obudget.org/mcp",
       "method": "POST",
       "auth": "none",
-      "cors": "unknown",
+      "cors": null,
       "browser": false,
       "format": "MCP (JSON-RPC 2.0 over streamable HTTP, תגובת SSE)",
       "status": 200,
       "domain": "budget",
-      "notes": "לא נפתח כ-GET רגיל (406, דורש Accept: text/event-stream ו-handshake של initialize לפני כל שימוש) - נבדק ישירות מול הפרוטוקול (2026-07-26), לא רק מהתיעוד. חושף 3 כלים: DatasetInfo (סכימה), DatasetFullTextSearch (חיפוש מזהים), DatasetDBQuery (SQL) - על 8 מאגרים (budget_items_data, support_programs_data, supports_transactions_data, contracts_data, entities_data, income_items_data, budgetary_change_requests_data, budgetary_change_transactions_data). בטבלת budget_items_data code='TOTAL' עובד כשורש היררכיית התקציב (נבדק: 709,395,841,000 ₪ ל-2026 - זהה בדיוק ל-raw_budget עם code='00' AND depth=0 בממשק ה-SQL הישיר למעלה, שם code='TOTAL' לא קיים). לשימוש בכלי MCP (כמו Claude), לא בדפדפן רגיל.",
+      "notes": "לא נפתח כ-GET רגיל (406, דורש Accept: text/event-stream ו-handshake של initialize לפני כל שימוש) - נבדק ישירות מול הפרוטוקול (2026-07-26), לא רק מהתיעוד. אימות CORS (2026-08-02, מול בקשה תקינה מלאה - POST עם initialize): התשובה המוצלחת אינה נושאת access-control-allow-origin כלל, ובקשת OPTIONS מקדימה מוחזרת 405. לכן cors הוא null ולא \"unknown\" - נבדק ונשלל, לא בלתי-ידוע. חושף 3 כלים: DatasetInfo (סכימה), DatasetFullTextSearch (חיפוש מזהים), DatasetDBQuery (SQL) - על 10 מאגרים (budget_items_data, support_programs_data, supports_transactions_data, contracts_data, entities_data, income_items_data, budgetary_change_requests_data, budgetary_change_transactions_data, government_decisions_data, social_services_data; שני האחרונים נוספו מאז - נספרו מתוך תשובת ה-initialize של BudgetKey 3.4.5, 2026-08-02). בטבלת budget_items_data code='TOTAL' עובד כשורש היררכיית התקציב (נבדק: 709,395,841,000 ₪ ל-2026 - זהה בדיוק ל-raw_budget עם code='00' AND depth=0 בממשק ה-SQL הישיר למעלה, שם code='TOTAL' לא קיים). לשימוש בכלי MCP (כמו Claude), לא בדפדפן רגיל.",
       "example": null,
-      "portal": "budgetkey"
+      "portal": "budgetkey",
+      "probe": {
+        "headers": {
+          "Accept": "application/json, text/event-stream",
+          "Content-Type": "application/json"
+        },
+        "body": "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2024-11-05\",\"capabilities\":{},\"clientInfo\":{\"name\":\"govapiportal-probe\",\"version\":\"1\"}}}"
+      }
     }
   ]
 }

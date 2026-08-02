@@ -474,6 +474,24 @@ It probes each entry's `example` rather than the bare `endpoint`, because severa
 of these need parameters: `datastore_search` answers 409 without a `resource_id`,
 CBS `index/data/price` answers 500 without an `id`.
 
+**A probe that cannot make the working call is measuring its own defaults, not
+drift.** Two things follow from that, both learned from false positives this
+prober filed against entries whose own `notes` already explained them:
+
+- **`probe: {headers, body}`** on an entry, for endpoints that do not answer the
+  default shape. `next.obudget.org/mcp` speaks MCP over streamable HTTP: it
+  needs `Accept: text/event-stream` and an `initialize` handshake in the body,
+  and answers a plain `Accept: application/json` POST with 400. The recorded 200
+  describes the call that works, so the entry now carries that call. `Origin` is
+  always overridden back to the prober's own — it is the field the map turns on.
+- **`429`, `502`, `503` and `504` are retried before being called drift**, and
+  only when they differ from the recorded status. These say *not now*, not *not
+  this*: Overpass's public instance sheds load routinely (its entry says so —
+  504 on 3 of 6 attempts when it was written), and reporting that documented
+  condition as a contract change every Monday is how a prober teaches its
+  reader to ignore it. A 504 that survives all three attempts is still
+  reported; a 403 or a 500 is still an answer and is never retried.
+
 ## Adding a source
 
 Add an object to `apis.json`. Probe it first — `status`, `cors`, `format` and
@@ -484,3 +502,8 @@ absent entry. Set `browser: true` only if you have seen an
 ```bash
 curl -s -i -H "Origin: https://example.github.io" "<endpoint>" | head -20
 ```
+
+If it took more than a bare GET to get that answer — a specific `Accept`, a
+request body — put the same thing in a `probe: {headers, body}` key on the entry,
+or the weekly prober will file the difference between your call and its own as
+drift. Optional keys go at the end of the object, next to `timeout`.
