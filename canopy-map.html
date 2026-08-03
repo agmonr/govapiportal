@@ -123,6 +123,19 @@
         <datalist id="cmCityRoster"></datalist>
       </section>
 
+      <section class="acc-section" id="cmNbPickRow" aria-labelledby="nbPickH" hidden>
+        <h2 id="nbPickH">הוספת שכונה להשוואה</h2>
+        <p class="acc-hint" dir="auto">
+          לחיצה על שכונה במפה מציגה אותה לבד; כדי להשוות כמה שכונות מהעיר הזו יחד (עד 4) - הוסיפו אותן כאן.
+        </p>
+        <div class="acc-year-pick">
+          <label for="cmNbPick">שכונה:</label>
+          <input id="cmNbPick" type="text" list="cmNbRoster" autocomplete="off" spellcheck="false"
+                 placeholder="התחילו להקליד…">
+        </div>
+        <datalist id="cmNbRoster"></datalist>
+      </section>
+
       <section class="acc-section" id="cmStreetPickRow" aria-labelledby="streetPickH" hidden>
         <h2 id="streetPickH">חיפוש רחוב</h2>
         <p class="acc-hint" dir="auto">אפשר לבחור עד 4 רחובות, מכל עיר - להשוואה בין רחובות בערים שונות.</p>

@@ -713,6 +713,28 @@ function updateCityRoster(query) {
   el('cmCityRoster').innerHTML = names.map((n) => `<option value="${esc(n)}">`).join('');
 }
 
+/* ---------- neighborhood picker (neighborhood level, current city only) -
+   a map click always REPLACES the pick (see pickSolo); this is the
+   manual-add path (like the street search) for building a same-city
+   multi-neighborhood compare list, up to MAX_SELECT. ---------- */
+
+function updateNbRoster(query) {
+  const q = query.trim().toLowerCase();
+  if (!q) { el('cmNbRoster').innerHTML = ''; return; }
+  const hits = currentEntities().filter((e) => e.label.toLowerCase().includes(q)).slice(0, 40);
+  el('cmNbRoster').innerHTML = hits.map((e) => `<option value="${esc(e.label)}">`).join('');
+}
+
+function commitNbPick() {
+  const input = el('cmNbPick');
+  const label = input.value.trim();
+  const entity = currentEntities().find((e) => e.label === label);
+  if (!entity) return;
+  input.value = '';
+  el('cmNbRoster').innerHTML = '';
+  toggleSelect(entity);
+}
+
 /* ---------- wiring ---------- */
 
 function renderControls() {
@@ -730,6 +752,7 @@ function renderControls() {
   });
   el('cmLayerSection').hidden = state.level === 'street';
   el('cmCityPickRow').hidden = state.level !== 'neighborhood';
+  el('cmNbPickRow').hidden = state.level !== 'neighborhood' || !state.cityFilter;
   el('cmStreetPickRow').hidden = state.level !== 'street';
   el('cmCityPick').value = state.cityFilter || '';
   updateCityRoster('');
@@ -789,6 +812,10 @@ const commitCity = () => {
 };
 el('cmCityPick').addEventListener('change', commitCity);
 el('cmCityPick').addEventListener('keydown', (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); commitCity(); } });
+
+el('cmNbPick').addEventListener('input', debounce((ev) => updateNbRoster(ev.target.value), 120));
+el('cmNbPick').addEventListener('change', commitNbPick);
+el('cmNbPick').addEventListener('keydown', (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); commitNbPick(); } });
 
 el('cmStreetPick').addEventListener('input', debounce((ev) => updateStreetRoster(ev.target.value), 120));
 el('cmStreetPick').addEventListener('change', commitStreetPick);
