@@ -1888,6 +1888,15 @@ body.accidents-page header.site h1 { inline-size: 100%; }
 
 .cm-osm-toggle { display: inline-flex; align-items: center; gap: .5rem; cursor: pointer; }
 
+/* canopy-map.html's "back to the original map" button - same pill shape as
+   .tc-level-btn, but never filled/active (it's an action, not a toggle
+   with a current-state reading). */
+.cm-full-reset {
+  font: inherit; font-size: .85rem; padding: .4rem 1rem; cursor: pointer; margin-block-end: .5rem;
+  color: var(--fg); background: var(--card); border: 1px solid var(--border); border-radius: 999px;
+}
+.cm-full-reset:hover { border-color: var(--accent); }
+
 /* canopy-map.html's selection chips - one per picked city/neighborhood/
    street (up to 4), border color matching the same PICK_COLORS hue used
    for that entity's map-highlight stroke and its rows across all three

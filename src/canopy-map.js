@@ -964,6 +964,34 @@ el('cmHiResToggle').addEventListener('change', (ev) => {
   renderMap();
 });
 
+// Back to the page's own initial state - level/layer/city pick/selection/
+// pan-zoom/every toggle (OSM basemap, both blob overlays, hi-res-only) all
+// reset together, since none of those are reachable any other way once
+// several are combined (e.g. hi-res-only + a drilled-in city + a zoomed-in
+// view) - a single button beats hunting down which control to switch back.
+// Checkboxes are DOM state, not derived from `state` by renderControls()
+// the way the level/layer buttons' own `.active` class is - each one needs
+// unchecking here explicitly, or a stale checked box would say one thing
+// while the map itself shows another.
+el('cmFullReset').addEventListener('click', () => {
+  state.level = 'city';
+  state.layer = 'canopy';
+  state.cityLayers = ['canopy'];
+  state.cityFilter = null;
+  state.osm = false;
+  state.heatBlob = false;
+  state.canopyBlob = false;
+  state.hiRes = false;
+  state.selected = [];
+  state.view = null;
+  el('cmOsmToggle').checked = false;
+  el('cmBlobToggle').checked = false;
+  el('cmCanopyBlobToggle').checked = false;
+  el('cmHiResToggle').checked = false;
+  syncUrl();
+  renderAll();
+});
+
 readStateFromUrl();
 resolveSelectedFromUrl();
 renderAll();
