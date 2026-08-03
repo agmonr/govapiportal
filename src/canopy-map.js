@@ -637,7 +637,13 @@ async function renderMap() {
       : colorFor(valueFor(e, activeMetricIds[0]), ...domains[activeMetricIds[0]], METRICS[activeMetricIds[0]].colorVar);
     const fillOpacity = blobReplacesFill ? '0' : opacity;
     const i = selectedIndex(e.key);
-    const stroke = i !== -1 ? PICK_COLORS[i] : 'var(--bg)';
+    // Normally var(--bg) here is deliberate - it reads as a thin gap
+    // between two differently-COLORED fills, not a border meant to be seen
+    // on its own. Once the fill itself is gone too (blobReplacesFill), that
+    // same var(--bg) stroke made the whole shape invisible against the
+    // page's own background - "the map is empty" wasn't the raster
+    // failing to load, it was every border blending into the page.
+    const stroke = i !== -1 ? PICK_COLORS[i] : (blobReplacesFill ? 'var(--fg)' : 'var(--bg)');
     const strokeWidth = i !== -1 ? '3' : '1.2';
     return `<path d="${d}" fill="${fill}" fill-opacity="${fillOpacity}" stroke="${stroke}" stroke-width="${strokeWidth}" data-key="${esc(e.key)}" tabindex="0" role="button" aria-pressed="${i !== -1}"><title>${esc(titleFor(e))}</title></path>`;
   }).join('');
