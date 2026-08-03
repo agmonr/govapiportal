@@ -604,6 +604,13 @@ async function renderMap() {
   const blob = blobAvailable && state.heatBlob && isItmSpace ? HEAT_BLOBS[state.cityFilter] : null;
 
   const svg = el('cmSvg');
+  // Once the high-res raster (blob) is showing for the heat metric, the
+  // per-neighborhood choropleth fill is redundant - it's the same value at
+  // coarser granularity, sitting right on top of the pixel-accurate data.
+  // Suppressed instead of just made translucent, so only the raster and
+  // the neighborhood outlines/labels are visible - "the high-res heat map,
+  // not the old by-neighborhood one" together in one view.
+  const blobReplacesFill = !!blob && !isMultiMetric && activeMetricIds[0] === 'heat';
   const opacity = (state.osm && !el('cmBasemap').hidden) || blob ? '0.72' : '1';
   const titleFor = (e) => `${e.label} - ${activeMetricIds
     .map((id) => `${METRICS[id].label}: ${valueFor(e, id) != null ? num(valueFor(e, id)) + METRICS[id].unit : 'אין נתונים'}`)
@@ -614,13 +621,16 @@ async function renderMap() {
     // Multiple: the fill goes neutral and a bar glyph (drawn after all
     // shapes, see below) carries the values instead - a colored fill AND
     // bars on top would visually compete for the same city-shaped space.
-    const fill = isMultiMetric
+    const fill = blobReplacesFill
+      ? 'none'
+      : isMultiMetric
       ? 'var(--map-nodata)'
       : colorFor(valueFor(e, activeMetricIds[0]), ...domains[activeMetricIds[0]], METRICS[activeMetricIds[0]].colorVar);
+    const fillOpacity = blobReplacesFill ? '0' : opacity;
     const i = selectedIndex(e.key);
     const stroke = i !== -1 ? PICK_COLORS[i] : 'var(--bg)';
     const strokeWidth = i !== -1 ? '2.4' : '0.6';
-    return `<path d="${d}" fill="${fill}" fill-opacity="${opacity}" stroke="${stroke}" stroke-width="${strokeWidth}" data-key="${esc(e.key)}" tabindex="0" role="button" aria-pressed="${i !== -1}"><title>${esc(titleFor(e))}</title></path>`;
+    return `<path d="${d}" fill="${fill}" fill-opacity="${fillOpacity}" stroke="${stroke}" stroke-width="${strokeWidth}" data-key="${esc(e.key)}" tabindex="0" role="button" aria-pressed="${i !== -1}"><title>${esc(titleFor(e))}</title></path>`;
   }).join('');
   // Glyphs render after (on top of) every shape, positioned at each
   // city's own centroid (cityBBoxes() already computes one, reused here)
@@ -694,7 +704,15 @@ async function renderMap() {
     path.addEventListener('keydown', (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); pickSolo(entity); } });
   });
 
-  renderLegend(activeMetricIds, domains);
+  // The choropleth scale would describe a fill that isn't drawn any more
+  // (see blobReplacesFill above) - showing it would just be wrong, not
+  // merely redundant, since the raster's own colors follow a different
+  // (per-crop, median-relative) scale entirely (see cmBlobRow's own hint).
+  if (blobReplacesFill) {
+    el('cmLegend').innerHTML = '<span class="cm-legend-nodata">כתם החום מוצג לפי חציון האזור - אין סרגל צבע קבוע להשוואה</span>';
+  } else {
+    renderLegend(activeMetricIds, domains);
+  }
   el('cmHint').textContent = state.level === 'city'
     ? `${num(entities.length)} ערים - לחיצה בוחרת עיר, לחיצה כפולה או התקרבות מתקרבת לשכונות שלה`
     : (state.cityFilter ? `${num(entities.length)} שכונות ב${state.cityFilter} - לחיצה בוחרת שכונה אחת לצפייה בפרטים` : 'בחרו עיר כדי לראות את השכונות שלה');
