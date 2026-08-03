@@ -34,15 +34,26 @@ function linkifyChartCities(figId, entries) {
 initThemePicker(el('themePick'));
 loadAppsData().then((data) => renderAppContext(el('appContext'), data.apps, 'plan-compare')).catch(() => {});
 
-// Same gradient-of-one-color idiom as tree-canopy.js's PICK_COLORS - solid
-// accent for pick #1, fainter tints for #2-4, rather than four unrelated hues.
-const PICK_COLORS = [
-  'var(--accent)',
-  'color-mix(in srgb, var(--accent) 70%, var(--bg) 30%)',
-  'color-mix(in srgb, var(--accent) 45%, var(--bg) 55%)',
-  'color-mix(in srgb, var(--accent) 22%, var(--bg) 78%)',
-];
+// Four distinct hues (purple/blue/green/brown), not tints of one accent -
+// with up to 4 cities on screen at once (compare table, chart legend, size
+// bands), hue alone has to say "which city" at a glance, without needing to
+// also encode "how big a plan" (see bandCityColor below, which uses
+// lightness for that second axis instead).
+const PICK_COLORS = ['#8a5fbf', '#2ba8e0', '#2e7d46', '#a1725c'];
 const MAX_PICKS = 4;
+
+// Lighter for small plans, the city's full color for huge ones - so within
+// one city's own bars, lightness reads as "plan size" the same way hue reads
+// as "which city" across PICK_COLORS. Status colour like this "carries
+// meaning, not mood" (see style.css's zebra-theme comment for that exact
+// phrase) - left as real hues rather than run through a theme token, same
+// as PICK_COLORS itself.
+const SIZE_BAND_WHITE_PCT = { small: 65, medium: 40, big: 15, huge: 0 };
+function bandCityColor(base, band) {
+  const pct = SIZE_BAND_WHITE_PCT[band];
+  return pct ? `color-mix(in srgb, ${base} ${100 - pct}%, white ${pct}%)` : base;
+}
+const SIZE_BAND_SHORT = { small: 'קטנות', medium: 'בינוניות', big: 'גדולות', huge: 'ענקיות' };
 
 const state = { picks: [null, null, null, null], year: null };
 
@@ -298,61 +309,75 @@ function renderYearBreakdown(entries) {
     </details>`;
 }
 
-// One chart + table per plan-size band (see SIZE_BANDS/sizeBandOf in
-// plan-data.js) - same picked cities and median-days metric as the main
-// pcChart/pcTable above, just re-scoped to each city's plans whose
-// pl_area_dunam falls in that band, so a city that looks fast overall but
-// slow on its huge plans (or vice versa) shows up here rather than being
-// averaged away.
+// One combined grouped-bar chart across every plan-size band (see
+// SIZE_BANDS/sizeBandOf in plan-data.js) - one group per band, one bar per
+// picked city within each group (same "fin-chart-group" idiom as
+// renderYearStatsChart above, just grouped by band instead of year).
+// City hue comes from PICK_COLORS; band lightness comes from bandCityColor -
+// so a city that looks fast overall but slow on its huge plans (or vice
+// versa) shows up here rather than being averaged away, and its bars are
+// still identifiable as "that city" across all four groups.
+function renderSizeBandsChart(entries, statsByBand) {
+  const peak = Math.max(1, ...SIZE_BANDS.flatMap((band) => statsByBand[band].map((s) => s.medianDays ?? 0)));
+  const PLOT_PX = 150;
+  const groups = SIZE_BANDS.map((band) => `
+    <div class="fin-chart-group">
+      <div class="fin-chart-bars-wrap" style="block-size:${PLOT_PX}px">
+        <div class="fin-chart-bars">
+          ${entries.map((e, i) => {
+            const val = statsByBand[band][i].medianDays ?? 0;
+            const h = Math.round((val / peak) * PLOT_PX);
+            const color = bandCityColor(PICK_COLORS[i], band);
+            return `<div class="fin-chart-bar" style="block-size:${h}px;background:${color}" title="${esc(e.city)}, ${esc(sizeBandLabel(band))}: ${val ? `${num(val)} ימים` : 'אין נתונים'}"></div>`;
+          }).join('')}
+        </div>
+      </div>
+      <span class="fin-chart-y">${esc(SIZE_BAND_SHORT[band])}</span>
+    </div>`).join('');
+  el('pcSizeChart').innerHTML = `
+    <figcaption>חציון ימים, הגשה→אישור, לפי גודל תכנית</figcaption>
+    <div class="acc-legend">
+      ${entries.map((e, i) => `<span class="acc-legend-item"><span class="acc-legend-swatch" style="background:${PICK_COLORS[i]}"></span>${esc(e.city)}</span>`).join('')}
+    </div>
+    <div class="fin-chart-body"><div class="fin-chart-plot">${groups}</div></div>`;
+}
+
+function renderSizeBandsTable(entries, statsByBand) {
+  const rows = SIZE_BANDS.map((band) => `
+    <tr>
+      <td dir="auto">${esc(sizeBandLabel(band))}</td>
+      ${entries.map((e, i) => {
+        const s = statsByBand[band][i];
+        return `<td>${s.medianDays != null ? `${num(s.medianDays)} <span class="acc-hint">(ממוצע ${num(s.avgDays)}, n=${num(s.withTimeline)})</span>` : '—'}</td>`;
+      }).join('')}
+    </tr>`).join('');
+  el('pcSizeTable').innerHTML = `
+    <details class="fin-sheet">
+      <summary>טבלה לפי גודל תכנית</summary>
+      <div class="matrix-wrap">
+        <table class="matrix">
+          <thead><tr>
+            <th scope="col">גודל תכנית</th>
+            ${entries.map((e, i) => `<th scope="col"><span class="acc-legend-swatch" style="background:${PICK_COLORS[i]}"></span>${esc(e.city)}</th>`).join('')}
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </details>`;
+}
+
 function renderSizeBands(entries) {
   const section = el('pcSizeBandSection');
   if (!entries.length) { section.hidden = true; return; }
   section.hidden = false;
 
-  el('pcSizeBands').innerHTML = SIZE_BANDS.map((band) => `
-    <h3 dir="auto">${esc(sizeBandLabel(band))}</h3>
-    <figure id="pcSizeChart-${band}" class="acc-chart acc-chart-wide" role="img"></figure>
-    <div id="pcSizeTable-${band}"></div>`).join('');
-
+  const statsByBand = {};
   for (const band of SIZE_BANDS) {
-    const stats = entries.map((e, i) => ({
-      city: e.city,
-      color: PICK_COLORS[i],
-      ...summarizePlans(e.plans.filter((p) => sizeBandOf(p) === band)),
-    }));
-
-    const chartEntries = stats.map((s) => ({ label: s.city, value: s.medianDays ?? 0, color: s.color }));
-    renderHBarChart(`pcSizeChart-${band}`, `חציון ימים, הגשה→אישור — ${sizeBandLabel(band)}`, chartEntries, 'ימים');
-
-    const rows = stats.map((s) => `
-      <tr>
-        ${citySwatchCell(s.city, s.color)}
-        <td>${num(s.count)}</td>
-        <td>${num(s.withTimeline)}</td>
-        <td>${s.medianDays == null ? '—' : num(s.medianDays)}</td>
-        <td>${s.avgDays == null ? '—' : num(s.avgDays)}</td>
-        <td>${s.minDays == null ? '—' : num(s.minDays)}</td>
-        <td>${s.maxDays == null ? '—' : num(s.maxDays)}</td>
-      </tr>`).join('');
-    el(`pcSizeTable-${band}`).innerHTML = `
-      <details class="fin-sheet">
-        <summary>טבלה — ${esc(sizeBandLabel(band))}</summary>
-        <div class="matrix-wrap">
-          <table class="matrix">
-            <thead><tr>
-              <th scope="col">עיר</th>
-              <th scope="col">תכניות</th>
-              <th scope="col">עם משך זמן</th>
-              <th scope="col">חציון ימים</th>
-              <th scope="col">ממוצע ימים</th>
-              <th scope="col">מינימום</th>
-              <th scope="col">מקסימום</th>
-            </tr></thead>
-            <tbody>${rows}</tbody>
-          </table>
-        </div>
-      </details>`;
+    statsByBand[band] = entries.map((e) => summarizePlans(e.plans.filter((p) => sizeBandOf(p) === band)));
   }
+
+  renderSizeBandsChart(entries, statsByBand);
+  renderSizeBandsTable(entries, statsByBand);
 }
 
 function renderCompare() {
