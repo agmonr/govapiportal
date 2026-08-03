@@ -1831,14 +1831,29 @@ body.accidents-page header.site h1 { inline-size: 100%; }
    canvas share exactly one footprint, the canvas absolutely positioned
    behind the SVG rather than the two sitting in normal flow, so toggling
    the basemap on/off never reflows the shapes above it. */
-.cm-map-wrap { position: relative; max-inline-size: 45rem; margin-inline: auto; }
+.cm-map-wrap {
+  position: relative; max-inline-size: 45rem; margin-inline: auto;
+  border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
+}
 .cm-basemap { position: absolute; inset-block-start: 0; inset-inline-start: 0; inline-size: 100%; block-size: 100%; }
 /* The div itself is just a positioning wrapper - fetchBasemapCanvasWGS84's
    own <canvas> (with real width/height attributes already matching MAX_DIM)
    is appended into it at render time, not styled directly here. */
 .cm-basemap canvas { display: block; inline-size: 100%; block-size: 100%; border-radius: 6px; }
 .cm-svg {
-  display: block; inline-size: 100%; block-size: auto; position: relative;
+  /* Fixed aspect-ratio + a vh cap, NOT block-size:auto - Israel's own
+     bbox is ~1:2.9 (tall/narrow) while a picked city's is closer to 1:1,
+     so letting the box's own height track the current viewBox's intrinsic
+     ratio (the old block-size:auto) made it balloon to ~2900px tall on
+     the national view alone (measured directly) - most of the map sat
+     below the fold, with the header/search controls above and the legend/
+     compare controls below both scrolled out of reach. A fixed box plus
+     the SVG's own default preserveAspectRatio="xMidYMid meet" just
+     letterboxes whatever's being viewed inside it instead - the box
+     itself never resizes based on what's shown.
+  */
+  display: block; inline-size: 100%; aspect-ratio: 1 / 1; max-block-size: 65vh;
+  position: relative;
   cursor: grab;
   /* Claims wheel/pinch/drag gestures entirely for attachZoomPan's own
      pointer-event handling - without this, a mobile pinch would zoom the
@@ -1848,6 +1863,15 @@ body.accidents-page header.site h1 { inline-size: 100%; }
 .cm-svg:active { cursor: grabbing; }
 .cm-svg path { cursor: pointer; }
 .cm-svg path:hover, .cm-svg path:focus-visible { stroke: var(--fg); stroke-width: 1.4; outline: none; }
+/* Name labels (city/neighborhood) - font-size is set per-element in JS
+   (see updateLabels() in canopy-map.js), in the same meter-based user
+   units the shapes themselves use, so it always renders at a constant
+   on-screen px size regardless of current zoom. The halo behind the text
+   uses vector-effect="non-scaling-stroke" for the same reason stroke-width
+   here can just be a plain px value - that attribute keeps it a constant
+   screen-space width even though everything else in this SVG is scaled by
+   an arbitrary meters-to-pixels factor. */
+.cm-label { fill: var(--fg); font-weight: 600; paint-order: stroke; stroke: var(--bg); stroke-width: 3px; stroke-linejoin: round; }
 
 .cm-zoom-controls { position: absolute; inset-block-start: .5rem; inset-inline-end: .5rem; display: flex; flex-direction: column; gap: .25rem; }
 .cm-zoom-controls button {

@@ -300,6 +300,15 @@ function viewForCityZoom(name, paddingFrac = 0.25) {
 function drillIntoCity(cityName, priorView) {
   state.level = 'neighborhood';
   state.cityFilter = cityName;
+  // Neighborhood/street level color by the single state.layer, city level
+  // by state.cityLayers (1-3 at once, for the bar glyphs) - these are two
+  // separate fields that don't sync themselves, so without this a city
+  // viewed with (say) only "heat" active in cityLayers would drill into
+  // neighborhoods still showing whatever state.layer last was (originally
+  // "canopy", if the neighborhood level had never been visited this
+  // session) - a real bug reported directly as "zooming in on heat moves
+  // to canopy". Picks the most-recently-toggled active metric.
+  state.layer = state.cityLayers[state.cityLayers.length - 1] || state.layer;
   state.selected = [];
   state.view = { ...priorView }; // same rectangle of ITM space, now drawing neighborhoods instead - a continuation, not a jump
   syncUrl();
@@ -309,6 +318,11 @@ function drillIntoCity(cityName, priorView) {
 function drillOutToCity(priorView) {
   state.level = 'city';
   state.cityFilter = null;
+  // Same sync as drillIntoCity, in reverse - city level only ever reads
+  // state.cityLayers, so without this the map would silently fall back to
+  // whatever cityLayers was last set to (possibly the ['canopy'] default)
+  // instead of the metric just being viewed at neighborhood level.
+  state.cityLayers = [state.layer];
   state.selected = [];
   state.view = { ...priorView };
   syncUrl();
@@ -398,6 +412,37 @@ function glyphMarkup(entity, metricIds, domains) {
   // shape underneath (same select/tooltip behavior as clicking anywhere
   // else on that city), not a second, separate interaction target.
   return `<g pointer-events="none">${bars}</g>`;
+}
+
+/* ---------- name labels (city/neighborhood) - shown only once a shape is
+   big enough on screen to fit its name legibly, updated live as the user
+   zooms/pans (see updateLabels, called from attachZoomPan's onChange). ---- */
+
+const LABEL_MIN_PX = 26; // the shape's own smaller bbox dimension must render at least this big first
+const LABEL_FONT_PX = 12; // desired ON-SCREEN size, independent of current zoom
+
+function entityLabelMarkup(e) {
+  const [xmin, ymin, xmax, ymax] = bboxOfRingsList([e.rings]);
+  const cx = (xmin + xmax) / 2;
+  const cy = -(ymin + ymax) / 2; // Y-flipped, same convention projectItm/cityBBoxes use
+  const minDim = Math.min(xmax - xmin, ymax - ymin);
+  return `<text class="cm-label" x="${cx.toFixed(1)}" y="${cy.toFixed(1)}" data-min="${minDim.toFixed(1)}" text-anchor="middle" dominant-baseline="middle" pointer-events="none">${esc(e.label)}</text>`;
+}
+
+// scale = screen px per meter, matching preserveAspectRatio="xMidYMid meet"'s
+// own (smaller-of-the-two-axes) fit - the same reason a city's roughly-
+// square bbox never fills 100% of the national view's tall/narrow one (see
+// overlapArea's own comment on this).
+function updateLabels(svg, view) {
+  const rect = svg.getBoundingClientRect();
+  if (!rect.width || !rect.height || !view || !view.w || !view.h) return;
+  const scale = Math.min(rect.width / view.w, rect.height / view.h);
+  const fontSize = LABEL_FONT_PX / scale; // constant on-screen size at any zoom level
+  svg.querySelectorAll('.cm-label').forEach((el) => {
+    const visible = Number(el.dataset.min) * scale >= LABEL_MIN_PX;
+    el.style.display = visible ? '' : 'none';
+    if (visible) el.setAttribute('font-size', fontSize.toFixed(2));
+  });
 }
 
 /* ---------- selection: at most 1 entry from map clicks (city/neighborhood
@@ -590,7 +635,12 @@ async function renderMap() {
   const blobImage = blob
     ? `<image href="${esc(blob.src)}" x="${blob.x}" y="${blob.y}" width="${blob.w}" height="${blob.h}" preserveAspectRatio="none" pointer-events="none" />`
     : '';
-  svg.innerHTML = blobImage + paths + glyphs;
+  // Only in ITM/flat space - OSM mode projects through a different (WGS84
+  // lon/lat -> its own fixed pixel space) function entirely, so a label
+  // positioned from the entity's raw ITM bbox would land nowhere near its
+  // actual OSM-mode shape.
+  const labels = isItmSpace ? entities.map(entityLabelMarkup).join('') : '';
+  svg.innerHTML = blobImage + paths + glyphs + labels;
 
   // svg (#cmSvg) is a persistent element - only its innerHTML/viewBox get
   // replaced each render, not the element itself - so the PREVIOUS
@@ -603,6 +653,7 @@ async function renderMap() {
     onChange: (v) => {
       state.view = v;
       syncUrlDebounced();
+      updateLabels(svg, v);
       if (!isItmSpace) return; // OSM's pixel space isn't comparable to cityBBoxes() at all
       if (cityLevelAtAttach) {
         const target = findDrillInTarget(v);
@@ -613,6 +664,7 @@ async function renderMap() {
     },
   });
   currentZoomPan = zoomPan;
+  updateLabels(svg, state.view || viewBox);
   el('cmZoomIn').onclick = () => zoomPan.zoomIn();
   el('cmZoomOut').onclick = () => zoomPan.zoomOut();
   el('cmZoomReset').onclick = () => { zoomPan.reset(); state.view = null; syncUrl(); };
@@ -620,26 +672,31 @@ async function renderMap() {
   svg.querySelectorAll('path[data-key]').forEach((path) => {
     const entity = entities.find((x) => x.key === path.dataset.key);
     if (!entity) return;
-    const go = () => {
+    // A single click always just selects (pickSolo) at every level,
+    // including city - it shows the name + detail bars without leaving the
+    // current view. Zooming/drilling into a city's neighborhoods is its
+    // own, separate, deliberate action: either a double-click on it, or
+    // scrolling/pinching in far enough on your own (see
+    // findDrillInTarget's own DRILL_IN_FRACTION). A single click used to
+    // also drill immediately, but that made double-click impossible to
+    // land at all - the drill already switched the view (and what's under
+    // the cursor) before the 2nd click of the pair ever landed on it.
+    path.addEventListener('click', () => {
       if (zoomPan.isDragging()) return;
-      if (state.level === 'city') {
-        // City level has no click-select state at all any more - a click
-        // always zooms/drills straight into that city's neighborhoods (see
-        // viewForCityZoom/drillIntoCity), which itself clears state.selected
-        // - there is nothing left to "select and show a chip for" once
-        // you've drilled in.
-        const view = viewForCityZoom(entity.key);
-        if (view) { drillIntoCity(entity.key, view); return; }
-      }
       pickSolo(entity);
-    };
-    path.addEventListener('click', go);
-    path.addEventListener('keydown', (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); go(); } });
+    });
+    path.addEventListener('dblclick', (ev) => {
+      ev.preventDefault();
+      if (state.level !== 'city') return;
+      const view = viewForCityZoom(entity.key);
+      if (view) drillIntoCity(entity.key, view);
+    });
+    path.addEventListener('keydown', (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); pickSolo(entity); } });
   });
 
   renderLegend(activeMetricIds, domains);
   el('cmHint').textContent = state.level === 'city'
-    ? `${num(entities.length)} ערים - לחיצה מזהה ומתקרבת לשכונות העיר`
+    ? `${num(entities.length)} ערים - לחיצה בוחרת עיר, לחיצה כפולה או התקרבות מתקרבת לשכונות שלה`
     : (state.cityFilter ? `${num(entities.length)} שכונות ב${state.cityFilter} - לחיצה בוחרת שכונה אחת לצפייה בפרטים` : 'בחרו עיר כדי לראות את השכונות שלה');
 }
 
@@ -767,8 +824,17 @@ function renderAll() {
 
 document.querySelectorAll('.cm-level-btn').forEach((btn) => {
   btn.addEventListener('click', () => {
-    if (state.level === btn.dataset.level) return;
-    state.level = btn.dataset.level;
+    const nextLevel = btn.dataset.level;
+    if (state.level === nextLevel) return;
+    // Same state.layer <-> state.cityLayers sync as drillIntoCity/
+    // drillOutToCity - switching level via these tabs is another path
+    // between the two, and needs the same fix for the same reason.
+    if (state.level === 'city' && nextLevel !== 'city') {
+      state.layer = state.cityLayers[state.cityLayers.length - 1] || state.layer;
+    } else if (state.level !== 'city' && nextLevel === 'city') {
+      state.cityLayers = [state.layer];
+    }
+    state.level = nextLevel;
     state.cityFilter = null;
     state.selected = [];
     state.view = null;
