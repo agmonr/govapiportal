@@ -49,6 +49,10 @@ TIMEOUT = 25
 ATTEMPTS = 3          # a single failure is usually the network, not the API
 PAUSE = 0.7           # be a polite guest on someone else's servers
 
+# Load-shedding, not a changed contract - see transient() for why these four
+# and not every 5xx.
+TRANSIENT = {429, 502, 503, 504}
+
 
 def family(value: str) -> str:
     """Coarse content family. Recorded formats are prose ('XML (SDMX)'), so
@@ -78,20 +82,39 @@ def probe_once(api: dict) -> dict:
     Honours a per-API `timeout`: GovMap's WFS attribute filters are unindexed
     over 1.1M parcels and measured at 12-40s, so the default would report a
     healthy endpoint as unreachable every week.
+
+    Honours a per-API `probe: {headers, body}`: not every endpoint answers the
+    default shape. The recorded status describes the call that actually works,
+    so a probe that cannot make that call is not measuring drift, it is
+    measuring its own defaults - see the note on `probe` in the README.
     """
+    shape = api.get("probe") or {}
+
+    headers = {
+        "User-Agent": UA,
+        "Accept": "application/json, application/xml;q=0.9, */*;q=0.8",
+        # Server-side CORS check: without an Origin, most servers omit the
+        # header entirely and every API would look browser-hostile.
+        "Origin": ORIGIN,
+    }
+    # Entry-supplied headers win, but Origin is not negotiable - it is the one
+    # header this whole map turns on.
+    headers.update(shape.get("headers") or {})
+    headers["Origin"] = ORIGIN
+
+    body = shape.get("body")
+    if body is not None:
+        data = body.encode("utf-8")
+    else:
+        # Nadlan's endpoint is a POST search; an empty body is what the original
+        # probe sent and what the recorded 200 describes.
+        data = b"" if api.get("method") == "POST" else None
+
     req = urllib.request.Request(
         probe_url(api),
         method=api.get("method", "GET"),
-        # Nadlan's endpoint is a POST search; an empty body is what the original
-        # probe sent and what the recorded 200 describes.
-        data=b"" if api.get("method") == "POST" else None,
-        headers={
-            "User-Agent": UA,
-            "Accept": "application/json, application/xml;q=0.9, */*;q=0.8",
-            # Server-side CORS check: without an Origin, most servers omit the
-            # header entirely and every API would look browser-hostile.
-            "Origin": ORIGIN,
-        },
+        data=data,
+        headers=headers,
     )
     try:
         with urllib.request.urlopen(req, timeout=api.get("timeout", TIMEOUT)) as res:
@@ -118,12 +141,29 @@ def probe_once(api: dict) -> dict:
                 "error": type(e).__name__ + ": " + str(getattr(e, "reason", e))[:120]}
 
 
+def transient(api: dict, got: dict) -> bool:
+    """Is this status the server saying 'not now' rather than 'not this'?
+
+    An HTTP status is normally an answer, and retrying it would just mean
+    asking a question we already got a reply to. These four are the exception:
+    they carry no information about the contract, only about capacity at this
+    instant. Overpass's own entry in apis.json says so in its notes - 504 under
+    load was hit on 3 of 6 attempts when the entry was written - and the prober
+    was reporting that documented, expected condition as a contract change
+    every week.
+
+    Only when it DIFFERS from what is recorded. An endpoint recorded as 503 is
+    matched by a 503, and retrying it would be the same mistake in reverse:
+    hiding a recorded fact behind a retry until one attempt disagrees.
+    """
+    return got["status"] in TRANSIENT and got["status"] != api["status"]
+
+
 def probe(api: dict) -> dict:
-    """Retry only unreachability. An HTTP status is an answer - retrying it
-    would just mean asking a question we already got a reply to."""
+    """Retry unreachability and transient throttling - nothing else."""
     result = probe_once(api)
     for attempt in range(2, ATTEMPTS + 1):
-        if result["error"] is None:
+        if result["error"] is None and not transient(api, result):
             break
         time.sleep(PAUSE * attempt)
         result = probe_once(api)

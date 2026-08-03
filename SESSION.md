@@ -625,6 +625,55 @@ The abandoned mockup (light-blue accent `#0f96bd`, dark-mode `#5cc9ea` — only
 `--accent` overridden, following the accidents/committees/finance per-page
 pattern) is not in the repo; it was a Claude-side Artifact, not a commit.
 
+## 2026-08-02
+
+### The weekly prober was crying wolf — all three "drifts" were its own
+
+Issue #2 reported three drifts. Re-probed every one by hand from a normal
+Israeli connection, per the instruction the report itself prints. **None was a
+contract change.** Two of them were already explained by the `notes` field of
+the very entry being probed, which is the part worth remembering: the map knew,
+and the tool checking the map did not.
+
+| Reported | Hand-probe (2026-08-02) |
+|---|---|
+| GovMap catalog `400 → 200`, `json → html` | **400, `application/json`, `{"error":"access denied"}`** — exactly as recorded. CloudFront POP `TLV55-P2`. The runner's 200/HTML is a datacentre-IP artefact, the same class of thing already documented for data.gov.il's WAF. Nothing to change. |
+| Overpass `200 → 504` | **200 in 2.0s.** The entry's own notes: *"מופע ציבורי עמוס … ו-504 תחת עומס הוא שגרה (3 מתוך 6 ניסיונות בבדיקה) — כדאי פשוט לנסות שוב."* The prober was filing a documented, expected condition as a contract change. |
+| MCP `200 → 400`, CORS lost | The entry's own notes: needs `Accept: text/event-stream` and an `initialize` handshake. `probe.py` sent an empty POST body with `Accept: application/json` → 400. Shaped correctly: **200 `text/event-stream`**, full handshake, `BudgetKey 3.4.5`. |
+
+Fixed in the prober rather than in the map, because the map was right:
+
+- **`probe: {headers, body}`** per entry. The recorded status describes the call
+  that works; an entry that needs a non-default call now carries it. `Origin` is
+  re-forced after the merge — an entry must not be able to disable the CORS
+  check by supplying its own headers.
+- **`429/502/503/504` retried** before being called drift, and only when they
+  differ from the recorded status (an endpoint recorded as 503 is still matched
+  by a 503). A 504 surviving all three attempts is still reported. `403` and
+  `500` stay answers, never retried.
+
+Full probe after the fix: **24 probed, 2 skipped, 0 drifted.**
+
+### One thing genuinely learned: the MCP server's CORS is now known, not unknown
+
+`cors` was `"unknown"`. Against a correctly-shaped request the successful
+response carries **no `access-control-allow-origin` at all**, and an `OPTIONS`
+preflight returns **405** (`allow: GET, POST, DELETE`). So it is now recorded as
+`null` — tested and ruled out, rather than never established. That moves the
+entry from `מוגבל` to `שרת בלבד`, which is the honest bucket: it fails from a
+static page because of CORS, not because its contract is unresolved.
+
+Also counted off the same handshake: **10 datasets, not 8** — `government_
+decisions_data` and `social_services_data` were added upstream since the entry
+was written.
+
+**Still stale, deliberately left alone:** the README's verdict table under *"The
+finding that drives the whole thing"* still says *"Of 16 entries, 8 are
+browser-callable"*. The real figures are 26 entries — 17 browser, 4 server-only,
+2 limited, 2 not identified, 1 blocked. Left for the author rather than
+rewritten in a drive-by, since that section is curated prose, not a generated
+table.
+
 ## 2026-08-03
 
 ### `plan-timeline.html` / `plan-compare.html`: building-plan duration, הגשה→אישור
@@ -751,3 +800,4 @@ times (city→plan in plan-timeline, plan→timeline in both files) otherwise.
    pick inputs (not touched here - out of scope for this session, but worth
    knowing the pattern is shared if an expandable row is ever added there
    too).
+
