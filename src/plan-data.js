@@ -109,7 +109,18 @@ export async function fetchPlans(where, onProgress) {
   const cacheKey = CACHE_PREFIX + where;
   try {
     const cached = sessionStorage.getItem(cacheKey);
-    if (cached) return JSON.parse(cached);
+    // An empty cached array is never a legitimate result for the broad
+    // queries this is actually called with (every plan, or every approved
+    // plan) - only ever seen from a fetch that silently swallowed a server
+    // outage as "zero results" (a real bug, since fixed - see fetchPage's
+    // {status:"error"} handling above). Treating [] as "not really cached"
+    // means a browser tab that got poisoned by that old bug during an
+    // outage self-heals on the next load instead of being stuck showing
+    // nothing until the tab closes and sessionStorage clears itself.
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      if (parsed.length) return parsed;
+    }
   } catch { /* private mode / storage full - just refetch */ }
 
   const plans = [];
@@ -123,7 +134,11 @@ export async function fetchPlans(where, onProgress) {
     offset += feats.length;
   }
 
-  try { sessionStorage.setItem(cacheKey, JSON.stringify(plans)); } catch { /* too large for storage - fine, just not cached */ }
+  // Same reasoning as the read side above: don't write a result that would
+  // only poison a future load.
+  if (plans.length) {
+    try { sessionStorage.setItem(cacheKey, JSON.stringify(plans)); } catch { /* too large for storage - fine, just not cached */ }
+  }
   return plans;
 }
 
