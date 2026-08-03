@@ -201,6 +201,28 @@ TARGETS = [
         ],
         "data": True,
     },
+    {
+        "html": "plan-timeline.html",
+        "out": "dist/plan-timeline.html",
+        "entry": "src/plan-timeline.js",
+        # Talks to iplan's Xplan MapServer directly, live (paginated
+        # resultOffset query, see plan-data.js) - no shared portal.js
+        # machinery. apis.json is only for apps.js's under-header category
+        # strip.
+        "sources": ["src/ui.js", "src/theme.js", "src/plan-data.js", "src/apps.js", "src/plan-timeline.js"],
+        "data": True,
+    },
+    {
+        "html": "plan-compare.html",
+        "out": "dist/plan-compare.html",
+        "entry": "src/plan-compare.js",
+        # Same plan-data.js fetch as plan-timeline.html, this time grouped
+        # into tree-canopy.js's compare-up-to-4-entities idiom. charts.js for
+        # the leaderboard bar + swatch coloring. apis.json is only for
+        # apps.js's under-header category strip.
+        "sources": ["src/ui.js", "src/theme.js", "src/charts.js", "src/plan-data.js", "src/apps.js", "src/plan-compare.js"],
+        "data": True,
+    },
 ]
 
 IMPORT_RE = re.compile(r"^\s*import\s.*?;\s*$", re.M)

@@ -2203,6 +2203,66 @@ function saveCsv(text, name) {
   setTimeout(() => URL.revokeObjectURL(href), 10000);
 }
 
+/* ---------- a real .xls, for pages where "export to Excel" needs to be more
+ * than a renamed CSV (hyperlink cells, a sheet name Excel shows on the tab) -
+ * SpreadsheetML 2003 XML, which Excel opens natively with no ZIP/OOXML and no
+ * bundled library. `headers`: string[]. `records`: array of row-objects keyed
+ * by header. A header/value that IS an {href, text} object becomes a real
+ * =HYPERLINK() formula cell instead of plain text - used for a plan's own
+ * pl_url link in its exported row. */
+function xlsEscape(s) {
+  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// Same as xlsEscape, plus quotes - needed wherever the escaped text lands
+// inside a double-quoted XML *attribute* (ss:Formula="...") rather than
+// element content, since a raw '"' there would close the attribute early
+// and corrupt the XML (Excel's own doubled-"" quoting inside the formula
+// text is a separate, inner escaping step - this is the outer XML one).
+function xlsAttrEscape(s) {
+  return xlsEscape(s).replace(/"/g, '&quot;');
+}
+
+function xlsCell(v) {
+  if (v && typeof v === 'object' && 'href' in v) {
+    const formula = `HYPERLINK("${String(v.href).replace(/"/g, '""')}","${String(v.text ?? v.href).replace(/"/g, '""')}")`;
+    return `<Cell ss:Formula="=${xlsAttrEscape(formula)}"><Data ss:Type="String">${xlsEscape(v.text ?? v.href)}</Data></Cell>`;
+  }
+  const isNum = typeof v === 'number' && Number.isFinite(v);
+  return `<Cell><Data ss:Type="${isNum ? 'Number' : 'String'}">${xlsEscape(isNum ? v : (v ?? ''))}</Data></Cell>`;
+}
+
+function buildXlsBlob(sheetName, headers, records) {
+  const row = (cells) => `<Row>${cells.join('')}</Row>`;
+  const headerRow = row(headers.map((h) => xlsCell(h)));
+  const dataRows = records.map((r) => row(headers.map((h) => xlsCell(r[h])))).join('');
+  const xml = `<?xml version="1.0"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:o="urn:schemas-microsoft-com:office:office"
+ xmlns:x="urn:schemas-microsoft-com:office:excel"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
+ <Worksheet ss:Name="${xlsEscape(sheetName).slice(0, 31)}">
+  <Table>
+   ${headerRow}
+   ${dataRows}
+  </Table>
+ </Worksheet>
+</Workbook>`;
+  return new Blob([xml], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+}
+
+function saveXls(sheetName, headers, records, filename) {
+  const href = URL.createObjectURL(buildXlsBlob(sheetName, headers, records));
+  const a = document.createElement('a');
+  a.href = href;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(href), 10000);
+}
+
 /**
  * The theme picker. Three looks, labeled יום/לילה/זברה in the markup: "clouds"
  * (יום, default, unset data-theme), "fashion" (לילה, opt-in black/gold - see

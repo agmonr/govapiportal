@@ -38,6 +38,8 @@ export const APP_ICON = {
   companies: '🏢', welfare: '🤝', budgetkey: '🔑', 'blue-lines': '🚇', 'area-cleanup': '🧹',
   'tree-canopy': '<span class="tc-icon">🌳<span class="tc-icon-badge">🏠</span></span>',
   'tree-plans': '🌳<span class="icon-small">📋</span>',
+  'plan-timeline': '📋<span class="icon-small">⏱️</span>',
+  'plan-compare': '📋<span class="icon-small">⚖️</span>',
   'trip-report': '🚗<span class="icon-small">🎯</span>',
   'yeela-signup': '🔔',
   'report-pit': '🌳<span class="icon-small">🕳️</span>',

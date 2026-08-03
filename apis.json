@@ -41,6 +41,30 @@
       "category_he": "הבית והשכונה שלי"
     },
     {
+      "id": "plan-timeline",
+      "name": "Building Plan Duration — Submission to Approval",
+      "name_he": "כמה זמן לוקח לתכנית להתאשר?",
+      "kind": "אפליקציה",
+      "about": "כמה זמן עוברת תכנית בנייה מהגשתה ועד אישורה (פרסום ברשומות), לפי יישוב - מבדיקת יעילות ועדות התכנון (בדומה לדוח הישיבות של committees.html כאן), הפעם דרך שכבת Xplan של מנהל התכנון ותשעת שדות התאריך האמיתיים שהיא חושפת לכל תכנית (הגשה, עמידה בתנאי סף, הפקדה, פרסום, התנגדויות, טיפול באישור ופרסום ברשומות) - לא רק סטטוס נוכחי. צלילה פנימה לכל תכנית מציגה את ציר הזמן המלא שלה שלב-אחר-שלב, והורדת Excel מפורטת (כל התאריכים, לא רק הסיכום) מאפשרת ניתוח חיצוני.",
+      "href": "./plan-timeline.html",
+      "external": false,
+      "home": "https://ags.iplan.gov.il/xplan/",
+      "category": "money",
+      "category_he": "כסף וממשל מקומי"
+    },
+    {
+      "id": "plan-compare",
+      "name": "Building Plan Duration — Compare up to 4 Cities",
+      "name_he": "השוואת ערים — משך זמן הגשה עד אישור",
+      "kind": "אפליקציה",
+      "about": "השוואת עד 4 יישובים בבת אחת על משך הזמן מהגשת תכנית ועד אישורה, כולל פירוט ממוצע הימים לכל קטע בצינור התכנון - אותו נתון כמו כמה זמן לוקח לתכנית להתאשר, בממשק השוואה של עד 4 (כמו האינדקס הירוק לרחוב שלי), לא טבלה אחת ארוכה.",
+      "href": "./plan-compare.html",
+      "external": false,
+      "home": "https://ags.iplan.gov.il/xplan/",
+      "category": "money",
+      "category_he": "כסף וממשל מקומי"
+    },
+    {
       "id": "agriculture",
       "name": "Ministry of Agriculture Open Data (ArcGIS Hub)",
       "name_he": "משרד החקלאות — אתר מידע גיאוגרפי פתוח",
@@ -643,7 +667,7 @@
       "format": "JSON",
       "status": 200,
       "domain": "planning",
-      "notes": "גבולות תכניות בנייה. מחזיר מספר תכנית, שם, שטח בדונם, ייעודי קרקע, ועדה, תאריכי הפקדה/פרסום, ו-pl_url למסמכים במבא\"ת. תומך שאילתת נקודה (esriGeometryPoint) ושאילתות attribute. מחזיר את ה-Origin המבקש בכותרת CORS ולא '*'.",
+      "notes": "גבולות תכניות בנייה. מחזיר מספר תכנית, שם, שטח בדונם, ייעודי קרקע, ועדה, ו-pl_url למסמכים במבא\"ת. תומך שאילתת נקודה (esriGeometryPoint) ושאילתות attribute. מחזיר את ה-Origin המבקש בכותרת CORS ולא '*'. כולל גם תשעה שדות תאריך אמיתיים לאורך חיי התכנית (לא רק תאריך אחד) - receiving_date (הגשה), date_saf, depositing_date, pl_date_advertise, pl_rejection_date, on_hold_date, pl_date7, open_date, ו-pl_date_8 (פרסום ברשומות - האישור הסופי) - המשמשים את plan-timeline.html/plan-compare.html לחישוב משך זמן הגשה→אישור אמיתי, ישירות משאילתה חיה אחת, בלי צורך בסנפשוט היסטורי.",
       "example": "https://ags.iplan.gov.il/arcgisiplan/rest/services/PlanningPublic/Xplan/MapServer/1/query?where=jurstiction_area_name%3D%27%D7%A8%D7%A2%D7%A0%D7%A0%D7%94%27&outFields=pl_number%2Cpl_name&returnGeometry=false&resultRecordCount=3&f=json",
       "portal": "iplan"
     },

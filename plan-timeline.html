@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>כמה זמן לוקח לתכנית להתאשר? — הגשה עד אישור</title>
+  <!-- Sets data-theme before the stylesheet is applied, so a returning
+       visitor who picked "fashion" never sees a flash of the clouds theme
+       first. See src/theme.js for the picker itself. -->
+  <script>
+    try {
+      var t = localStorage.getItem('theme');
+      if (t && t !== 'clouds') document.documentElement.setAttribute('data-theme', t);
+    } catch (e) {}
+  </script>
+  <link rel="stylesheet" href="./src/style.css">
+</head>
+<body class="plan-timeline-page">
+  <header class="site">
+    <div class="wrap">
+      <h1>כמה זמן לוקח לתכנית להתאשר?</h1>
+      <span class="site-by">פרויקט של רם אגמון<span class="site-disclaimer">המידע באתר עלול להיות שגוי</span><a href="https://hod-hasharon.org/" target="_blank" rel="noopener">הירוקים הוד השרון</a></span>
+      <div class="theme-pick" id="themePick" role="group" aria-label="ערכת נושא">
+        <button type="button" data-theme="clouds">☀️<span class="theme-btn-label"> יום</span></button>
+        <button type="button" data-theme="fashion">🌙<span class="theme-btn-label"> לילה</span></button>
+        <button type="button" data-theme="zebra">🦓<span class="theme-btn-label"> זברה</span></button>
+      </div>
+      <span class="meta"><a href="./index.html">← חזרה למפת ה-API</a></span>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <div id="fileproto" class="notice error" dir="auto" hidden>
+      <strong>הדף נפתח כקובץ מקומי (<code dir="ltr">file://</code>) ולכן אינו יכול לטעון את הנתונים.</strong>
+      <p>
+        הדפדפן חוסם מודולי ES ממקור <code dir="ltr">null</code> — זו הגבלת אבטחה של הדפדפן, לא תקלה באתר.
+        הפעל שרת מקומי מתיקיית הפרויקט:
+      </p>
+      <pre dir="ltr"><code>python3 -m http.server 8000</code></pre>
+      <p>ולאחר מכן פתח <a href="http://localhost:8000/plan-timeline.html" dir="ltr">http://localhost:8000/plan-timeline.html</a>.</p>
+    </div>
+
+    <div id="app">
+      <div id="appContext" class="app-context"></div>
+
+      <details class="notice info" dir="auto">
+        <summary><strong>מה יש כאן, ומה המקור</strong></summary>
+        <p>
+          כמה זמן עוברת תכנית בנייה (תוכנית) מרגע <strong>הגשתה</strong> ועד <strong>אישורה</strong> (פרסום ברשומות) -
+          לפי שכבת התכניות (Xplan) של <strong>מנהל התכנון</strong>, אותה שכבה המשמשת גם את
+          <a href="./blue-lines.html">בדיקת הקווים הכחולים</a> באתר הזה. לכל תכנית יש עד תשעה שדות תאריך אמיתיים -
+          הגשה, עמידה בתנאי סף, דיון בהפקדה, פרסום בעיתונים, מועד אחרון להתנגדויות, תחילת/סיום טיפול באישור,
+          דיון באישור ופרסום ברשומות - לא רק סטטוס נוכחי אחד, אלא ציר זמן שלב-אחר-שלב לכל תכנית בנפרד.
+        </p>
+        <p>
+          <strong>לא כל שדה מלא בכל תכנית:</strong> כ-90% מהתכניות שכבר אושרו כוללות גם תאריך הגשה וגם תאריך פרסום
+          ברשומות (ומכאן משך זמן מלא מחושב) - השאר, וכל תכנית שעדיין בתהליך, מוצגות עם ציר הזמן החלקי שכן קיים
+          עבורן, בלי להשלים תאריכים חסרים בניחוש.
+        </p>
+      </details>
+
+      <section class="acc-section" aria-labelledby="statsH">
+        <h2 id="statsH">סיכום</h2>
+        <div id="ptStats" class="stat-row"></div>
+      </section>
+
+      <section class="acc-section" aria-labelledby="filtersH">
+        <h2 id="filtersH">סינון</h2>
+        <div class="cm-filters" id="ptStatusPick" role="group" aria-label="סטטוס">
+          <button type="button" data-status="approved" class="tc-level-btn">אושרו (עם משך זמן)</button>
+          <button type="button" data-status="progress" class="tc-level-btn">בתהליך</button>
+          <button type="button" data-status="all" class="tc-level-btn">הכול</button>
+        </div>
+        <div class="cm-filters">
+          <div class="acc-year-pick">
+            <label for="ptCityFilter">עיר/יישוב:</label>
+            <input id="ptCityFilter" type="text" list="ptCityRoster" autocomplete="off" spellcheck="false"
+                   placeholder="כל היישובים…">
+          </div>
+        </div>
+        <datalist id="ptCityRoster"></datalist>
+        <p class="acc-hint" id="ptLoading" dir="auto">טוען תכניות…</p>
+      </section>
+
+      <section class="acc-section" aria-labelledby="citiesH">
+        <h2 id="citiesH">משך זמן לפי יישוב</h2>
+        <p class="acc-hint" dir="auto">לחצו על שורת יישוב כדי לראות את התכניות שלו; לחצו על תכנית כדי לראות את ציר הזמן שלה שלב-אחר-שלב.</p>
+        <div id="ptCityTable"></div>
+      </section>
+
+      <section class="acc-section" aria-labelledby="exportH">
+        <h2 id="exportH">הורדת נתונים לניתוח חיצוני</h2>
+        <p class="acc-hint" dir="auto">קובץ מפורט, שורה אחת לכל תכנית - כל תאריכי הציר, משך הזמן הכולל, סטטוס, יישוב, ועדה, שטח וקישור לתכנית.</p>
+        <div class="fin-export-row">
+          <button type="button" id="ptXlsAll" class="drill-dl">הורדת Excel מפורט — כל התכניות המסוננות ⭳</button>
+          <button type="button" id="ptCsvCities" class="drill-dl">הורדת CSV — טבלת היישובים ⭳</button>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!--
+    Same guard as index.html/welfare.html: opened from disk nothing below can
+    load, because ES module scripts are refused from origin 'null'. Must be a
+    classic inline script - a module would be the first thing blocked.
+  -->
+  <script>
+    if (location.protocol === 'file:') {
+      document.getElementById('fileproto').hidden = false;
+      document.getElementById('app').hidden = true;
+    }
+  </script>
+  <script type="module" src="./src/plan-timeline.js"></script>
+</body>
+</html>
