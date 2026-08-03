@@ -151,6 +151,18 @@ TARGETS = [
         "data": True,
     },
     {
+        "html": "canopy-split.html",
+        "out": "dist/canopy-split.html",
+        "entry": "src/canopy-split.js",
+        # Pure aggregation of tree-canopy.html's own three tables - see
+        # tools/canopy_split_build.py. apis.json is only for apps.js's
+        # under-header category strip.
+        "sources": ["src/ui.js", "src/theme.js", "src/charts.js",
+                    "src/canopy-split-cities.js", "src/canopy-split-neighborhoods.js",
+                    "src/apps.js", "src/canopy-split.js"],
+        "data": True,
+    },
+    {
         "html": "welfare.html",
         "out": "dist/welfare.html",
         "entry": "src/welfare.js",

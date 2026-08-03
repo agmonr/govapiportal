@@ -29,6 +29,19 @@
       "category_he": "הבית והשכונה שלי"
     },
     {
+      "id": "canopy-split",
+      "name": "Tree Canopy — Public Street vs. Private Land Split",
+      "name_he": "עצים ציבוריים מול פרטיים",
+      "kind": "אפליקציה",
+      "about": "פילוח של האינדקס הירוק לרחוב שלי: לא מקור נתונים חדש, אלא חיבור - לכל עיר ושכונה, כמה מכיסוי החופה הכולל שלה יושב על הרצועה הציבורית לצד רחוב (7.5 מ' מהציר, אותו חישוב מרמת ה'רחוב') וכמה בכל שאר השטח (בעיקר גינות וחצרות פרטיות, לפי חיסור). שני מספרים חדשים לכל עיר/שכונה, מעל 186 הערים ו-1,281 השכונות שכבר קיימות שם.",
+      "href": "./canopy-split.html",
+      "external": false,
+      "home": "https://data.gov.il/dataset/nationalcanopytrees",
+      "computed_at": "2026-08-03T14:45+03:00",
+      "category": "home",
+      "category_he": "הבית והשכונה שלי"
+    },
+    {
       "id": "heat-islands",
       "name": "Urban Heat Islands — City / Neighborhood / Street Comparison",
       "name_he": "איי חום עירוניים",
