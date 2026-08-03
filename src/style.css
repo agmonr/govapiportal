@@ -1837,9 +1837,24 @@ body.accidents-page header.site h1 { inline-size: 100%; }
    own <canvas> (with real width/height attributes already matching MAX_DIM)
    is appended into it at render time, not styled directly here. */
 .cm-basemap canvas { display: block; inline-size: 100%; block-size: 100%; border-radius: 6px; }
-.cm-svg { display: block; inline-size: 100%; block-size: auto; position: relative; }
+.cm-svg {
+  display: block; inline-size: 100%; block-size: auto; position: relative;
+  cursor: grab;
+  /* Claims wheel/pinch/drag gestures entirely for attachZoomPan's own
+     pointer-event handling - without this, a mobile pinch would zoom the
+     whole page instead of just the map. */
+  touch-action: none;
+}
+.cm-svg:active { cursor: grabbing; }
 .cm-svg path { cursor: pointer; }
 .cm-svg path:hover, .cm-svg path:focus-visible { stroke: var(--fg); stroke-width: 1.4; outline: none; }
+
+.cm-zoom-controls { position: absolute; inset-block-start: .5rem; inset-inline-end: .5rem; display: flex; flex-direction: column; gap: .25rem; }
+.cm-zoom-controls button {
+  inline-size: 2rem; block-size: 2rem; border-radius: 6px; border: 1px solid var(--border);
+  background: var(--card); color: var(--fg); font-size: 1.1rem; line-height: 1; cursor: pointer;
+}
+.cm-zoom-controls button:hover { border-color: var(--accent); }
 
 .cm-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem; margin-block-start: .8rem; font-size: .85rem; }
 .cm-legend-scale { display: inline-flex; align-items: center; gap: .4rem; }
@@ -1847,6 +1862,23 @@ body.accidents-page header.site h1 { inline-size: 100%; }
 .cm-legend-nodata { display: inline-flex; align-items: center; gap: .35rem; color: var(--muted); }
 
 .cm-osm-toggle { display: inline-flex; align-items: center; gap: .5rem; cursor: pointer; }
+
+/* canopy-map.html's selection chips - one per picked city/neighborhood/
+   street (up to 4), border color matching the same PICK_COLORS hue used
+   for that entity's map-highlight stroke and its rows across all three
+   detail charts, so the same color means the same entity everywhere. */
+.cm-chips { display: flex; flex-wrap: wrap; gap: .5rem; }
+.cm-chip {
+  display: inline-flex; align-items: center; gap: .4rem; padding: .3rem .6rem;
+  border: 1.5px solid; border-radius: 999px; background: var(--card); font-size: .85rem;
+}
+.cm-chip-remove {
+  font: inherit; font-size: .75rem; border: none; background: none; color: var(--muted);
+  cursor: pointer; padding: 0; line-height: 1;
+}
+.cm-chip-remove:hover { color: var(--danger); }
+
+.cm-detail-link { display: block; font-size: .85rem; margin-block: .3rem 1rem; }
 
 /* Intro paragraph collapses behind a normal disclosure triangle, open or
    closed on any width - unlike .more-toggle (index.html's "continue" section)

@@ -56,23 +56,29 @@
     <div id="app">
       <div id="appContext" class="app-context"></div>
       <details class="lead-details" dir="auto">
-        <summary>אותם נתונים, על מפה</summary>
+        <summary>אותם נתונים, במקום אחד</summary>
         <p class="lead" dir="auto">
           <a href="./tree-canopy.html">האינדקס הירוק לרחוב שלי</a>, <a href="./canopy-split.html">עצים ציבוריים
           מול פרטיים</a> ו-<a href="./heat-islands.html">איי חום עירוניים</a> - שלושת הדפים האלה כבר מציגים
-          את הנתונים כטבלה ולוח מובילים. הדף הזה הוא לא מקור מידע חדש, אלא דרך אחרת להסתכל על אותם המספרים
-          בדיוק: כל עיר או שכונה צבועה על מפה לפי הערך שלה, ולחיצה עליה עוברת לדף המקורי עם כל הפירוט (טבלה,
-          השוואה, הורדת CSV).
+          את הנתונים כטבלה ולוח מובילים, כל אחד למדד אחד. הדף הזה מאחד אותם: בחרו עד 4 ערים או שכונות
+          (בלחיצה על המפה) או רחובות (בחיפוש שם, מכל עיר) - ולכל אחד מהנבחרים יוצגו כל המדדים הרלוונטיים
+          יחד, צבועים לפי מי הוא. קישור לדף המלא (טבלה, השוואה, הורדת CSV) נשאר זמין לצד כל מדד.
         </p>
       </details>
 
       <details class="notice info" dir="auto">
         <summary><strong>מה יש כאן, ומה המקור</strong></summary>
         <p>
-          שום נתון חדש - שלוש השכבות (כיסוי חופות כולל, עצי רחוב ציבוריים, דלתת חום) הן בדיוק אותם מספרים
+          שום נתון חדש - שלושת המדדים (כיסוי חופות כולל, עצי רחוב ציבוריים, דלתת חום) הם בדיוק אותם מספרים
           שכבר מחושבים בשלושת הדפים המקושרים למעלה. הדבר היחיד שנוסף כאן הוא <strong>צורת הגבולות</strong>
           עצמה - עד עכשיו האתר שלח רק טבלאות שם/ערך, בלי שום גיאומטריה. הצורות (עיר ושכונה) מפושטות מאותם
           קבצי מקור ש-<a href="./tree-canopy.html">האינדקס הירוק</a> כבר משתמש בהם (ראו שם למקור המלא).
+        </p>
+        <p>
+          <strong>אין מפה לרחובות:</strong> רחוב נבחר בחיפוש שם בלבד, לא בלחיצה על צורה - ~36,000 צורות
+          רחוב (חיץ 7.5 מ' סביב כל רחוב) הן הרבה יותר גיאומטריה משתי הרמות האחרות יחד, ולא נבנו כאן. מאותה
+          סיבה שכיסוי ציבורי מול פרטי (עמוד "עצים ציבוריים מול פרטיים") אין לו רמת רחוב משלו - רחוב הוא
+          בהגדרה השטח הציבורי - רחוב נבחר תורם רק 2 מתוך 3 המדדים (כיסוי כולל, חום), לא את כולם.
         </p>
         <p>
           <strong>ברירת המחדל היא ללא רקע OSM אמיתי:</strong> הצורות עצמן מציירות את המפה - כמו כל מפה
@@ -82,7 +88,8 @@
         </p>
         <p>
           <strong>ברמת שכונה יש לבחור עיר קודם</strong> - כמו בכל דף אחר באתר: רוב השכונות בגודל של רחוב או
-          שניים, ולא יהיו קריאות בתצוגה ארצית אחת.
+          שניים, ולא יהיו קריאות בתצוגה ארצית אחת. רחובות, לעומת זאת, נבחרים בחופשיות מכל עיר - כדי לאפשר
+          השוואה בין רחובות בערים שונות.
         </p>
       </details>
 
@@ -91,12 +98,14 @@
         <div class="cm-filters" role="group" aria-label="רמת השוואה">
           <button type="button" data-level="city" class="tc-level-btn cm-level-btn">ערים</button>
           <button type="button" data-level="neighborhood" class="tc-level-btn cm-level-btn">שכונות</button>
+          <button type="button" data-level="street" class="tc-level-btn cm-level-btn">רחובות</button>
         </div>
       </section>
 
-      <section class="acc-section" aria-labelledby="layerH">
-        <h2 id="layerH">שכבת נתונים</h2>
-        <div class="cm-filters" role="group" aria-label="שכבת נתונים">
+      <section class="acc-section" id="cmLayerSection" aria-labelledby="layerH">
+        <h2 id="layerH">שכבת צביעת המפה</h2>
+        <p class="acc-hint" dir="auto">קובעת רק את צבע המפה עצמה - הבחירה שלכם (למטה) תמיד תציג את כל המדדים יחד.</p>
+        <div class="cm-filters" role="group" aria-label="שכבת צביעת המפה">
           <button type="button" data-layer="canopy" class="tc-level-btn cm-layer-btn">כיסוי חופות כולל</button>
           <button type="button" data-layer="street" class="tc-level-btn cm-layer-btn">עצי רחוב (ציבורי)</button>
           <button type="button" data-layer="heat" class="tc-level-btn cm-layer-btn">איי חום</button>
@@ -113,23 +122,55 @@
         <datalist id="cmCityRoster"></datalist>
       </section>
 
-      <section class="acc-section" id="cmOsmRow" aria-labelledby="osmH" hidden>
-        <h2 id="osmH">רקע מפה</h2>
-        <label class="cm-osm-toggle">
-          <input type="checkbox" id="cmOsmToggle">
-          הצג רקע מפת OpenStreetMap אמיתי (איטי יותר, דורש חיבור רשת)
-        </label>
-        <p id="cmOsmStatus" class="acc-hint" dir="auto"></p>
+      <section class="acc-section" id="cmStreetPickRow" aria-labelledby="streetPickH" hidden>
+        <h2 id="streetPickH">חיפוש רחוב</h2>
+        <p class="acc-hint" dir="auto">אפשר לבחור עד 4 רחובות, מכל עיר - להשוואה בין רחובות בערים שונות.</p>
+        <div class="acc-year-pick">
+          <label for="cmStreetPick">רחוב:</label>
+          <input id="cmStreetPick" type="text" list="cmStreetRoster" autocomplete="off" spellcheck="false"
+                 placeholder="התחילו להקליד…">
+        </div>
+        <datalist id="cmStreetRoster"></datalist>
       </section>
 
-      <section class="acc-section" aria-labelledby="mapH">
+      <section class="acc-section" id="cmMapSection" aria-labelledby="mapH">
         <h2 id="mapH">המפה</h2>
         <p id="cmHint" class="acc-hint" dir="auto"></p>
         <div class="cm-map-wrap">
           <div id="cmBasemap" class="cm-basemap" hidden></div>
           <svg id="cmSvg" class="cm-svg" role="img" aria-label="מפת ערים ושכונות צבועה לפי שכבת הנתונים הנבחרת"></svg>
+          <div class="cm-zoom-controls">
+            <button type="button" id="cmZoomIn" aria-label="התקרבות">+</button>
+            <button type="button" id="cmZoomOut" aria-label="התרחקות">−</button>
+            <button type="button" id="cmZoomReset" aria-label="איפוס תצוגה">⟲</button>
+          </div>
         </div>
+        <p class="acc-hint" dir="auto">גלגלת עכבר או צביטה בשתי אצבעות להתקרבות/התרחקות, גרירה להזזה.</p>
         <div id="cmLegend" class="cm-legend"></div>
+
+        <section class="acc-section" id="cmOsmRow" aria-labelledby="osmH" hidden>
+          <h2 id="osmH">רקע מפה</h2>
+          <label class="cm-osm-toggle">
+            <input type="checkbox" id="cmOsmToggle">
+            הצג רקע מפת OpenStreetMap אמיתי (איטי יותר, דורש חיבור רשת)
+          </label>
+          <p id="cmOsmStatus" class="acc-hint" dir="auto"></p>
+        </section>
+      </section>
+
+      <section class="acc-section" aria-labelledby="chipsH">
+        <h2 id="chipsH">נבחרו להשוואה</h2>
+        <div id="cmChips" class="cm-chips" hidden></div>
+      </section>
+
+      <section class="acc-section" id="cmDetailSection" aria-labelledby="detailH" hidden>
+        <h2 id="detailH">כל המדדים יחד</h2>
+        <figure id="cmDetailCanopy" class="acc-chart acc-chart-wide" role="img"></figure>
+        <a id="cmDetailCanopyLink" class="cm-detail-link" hidden>האינדקס הירוק - טבלה, השוואה ו-CSV ←</a>
+        <figure id="cmDetailStreet" class="acc-chart acc-chart-wide" role="img"></figure>
+        <a id="cmDetailStreetLink" class="cm-detail-link" hidden>עצים ציבוריים מול פרטיים - טבלה מלאה ←</a>
+        <figure id="cmDetailHeat" class="acc-chart acc-chart-wide" role="img"></figure>
+        <a id="cmDetailHeatLink" class="cm-detail-link" hidden>איי חום - טבלה, השוואה ו-CSV ←</a>
       </section>
     </div>
   </main>

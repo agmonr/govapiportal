@@ -154,17 +154,19 @@ TARGETS = [
         "html": "canopy-map.html",
         "out": "dist/canopy-map.html",
         "entry": "src/canopy-map.js",
-        # No new attribute data at all - every layer's value already ships
-        # via tree-canopy/canopy-split/heat-islands' own city/neighborhood
-        # files, reused here as-is. The only new sources are the boundary
-        # shapes (tools/map_geo_build.py) and geo-utils.js (only for the
-        # optional OSM-basemap toggle's tile fetch).
-        "sources": ["src/ui.js", "src/theme.js", "src/geo-utils.js",
+        # No new attribute data at all - every metric's value already ships
+        # via tree-canopy/canopy-split/heat-islands' own city/neighborhood/
+        # street files, reused here as-is. The only new sources are the
+        # boundary shapes (tools/map_geo_build.py), the shared shape/zoom-
+        # pan helpers (map-shapes.js), charts.js (the detail bars reuse
+        # renderHBarChart as-is) and geo-utils.js (only for the optional
+        # OSM-basemap toggle's tile fetch).
+        "sources": ["src/ui.js", "src/theme.js", "src/charts.js", "src/geo-utils.js", "src/map-shapes.js",
                     "src/map-boundaries-cities.js", "src/map-boundaries-neighborhoods.js",
                     "src/map-boundaries-neighborhoods-wgs84.js",
-                    "src/tree-canopy-cities.js", "src/tree-canopy-neighborhoods.js",
+                    "src/tree-canopy-cities.js", "src/tree-canopy-neighborhoods.js", "src/tree-canopy-streets.js",
                     "src/canopy-split-cities.js", "src/canopy-split-neighborhoods.js",
-                    "src/heat-cities.js", "src/heat-neighborhoods.js",
+                    "src/heat-cities.js", "src/heat-neighborhoods.js", "src/heat-streets.js",
                     "src/apps.js", "src/canopy-map.js"],
         "data": True,
     },
