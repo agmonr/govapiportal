@@ -53,6 +53,7 @@ import { NEIGHBORHOOD_CANOPY_SPLIT } from './canopy-split-neighborhoods.js';
 import { CITY_HEAT } from './heat-cities.js';
 import { NEIGHBORHOOD_HEAT } from './heat-neighborhoods.js';
 import { STREET_HEAT } from './heat-streets.js';
+import { HEAT_BLOBS } from './heat-blobs.js';
 
 initThemePicker(el('themePick'));
 loadAppsData().then((data) => renderAppContext(el('appContext'), data.apps, 'canopy-map')).catch(() => {});
@@ -155,7 +156,7 @@ const PICK_COLORS = [
 // zooming in doesn't immediately drill away to something else, and where
 // ~186 shapes stay legible with an extra glyph on each.
 const state = {
-  level: 'city', layer: 'canopy', cityLayers: ['canopy'], cityFilter: null, osm: false, selected: [], view: null,
+  level: 'city', layer: 'canopy', cityLayers: ['canopy'], cityFilter: null, osm: false, heatBlob: false, selected: [], view: null,
 };
 let currentZoomPan = null; // torn down and replaced fresh each renderMap() - see attachZoomPan's own docstring
 
@@ -528,6 +529,8 @@ async function renderMap() {
 
   el('cmOsmRow').hidden = state.level !== 'neighborhood' || !state.cityFilter;
   el('cmBasemap').hidden = true;
+  const blobAvailable = state.level === 'neighborhood' && state.cityFilter && HEAT_BLOBS[state.cityFilter];
+  el('cmBlobRow').hidden = !blobAvailable;
 
   // `viewBox` is always {x,y,w,h} - ITM meters (Y-negated) in flat mode,
   // OSM's own fixed pixel space when that mode is active. The two are NOT
@@ -549,9 +552,14 @@ async function renderMap() {
     viewBox = itmViewBox(bbox);
     project = projectItm;
   }
+  // Same ITM-meters space as the neighborhood shapes themselves (see
+  // heat-blobs.js's own build comment) - drawn straight under them with no
+  // conversion, but only when that space is actually what's on screen
+  // (isItmSpace false means OSM's own fixed pixel space is active instead).
+  const blob = blobAvailable && state.heatBlob && isItmSpace ? HEAT_BLOBS[state.cityFilter] : null;
 
   const svg = el('cmSvg');
-  const opacity = state.osm && !el('cmBasemap').hidden ? '0.72' : '1';
+  const opacity = (state.osm && !el('cmBasemap').hidden) || blob ? '0.72' : '1';
   const titleFor = (e) => `${e.label} - ${activeMetricIds
     .map((id) => `${METRICS[id].label}: ${valueFor(e, id) != null ? num(valueFor(e, id)) + METRICS[id].unit : 'אין נתונים'}`)
     .join(' · ')}`;
@@ -576,7 +584,13 @@ async function renderMap() {
   const glyphs = isMultiMetric && isItmSpace
     ? entities.map((e) => glyphMarkup(e, activeMetricIds, domains)).filter(Boolean).join('')
     : '';
-  svg.innerHTML = paths + glyphs;
+  // Drawn first (underneath every shape) - the paths above it go semi-
+  // transparent (see opacity above) so the raster actually shows through
+  // instead of being fully hidden under an opaque fill.
+  const blobImage = blob
+    ? `<image href="${esc(blob.src)}" x="${blob.x}" y="${blob.y}" width="${blob.w}" height="${blob.h}" preserveAspectRatio="none" pointer-events="none" />`
+    : '';
+  svg.innerHTML = blobImage + paths + glyphs;
 
   // svg (#cmSvg) is a persistent element - only its innerHTML/viewBox get
   // replaced each render, not the element itself - so the PREVIOUS
@@ -783,6 +797,11 @@ el('cmStreetPick').addEventListener('keydown', (ev) => { if (ev.key === 'Enter')
 el('cmOsmToggle').addEventListener('change', (ev) => {
   state.osm = ev.target.checked;
   state.view = null; // OSM's pixel space and the flat ITM space aren't the same units - a carried-over view would point nowhere sensible
+  renderMap();
+});
+
+el('cmBlobToggle').addEventListener('change', (ev) => {
+  state.heatBlob = ev.target.checked;
   renderMap();
 });
 

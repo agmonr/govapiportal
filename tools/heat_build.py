@@ -32,6 +32,7 @@ Usage:
     python3 tools/heat_build.py neighborhoods
     python3 tools/heat_build.py streets
     python3 tools/heat_build.py all      # fetch (if needed) + all three levels
+    python3 tools/heat_build.py blobs    # per-city raster "stain" overlay (canopy-map.html only, needs Pillow) - not part of "all"
 """
 import json
 import sys
@@ -255,6 +256,137 @@ def build_streets():
     return out
 
 
+def colorize(t):
+    """(h, w) float array (deviation from a crop's own median, in units of
+    its own span - see build_heat_blobs) -> (h, w, 4) uint8 RGBA. Diverging
+    cool/neutral/hot ramp; alpha scales with |t| so pixels near this crop's
+    own median fade toward fully transparent - the result reads as actual
+    hot/cool "stains" floating over the map, not a flat tinted rectangle
+    covering the whole city. NaN (no data) is always fully transparent."""
+    nan_mask = np.isnan(t)
+    tt = np.nan_to_num(t, nan=0.0)
+    cool = np.array([59, 111, 181], dtype=np.float64)
+    neutral = np.array([242, 234, 217], dtype=np.float64)
+    hot = np.array([224, 83, 83], dtype=np.float64)  # matches the site's own --danger
+    frac_cool = np.clip(-tt, 0, 1)
+    frac_hot = np.clip(tt, 0, 1)
+    frac_mid = np.clip(1 - frac_cool - frac_hot, 0, 1)
+    rgb = (neutral[None, None, :] * frac_mid[..., None]
+           + cool[None, None, :] * frac_cool[..., None]
+           + hot[None, None, :] * frac_hot[..., None])
+    alpha = (np.clip(np.abs(tt), 0, 1) ** 1.2) * 210
+    alpha = np.where(nan_mask, 0, alpha)
+    rgba = np.concatenate([rgb, alpha[..., None]], axis=-1)
+    return np.clip(rgba, 0, 255).astype(np.uint8)
+
+
+def build_heat_blobs():
+    """One base64 PNG "stain" overlay per city with OSM-mapped
+    neighborhoods (~96 of them) - for canopy-map.html's neighborhood view.
+
+    The three levels above (city/neighborhood/street) all answer "how hot
+    is this AREA overall" - useful for "is Tiberias hot", useless for
+    "which street in Tiberias is hotter than the one next to it, and does
+    that hot patch actually respect neighborhood boundaries or bleed across
+    them". Only the raw raster behind all three (ITM_TIF, ~37m/pixel here)
+    has that resolution, and a polygon-average was always going to throw it
+    away. This renders the raster itself, cropped per city, colored by each
+    PIXEL's own deviation from THAT CROP's own median (not the national/
+    per-city scale the choropleth uses - a hot street only means something
+    relative to its own city) - so the output is one continuous shape that
+    can straddle neighborhood lines, not neighborhood-shaped averages.
+
+    The crop is the union of that city's own NEIGHBORHOODS' bounds, not the
+    municipality's full jurisdiction - several municipalities here are
+    small built-up areas inside a huge administrative area (desert towns
+    with vast surrounding land, regional councils grouping scattered
+    villages), and cropping to the full muni bbox once produced 30-60km-wide
+    rasters that were almost entirely empty land no one would ever look at
+    (measured directly: a first pass at this made a 26MB output file, worse
+    than useless - see this function's own git history). The union of real
+    neighborhoods is exactly the area the map actually draws shapes for
+    anyway. A generous crop margin (25% of that extent) is still added on
+    top, so a hot cluster near the edge visibly continues past it rather
+    than cutting off exactly at the outermost neighborhood's own boundary.
+    """
+    try:
+        from PIL import Image
+    except ImportError:
+        sys.exit("build_heat_blobs requires Pillow: pip install pillow")
+    import base64
+    import io
+    from collections import defaultdict
+
+    ensure_raster()
+    log("loading city/neighborhood boundaries...")
+    munis = load_muni_geoms()
+    munis = {k: v for k, v in munis.items() if not k.startswith("ללא שיפוט")}
+    # Same "not a real single city" exclusion build_cities()/build_streets()
+    # already apply - a regional council is a grouping of scattered
+    # villages, not one urban area a hot-spot "stain" reading makes sense
+    # for. Cuts most of the worst offenders (several regional councils'
+    # named-point neighborhoods are tens of km apart).
+    munis = {k: v for k, v in munis.items() if v[2] != "מועצה אזורית"}
+    names, shapes, tree = city_index(munis)
+    geoms = neighborhood_geoms(names, shapes, tree)
+    nb_by_city = defaultdict(list)
+    for city, _n, g, _a in geoms:
+        if city and city in munis:
+            nb_by_city[city].append(g)
+    cities_with_nb = sorted(nb_by_city.keys())
+    log(f"{len(cities_with_nb)} cities have OSM-mapped neighborhoods - building a blob for each")
+
+    # A handful of real towns (desert municipalities especially) still have
+    # a legitimate but enormous jurisdiction, or one outlying named point
+    # dragging the bbox out for tens of km past the actual built-up area -
+    # a raster crop that size is almost entirely empty land, not a useful
+    # "which street is hotter" visual. Skipped rather than shipped huge.
+    MAX_SPAN_M = 30_000
+
+    out = {}
+    with rasterio.open(ITM_TIF) as src:
+        for i, city in enumerate(cities_with_nb):
+            nb_shapes = nb_by_city[city]
+            xmin = min(g.bounds[0] for g in nb_shapes)
+            ymin = min(g.bounds[1] for g in nb_shapes)
+            xmax = max(g.bounds[2] for g in nb_shapes)
+            ymax = max(g.bounds[3] for g in nb_shapes)
+            if max(xmax - xmin, ymax - ymin) > MAX_SPAN_M:
+                continue
+            pad = max(xmax - xmin, ymax - ymin) * 0.25
+            window = rasterio.windows.from_bounds(
+                xmin - pad, ymin - pad, xmax + pad, ymax + pad, transform=src.transform)
+            arr = src.read(1, window=window, boundless=True, fill_value=np.nan)
+            if arr.size == 0:
+                continue
+            valid = arr[~np.isnan(arr)]
+            if valid.size < 16:
+                continue  # too small/sparse a crop for a "which street is hotter" reading to mean anything
+            median = float(np.median(valid))
+            lo, hi = float(valid.min()), float(valid.max())
+            span = max(hi - median, median - lo, 0.3)  # avoid a near-zero divisor on a near-flat crop
+            rgba = colorize((arr - median) / span)
+            buf = io.BytesIO()
+            Image.fromarray(rgba, mode="RGBA").save(buf, format="PNG", optimize=True)
+            b64 = base64.b64encode(buf.getvalue()).decode("ascii")
+            # Same Y-flipped-ITM convention as itmViewBox()/cityBBoxes() in
+            # map-shapes.js/canopy-map.js - x/y/w/h here can be dropped
+            # straight into an SVG <image> alongside the neighborhood paths
+            # with no further conversion.
+            left, bottom, right, top = rasterio.windows.bounds(window, src.transform)
+            out[city] = {
+                "src": f"data:image/png;base64,{b64}",
+                "x": round(left, 1),
+                "y": round(-top, 1),
+                "w": round(right - left, 1),
+                "h": round(top - bottom, 1),
+            }
+            if (i + 1) % 20 == 0:
+                log(f"  {i + 1}/{len(cities_with_nb)} blobs built")
+    log(f"done - {len(out)} heat blobs built")
+    return out
+
+
 def write_js(varname, data, out_path, header_comment):
     out_path.write_text(
         f"// {header_comment}\n"
@@ -286,6 +418,13 @@ def main():
     if which in ("streets", "all"):
         write_js("STREET_HEAT", build_streets(), SRC / "heat-streets.js",
                   f"Street-level max heat-island delta (7.5m buffer per street), computed {stamp}")
+
+    if which == "blobs":
+        # Deliberately not part of "all" - a heavier, separate asset (base64
+        # PNG per city) only canopy-map.html uses, not the three base
+        # city/neighborhood/street tables every page here ships.
+        write_js("HEAT_BLOBS", build_heat_blobs(), SRC / "heat-blobs.js",
+                  f"Per-city heat-island raster overlay (relative to each crop's own median), computed {stamp}")
 
 
 if __name__ == "__main__":

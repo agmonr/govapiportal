@@ -166,7 +166,7 @@ TARGETS = [
                     "src/map-boundaries-neighborhoods-wgs84.js",
                     "src/tree-canopy-cities.js", "src/tree-canopy-neighborhoods.js", "src/tree-canopy-streets.js",
                     "src/canopy-split-cities.js", "src/canopy-split-neighborhoods.js",
-                    "src/heat-cities.js", "src/heat-neighborhoods.js", "src/heat-streets.js",
+                    "src/heat-cities.js", "src/heat-neighborhoods.js", "src/heat-streets.js", "src/heat-blobs.js",
                     "src/apps.js", "src/canopy-map.js"],
         "data": True,
     },
