@@ -82,21 +82,33 @@ export function planAreaColorScale(pool) {
 
 const PLANS_PER_LIST_CAP = 300;
 
+// The two sortable columns - ימים (totalDays) and שטח (pl_area_dunam).
+// `key` also doubles as the data-sort-key value read back by the caller's
+// click handler (see plan-timeline.js). Nulls always sort last regardless
+// of direction, same convention as plan-timeline.js's own sortCities().
+const PLAN_LIST_SORT_COLUMNS = [
+  { key: 'days', label: 'ימים (הגשה→אישור)', get: (p, totalDays) => totalDays },
+  { key: 'area', label: 'שטח (דונם)', get: (p) => p.pl_area_dunam },
+];
+
 /**
- * A sortable-by-nothing (pre-sorted by caller), expandable list of plans -
- * name, number, status badge, ימים (total duration), שטח (דונם, optionally
- * colored via `areaColor`). Each row expands into its own step timeline
- * (renderPlanTimelineHtml) plus a link to pl_url. `tableId` must be unique
- * per call on the page (used to scope the expand/collapse wiring via
- * bindExpandableRows in ui.js).
+ * An expandable list of plans - name, number, status badge, ימים (total
+ * duration), שטח (דונם, optionally colored via `areaColor`) - sorted by
+ * `sortKey`/`sortDir` (default: ימים, descending - the original fixed
+ * order this always had). Each row expands into its own step timeline
+ * (renderPlanTimelineHtml) plus a link to pl_url.
  */
-export function renderPlanListHtml(plans, { areaColor } = {}) {
+export function renderPlanListHtml(plans, { areaColor, sortKey = 'days', sortDir = 'desc' } = {}) {
   const withTotals = plans.map((p) => ({ plan: p, totalDays: planTimeline(p).totalDays }));
+  const sortCol = PLAN_LIST_SORT_COLUMNS.find((c) => c.key === sortKey) || PLAN_LIST_SORT_COLUMNS[0];
+  const dir = sortDir === 'asc' ? 1 : -1;
   withTotals.sort((a, b) => {
-    if (a.totalDays == null && b.totalDays == null) return 0;
-    if (a.totalDays == null) return 1;
-    if (b.totalDays == null) return -1;
-    return b.totalDays - a.totalDays;
+    const av = sortCol.get(a.plan, a.totalDays);
+    const bv = sortCol.get(b.plan, b.totalDays);
+    if (av == null && bv == null) return 0;
+    if (av == null) return 1; // nulls always last, regardless of direction
+    if (bv == null) return -1;
+    return dir * (av - bv);
   });
   const capped = withTotals.slice(0, PLANS_PER_LIST_CAP);
   const capNote = withTotals.length > capped.length
@@ -123,6 +135,16 @@ export function renderPlanListHtml(plans, { areaColor } = {}) {
     </tr>`;
   }).join('');
 
+  const sortHead = PLAN_LIST_SORT_COLUMNS.map((col) => {
+    const active = sortKey === col.key;
+    const nextDir = active && sortDir === 'asc' ? 'desc' : 'asc';
+    return `<th class="sortable${active ? ' sorted' : ''}" data-sort-key="${col.key}" data-sort-dir="${nextDir}"
+                tabindex="0" role="button"
+                aria-sort="${active ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}">
+      ${esc(col.label)}<span class="s-mark">${active ? (sortDir === 'asc' ? '▲' : '▼') : '↕'}</span>
+    </th>`;
+  }).join('');
+
   return `
     ${capNote}
     <div class="matrix-wrap plan-list-wrap">
@@ -132,8 +154,7 @@ export function renderPlanListHtml(plans, { areaColor } = {}) {
           <th scope="col">שם תכנית</th>
           <th scope="col">מספר תכנית</th>
           <th scope="col">סטטוס</th>
-          <th scope="col">ימים (הגשה→אישור)</th>
-          <th scope="col">שטח (דונם)</th>
+          ${sortHead}
         </tr></thead>
         <tbody>${rows}</tbody>
       </table>

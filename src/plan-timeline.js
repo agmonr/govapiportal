@@ -27,6 +27,8 @@ const state = {
   sortDir: 'desc',
   expandedCity: null,
   expandedPlan: null,
+  planListSortKey: 'days', // sort within an expanded city's own plan list (ימים by default) - see renderPlanListHtml
+  planListSortDir: 'desc',
 };
 
 let allPlans = [];
@@ -147,7 +149,7 @@ function renderCityTable() {
       <td>${c.maxDays == null ? '—' : num(c.maxDays)}</td>
     </tr>
     <tr class="files-row" data-city-detail="${esc(c.city)}" ${expanded ? '' : 'hidden'}>
-      <td colspan="8">${expanded ? renderPlanListHtml(c.plans, { areaColor: planAreaColorScale(c.plans) }) : ''}</td>
+      <td colspan="8">${expanded ? renderPlanListHtml(c.plans, { areaColor: planAreaColorScale(c.plans), sortKey: state.planListSortKey, sortDir: state.planListSortDir }) : ''}</td>
     </tr>`;
   }).join('');
 
@@ -185,7 +187,18 @@ function renderCityTable() {
 
   if (state.expandedCity) {
     const detailRow = table.querySelector(`[data-city-detail="${state.expandedCity}"]`);
-    if (detailRow) bindExpandableRows(detailRow, 'tr.has-detail', 'data-detail', 'planRow');
+    if (detailRow) {
+      bindExpandableRows(detailRow, 'tr.has-detail', 'data-detail', 'planRow');
+      detailRow.querySelectorAll('th.sortable').forEach((th) => {
+        const apply = () => {
+          state.planListSortKey = th.dataset.sortKey;
+          state.planListSortDir = th.dataset.sortDir;
+          renderCityTable();
+        };
+        th.addEventListener('click', apply);
+        th.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); apply(); } });
+      });
+    }
   }
 }
 
