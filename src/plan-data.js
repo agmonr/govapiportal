@@ -48,23 +48,56 @@ const LAST_STEP_FIELD = PLAN_STEPS[PLAN_STEPS.length - 1].field;
 
 const CACHE_PREFIX = 'planData:v1:';
 
+// Same "a couple of retries before giving up" convention as the sister
+// repo's own xplan_paginated_query() (Python) - a full fetch is ~27
+// sequential requests against a live government ArcGIS server, and a single
+// transient hiccup on any one of them (observed in practice: an occasional
+// {"error":{"message":"Failed to execute query."}} with no HTTP-level
+// signal at all - not a timeout, not a non-200 status) would otherwise abort
+// the whole load, silently leaving every page that reads from it (city
+// roster, year picker, both compare pages) empty.
+const FETCH_ATTEMPTS = 3;
+const RETRY_PAUSE_MS = 700;
+
+const sleep = (ms) => new Promise((resolve) => { setTimeout(resolve, ms); });
+
 /** One page of an ArcGIS resultOffset/exceededTransferLimit query loop, same
  *  shape as the sister repo's own xplan_paginated_query() (Python), just in
- *  the browser and against outFields fixed to OUT_FIELDS above. */
+ *  the browser and against outFields fixed to OUT_FIELDS above. Retries on
+ *  any failure - a bad HTTP status, a network error, or (seen in practice,
+ *  see FETCH_ATTEMPTS above) a 200 response whose JSON body is itself an
+ *  ArcGIS error object. */
 async function fetchPage(where, offset) {
-  const params = new URLSearchParams({
-    where,
-    outFields: OUT_FIELDS,
-    returnGeometry: 'false',
-    resultRecordCount: String(PAGE_SIZE),
-    resultOffset: String(offset),
-    f: 'json',
-  });
-  const res = await fetch(`${XPLAN_URL}?${params}`);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const data = await res.json();
-  if (data.error) throw new Error(data.error.message || 'שגיאת שרת Xplan');
-  return data;
+  let lastErr;
+  for (let attempt = 1; attempt <= FETCH_ATTEMPTS; attempt += 1) {
+    try {
+      const params = new URLSearchParams({
+        where,
+        outFields: OUT_FIELDS,
+        returnGeometry: 'false',
+        resultRecordCount: String(PAGE_SIZE),
+        resultOffset: String(offset),
+        f: 'json',
+      });
+      const res = await fetch(`${XPLAN_URL}?${params}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      // Two distinct ArcGIS error shapes seen in practice, neither optional
+      // to check: a query-specific failure comes back as {error:{message}}
+      // (caught below), but a full backend outage - observed live: "Could
+      // not access any server machines" - comes back as {status:"error",
+      // messages:[...]} instead, with NO `error` key at all. Missing this
+      // second shape would silently fall through to `data.features || []`
+      // below and read as "zero plans found", not as the outage it is.
+      if (data.error) throw new Error(data.error.message || 'שגיאת שרת Xplan');
+      if (data.status === 'error') throw new Error((data.messages || []).join('; ') || 'שגיאת שרת Xplan');
+      return data;
+    } catch (err) {
+      lastErr = err;
+      if (attempt < FETCH_ATTEMPTS) await sleep(RETRY_PAUSE_MS * attempt);
+    }
+  }
+  throw lastErr;
 }
 
 /**
