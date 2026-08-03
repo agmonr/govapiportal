@@ -157,7 +157,7 @@ const PICK_COLORS = [
 // zooming in doesn't immediately drill away to something else, and where
 // ~186 shapes stay legible with an extra glyph on each.
 const state = {
-  level: 'city', layer: 'canopy', cityLayers: ['canopy'], cityFilter: null, osm: false, heatBlob: false, canopyBlob: false, selected: [], view: null,
+  level: 'city', layer: 'canopy', cityLayers: ['canopy'], cityFilter: null, osm: false, heatBlob: false, canopyBlob: false, hiRes: false, selected: [], view: null,
 };
 let currentZoomPan = null; // torn down and replaced fresh each renderMap() - see attachZoomPan's own docstring
 
@@ -577,8 +577,12 @@ async function renderMap() {
   el('cmBasemap').hidden = true;
   const heatBlobAvailable = state.level === 'neighborhood' && state.cityFilter && HEAT_BLOBS[state.cityFilter];
   const canopyBlobAvailable = state.level === 'neighborhood' && state.cityFilter && CANOPY_BLOBS[state.cityFilter];
-  el('cmBlobRow').hidden = !heatBlobAvailable;
-  el('cmCanopyBlobRow').hidden = !canopyBlobAvailable;
+  // The per-metric toggles are redundant once "hi-res only" mode (below)
+  // forces both rasters on together - hidden rather than left sitting
+  // there unchecked, which would misleadingly imply they're what's
+  // controlling the current view.
+  el('cmBlobRow').hidden = !heatBlobAvailable || state.hiRes;
+  el('cmCanopyBlobRow').hidden = !canopyBlobAvailable || state.hiRes;
 
   // `viewBox` is always {x,y,w,h} - ITM meters (Y-negated) in flat mode,
   // OSM's own fixed pixel space when that mode is active. The two are NOT
@@ -604,14 +608,17 @@ async function renderMap() {
   // heat-blobs.js's/canopy-blobs.js's own build comments) - drawn straight
   // under them with no conversion, but only when that space is actually
   // what's on screen (isItmSpace false means OSM's own fixed pixel space is
-  // active instead). Heat wins if both toggles somehow end up on at once -
-  // nothing enforces them mutually exclusive, a rare enough case not to be
-  // worth a UI lock for.
-  const heatBlob = heatBlobAvailable && state.heatBlob && isItmSpace
+  // active instead). Normal mode: at most one raster shows, whichever
+  // per-metric toggle is on (heat wins if both somehow are - nothing
+  // enforces them mutually exclusive, a rare enough case not to be worth a
+  // UI lock for). Hi-res-only mode forces BOTH on together regardless of
+  // those toggles - "the high-res map of heat AND trees", not either/or.
+  const heatBlob = heatBlobAvailable && isItmSpace && (state.hiRes || state.heatBlob)
     ? { data: HEAT_BLOBS[state.cityFilter], metric: 'heat' } : null;
-  const canopyBlobPick = canopyBlobAvailable && state.canopyBlob && isItmSpace
+  const canopyBlobPick = canopyBlobAvailable && isItmSpace && (state.hiRes || state.canopyBlob)
     ? { data: CANOPY_BLOBS[state.cityFilter], metric: 'canopy' } : null;
-  const blob = heatBlob || canopyBlobPick;
+  const blobs = [heatBlob, canopyBlobPick].filter(Boolean);
+  const blob = blobs[0] || null; // single-blob call sites below (legend text, blobReplacesFill's own metric check) only ever look at one
 
   const svg = el('cmSvg');
   // Once a high-res raster (blob) is showing for the metric it belongs to,
@@ -620,8 +627,12 @@ async function renderMap() {
   // accurate data. Suppressed instead of just made translucent, so only
   // the raster and the neighborhood outlines/labels are visible - "the
   // high-res map, not the old by-neighborhood one" together in one view.
-  const blobReplacesFill = !!blob && !isMultiMetric && activeMetricIds[0] === blob.metric;
-  const opacity = (state.osm && !el('cmBasemap').hidden) || blob ? '0.72' : '1';
+  // Hi-res-only mode suppresses the fill unconditionally, even at city
+  // level or before a raster is actually available yet (e.g. city level,
+  // or neighborhood level before a city is picked) - "borders only" is the
+  // point of the mode, not just a side effect of a raster being present.
+  const blobReplacesFill = state.hiRes || (!!blob && !isMultiMetric && activeMetricIds[0] === blob.metric);
+  const opacity = (state.osm && !el('cmBasemap').hidden) || blobs.length ? '0.72' : '1';
   const titleFor = (e) => `${e.label} - ${activeMetricIds
     .map((id) => `${METRICS[id].label}: ${valueFor(e, id) != null ? num(valueFor(e, id)) + METRICS[id].unit : 'אין נתונים'}`)
     .join(' · ')}`;
@@ -646,15 +657,21 @@ async function renderMap() {
   // city's own centroid (cityBBoxes() already computes one, reused here)
   // - city level + isItmSpace only, since neighborhood/street never reach
   // multi-metric mode and OSM's pixel space has no matching centroid cache.
-  const glyphs = isMultiMetric && isItmSpace
+  // Suppressed in hi-res-only mode too - a value-sized bar glyph is really
+  // a second way of drawing the same choropleth values the fill would have
+  // carried, which that mode is specifically trying to get out of the way.
+  const glyphs = !state.hiRes && isMultiMetric && isItmSpace
     ? entities.map((e) => glyphMarkup(e, activeMetricIds, domains)).filter(Boolean).join('')
     : '';
-  // Drawn first (underneath every shape) - the paths above it go semi-
-  // transparent (see opacity above) so the raster actually shows through
-  // instead of being fully hidden under an opaque fill.
-  const blobImage = blob
-    ? `<image href="${esc(blob.data.src)}" x="${blob.data.x}" y="${blob.data.y}" width="${blob.data.w}" height="${blob.data.h}" preserveAspectRatio="none" pointer-events="none" />`
-    : '';
+  // Drawn first (underneath every shape) - the paths above them go semi-
+  // transparent (see opacity above) so the raster(s) actually show through
+  // instead of being fully hidden under an opaque fill. Both stack when
+  // hi-res-only mode has turned both on - order doesn't matter much between
+  // them since each is already alpha-punched to its own real coverage, not
+  // a solid rectangle.
+  const blobImage = blobs
+    .map((b) => `<image href="${esc(b.data.src)}" x="${b.data.x}" y="${b.data.y}" width="${b.data.w}" height="${b.data.h}" preserveAspectRatio="none" pointer-events="none" />`)
+    .join('');
   // Only in ITM/flat space - OSM mode projects through a different (WGS84
   // lon/lat -> its own fixed pixel space) function entirely, so a label
   // positioned from the entity's raw ITM bbox would land nowhere near its
@@ -720,7 +737,14 @@ async function renderMap() {
   // convention entirely (see cmBlobRow's/cmCanopyBlobRow's own hints): heat
   // is a per-crop, median-relative scale; canopy is a plain "is there a
   // tree crown here, yes/no" mask, not a value scale at all.
-  if (blobReplacesFill && blob.metric === 'heat') {
+  if (state.hiRes) {
+    const parts = [];
+    if (heatBlob) parts.push('כתם החום יחסי לחציון האזור המוצג');
+    if (canopyBlobPick) parts.push('כל נקודה ירוקה = צמרת עץ בודדת מהמיפוי המקורי');
+    el('cmLegend').innerHTML = parts.length
+      ? `<span class="cm-legend-nodata">גבולות בלבד, בלי צביעת ממוצע - ${esc(parts.join(' · '))}</span>`
+      : '<span class="cm-legend-nodata">גבולות בלבד, בלי צביעת ממוצע - בחרו עיר והתקרבו לשכונות כדי לראות את הכתמים</span>';
+  } else if (blobReplacesFill && blob.metric === 'heat') {
     el('cmLegend').innerHTML = '<span class="cm-legend-nodata">כתם החום מוצג לפי חציון האזור - אין סרגל צבע קבוע להשוואה</span>';
   } else if (blobReplacesFill && blob.metric === 'canopy') {
     el('cmLegend').innerHTML = '<span class="cm-legend-nodata">כל נקודה ירוקה היא צמרת עץ בודדת מהמיפוי המקורי - לא אחוז כיסוי משוכלל</span>';
@@ -932,6 +956,11 @@ el('cmBlobToggle').addEventListener('change', (ev) => {
 
 el('cmCanopyBlobToggle').addEventListener('change', (ev) => {
   state.canopyBlob = ev.target.checked;
+  renderMap();
+});
+
+el('cmHiResToggle').addEventListener('change', (ev) => {
+  state.hiRes = ev.target.checked;
   renderMap();
 });
 
