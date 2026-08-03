@@ -233,6 +233,27 @@ button:disabled { opacity: .5; cursor: default; }
 
 .skeleton { color: var(--muted); padding: 2rem 0; }
 
+/* plan-timeline.html/plan-compare.html's own loading status - a live-updating
+   count while ~20-27k rows page in over several seconds needs to be seen,
+   not read as one more muted hint line easy to miss. Shrinks back down to a
+   plain .acc-hint (class swapped in JS) the moment loading finishes, so the
+   final "נטענו X תכניות" line doesn't keep demanding attention afterward. */
+.plan-loading {
+  display: flex; align-items: center; gap: .6rem;
+  font-size: 1.05rem; font-weight: 600; color: var(--fg);
+  padding: .9rem 1.1rem; margin-block-end: 1rem;
+  border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--surface);
+}
+.plan-loading::before {
+  content: ''; flex: 0 0 auto; inline-size: 1.1rem; block-size: 1.1rem;
+  border: 3px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: plan-loading-spin .8s linear infinite;
+}
+@keyframes plan-loading-spin { to { transform: rotate(360deg); } }
+
 /* ---------- API map ---------- */
 
 .lead { color: var(--muted); max-inline-size: 62ch; margin-block-end: 1.5rem; }
@@ -1324,6 +1345,32 @@ a:focus-visible, button:focus-visible {
   #finLiabTable .matrix tr.fin-row-compare .fin-city-cell,
   #finAreasTable .matrix tr.fin-row-compare .fin-city-cell {
     background: color-mix(in srgb, var(--muted) 16%, var(--bg));
+  }
+
+  /* plan-timeline.html/plan-compare.html's per-plan list (renderPlanListHtml,
+     shared by both - see src/plan-render.js): same pinned-identity-column
+     idiom as #finAuthTable above, this table's own two identity columns
+     (the ▾/▴ toggle, then שם תכנית) stay put while מספר תכנית/סטטוס/ימים/
+     שטח scroll under them. Scoped to .plan-list-wrap specifically (not
+     every .matrix.preview.expandable table site-wide, which committees.js/
+     companies.js/tree-canopy.js also use with different column layouts).
+     Excludes tr.detail-row - its own <td colspan="6"> is one single cell
+     spanning the whole row, not "column 1", and pinning it would clip the
+     expanded step-timeline content instead of the two identity columns. */
+  .plan-list-wrap .matrix thead th:nth-child(1),
+  .plan-list-wrap .matrix tbody tr.has-detail > td:nth-child(1) {
+    position: sticky; inset-inline-start: 0; z-index: 2;
+    background: var(--bg);
+  }
+  .plan-list-wrap .matrix thead th:nth-child(2),
+  .plan-list-wrap .matrix tbody tr.has-detail > td:nth-child(2) {
+    position: sticky; inset-inline-start: 1.6rem; z-index: 2;
+    background: var(--bg);
+  }
+  .plan-list-wrap .matrix thead th:nth-child(1),
+  .plan-list-wrap .matrix thead th:nth-child(2) {
+    z-index: 3;
+    background: var(--surface);
   }
 
   /* The one button on the page meant to be found without scrolling first -

@@ -125,7 +125,7 @@ export function renderPlanListHtml(plans, { areaColor } = {}) {
 
   return `
     ${capNote}
-    <div class="matrix-wrap">
+    <div class="matrix-wrap plan-list-wrap">
       <table class="matrix preview expandable">
         <thead><tr>
           <th class="c-x"></th>

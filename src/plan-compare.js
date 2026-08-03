@@ -393,10 +393,13 @@ el('pcYearFilter').addEventListener('change', (e) => {
       el('pcLoading').textContent = `טוען תכניות… ${num(n)} עד כה`;
     });
   } catch (err) {
+    el('pcLoading').classList.replace('plan-loading', 'notice');
+    el('pcLoading').classList.add('error');
     el('pcLoading').textContent = 'שגיאה בטעינת הנתונים מ-Xplan. נסו לרענן את הדף.';
     console.error(err);
     return;
   }
+  el('pcLoading').classList.replace('plan-loading', 'acc-hint');
   el('pcLoading').textContent = `נטענו ${num(allPlans.length)} תכניות.`;
 
   readStateFromUrl();

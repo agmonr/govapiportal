@@ -284,10 +284,13 @@ minPlansInput.addEventListener('input', commitMinPlans);
       el('ptLoading').textContent = `טוען תכניות… ${num(n)} עד כה`;
     });
   } catch (err) {
+    el('ptLoading').classList.replace('plan-loading', 'notice');
+    el('ptLoading').classList.add('error');
     el('ptLoading').textContent = 'שגיאה בטעינת הנתונים מ-Xplan. נסו לרענן את הדף.';
     console.error(err);
     return;
   }
+  el('ptLoading').classList.replace('plan-loading', 'acc-hint');
   el('ptLoading').textContent = `נטענו ${num(allPlans.length)} תכניות.`;
   updateCityRoster();
   populateYearFilter();
