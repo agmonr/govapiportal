@@ -2289,6 +2289,33 @@ function debounce(fn, ms = 300) {
   };
 }
 
+/**
+ * Wires click/keyboard toggling for a "▾ summary row -> hidden detail row"
+ * pair, the expandable-row idiom used by tree-canopy.js's compare table,
+ * moag-explorer.js's dataset list and plan-timeline.js/plan-compare.js's
+ * plan drill-downs alike. `rowSelector` matches each summary `<tr>`;
+ * `detailAttr`/`rowAttr` are the matching data-attribute pair linking a
+ * summary row to its detail row (e.g. `data-plan-row`/`data-detail`) - the
+ * summary row's own `dataset[rowAttr]` value is looked up as
+ * `[detailAttr="<value>"]` within the same `container`, so unrelated pairs
+ * elsewhere on the page (a different table using the same attribute names)
+ * never cross-toggle. A `.x-mark` element inside the summary row, if
+ * present, flips between ▾/▴.
+ */
+function bindExpandableRows(container, rowSelector, detailAttr, rowAttr) {
+  container.querySelectorAll(rowSelector).forEach((tr) => {
+    const toggle = () => {
+      const target = container.querySelector(`[${detailAttr}="${tr.dataset[rowAttr]}"]`);
+      if (!target) return;
+      target.hidden = !target.hidden;
+      const mark = tr.querySelector('.x-mark');
+      if (mark) mark.textContent = target.hidden ? '▾' : '▴';
+    };
+    tr.addEventListener('click', toggle);
+    tr.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
+  });
+}
+
 /* ---------- CSV, built here rather than trusting an advertised download ----------
  * Shared by the data.gov.il explorer and any live-preview download button:
  * some CKAN resource downloads are WAF-challenged (see ckan.js), and some

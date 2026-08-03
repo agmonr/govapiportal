@@ -6,11 +6,12 @@
  * src/plan-data.js for where the underlying numbers come from.
  */
 
-import { el, esc, num, debounce, buildCsv, saveCsv } from './ui.js';
+import { el, esc, num, debounce, buildCsv, saveCsv, bindExpandableRows } from './ui.js';
 import { initThemePicker } from './theme.js';
-import { renderHBarChart, citySwatchCell } from './charts.js';
+import { renderBarChart, renderHBarChart, citySwatchCell } from './charts.js';
 import { renderAppContext, loadAppsData } from './apps.js';
-import { fetchPlans, groupByCity, avgStageDurations, APPROVED_WHERE } from './plan-data.js';
+import { fetchPlans, groupByCity, groupByYear, avgStageDurations, receivingYear, availableYears, APPROVED_WHERE } from './plan-data.js';
+import { renderPlanListHtml, planAreaColorScale } from './plan-render.js';
 
 initThemePicker(el('themePick'));
 loadAppsData().then((data) => renderAppContext(el('appContext'), data.apps, 'plan-compare')).catch(() => {});
@@ -25,9 +26,18 @@ const PICK_COLORS = [
 ];
 const MAX_PICKS = 4;
 
-const state = { picks: [null, null, null, null] };
+const state = { picks: [null, null, null, null], year: null };
 
-let cityMap = new Map(); // city name -> groupByCity() bucket
+let allPlans = []; // every fetched approved plan, unfiltered
+let cityMap = new Map(); // city name -> groupByCity() bucket, for the current state.year
+
+/** Recomputes cityMap for the current state.year - called on load and
+ *  whenever the year filter changes, never a refetch (allPlans already has
+ *  everything; only the aggregation changes). */
+function rebuildCityMap() {
+  const plans = state.year ? allPlans.filter((p) => receivingYear(p) === state.year) : allPlans;
+  cityMap = new Map(groupByCity(plans).map((c) => [c.city, c]));
+}
 
 function readStateFromUrl() {
   const p = new URLSearchParams(location.search);
@@ -35,11 +45,14 @@ function readStateFromUrl() {
     const v = p.get(`p${i + 1}`);
     if (v) state.picks[i] = v;
   }
+  const y = Number(p.get('year'));
+  if (y) state.year = y;
 }
 
 function syncUrl() {
   const p = new URLSearchParams();
   state.picks.forEach((v, i) => { if (v) p.set(`p${i + 1}`, v); });
+  if (state.year) p.set('year', String(state.year));
   history.replaceState(null, '', `?${p}`);
 }
 
@@ -108,6 +121,73 @@ function renderStageTable(entries) {
     </div>`;
 }
 
+// Only meaningful for a single picked city (comparing several cities' own
+// year-trends at once would be four overlapping timelines, not a compare
+// table) - uses that city's FULL history from allPlans, ignoring the global
+// "שנת הגשה" filter above (which would otherwise collapse this to one row),
+// so the point of this section - a trend across years - still has years to
+// show.
+function renderYearBreakdown(entries) {
+  const section = el('pcYearBreakdownSection');
+  if (entries.length !== 1) { section.hidden = true; return; }
+  const { city } = entries[0];
+  const cityPlans = allPlans.filter((p) => p.plan_county_name === city);
+  const byYear = groupByYear(cityPlans);
+  if (!byYear.length) { section.hidden = true; return; }
+  section.hidden = false;
+  el('pcYearBreakdownCity').textContent = city;
+
+  const chartEntries = byYear.map((y) => ({ label: String(y.year), value: y.medianDays ?? 0 }));
+  renderBarChart('pcYearBreakdownChart', `חציון ימים לפי שנת הגשה — ${city}`, chartEntries, 'ימים');
+
+  const rows = byYear.map((y) => `
+    <tr>
+      <td>${y.year}</td>
+      <td>${num(y.count)}</td>
+      <td>${num(y.withTimeline)}</td>
+      <td>${y.medianDays == null ? '—' : num(y.medianDays)}</td>
+      <td>${y.avgDays == null ? '—' : num(y.avgDays)}</td>
+      <td>${y.minDays == null ? '—' : num(y.minDays)}</td>
+      <td>${y.maxDays == null ? '—' : num(y.maxDays)}</td>
+    </tr>`).join('');
+  el('pcYearBreakdownTable').innerHTML = `
+    <div class="matrix-wrap">
+      <table class="matrix">
+        <thead><tr>
+          <th scope="col">שנת הגשה</th>
+          <th scope="col">תכניות</th>
+          <th scope="col">עם משך זמן</th>
+          <th scope="col">חציון ימים</th>
+          <th scope="col">ממוצע ימים</th>
+          <th scope="col">מינימום</th>
+          <th scope="col">מקסימום</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+}
+
+// Every picked city's own plans, sorted longest-duration-first (same order
+// as plan-timeline.html's per-city list) - one sub-list per city, each
+// independently expandable into its plan's step timeline. The area column's
+// color scale is built from the POOL of all picked cities' plans together
+// (planAreaColorScale), not per-city, so a big plan reads as big relative to
+// everything currently on screen, not just its own city's other plans.
+function renderPlansByCity(entries) {
+  const section = el('pcPlansSection');
+  if (!entries.length) { section.hidden = true; return; }
+  section.hidden = false;
+  const areaColor = planAreaColorScale(entries.flatMap((e) => e.plans));
+  el('pcPlansByCity').innerHTML = entries.map((e, i) => `
+    <h3 dir="auto"><span class="acc-legend-swatch" style="background:${PICK_COLORS[i]}"></span> ${esc(e.city)}</h3>
+    <div class="pc-city-plans" data-city-idx="${i}">
+      ${renderPlanListHtml(e.plans, { areaColor })}
+    </div>`).join('');
+  el('pcPlansByCity').querySelectorAll('.pc-city-plans').forEach((div) => {
+    bindExpandableRows(div, 'tr.has-detail', 'data-detail', 'planRow');
+  });
+}
+
 function renderCompare() {
   const resolved = state.picks.map((city) => (city ? cityMap.get(city) : null));
   const entries = resolved.filter(Boolean);
@@ -121,6 +201,8 @@ function renderCompare() {
   if (!entries.length) {
     section.hidden = true;
     el('pcStageSection').hidden = true;
+    el('pcPlansSection').hidden = true;
+    el('pcYearBreakdownSection').hidden = true;
     return;
   }
   section.hidden = false;
@@ -131,6 +213,8 @@ function renderCompare() {
   renderHBarChart('pcChart', `חציון ימים, הגשה→אישור${entries.length > 1 ? ' — השוואה' : ''}`, chartEntries, 'ימים');
   renderCompareTable(entries);
   renderStageTable(entries);
+  renderPlansByCity(entries);
+  renderYearBreakdown(entries);
 }
 
 /* ---------- CSV ---------- */
@@ -143,7 +227,7 @@ el('pcCsv').addEventListener('click', () => {
     חציון_ימים: e.medianDays ?? '', ממוצע_ימים: e.avgDays ?? '',
     מינימום_ימים: e.minDays ?? '', מקסימום_ימים: e.maxDays ?? '',
   }));
-  const name = `plan_compare_${entries.map((e) => e.city).join('_')}`.replace(/[\\/:*?"<>|]/g, '_').slice(0, 100);
+  const name = `plan_compare_${entries.map((e) => e.city).join('_')}${state.year ? `_${state.year}` : ''}`.replace(/[\\/:*?"<>|]/g, '_').slice(0, 100);
   saveCsv(buildCsv(fields, records), `${name || 'plan_compare'}.csv`);
 });
 
@@ -168,7 +252,14 @@ pickInputs.forEach((input, i) => {
   el(`pcPickLabel${i}`).textContent = i === 0 ? 'עיר:' : `השוואה${PICK_LABELS[i]} (אופציונלי):`;
   input.addEventListener('input', debounce(() => updateRoster(input.value), 120));
   const commit = () => {
-    state.picks[i] = input.value.trim() || null;
+    const next = input.value.trim() || null;
+    // A 'change' event also fires on plain blur with no edit - e.g. clicking
+    // into an expanded plan row below re-renders that same section right
+    // back to collapsed, since renderCompare() rebuilds it from scratch.
+    // Skipping a no-op commit keeps focus loss from clobbering state the
+    // user never actually asked to change.
+    if (next === state.picks[i]) return;
+    state.picks[i] = next;
     syncUrl();
     renderCompare();
     showPickConfirm(i, Boolean(state.picks[i] && cityMap.has(state.picks[i])));
@@ -177,12 +268,19 @@ pickInputs.forEach((input, i) => {
   input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); commit(); } });
 });
 
+el('pcYearFilter').addEventListener('change', (e) => {
+  state.year = e.target.value ? Number(e.target.value) : null;
+  syncUrl();
+  rebuildCityMap();
+  updateRoster('');
+  renderCompare();
+});
+
 /* ---------- load ---------- */
 
 (async function init() {
-  let plans;
   try {
-    plans = await fetchPlans(APPROVED_WHERE, (n) => {
+    allPlans = await fetchPlans(APPROVED_WHERE, (n) => {
       el('pcLoading').textContent = `טוען תכניות מאושרות… ${num(n)} עד כה`;
     });
   } catch (err) {
@@ -190,10 +288,14 @@ pickInputs.forEach((input, i) => {
     console.error(err);
     return;
   }
-  el('pcLoading').textContent = `נטענו ${num(plans.length)} תכניות מאושרות.`;
-  cityMap = new Map(groupByCity(plans).map((c) => [c.city, c]));
+  el('pcLoading').textContent = `נטענו ${num(allPlans.length)} תכניות מאושרות.`;
 
   readStateFromUrl();
+  const years = availableYears(allPlans);
+  el('pcYearFilter').innerHTML = '<option value="">כל השנים</option>'
+    + years.map((y) => `<option value="${y}"${y === state.year ? ' selected' : ''}>${y}</option>`).join('');
+  rebuildCityMap();
+
   pickInputs.forEach((input, i) => { input.value = state.picks[i] || ''; });
   updateRoster('');
   renderCompare();

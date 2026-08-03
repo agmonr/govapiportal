@@ -2093,6 +2093,14 @@ body.accidents-page header.site h1 { inline-size: 100%; }
       <section class="acc-section" aria-labelledby="pickH">
         <h2 id="pickH">בחירת ערים להשוואה</h2>
         <p class="acc-hint" dir="auto">אפשר להשוות עד 4 ערים בבת אחת - השדה הראשון נדרש, השאר אופציונליים. משך הזמן מחושב רק על תכניות שכבר אושרו (פורסמו ברשומות) ויש להן גם תאריך הגשה.</p>
+        <div class="cm-filters">
+          <div class="acc-year-pick">
+            <label for="pcYearFilter">שנת הגשה:</label>
+            <select id="pcYearFilter">
+              <option value="">כל השנים</option>
+            </select>
+          </div>
+        </div>
         <div class="cm-filters tc-picks" id="pcPicks">
           <div class="acc-year-pick">
             <label for="pcPick0" id="pcPickLabel0">עיר:</label>
@@ -2134,6 +2142,19 @@ body.accidents-page header.site h1 { inline-size: 100%; }
         <h2 id="stageH">פירוט לפי שלב</h2>
         <p class="acc-hint" dir="auto">ממוצע ימים לכל קטע בצינור התכנון, לכל עיר שנבחרה - בלבד עבור תכניות עם שני התאריכים של אותו קטע.</p>
         <div id="pcStageTable"></div>
+      </section>
+
+      <section class="acc-section" id="pcPlansSection" aria-labelledby="plansH" hidden>
+        <h2 id="plansH">התכניות עצמן, לפי עיר</h2>
+        <p class="acc-hint" dir="auto">כל תכנית, ממוינות לפי משך הזמן מהגשה לאישור (הארוך ביותר תחילה). עמודת השטח צבועה יחסית לגודל התכנית - בין הערים שנבחרו יחד, לא רק בתוך עיר אחת - כך שתכנית גדולה בולטת גם בהשוואה בין ערים.</p>
+        <div id="pcPlansByCity"></div>
+      </section>
+
+      <section class="acc-section" id="pcYearBreakdownSection" aria-labelledby="yearBreakdownH" hidden>
+        <h2 id="yearBreakdownH">מגמה לפי שנת הגשה ב<span id="pcYearBreakdownCity" dir="auto"></span></h2>
+        <p class="acc-hint" dir="auto">כל שנות ההגשה של העיר הזו, ללא קשר לסינון "שנת הגשה" למעלה - כדי לראות את המגמה לאורך זמן, לא שנה אחת בלבד.</p>
+        <figure id="pcYearBreakdownChart" class="acc-chart acc-chart-wide" role="img"></figure>
+        <div id="pcYearBreakdownTable"></div>
       </section>
 
       <section class="acc-section" aria-labelledby="csvH">
@@ -2218,6 +2239,33 @@ function debounce(fn, ms = 300) {
     clearTimeout(t);
     t = setTimeout(() => fn(...args), ms);
   };
+}
+
+/**
+ * Wires click/keyboard toggling for a "▾ summary row -> hidden detail row"
+ * pair, the expandable-row idiom used by tree-canopy.js's compare table,
+ * moag-explorer.js's dataset list and plan-timeline.js/plan-compare.js's
+ * plan drill-downs alike. `rowSelector` matches each summary `<tr>`;
+ * `detailAttr`/`rowAttr` are the matching data-attribute pair linking a
+ * summary row to its detail row (e.g. `data-plan-row`/`data-detail`) - the
+ * summary row's own `dataset[rowAttr]` value is looked up as
+ * `[detailAttr="<value>"]` within the same `container`, so unrelated pairs
+ * elsewhere on the page (a different table using the same attribute names)
+ * never cross-toggle. A `.x-mark` element inside the summary row, if
+ * present, flips between ▾/▴.
+ */
+function bindExpandableRows(container, rowSelector, detailAttr, rowAttr) {
+  container.querySelectorAll(rowSelector).forEach((tr) => {
+    const toggle = () => {
+      const target = container.querySelector(`[${detailAttr}="${tr.dataset[rowAttr]}"]`);
+      if (!target) return;
+      target.hidden = !target.hidden;
+      const mark = tr.querySelector('.x-mark');
+      if (mark) mark.textContent = target.hidden ? '▾' : '▴';
+    };
+    tr.addEventListener('click', toggle);
+    tr.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
+  });
 }
 
 /* ---------- CSV, built here rather than trusting an advertised download ----------
@@ -2716,6 +2764,26 @@ function planTimeline(plan) {
   return { steps, totalDays };
 }
 
+/** The calendar year a plan was first submitted (הגשה) - null if
+ *  receiving_date itself is null, same "don't guess a missing date" rule as
+ *  planTimeline(). */
+function receivingYear(plan) {
+  return plan.receiving_date == null ? null : new Date(plan.receiving_date).getFullYear();
+}
+
+/** Every distinct הגשה year present in `plans`, newest first - the option
+ *  list for the year picker on both plan-timeline.html and
+ *  plan-compare.html, derived from whatever's actually in hand rather than
+ *  a hardcoded range. */
+function availableYears(plans) {
+  const years = new Set();
+  for (const p of plans) {
+    const y = receivingYear(p);
+    if (y != null) years.add(y);
+  }
+  return [...years].sort((a, b) => b - a);
+}
+
 function median(sortedNums) {
   const n = sortedNums.length;
   if (!n) return null;
@@ -2724,30 +2792,32 @@ function median(sortedNums) {
 }
 
 /**
- * Aggregates `plans` by plan_county_name (the settlement/city field - same
- * field the sister repo's by_city.html groups by). Only plans with a
- * computable totalDays contribute to the duration stats; `withTimeline`
- * tracks how many of a city's plans that was, out of `count` total, so a
- * thin sample is visible rather than silently averaged over a handful of
- * plans.
+ * Aggregates `plans` by whatever `keyFn` returns (null/undefined keys are
+ * dropped), same duration stats either way. Shared by groupByCity (key =
+ * city) and groupByYear (key = הגשה year) below - only the grouping key
+ * differs between them. Only plans with a computable totalDays contribute to
+ * the duration stats; `withTimeline` tracks how many of a bucket's plans
+ * that was, out of `count` total, so a thin sample is visible rather than
+ * silently averaged over a handful of plans.
  */
-function groupByCity(plans) {
-  const byCity = new Map();
+function aggregateByKey(plans, keyFn, keyName) {
+  const buckets = new Map();
   for (const plan of plans) {
-    const city = plan.plan_county_name || 'לא ידוע';
-    if (!byCity.has(city)) byCity.set(city, { city, count: 0, plans: [], days: [] });
-    const bucket = byCity.get(city);
+    const key = keyFn(plan);
+    if (key == null) continue;
+    if (!buckets.has(key)) buckets.set(key, { count: 0, plans: [], days: [] });
+    const bucket = buckets.get(key);
     bucket.count += 1;
     bucket.plans.push(plan);
     const { totalDays } = planTimeline(plan);
     if (totalDays != null && totalDays >= 0) bucket.days.push(totalDays);
   }
 
-  return [...byCity.values()].map((bucket) => {
+  return [...buckets.entries()].map(([key, bucket]) => {
     const sorted = [...bucket.days].sort((a, b) => a - b);
     const sum = sorted.reduce((acc, d) => acc + d, 0);
     return {
-      city: bucket.city,
+      [keyName]: key,
       count: bucket.count,
       withTimeline: sorted.length,
       avgDays: sorted.length ? Math.round(sum / sorted.length) : null,
@@ -2757,6 +2827,19 @@ function groupByCity(plans) {
       plans: bucket.plans,
     };
   });
+}
+
+/** Aggregates `plans` by plan_county_name (the settlement/city field - same
+ *  field the sister repo's by_city.html groups by). */
+function groupByCity(plans) {
+  return aggregateByKey(plans, (p) => p.plan_county_name || 'לא ידוע', 'city');
+}
+
+/** Aggregates `plans` by the calendar year they were first submitted
+ *  (הגשה) - the per-city year-over-year trend view on plan-compare.html
+ *  when exactly one city is picked. Sorted chronologically, oldest first. */
+function groupByYear(plans) {
+  return aggregateByKey(plans, receivingYear, 'year').sort((a, b) => a.year - b.year);
 }
 
 /** Average days spent in each PLAN_STEPS segment, across every plan with a
@@ -2784,6 +2867,146 @@ function avgStageDurations(plans) {
     avgDays: sums[i].n ? Math.round(sums[i].sum / sums[i].n) : null,
     n: sums[i].n,
   }));
+}
+
+/**
+ * Shared per-plan/per-plan-list HTML renderers, used by both
+ * plan-timeline.js (per-city drill-down) and plan-compare.js (per-picked-
+ * city drill-down) - split out once the same table/timeline markup was
+ * needed in both places, rather than duplicating it (see charts.js's own
+ * docstring for the same reasoning applied to chart renderers).
+ */
+
+
+const fmtDate = (d) => (d ? d.toLocaleDateString('he-IL') : '—');
+
+/** Current-status badge for one plan: {cls, text} - `cls` matches the
+ *  site-wide .badge.ok/warn/bad/limited/unknown vocabulary (see style.css). */
+function statusBadge(plan, totalDays) {
+  if (plan.station_desc === 'אישור') {
+    return totalDays != null
+      ? { cls: 'ok', text: `אושרה — ${totalDays.toLocaleString('he-IL')} ימים` }
+      : { cls: 'limited', text: 'אושרה (חסרים תאריכים)' };
+  }
+  const rejecting = plan.station_desc === 'התכנית נדחתה' || plan.internet_short_status === 'התכנית נדחתה';
+  if (rejecting) return { cls: 'bad', text: 'נדחתה' };
+  return { cls: 'warn', text: plan.internet_short_status || plan.station_desc || 'לא ידוע' };
+}
+
+/** The deepest drill-down: one plan's own step-by-step milestone timeline. */
+function renderPlanTimelineHtml(plan) {
+  const { steps } = planTimeline(plan);
+  if (!steps.length) return '<p class="acc-hint">אין אף תאריך ציר-זמן רשום לתכנית זו.</p>';
+  const rows = steps.map((s) => `
+    <tr>
+      <td>${esc(s.label)}</td>
+      <td>${fmtDate(s.date)}</td>
+      <td>${s.daysSincePrev == null ? '—' : `${s.daysSincePrev >= 0 ? '+' : ''}${num(s.daysSincePrev)}`}</td>
+    </tr>`).join('');
+  return `
+    <div class="matrix-wrap">
+      <table class="matrix preview">
+        <thead><tr>
+          <th scope="col">שלב</th>
+          <th scope="col">תאריך</th>
+          <th scope="col">ימים מהשלב הקודם</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+}
+
+/**
+ * A percentile-rank color scale for pl_area_dunam, not a raw-value one -
+ * plan area spans from a fraction of a dunam to whole-district plans of
+ * thousands of dunam, so a linear (or even log) scale keyed to the raw
+ * value would leave nearly every ordinary plan looking identical and only
+ * the single largest outlier colored. Rank-within-the-pool instead: the
+ * biggest plan currently on screen is always the deepest color, the
+ * smallest always the lightest, regardless of the absolute numbers this
+ * particular set of cities/years happens to contain.
+ *
+ * Returns a function (area) -> CSS `background` value (empty string for a
+ * missing area), built once from `pool` (every plan the caller wants ranked
+ * together - e.g. all picked cities' plans pooled, so size reads consistently
+ * across cities rather than each city scaling against only itself).
+ */
+function planAreaColorScale(pool) {
+  const sorted = pool.map((p) => p.pl_area_dunam).filter((a) => typeof a === 'number' && a >= 0).sort((a, b) => a - b);
+  return (area) => {
+    if (typeof area !== 'number' || !sorted.length) return '';
+    let lo = 0;
+    let hi = sorted.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (sorted[mid] < area) lo = mid + 1; else hi = mid;
+    }
+    const pct = sorted.length <= 1 ? 1 : lo / (sorted.length - 1);
+    // 12%..85% of accent - even the smallest plan gets a faint tint (so the
+    // column doesn't read as "blank = no data"), the largest a strong one.
+    const strength = Math.round(12 + pct * 73);
+    return `background:color-mix(in srgb, var(--accent) ${strength}%, transparent)`;
+  };
+}
+
+const PLANS_PER_LIST_CAP = 300;
+
+/**
+ * A sortable-by-nothing (pre-sorted by caller), expandable list of plans -
+ * name, number, status badge, ימים (total duration), שטח (דונם, optionally
+ * colored via `areaColor`). Each row expands into its own step timeline
+ * (renderPlanTimelineHtml) plus a link to pl_url. `tableId` must be unique
+ * per call on the page (used to scope the expand/collapse wiring via
+ * bindExpandableRows in ui.js).
+ */
+function renderPlanListHtml(plans, { areaColor } = {}) {
+  const withTotals = plans.map((p) => ({ plan: p, totalDays: planTimeline(p).totalDays }));
+  withTotals.sort((a, b) => {
+    if (a.totalDays == null && b.totalDays == null) return 0;
+    if (a.totalDays == null) return 1;
+    if (b.totalDays == null) return -1;
+    return b.totalDays - a.totalDays;
+  });
+  const capped = withTotals.slice(0, PLANS_PER_LIST_CAP);
+  const capNote = withTotals.length > capped.length
+    ? `<p class="acc-hint">מוצגות ${num(capped.length)} מתוך ${num(withTotals.length)} - השתמשו בהורדת ה-Excel לקבלת הכול.</p>` : '';
+
+  const rows = capped.map(({ plan, totalDays }, i) => {
+    const badge = statusBadge(plan, totalDays);
+    const area = plan.pl_area_dunam;
+    const areaStyle = areaColor ? areaColor(area) : '';
+    return `
+    <tr class="has-detail" data-plan-row="${i}" tabindex="0" role="button">
+      <td class="c-x"><span class="x-mark">▾</span></td>
+      <td dir="auto">${esc(plan.pl_name || plan.pl_number)}</td>
+      <td dir="ltr">${esc(plan.pl_number || '')}</td>
+      <td><span class="badge ${badge.cls}">${esc(badge.text)}</span></td>
+      <td>${totalDays == null ? '—' : num(totalDays)}</td>
+      <td${areaStyle ? ` style="${areaStyle}"` : ''}>${area == null ? '—' : num(area)}</td>
+    </tr>
+    <tr class="detail-row" data-detail="${i}" hidden>
+      <td colspan="6">
+        ${renderPlanTimelineHtml(plan)}
+        ${plan.pl_url ? `<p class="acc-hint"><a href="${esc(plan.pl_url)}" target="_blank" rel="noopener">מסמכי התכנית במבא"ת ↗</a></p>` : ''}
+      </td>
+    </tr>`;
+  }).join('');
+
+  return `
+    ${capNote}
+    <div class="matrix-wrap">
+      <table class="matrix preview expandable">
+        <thead><tr>
+          <th class="c-x"></th>
+          <th scope="col">שם תכנית</th>
+          <th scope="col">מספר תכנית</th>
+          <th scope="col">סטטוס</th>
+          <th scope="col">ימים (הגשה→אישור)</th>
+          <th scope="col">שטח (דונם)</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
 }
 
 /**
@@ -2973,6 +3196,7 @@ function renderAppContext(node, apps, currentId, { includeSelf = true } = {}) {
 
 
 
+
 initThemePicker(el('themePick'));
 loadAppsData().then((data) => renderAppContext(el('appContext'), data.apps, 'plan-compare')).catch(() => {});
 
@@ -2986,9 +3210,18 @@ const PICK_COLORS = [
 ];
 const MAX_PICKS = 4;
 
-const state = { picks: [null, null, null, null] };
+const state = { picks: [null, null, null, null], year: null };
 
-let cityMap = new Map(); // city name -> groupByCity() bucket
+let allPlans = []; // every fetched approved plan, unfiltered
+let cityMap = new Map(); // city name -> groupByCity() bucket, for the current state.year
+
+/** Recomputes cityMap for the current state.year - called on load and
+ *  whenever the year filter changes, never a refetch (allPlans already has
+ *  everything; only the aggregation changes). */
+function rebuildCityMap() {
+  const plans = state.year ? allPlans.filter((p) => receivingYear(p) === state.year) : allPlans;
+  cityMap = new Map(groupByCity(plans).map((c) => [c.city, c]));
+}
 
 function readStateFromUrl() {
   const p = new URLSearchParams(location.search);
@@ -2996,11 +3229,14 @@ function readStateFromUrl() {
     const v = p.get(`p${i + 1}`);
     if (v) state.picks[i] = v;
   }
+  const y = Number(p.get('year'));
+  if (y) state.year = y;
 }
 
 function syncUrl() {
   const p = new URLSearchParams();
   state.picks.forEach((v, i) => { if (v) p.set(`p${i + 1}`, v); });
+  if (state.year) p.set('year', String(state.year));
   history.replaceState(null, '', `?${p}`);
 }
 
@@ -3069,6 +3305,73 @@ function renderStageTable(entries) {
     </div>`;
 }
 
+// Only meaningful for a single picked city (comparing several cities' own
+// year-trends at once would be four overlapping timelines, not a compare
+// table) - uses that city's FULL history from allPlans, ignoring the global
+// "שנת הגשה" filter above (which would otherwise collapse this to one row),
+// so the point of this section - a trend across years - still has years to
+// show.
+function renderYearBreakdown(entries) {
+  const section = el('pcYearBreakdownSection');
+  if (entries.length !== 1) { section.hidden = true; return; }
+  const { city } = entries[0];
+  const cityPlans = allPlans.filter((p) => p.plan_county_name === city);
+  const byYear = groupByYear(cityPlans);
+  if (!byYear.length) { section.hidden = true; return; }
+  section.hidden = false;
+  el('pcYearBreakdownCity').textContent = city;
+
+  const chartEntries = byYear.map((y) => ({ label: String(y.year), value: y.medianDays ?? 0 }));
+  renderBarChart('pcYearBreakdownChart', `חציון ימים לפי שנת הגשה — ${city}`, chartEntries, 'ימים');
+
+  const rows = byYear.map((y) => `
+    <tr>
+      <td>${y.year}</td>
+      <td>${num(y.count)}</td>
+      <td>${num(y.withTimeline)}</td>
+      <td>${y.medianDays == null ? '—' : num(y.medianDays)}</td>
+      <td>${y.avgDays == null ? '—' : num(y.avgDays)}</td>
+      <td>${y.minDays == null ? '—' : num(y.minDays)}</td>
+      <td>${y.maxDays == null ? '—' : num(y.maxDays)}</td>
+    </tr>`).join('');
+  el('pcYearBreakdownTable').innerHTML = `
+    <div class="matrix-wrap">
+      <table class="matrix">
+        <thead><tr>
+          <th scope="col">שנת הגשה</th>
+          <th scope="col">תכניות</th>
+          <th scope="col">עם משך זמן</th>
+          <th scope="col">חציון ימים</th>
+          <th scope="col">ממוצע ימים</th>
+          <th scope="col">מינימום</th>
+          <th scope="col">מקסימום</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+}
+
+// Every picked city's own plans, sorted longest-duration-first (same order
+// as plan-timeline.html's per-city list) - one sub-list per city, each
+// independently expandable into its plan's step timeline. The area column's
+// color scale is built from the POOL of all picked cities' plans together
+// (planAreaColorScale), not per-city, so a big plan reads as big relative to
+// everything currently on screen, not just its own city's other plans.
+function renderPlansByCity(entries) {
+  const section = el('pcPlansSection');
+  if (!entries.length) { section.hidden = true; return; }
+  section.hidden = false;
+  const areaColor = planAreaColorScale(entries.flatMap((e) => e.plans));
+  el('pcPlansByCity').innerHTML = entries.map((e, i) => `
+    <h3 dir="auto"><span class="acc-legend-swatch" style="background:${PICK_COLORS[i]}"></span> ${esc(e.city)}</h3>
+    <div class="pc-city-plans" data-city-idx="${i}">
+      ${renderPlanListHtml(e.plans, { areaColor })}
+    </div>`).join('');
+  el('pcPlansByCity').querySelectorAll('.pc-city-plans').forEach((div) => {
+    bindExpandableRows(div, 'tr.has-detail', 'data-detail', 'planRow');
+  });
+}
+
 function renderCompare() {
   const resolved = state.picks.map((city) => (city ? cityMap.get(city) : null));
   const entries = resolved.filter(Boolean);
@@ -3082,6 +3385,8 @@ function renderCompare() {
   if (!entries.length) {
     section.hidden = true;
     el('pcStageSection').hidden = true;
+    el('pcPlansSection').hidden = true;
+    el('pcYearBreakdownSection').hidden = true;
     return;
   }
   section.hidden = false;
@@ -3092,6 +3397,8 @@ function renderCompare() {
   renderHBarChart('pcChart', `חציון ימים, הגשה→אישור${entries.length > 1 ? ' — השוואה' : ''}`, chartEntries, 'ימים');
   renderCompareTable(entries);
   renderStageTable(entries);
+  renderPlansByCity(entries);
+  renderYearBreakdown(entries);
 }
 
 /* ---------- CSV ---------- */
@@ -3104,7 +3411,7 @@ el('pcCsv').addEventListener('click', () => {
     חציון_ימים: e.medianDays ?? '', ממוצע_ימים: e.avgDays ?? '',
     מינימום_ימים: e.minDays ?? '', מקסימום_ימים: e.maxDays ?? '',
   }));
-  const name = `plan_compare_${entries.map((e) => e.city).join('_')}`.replace(/[\\/:*?"<>|]/g, '_').slice(0, 100);
+  const name = `plan_compare_${entries.map((e) => e.city).join('_')}${state.year ? `_${state.year}` : ''}`.replace(/[\\/:*?"<>|]/g, '_').slice(0, 100);
   saveCsv(buildCsv(fields, records), `${name || 'plan_compare'}.csv`);
 });
 
@@ -3129,7 +3436,14 @@ pickInputs.forEach((input, i) => {
   el(`pcPickLabel${i}`).textContent = i === 0 ? 'עיר:' : `השוואה${PICK_LABELS[i]} (אופציונלי):`;
   input.addEventListener('input', debounce(() => updateRoster(input.value), 120));
   const commit = () => {
-    state.picks[i] = input.value.trim() || null;
+    const next = input.value.trim() || null;
+    // A 'change' event also fires on plain blur with no edit - e.g. clicking
+    // into an expanded plan row below re-renders that same section right
+    // back to collapsed, since renderCompare() rebuilds it from scratch.
+    // Skipping a no-op commit keeps focus loss from clobbering state the
+    // user never actually asked to change.
+    if (next === state.picks[i]) return;
+    state.picks[i] = next;
     syncUrl();
     renderCompare();
     showPickConfirm(i, Boolean(state.picks[i] && cityMap.has(state.picks[i])));
@@ -3138,12 +3452,19 @@ pickInputs.forEach((input, i) => {
   input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); commit(); } });
 });
 
+el('pcYearFilter').addEventListener('change', (e) => {
+  state.year = e.target.value ? Number(e.target.value) : null;
+  syncUrl();
+  rebuildCityMap();
+  updateRoster('');
+  renderCompare();
+});
+
 /* ---------- load ---------- */
 
 (async function init() {
-  let plans;
   try {
-    plans = await fetchPlans(APPROVED_WHERE, (n) => {
+    allPlans = await fetchPlans(APPROVED_WHERE, (n) => {
       el('pcLoading').textContent = `טוען תכניות מאושרות… ${num(n)} עד כה`;
     });
   } catch (err) {
@@ -3151,10 +3472,14 @@ pickInputs.forEach((input, i) => {
     console.error(err);
     return;
   }
-  el('pcLoading').textContent = `נטענו ${num(plans.length)} תכניות מאושרות.`;
-  cityMap = new Map(groupByCity(plans).map((c) => [c.city, c]));
+  el('pcLoading').textContent = `נטענו ${num(allPlans.length)} תכניות מאושרות.`;
 
   readStateFromUrl();
+  const years = availableYears(allPlans);
+  el('pcYearFilter').innerHTML = '<option value="">כל השנים</option>'
+    + years.map((y) => `<option value="${y}"${y === state.year ? ' selected' : ''}>${y}</option>`).join('');
+  rebuildCityMap();
+
   pickInputs.forEach((input, i) => { input.value = state.picks[i] || ''; });
   updateRoster('');
   renderCompare();

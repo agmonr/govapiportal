@@ -209,7 +209,7 @@ TARGETS = [
         # resultOffset query, see plan-data.js) - no shared portal.js
         # machinery. apis.json is only for apps.js's under-header category
         # strip.
-        "sources": ["src/ui.js", "src/theme.js", "src/plan-data.js", "src/apps.js", "src/plan-timeline.js"],
+        "sources": ["src/ui.js", "src/theme.js", "src/plan-data.js", "src/plan-render.js", "src/apps.js", "src/plan-timeline.js"],
         "data": True,
     },
     {
@@ -220,7 +220,7 @@ TARGETS = [
         # into tree-canopy.js's compare-up-to-4-entities idiom. charts.js for
         # the leaderboard bar + swatch coloring. apis.json is only for
         # apps.js's under-header category strip.
-        "sources": ["src/ui.js", "src/theme.js", "src/charts.js", "src/plan-data.js", "src/apps.js", "src/plan-compare.js"],
+        "sources": ["src/ui.js", "src/theme.js", "src/charts.js", "src/plan-data.js", "src/plan-render.js", "src/apps.js", "src/plan-compare.js"],
         "data": True,
     },
 ]

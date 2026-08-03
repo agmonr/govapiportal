@@ -73,9 +73,24 @@
         </div>
         <div class="cm-filters">
           <div class="acc-year-pick">
+            <label for="ptNameFilter">חיפוש חופשי בשם תכנית:</label>
+            <input id="ptNameFilter" type="search" autocomplete="off" spellcheck="false"
+                   placeholder="לדוגמה: מתחם, שינוי יעוד…" dir="auto">
+          </div>
+          <div class="acc-year-pick">
             <label for="ptCityFilter">עיר/יישוב:</label>
             <input id="ptCityFilter" type="text" list="ptCityRoster" autocomplete="off" spellcheck="false"
                    placeholder="כל היישובים…">
+          </div>
+          <div class="acc-year-pick">
+            <label for="ptYearFilter">שנת הגשה:</label>
+            <select id="ptYearFilter">
+              <option value="">כל השנים</option>
+            </select>
+          </div>
+          <div class="acc-year-pick">
+            <label for="ptMinPlans">מינימום תכניות ליישוב:</label>
+            <input id="ptMinPlans" type="number" min="0" step="1" value="50">
           </div>
         </div>
         <datalist id="ptCityRoster"></datalist>
@@ -85,6 +100,7 @@
       <section class="acc-section" aria-labelledby="citiesH">
         <h2 id="citiesH">משך זמן לפי יישוב</h2>
         <p class="acc-hint" dir="auto">לחצו על שורת יישוב כדי לראות את התכניות שלו; לחצו על תכנית כדי לראות את ציר הזמן שלה שלב-אחר-שלב.</p>
+        <p class="acc-hint" id="ptMinPlansHint" dir="auto"></p>
         <div id="ptCityTable"></div>
       </section>
 

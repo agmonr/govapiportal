@@ -122,6 +122,26 @@ export function planTimeline(plan) {
   return { steps, totalDays };
 }
 
+/** The calendar year a plan was first submitted (הגשה) - null if
+ *  receiving_date itself is null, same "don't guess a missing date" rule as
+ *  planTimeline(). */
+export function receivingYear(plan) {
+  return plan.receiving_date == null ? null : new Date(plan.receiving_date).getFullYear();
+}
+
+/** Every distinct הגשה year present in `plans`, newest first - the option
+ *  list for the year picker on both plan-timeline.html and
+ *  plan-compare.html, derived from whatever's actually in hand rather than
+ *  a hardcoded range. */
+export function availableYears(plans) {
+  const years = new Set();
+  for (const p of plans) {
+    const y = receivingYear(p);
+    if (y != null) years.add(y);
+  }
+  return [...years].sort((a, b) => b - a);
+}
+
 export function median(sortedNums) {
   const n = sortedNums.length;
   if (!n) return null;
@@ -130,30 +150,32 @@ export function median(sortedNums) {
 }
 
 /**
- * Aggregates `plans` by plan_county_name (the settlement/city field - same
- * field the sister repo's by_city.html groups by). Only plans with a
- * computable totalDays contribute to the duration stats; `withTimeline`
- * tracks how many of a city's plans that was, out of `count` total, so a
- * thin sample is visible rather than silently averaged over a handful of
- * plans.
+ * Aggregates `plans` by whatever `keyFn` returns (null/undefined keys are
+ * dropped), same duration stats either way. Shared by groupByCity (key =
+ * city) and groupByYear (key = הגשה year) below - only the grouping key
+ * differs between them. Only plans with a computable totalDays contribute to
+ * the duration stats; `withTimeline` tracks how many of a bucket's plans
+ * that was, out of `count` total, so a thin sample is visible rather than
+ * silently averaged over a handful of plans.
  */
-export function groupByCity(plans) {
-  const byCity = new Map();
+function aggregateByKey(plans, keyFn, keyName) {
+  const buckets = new Map();
   for (const plan of plans) {
-    const city = plan.plan_county_name || 'לא ידוע';
-    if (!byCity.has(city)) byCity.set(city, { city, count: 0, plans: [], days: [] });
-    const bucket = byCity.get(city);
+    const key = keyFn(plan);
+    if (key == null) continue;
+    if (!buckets.has(key)) buckets.set(key, { count: 0, plans: [], days: [] });
+    const bucket = buckets.get(key);
     bucket.count += 1;
     bucket.plans.push(plan);
     const { totalDays } = planTimeline(plan);
     if (totalDays != null && totalDays >= 0) bucket.days.push(totalDays);
   }
 
-  return [...byCity.values()].map((bucket) => {
+  return [...buckets.entries()].map(([key, bucket]) => {
     const sorted = [...bucket.days].sort((a, b) => a - b);
     const sum = sorted.reduce((acc, d) => acc + d, 0);
     return {
-      city: bucket.city,
+      [keyName]: key,
       count: bucket.count,
       withTimeline: sorted.length,
       avgDays: sorted.length ? Math.round(sum / sorted.length) : null,
@@ -163,6 +185,19 @@ export function groupByCity(plans) {
       plans: bucket.plans,
     };
   });
+}
+
+/** Aggregates `plans` by plan_county_name (the settlement/city field - same
+ *  field the sister repo's by_city.html groups by). */
+export function groupByCity(plans) {
+  return aggregateByKey(plans, (p) => p.plan_county_name || 'לא ידוע', 'city');
+}
+
+/** Aggregates `plans` by the calendar year they were first submitted
+ *  (הגשה) - the per-city year-over-year trend view on plan-compare.html
+ *  when exactly one city is picked. Sorted chronologically, oldest first. */
+export function groupByYear(plans) {
+  return aggregateByKey(plans, receivingYear, 'year').sort((a, b) => a.year - b.year);
 }
 
 /** Average days spent in each PLAN_STEPS segment, across every plan with a

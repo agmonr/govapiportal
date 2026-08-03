@@ -47,6 +47,14 @@
       <section class="acc-section" aria-labelledby="pickH">
         <h2 id="pickH">בחירת ערים להשוואה</h2>
         <p class="acc-hint" dir="auto">אפשר להשוות עד 4 ערים בבת אחת - השדה הראשון נדרש, השאר אופציונליים. משך הזמן מחושב רק על תכניות שכבר אושרו (פורסמו ברשומות) ויש להן גם תאריך הגשה.</p>
+        <div class="cm-filters">
+          <div class="acc-year-pick">
+            <label for="pcYearFilter">שנת הגשה:</label>
+            <select id="pcYearFilter">
+              <option value="">כל השנים</option>
+            </select>
+          </div>
+        </div>
         <div class="cm-filters tc-picks" id="pcPicks">
           <div class="acc-year-pick">
             <label for="pcPick0" id="pcPickLabel0">עיר:</label>
@@ -88,6 +96,19 @@
         <h2 id="stageH">פירוט לפי שלב</h2>
         <p class="acc-hint" dir="auto">ממוצע ימים לכל קטע בצינור התכנון, לכל עיר שנבחרה - בלבד עבור תכניות עם שני התאריכים של אותו קטע.</p>
         <div id="pcStageTable"></div>
+      </section>
+
+      <section class="acc-section" id="pcPlansSection" aria-labelledby="plansH" hidden>
+        <h2 id="plansH">התכניות עצמן, לפי עיר</h2>
+        <p class="acc-hint" dir="auto">כל תכנית, ממוינות לפי משך הזמן מהגשה לאישור (הארוך ביותר תחילה). עמודת השטח צבועה יחסית לגודל התכנית - בין הערים שנבחרו יחד, לא רק בתוך עיר אחת - כך שתכנית גדולה בולטת גם בהשוואה בין ערים.</p>
+        <div id="pcPlansByCity"></div>
+      </section>
+
+      <section class="acc-section" id="pcYearBreakdownSection" aria-labelledby="yearBreakdownH" hidden>
+        <h2 id="yearBreakdownH">מגמה לפי שנת הגשה ב<span id="pcYearBreakdownCity" dir="auto"></span></h2>
+        <p class="acc-hint" dir="auto">כל שנות ההגשה של העיר הזו, ללא קשר לסינון "שנת הגשה" למעלה - כדי לראות את המגמה לאורך זמן, לא שנה אחת בלבד.</p>
+        <figure id="pcYearBreakdownChart" class="acc-chart acc-chart-wide" role="img"></figure>
+        <div id="pcYearBreakdownTable"></div>
       </section>
 
       <section class="acc-section" aria-labelledby="csvH">

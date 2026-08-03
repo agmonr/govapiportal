@@ -696,3 +696,58 @@ alongside `blue-lines.html`) at first pass, then moved to `money`
 (`כסף וממשל מקומי`, alongside `committees.html`) per explicit direction — a
 plan-approval-speed tracker reads more as local-government accountability
 than an address-lookup tool.
+
+### Same day, follow-up round: year filters, min-plans threshold, name search, per-plan drill-down on plan-compare
+
+Several small requests landed in sequence, each building on the last:
+`receivingYear`/`availableYears`/`groupByYear` added to `plan-data.js`
+(`groupByCity` and `groupByYear` now share one `aggregateByKey(plans, keyFn,
+keyName)` helper - written once precisely because a second grouping was
+about to need the identical duration-stats logic, not preemptively). A
+"שנת הגשה" filter landed on both pages; `plan-timeline.html` also got a
+free-text plan-name search and a minimum-plans-per-city threshold (default
+50 - the ~1,000-locality list is mostly 1-2-plan noise, so a large city is
+the useful comparison on first load). `plan-compare.html` gained two more
+sections, both only for a single picked city: a year-submitted trend
+(`groupByYear` on that city's FULL history, deliberately ignoring the page's
+own global year filter - otherwise there'd be nothing left to trend across),
+and a per-city plan drill-down sorted by duration, with the שטח (דונם)
+column colored by a **percentile-rank** scale (`planAreaColorScale` in the
+new `src/plan-render.js`) rather than a linear/log one on the raw dunam
+value - plan sizes span three orders of magnitude, so anything keyed to the
+absolute number left ordinary plans indistinguishable and only the single
+biggest colored at all.
+
+**Consolidation, not duplication:** `statusBadge`, `renderPlanTimelineHtml`
+and the per-city plan-list table (now `renderPlanListHtml`) moved out of
+`plan-timeline.js` into a new shared `src/plan-render.js` the moment
+`plan-compare.js` needed the identical markup for its own drill-down - same
+call made for `renderBarChart`/`renderGroupedChart` in `charts.js` originally
+(see that file's own docstring). `bindExpandableRows` (the ▾/▴ toggle wiring)
+moved into `src/ui.js` for the same reason - it was about to exist three
+times (city→plan in plan-timeline, plan→timeline in both files) otherwise.
+
+**Two real bugs, both caught by browser testing, neither guessable from
+`node --check`:**
+
+1. A genuinely broken test assertion led to a genuine app bug hiding right
+   next to it. Checking "does the plan-list table have 6 header columns"
+   with a plain `thead th` descendant selector returned 897 - each of a
+   city's up to 300 plans carries its OWN nested step-timeline table
+   (`class="matrix preview"`, no `expandable`) already in the DOM (just
+   `hidden` until clicked), each with its own 3-column `thead`. `(897-6)/3 =
+   297` - exactly that city's plan count. Scoping the selector to `>
+   thead > tr > th` fixed the assertion; the app itself was already correct.
+2. A real one, found because the fixed test above kept going: clicking a
+   plan row in `plan-compare.html`'s new drill-down to expand its timeline
+   silently collapsed it right back. Cause: the row sits below the city-pick
+   `<input>`s, so clicking it blurs whichever input still had focus, firing
+   its `change` handler - which unconditionally called `renderCompare()`
+   (rebuilding the whole section, including the drill-down, from scratch)
+   even when the input's value hadn't actually changed. Fixed by skipping
+   `commit()` entirely when the trimmed value equals what's already stored -
+   a blur-with-no-edit is now a no-op instead of a full silent re-render.
+   Same `change`-fires-on-every-blur pattern exists in `tree-canopy.js`'s own
+   pick inputs (not touched here - out of scope for this session, but worth
+   knowing the pattern is shared if an expandable row is ever added there
+   too).

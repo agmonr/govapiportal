@@ -56,8 +56,9 @@ than shipping to whoever downloads it.
 | `datagov.html` / `src/ckan.js` | The data.gov.il explorer: catalogue → dataset → records |
 | `moag.html` / `src/moag-explorer.js` | The Ministry of Agriculture explorer: catalogue → dataset → FeatureServer records |
 | `tree-canopy.html` / `src/tree-canopy.js` | Tree canopy % by city/neighborhood/street, compare-two-entities UI. Data is precomputed - see below. |
-| `plan-timeline.html` / `src/plan-timeline.js` | How long a building plan takes from submission to approval, by city, with a per-plan step-by-step drill-down and a detailed Excel export. Live from Xplan - see `src/plan-data.js`. |
-| `plan-compare.html` / `src/plan-compare.js` | Same plan-duration data, compare up to 4 cities at once (same UI idiom as `tree-canopy.html`). |
+| `plan-timeline.html` / `src/plan-timeline.js` | How long a building plan takes from submission to approval, by city, with filters (status/city/year/plan-name/min-plans-per-city), a per-plan step-by-step drill-down and a detailed Excel export. Live from Xplan - see `src/plan-data.js`. |
+| `plan-compare.html` / `src/plan-compare.js` | Same plan-duration data, compare up to 4 cities at once (same UI idiom as `tree-canopy.html`), with a per-city year-submitted trend and a per-city plan drill-down (area-colored by size). |
+| `src/plan-render.js` | Shared per-plan/per-plan-list HTML (status badge, step timeline, area-size color scale) - used by both plan pages above so the markup exists once. |
 | `tools/canopy_build.py` | One-time local batch job that computes the three canopy tables above from a gitignored local shapefile |
 | `src/portal.js` | Portal drill-in: live request per portal, rendered as a table |
 | `src/explorer.js` | Live in-browser request panel |

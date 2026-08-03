@@ -6,10 +6,11 @@
  * this is computable from a single live Xplan query.
  */
 
-import { el, esc, num, debounce, buildCsv, saveCsv, saveXls } from './ui.js';
+import { el, esc, num, debounce, buildCsv, saveCsv, saveXls, bindExpandableRows } from './ui.js';
 import { initThemePicker } from './theme.js';
 import { renderAppContext, loadAppsData } from './apps.js';
-import { fetchPlans, groupByCity, planTimeline, PLAN_STEPS, median } from './plan-data.js';
+import { fetchPlans, groupByCity, planTimeline, PLAN_STEPS, median, receivingYear, availableYears } from './plan-data.js';
+import { renderPlanListHtml } from './plan-render.js';
 
 initThemePicker(el('themePick'));
 loadAppsData().then((data) => renderAppContext(el('appContext'), data.apps, 'plan-timeline')).catch(() => {});
@@ -19,6 +20,9 @@ loadAppsData().then((data) => renderAppContext(el('appContext'), data.apps, 'pla
 const state = {
   status: 'approved', // 'approved' | 'progress' | 'all'
   cityFilter: null,
+  nameFilter: null, // free-text, matched as a substring against pl_name
+  yearFilter: null, // year the plan was first submitted (receiving_date) - null = every year
+  minPlans: 50, // hide cities with fewer plans than this - the ~1,000-city list is mostly small localities with 1-2 plans, whose duration numbers are single-digit-sample noise; a large city is the interesting comparison on first load, not the tail
   sortKey: 'medianDays',
   sortDir: 'desc',
   expandedCity: null,
@@ -29,26 +33,15 @@ let allPlans = [];
 
 /* ---------- helpers ---------- */
 
-const fmtDate = (d) => (d ? d.toLocaleDateString('he-IL') : '—');
-
-/** current-status badge for one plan: {cls, text} - `cls` matches the
- *  site-wide .badge.ok/warn/bad/limited/unknown vocabulary (see style.css). */
-function statusBadge(plan, totalDays) {
-  if (plan.station_desc === 'אישור') {
-    return totalDays != null
-      ? { cls: 'ok', text: `אושרה — ${num(totalDays)} ימים` }
-      : { cls: 'limited', text: 'אושרה (חסרים תאריכים)' };
-  }
-  const rejecting = plan.station_desc === 'התכנית נדחתה' || plan.internet_short_status === 'התכנית נדחתה';
-  if (rejecting) return { cls: 'bad', text: 'נדחתה' };
-  return { cls: 'warn', text: plan.internet_short_status || plan.station_desc || 'לא ידוע' };
-}
+const fmtExportDate = (d) => (d ? d.toLocaleDateString('he-IL') : '—');
 
 function filteredPlans() {
   let plans = allPlans;
   if (state.status === 'approved') plans = plans.filter((p) => p.station_desc === 'אישור');
   else if (state.status === 'progress') plans = plans.filter((p) => p.station_desc !== 'אישור');
   if (state.cityFilter) plans = plans.filter((p) => p.plan_county_name === state.cityFilter);
+  if (state.yearFilter) plans = plans.filter((p) => receivingYear(p) === state.yearFilter);
+  if (state.nameFilter) plans = plans.filter((p) => (p.pl_name || '').toLowerCase().includes(state.nameFilter));
   return plans;
 }
 
@@ -78,92 +71,10 @@ function updateCityRoster() {
   el('ptCityRoster').innerHTML = cities.map((c) => `<option value="${esc(c)}">`).join('');
 }
 
-/* ---------- per-plan timeline (deepest drill-down) ---------- */
-
-function renderPlanTimelineHtml(plan) {
-  const { steps } = planTimeline(plan);
-  if (!steps.length) return '<p class="acc-hint">אין אף תאריך ציר-זמן רשום לתכנית זו.</p>';
-  const rows = steps.map((s) => `
-    <tr>
-      <td>${esc(s.label)}</td>
-      <td>${fmtDate(s.date)}</td>
-      <td>${s.daysSincePrev == null ? '—' : `${s.daysSincePrev >= 0 ? '+' : ''}${num(s.daysSincePrev)}`}</td>
-    </tr>`).join('');
-  return `
-    <div class="matrix-wrap">
-      <table class="matrix preview">
-        <thead><tr>
-          <th scope="col">שלב</th>
-          <th scope="col">תאריך</th>
-          <th scope="col">ימים מהשלב הקודם</th>
-        </tr></thead>
-        <tbody>${rows}</tbody>
-      </table>
-    </div>`;
-}
-
-/* ---------- per-city plan list (middle drill-down) ---------- */
-
-const PLANS_PER_CITY_CAP = 300;
-
-function renderCityPlansHtml(cityBucket) {
-  const withTotals = cityBucket.plans.map((p) => ({ plan: p, totalDays: planTimeline(p).totalDays }));
-  withTotals.sort((a, b) => {
-    if (a.totalDays == null && b.totalDays == null) return 0;
-    if (a.totalDays == null) return 1;
-    if (b.totalDays == null) return -1;
-    return b.totalDays - a.totalDays;
-  });
-  const capped = withTotals.slice(0, PLANS_PER_CITY_CAP);
-  const capNote = withTotals.length > capped.length
-    ? `<p class="acc-hint">מוצגות ${num(capped.length)} מתוך ${num(withTotals.length)} - השתמשו בהורדת ה-Excel לקבלת הכול.</p>` : '';
-
-  const rows = capped.map(({ plan, totalDays }, i) => {
-    const badge = statusBadge(plan, totalDays);
-    return `
-    <tr class="has-detail" data-plan-row="${i}" tabindex="0" role="button">
-      <td class="c-x"><span class="x-mark">▾</span></td>
-      <td dir="auto">${esc(plan.pl_name || plan.pl_number)}</td>
-      <td dir="ltr">${esc(plan.pl_number || '')}</td>
-      <td><span class="badge ${badge.cls}">${esc(badge.text)}</span></td>
-      <td>${totalDays == null ? '—' : num(totalDays)}</td>
-    </tr>
-    <tr class="detail-row" data-detail="${i}" hidden>
-      <td colspan="5">
-        ${renderPlanTimelineHtml(plan)}
-        ${plan.pl_url ? `<p class="acc-hint"><a href="${esc(plan.pl_url)}" target="_blank" rel="noopener">מסמכי התכנית במבא"ת ↗</a></p>` : ''}
-      </td>
-    </tr>`;
-  }).join('');
-
-  return `
-    ${capNote}
-    <div class="matrix-wrap">
-      <table class="matrix preview expandable">
-        <thead><tr>
-          <th class="c-x"></th>
-          <th scope="col">שם תכנית</th>
-          <th scope="col">מספר תכנית</th>
-          <th scope="col">סטטוס</th>
-          <th scope="col">ימים (הגשה→אישור)</th>
-        </tr></thead>
-        <tbody>${rows}</tbody>
-      </table>
-    </div>`;
-}
-
-function bindExpandableRows(container, rowSelector, detailAttr, rowAttr) {
-  container.querySelectorAll(rowSelector).forEach((tr) => {
-    const toggle = () => {
-      const target = container.querySelector(`[${detailAttr}="${tr.dataset[rowAttr]}"]`);
-      if (!target) return;
-      target.hidden = !target.hidden;
-      const mark = tr.querySelector('.x-mark');
-      if (mark) mark.textContent = target.hidden ? '▾' : '▴';
-    };
-    tr.addEventListener('click', toggle);
-    tr.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
-  });
+function populateYearFilter() {
+  const years = availableYears(allPlans);
+  el('ptYearFilter').innerHTML = '<option value="">כל השנים</option>'
+    + years.map((y) => `<option value="${y}">${y}</option>`).join('');
 }
 
 /* ---------- city aggregate table (top level) ---------- */
@@ -220,7 +131,7 @@ function renderCityTable() {
       <td>${c.maxDays == null ? '—' : num(c.maxDays)}</td>
     </tr>
     <tr class="files-row" data-city-detail="${esc(c.city)}" ${expanded ? '' : 'hidden'}>
-      <td colspan="8">${expanded ? renderCityPlansHtml(c) : ''}</td>
+      <td colspan="8">${expanded ? renderPlanListHtml(c.plans) : ''}</td>
     </tr>`;
   }).join('');
 
@@ -270,7 +181,12 @@ function renderAll() {
   });
   const plans = filteredPlans();
   renderStats(plans);
-  currentCities = groupByCity(plans);
+  const allCities = groupByCity(plans);
+  currentCities = allCities.filter((c) => c.count >= state.minPlans);
+  const hint = el('ptMinPlansHint');
+  hint.textContent = allCities.length > currentCities.length
+    ? `מוצגים ${num(currentCities.length)} יישובים עם ${num(state.minPlans)} תכניות ומעלה (מתוך ${num(allCities.length)} סה"כ).`
+    : '';
   renderCityTable();
 }
 
@@ -301,11 +217,11 @@ el('ptXlsAll').addEventListener('click', () => {
     };
     for (const step of PLAN_STEPS) {
       const date = byField.get(step.field);
-      row[step.label] = date ? fmtDate(date) : '';
+      row[step.label] = date ? fmtExportDate(date) : '';
     }
     return row;
   });
-  const name = `plan_timeline_${state.status}${state.cityFilter ? `_${state.cityFilter}` : ''}`.replace(/[\\/:*?"<>|]/g, '_');
+  const name = `plan_timeline_${state.status}${state.cityFilter ? `_${state.cityFilter}` : ''}${state.yearFilter ? `_${state.yearFilter}` : ''}`.replace(/[\\/:*?"<>|]/g, '_');
   saveXls('תכניות', headers, records, `${name}.xls`);
 });
 
@@ -316,7 +232,7 @@ el('ptCsvCities').addEventListener('click', () => {
     חציון_ימים: c.medianDays ?? '', ממוצע_ימים: c.avgDays ?? '',
     מינימום_ימים: c.minDays ?? '', מקסימום_ימים: c.maxDays ?? '',
   }));
-  saveCsv(buildCsv(fields, records), `plan_timeline_by_city_${state.status}.csv`);
+  saveCsv(buildCsv(fields, records), `plan_timeline_by_city_${state.status}${state.yearFilter ? `_${state.yearFilter}` : ''}.csv`);
 });
 
 /* ---------- wiring ---------- */
@@ -330,6 +246,14 @@ document.querySelectorAll('#ptStatusPick .tc-level-btn').forEach((btn) => {
   });
 });
 
+const nameFilterInput = el('ptNameFilter');
+const commitNameFilter = debounce(() => {
+  state.nameFilter = nameFilterInput.value.trim().toLowerCase() || null;
+  state.expandedCity = null;
+  renderAll();
+}, 250);
+nameFilterInput.addEventListener('input', commitNameFilter);
+
 const cityFilterInput = el('ptCityFilter');
 const commitCityFilter = debounce(() => {
   state.cityFilter = cityFilterInput.value.trim() || null;
@@ -337,6 +261,20 @@ const commitCityFilter = debounce(() => {
   renderAll();
 }, 200);
 cityFilterInput.addEventListener('input', commitCityFilter);
+
+el('ptYearFilter').addEventListener('change', (e) => {
+  state.yearFilter = e.target.value ? Number(e.target.value) : null;
+  state.expandedCity = null;
+  renderAll();
+});
+
+const minPlansInput = el('ptMinPlans');
+const commitMinPlans = debounce(() => {
+  state.minPlans = Math.max(0, Number(minPlansInput.value) || 0);
+  state.expandedCity = null;
+  renderAll();
+}, 300);
+minPlansInput.addEventListener('input', commitMinPlans);
 
 /* ---------- load ---------- */
 
@@ -352,5 +290,6 @@ cityFilterInput.addEventListener('input', commitCityFilter);
   }
   el('ptLoading').textContent = `נטענו ${num(allPlans.length)} תכניות.`;
   updateCityRoster();
+  populateYearFilter();
   renderAll();
 }());
