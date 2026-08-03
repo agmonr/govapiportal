@@ -26,6 +26,12 @@ Reuses canopy_build.py's own city/neighborhood/street boundary geometries
 as-is (same OSM/GovMap zip/ inputs) rather than re-deriving them - the two
 scripts' outputs are meant to sit side by side, keyed the same way.
 
+Needs rasterio, rasterstats, lerc and (for the "blobs" step) Pillow - none
+of which are part of the site's own toolchain. Run `./tools/setup.sh --geo`
+once to provision a venv with all of them, then use ITS python3 to run this
+script:
+    ~/.local/govapiportal-geo-venv/bin/python3 tools/heat_build.py ...
+
 Usage:
     python3 tools/heat_build.py fetch    # tiles -> zip/uhi_itm.tif (slow, ~850 tiles)
     python3 tools/heat_build.py cities
@@ -312,7 +318,8 @@ def build_heat_blobs():
     try:
         from PIL import Image
     except ImportError:
-        sys.exit("build_heat_blobs requires Pillow: pip install pillow")
+        sys.exit("build_heat_blobs requires Pillow - run ./tools/setup.sh --geo, "
+                 "then use its venv's python3 to run this script")
     import base64
     import io
     from collections import defaultdict
