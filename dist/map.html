@@ -2309,7 +2309,11 @@ function bindExpandableRows(container, rowSelector, detailAttr, rowAttr) {
       const mark = tr.querySelector('.x-mark');
       if (mark) mark.textContent = target.hidden ? '▾' : '▴';
     };
-    tr.addEventListener('click', toggle);
+    // A real link inside the row (e.g. plan-render.js's Google-search/מבא"ת
+    // links) should navigate, not toggle the row underneath it - same
+    // click-target guard committees.js's own row-click handler already
+    // uses for its decisions-protocol icon.
+    tr.addEventListener('click', (e) => { if (!e.target.closest('a')) toggle(); });
     tr.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
   });
 }

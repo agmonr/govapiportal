@@ -172,7 +172,13 @@ function renderCityTable() {
     </div>`;
 
   const table = el('ptCityTable');
-  table.querySelectorAll('th.sortable').forEach((th) => {
+  // Scoped to the OUTER table's own <thead> specifically - not
+  // table.querySelectorAll, which (since the expanded city's inner plan
+  // list, with its own th.sortable headers, is nested inside this same
+  // container) would otherwise also wire this outer apply() onto the inner
+  // table's sortable headers, double-binding them alongside their own
+  // correct handler further down.
+  table.querySelector(':scope > div.matrix-wrap.scroll > table.matrix > thead').querySelectorAll('th.sortable').forEach((th) => {
     const apply = () => {
       state.sortKey = th.dataset.sortKey;
       state.sortDir = th.dataset.sortDir;

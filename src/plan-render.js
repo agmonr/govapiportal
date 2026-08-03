@@ -82,14 +82,26 @@ export function planAreaColorScale(pool) {
 
 const PLANS_PER_LIST_CAP = 300;
 
-// The two sortable columns - ימים (totalDays) and שטח (pl_area_dunam).
-// `key` also doubles as the data-sort-key value read back by the caller's
-// click handler (see plan-timeline.js). Nulls always sort last regardless
-// of direction, same convention as plan-timeline.js's own sortCities().
+// Three sortable columns - שם תכנית (name), ימים (totalDays) and שטח
+// (pl_area_dunam). `key` also doubles as the data-sort-key value read back
+// by the caller's click handler (see plan-timeline.js). Nulls always sort
+// last regardless of direction, same convention as plan-timeline.js's own
+// sortCities() - which also supplies the string-vs-number branch below.
 const PLAN_LIST_SORT_COLUMNS = [
+  { key: 'name', label: 'שם תכנית', get: (p) => p.pl_name || p.pl_number || '' },
   { key: 'days', label: 'ימים (הגשה→אישור)', get: (p, totalDays) => totalDays },
   { key: 'area', label: 'שטח (דונם)', get: (p) => p.pl_area_dunam },
 ];
+
+function sortTh(col, sortKey, sortDir) {
+  const active = sortKey === col.key;
+  const nextDir = active && sortDir === 'asc' ? 'desc' : 'asc';
+  return `<th class="sortable${active ? ' sorted' : ''}" data-sort-key="${col.key}" data-sort-dir="${nextDir}"
+              tabindex="0" role="button"
+              aria-sort="${active ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}">
+    ${esc(col.label)}<span class="s-mark">${active ? (sortDir === 'asc' ? '▲' : '▼') : '↕'}</span>
+  </th>`;
+}
 
 /**
  * An expandable list of plans - name, number, status badge, ימים (total
@@ -108,6 +120,7 @@ export function renderPlanListHtml(plans, { areaColor, sortKey = 'days', sortDir
     if (av == null && bv == null) return 0;
     if (av == null) return 1; // nulls always last, regardless of direction
     if (bv == null) return -1;
+    if (typeof av === 'string') return dir * av.localeCompare(bv, 'he');
     return dir * (av - bv);
   });
   const capped = withTotals.slice(0, PLANS_PER_LIST_CAP);
@@ -118,11 +131,23 @@ export function renderPlanListHtml(plans, { areaColor, sortKey = 'days', sortDir
     const badge = statusBadge(plan, totalDays);
     const area = plan.pl_area_dunam;
     const areaStyle = areaColor ? areaColor(area) : '';
+    const name = plan.pl_name || plan.pl_number || '';
+    // Two distinct links per plan, not one: the name searches Google for it
+    // (finding news/discussion, since the plan's own name is rarely
+    // enough on its own to place it) - the number instead goes straight to
+    // the plan's own page on מבא"ת (מנהל התכנון), when pl_url exists.
+    // bindExpandableRows (see ui.js) skips its own toggle for any click
+    // that lands on a real <a>, so these navigate instead of just
+    // expanding/collapsing the row underneath them.
+    const googleHref = `https://www.google.com/search?q=${encodeURIComponent(name)}`;
+    const numberCell = plan.pl_url
+      ? `<a href="${esc(plan.pl_url)}" target="_blank" rel="noopener">${esc(plan.pl_number || '')}</a>`
+      : esc(plan.pl_number || '');
     return `
     <tr class="has-detail" data-plan-row="${i}" tabindex="0" role="button">
       <td class="c-x"><span class="x-mark">▾</span></td>
-      <td dir="auto">${esc(plan.pl_name || plan.pl_number)}</td>
-      <td dir="ltr">${esc(plan.pl_number || '')}</td>
+      <td dir="auto"><a href="${esc(googleHref)}" target="_blank" rel="noopener">${esc(name)}</a></td>
+      <td dir="ltr">${numberCell}</td>
       <td><span class="badge ${badge.cls}">${esc(badge.text)}</span></td>
       <td>${totalDays == null ? '—' : num(totalDays)}</td>
       <td${areaStyle ? ` style="${areaStyle}"` : ''}>${area == null ? '—' : num(area)}</td>
@@ -135,15 +160,7 @@ export function renderPlanListHtml(plans, { areaColor, sortKey = 'days', sortDir
     </tr>`;
   }).join('');
 
-  const sortHead = PLAN_LIST_SORT_COLUMNS.map((col) => {
-    const active = sortKey === col.key;
-    const nextDir = active && sortDir === 'asc' ? 'desc' : 'asc';
-    return `<th class="sortable${active ? ' sorted' : ''}" data-sort-key="${col.key}" data-sort-dir="${nextDir}"
-                tabindex="0" role="button"
-                aria-sort="${active ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}">
-      ${esc(col.label)}<span class="s-mark">${active ? (sortDir === 'asc' ? '▲' : '▼') : '↕'}</span>
-    </th>`;
-  }).join('');
+  const [nameCol, daysCol, areaCol] = PLAN_LIST_SORT_COLUMNS;
 
   return `
     ${capNote}
@@ -151,10 +168,11 @@ export function renderPlanListHtml(plans, { areaColor, sortKey = 'days', sortDir
       <table class="matrix preview expandable">
         <thead><tr>
           <th class="c-x"></th>
-          <th scope="col">שם תכנית</th>
+          ${sortTh(nameCol, sortKey, sortDir)}
           <th scope="col">מספר תכנית</th>
           <th scope="col">סטטוס</th>
-          ${sortHead}
+          ${sortTh(daysCol, sortKey, sortDir)}
+          ${sortTh(areaCol, sortKey, sortDir)}
         </tr></thead>
         <tbody>${rows}</tbody>
       </table>
