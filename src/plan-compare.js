@@ -10,7 +10,7 @@ import { el, esc, num, debounce, buildCsv, saveCsv, bindExpandableRows } from '.
 import { initThemePicker } from './theme.js';
 import { renderBarChart, renderHBarChart, citySwatchCell } from './charts.js';
 import { renderAppContext, loadAppsData } from './apps.js';
-import { fetchPlans, groupByCity, groupByYear, avgStageDurations, receivingYear, availableYears, APPROVED_WHERE } from './plan-data.js';
+import { fetchPlans, groupByCity, groupByYear, avgStageDurations, receivingYear, availableYears } from './plan-data.js';
 import { renderPlanListHtml, planAreaColorScale } from './plan-render.js';
 
 initThemePicker(el('themePick'));
@@ -28,15 +28,28 @@ const MAX_PICKS = 4;
 
 const state = { picks: [null, null, null, null], year: null };
 
-let allPlans = []; // every fetched approved plan, unfiltered
-let cityMap = new Map(); // city name -> groupByCity() bucket, for the current state.year
+let allPlans = []; // every fetched plan, any status, unfiltered
+let cityMap = new Map(); // city name -> groupByCity() bucket of APPROVED plans only, for the current state.year
+let pendingCountByCity = new Map(); // city name -> count of not-yet-approved plans, for the current state.year
 
-/** Recomputes cityMap for the current state.year - called on load and
- *  whenever the year filter changes, never a refetch (allPlans already has
- *  everything; only the aggregation changes). */
+/** Recomputes cityMap/pendingCountByCity for the current state.year - called
+ *  on load and whenever the year filter changes, never a refetch (allPlans
+ *  already has everything; only the aggregation changes). cityMap stays
+ *  approved-only (station_desc='אישור') so every existing duration figure
+ *  on this page (median/avg days, stage breakdown, year breakdown) is
+ *  unaffected by broadening the fetch to include pending plans too -
+ *  pendingCountByCity is the only thing actually built from the rest. */
 function rebuildCityMap() {
   const plans = state.year ? allPlans.filter((p) => receivingYear(p) === state.year) : allPlans;
-  cityMap = new Map(groupByCity(plans).map((c) => [c.city, c]));
+  const approved = plans.filter((p) => p.station_desc === 'אישור');
+  cityMap = new Map(groupByCity(approved).map((c) => [c.city, c]));
+
+  pendingCountByCity = new Map();
+  for (const p of plans) {
+    if (p.station_desc === 'אישור') continue;
+    const city = p.plan_county_name || 'לא ידוע';
+    pendingCountByCity.set(city, (pendingCountByCity.get(city) || 0) + 1);
+  }
 }
 
 function readStateFromUrl() {
@@ -72,6 +85,7 @@ function renderCompareTable(entries) {
     <tr>
       ${citySwatchCell(e.city, PICK_COLORS[i])}
       <td>${num(e.count)}</td>
+      <td><span class="badge warn">${num(pendingCountByCity.get(e.city) || 0)}</span></td>
       <td>${num(e.withTimeline)}</td>
       <td>${e.medianDays == null ? '—' : num(e.medianDays)}</td>
       <td>${e.avgDays == null ? '—' : num(e.avgDays)}</td>
@@ -83,7 +97,8 @@ function renderCompareTable(entries) {
       <table class="matrix">
         <thead><tr>
           <th scope="col">עיר</th>
-          <th scope="col">תכניות</th>
+          <th scope="col">תכניות מאושרות</th>
+          <th scope="col">תוכניות בתהליך</th>
           <th scope="col">עם משך זמן</th>
           <th scope="col">חציון ימים</th>
           <th scope="col">ממוצע ימים</th>
@@ -257,10 +272,10 @@ function renderCompare() {
 
 el('pcCsv').addEventListener('click', () => {
   const entries = state.picks.map((city) => (city ? cityMap.get(city) : null)).filter(Boolean);
-  const fields = ['עיר', 'תכניות', 'עם_משך_זמן', 'חציון_ימים', 'ממוצע_ימים', 'מינימום_ימים', 'מקסימום_ימים'];
+  const fields = ['עיר', 'תכניות_מאושרות', 'תוכניות_בתהליך', 'עם_משך_זמן', 'חציון_ימים', 'ממוצע_ימים', 'מינימום_ימים', 'מקסימום_ימים'];
   const records = entries.map((e) => ({
-    עיר: e.city, תכניות: e.count, עם_משך_זמן: e.withTimeline,
-    חציון_ימים: e.medianDays ?? '', ממוצע_ימים: e.avgDays ?? '',
+    עיר: e.city, תכניות_מאושרות: e.count, תוכניות_בתהליך: pendingCountByCity.get(e.city) || 0,
+    עם_משך_זמן: e.withTimeline, חציון_ימים: e.medianDays ?? '', ממוצע_ימים: e.avgDays ?? '',
     מינימום_ימים: e.minDays ?? '', מקסימום_ימים: e.maxDays ?? '',
   }));
   const name = `plan_compare_${entries.map((e) => e.city).join('_')}${state.year ? `_${state.year}` : ''}`.replace(/[\\/:*?"<>|]/g, '_').slice(0, 100);
@@ -316,15 +331,20 @@ el('pcYearFilter').addEventListener('change', (e) => {
 
 (async function init() {
   try {
-    allPlans = await fetchPlans(APPROVED_WHERE, (n) => {
-      el('pcLoading').textContent = `טוען תכניות מאושרות… ${num(n)} עד כה`;
+    // Every plan regardless of status - needed for the "תוכניות בתהליך"
+    // (not yet approved) count per city; cityMap itself stays approved-only
+    // (see rebuildCityMap()), so every duration figure is unaffected. Same
+    // '1=1' query plan-timeline.html already uses, so the sessionStorage
+    // cache is shared between the two pages in the same tab.
+    allPlans = await fetchPlans('1=1', (n) => {
+      el('pcLoading').textContent = `טוען תכניות… ${num(n)} עד כה`;
     });
   } catch (err) {
     el('pcLoading').textContent = 'שגיאה בטעינת הנתונים מ-Xplan. נסו לרענן את הדף.';
     console.error(err);
     return;
   }
-  el('pcLoading').textContent = `נטענו ${num(allPlans.length)} תכניות מאושרות.`;
+  el('pcLoading').textContent = `נטענו ${num(allPlans.length)} תכניות.`;
 
   readStateFromUrl();
   const years = availableYears(allPlans);
