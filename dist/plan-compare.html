@@ -3510,7 +3510,7 @@ function renderCompareTable(entries) {
       <td>${e.maxDays == null ? '—' : num(e.maxDays)}</td>
     </tr>`).join('');
   el('pcTable').innerHTML = `
-    <details class="fin-sheet" open>
+    <details class="fin-sheet">
       <summary>טבלת השוואה</summary>
       <div class="matrix-wrap">
         <table class="matrix">
@@ -3583,7 +3583,7 @@ function renderYearStatsTable(entries, years, byYear) {
     </tr>`).join('');
   const nextDir = yearStatsSortDir === 'asc' ? 'desc' : 'asc';
   el('pcYearStatsTable').innerHTML = `
-    <details class="fin-sheet" open>
+    <details class="fin-sheet">
       <summary>טבלה לפי שנים</summary>
       <div class="matrix-wrap">
         <table class="matrix">
@@ -3634,7 +3634,7 @@ function renderStageTable(entries) {
       }).join('')}
     </tr>`).join('');
   el('pcStageTable').innerHTML = `
-    <details class="fin-sheet" open>
+    <details class="fin-sheet">
       <summary>טבלה לפי שלב</summary>
       <div class="matrix-wrap">
         <table class="matrix">
@@ -3678,7 +3678,7 @@ function renderYearBreakdown(entries) {
       <td>${y.maxDays == null ? '—' : num(y.maxDays)}</td>
     </tr>`).join('');
   el('pcYearBreakdownTable').innerHTML = `
-    <details class="fin-sheet" open>
+    <details class="fin-sheet">
       <summary>טבלה לפי שנת הגשה</summary>
       <div class="matrix-wrap">
         <table class="matrix">
@@ -3734,7 +3734,7 @@ function renderSizeBands(entries) {
         <td>${s.maxDays == null ? '—' : num(s.maxDays)}</td>
       </tr>`).join('');
     el(`pcSizeTable-${band}`).innerHTML = `
-      <details class="fin-sheet" open>
+      <details class="fin-sheet">
         <summary>טבלה — ${esc(sizeBandLabel(band))}</summary>
         <div class="matrix-wrap">
           <table class="matrix">
