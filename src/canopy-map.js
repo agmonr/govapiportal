@@ -1,10 +1,13 @@
 /**
  * Entry point for canopy-map.html - a merged view of the three existing
  * city/neighborhood/street datasets on this site (tree-canopy.html, canopy-
- * split.html, heat-islands.html): pick up to 4 cities or neighborhoods on
- * one map (or streets by name, free-form across cities - see below), and
- * see all the metrics that apply to them together, distinguished by color,
- * instead of visiting three separate pages per metric.
+ * split.html, heat-islands.html): click one city or neighborhood on the map
+ * to see all the metrics that apply to it together, distinguished by color,
+ * instead of visiting three separate pages per metric (clicking a city also
+ * zooms/drills straight into its neighborhoods - there is no map-click
+ * multi-select any more, just a single current pick per level). Multi-entry
+ * compare (up to 4) still exists, but only via the free-form street search
+ * below - streets have no map shapes to click at all.
  *
  * No new attribute data is computed here at all - every metric's VALUE
  * comes from a file that already ships elsewhere (see the CITY_/
@@ -279,6 +282,20 @@ function shouldDrillOut(view, cityName) {
   return overlapArea(bbox, view) / (view.w * view.h) < DRILL_OUT_FRACTION;
 }
 
+// A tight view rectangle around one city, in the same Y-flipped ITM space
+// as state.view/cityBBoxes() - used to zoom straight to a city the instant
+// it's picked (see the map-click handler below), rather than only reacting
+// to a manual scroll/pinch gesture crossing DRILL_IN_FRACTION on its own.
+function viewForCityZoom(name, paddingFrac = 0.25) {
+  const bbox = cityBBoxes()[name];
+  if (!bbox) return null;
+  const [xmin, fymin, xmax, fymax] = bbox;
+  const w = (xmax - xmin) || 1;
+  const h = (fymax - fymin) || 1;
+  const pad = Math.max(w, h) * paddingFrac;
+  return { x: xmin - pad, y: fymin - pad, w: w + pad * 2, h: h + pad * 2 };
+}
+
 function drillIntoCity(cityName, priorView) {
   state.level = 'neighborhood';
   state.cityFilter = cityName;
@@ -382,7 +399,10 @@ function glyphMarkup(entity, metricIds, domains) {
   return `<g pointer-events="none">${bars}</g>`;
 }
 
-/* ---------- selection (up to 4, toggled by map click or street search) ---------- */
+/* ---------- selection: at most 1 entry from map clicks (city/neighborhood
+   - see pickSolo below), up to MAX_SELECT from the free-form street search
+   (see commitStreetPick), which is the only surviving multi-compare path -
+   toggleSelect() itself doesn't know or care which kind of caller it is. ---------- */
 
 function selectedIndex(key) {
   return state.selected.findIndex((e) => e.key === key);
@@ -397,6 +417,17 @@ function toggleSelect(entity) {
   } else {
     return; // already at the 4-entity cap - ignore rather than bump an existing pick
   }
+  syncUrl();
+  renderAll();
+}
+
+// Map clicks on a city/neighborhood shape replace the current pick outright
+// (clicking the same one again clears it) rather than accumulating toward
+// MAX_SELECT the way the street search still does - "there will be only one
+// pick" from the map itself.
+function pickSolo(entity) {
+  const isSame = state.selected.length === 1 && state.selected[0].key === entity.key;
+  state.selected = isSame ? [] : [entity];
   syncUrl();
   renderAll();
 }
@@ -521,9 +552,9 @@ async function renderMap() {
 
   const svg = el('cmSvg');
   const opacity = state.osm && !el('cmBasemap').hidden ? '0.72' : '1';
-  const titleFor = (e) => activeMetricIds
+  const titleFor = (e) => `${e.label} - ${activeMetricIds
     .map((id) => `${METRICS[id].label}: ${valueFor(e, id) != null ? num(valueFor(e, id)) + METRICS[id].unit : 'אין נתונים'}`)
-    .join(' · ');
+    .join(' · ')}`;
   const paths = entities.map((e) => {
     const d = ringsToPathD(ringsFor(e), project);
     // Single metric: the shape's own fill carries the value, as before.
@@ -575,15 +606,27 @@ async function renderMap() {
   svg.querySelectorAll('path[data-key]').forEach((path) => {
     const entity = entities.find((x) => x.key === path.dataset.key);
     if (!entity) return;
-    const go = () => { if (!zoomPan.isDragging()) toggleSelect(entity); };
+    const go = () => {
+      if (zoomPan.isDragging()) return;
+      if (state.level === 'city') {
+        // City level has no click-select state at all any more - a click
+        // always zooms/drills straight into that city's neighborhoods (see
+        // viewForCityZoom/drillIntoCity), which itself clears state.selected
+        // - there is nothing left to "select and show a chip for" once
+        // you've drilled in.
+        const view = viewForCityZoom(entity.key);
+        if (view) { drillIntoCity(entity.key, view); return; }
+      }
+      pickSolo(entity);
+    };
     path.addEventListener('click', go);
     path.addEventListener('keydown', (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); go(); } });
   });
 
   renderLegend(activeMetricIds, domains);
   el('cmHint').textContent = state.level === 'city'
-    ? `${num(entities.length)} ערים - לחיצה בוחרת/מבטלת עד ${MAX_SELECT} להשוואה`
-    : (state.cityFilter ? `${num(entities.length)} שכונות ב${state.cityFilter}` : 'בחרו עיר כדי לראות את השכונות שלה');
+    ? `${num(entities.length)} ערים - לחיצה מזהה ומתקרבת לשכונות העיר`
+    : (state.cityFilter ? `${num(entities.length)} שכונות ב${state.cityFilter} - לחיצה בוחרת שכונה אחת לצפייה בפרטים` : 'בחרו עיר כדי לראות את השכונות שלה');
 }
 
 /* ---------- selection chips (shown regardless of how a pick was made) ---------- */
