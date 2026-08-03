@@ -334,8 +334,9 @@ el('pcYearFilter').addEventListener('change', (e) => {
     // Every plan regardless of status - needed for the "תוכניות בתהליך"
     // (not yet approved) count per city; cityMap itself stays approved-only
     // (see rebuildCityMap()), so every duration figure is unaffected. Same
-    // '1=1' query plan-timeline.html already uses, so the sessionStorage
-    // cache is shared between the two pages in the same tab.
+    // '1=1' query plan-timeline.html already uses, so the IndexedDB cache
+    // (see src/idb-cache.js) is shared between the two pages, and persists
+    // across reloads/tabs, not just within one.
     allPlans = await fetchPlans('1=1', (n) => {
       el('pcLoading').textContent = `טוען תכניות… ${num(n)} עד כה`;
     });

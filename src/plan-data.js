@@ -16,6 +16,8 @@
  * to work with).
  */
 
+import { idbGet, idbSet } from './idb-cache.js';
+
 const XPLAN_URL = 'https://ags.iplan.gov.il/arcgisiplan/rest/services/PlanningPublic/Xplan/MapServer/1/query';
 const PAGE_SIZE = 1000;
 const DAY_MS = 86400000;
@@ -47,6 +49,12 @@ const FIRST_STEP_FIELD = PLAN_STEPS[0].field;
 const LAST_STEP_FIELD = PLAN_STEPS[PLAN_STEPS.length - 1].field;
 
 const CACHE_PREFIX = 'planData:v1:';
+// The underlying government data changes daily (plans move between stages,
+// new ones get submitted) - long enough that a same-day revisit reuses the
+// cache instead of re-fetching ~20-27k rows, short enough that the cache
+// doesn't go stale for weeks. See src/idb-cache.js for why IndexedDB rather
+// than sessionStorage/localStorage.
+const CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
 // Same "a couple of retries before giving up" convention as the sister
 // repo's own xplan_paginated_query() (Python) - a full fetch is ~27
@@ -101,27 +109,23 @@ async function fetchPage(where, offset) {
 }
 
 /**
- * Every plan matching `where`, paginated to completion. Cached in
- * sessionStorage (keyed by `where`) so navigating between the timeline and
- * compare pages in the same visit doesn't re-fetch ~27k rows twice.
+ * Every plan matching `where`, paginated to completion. Cached in IndexedDB
+ * (keyed by `where`, see src/idb-cache.js) for CACHE_MAX_AGE_MS - persists
+ * across reloads and new tabs, not just within one, so a same-day revisit
+ * to either plan-timeline.html or plan-compare.html reuses the ~20-27k rows
+ * already fetched rather than re-fetching from Xplan.
  */
 export async function fetchPlans(where, onProgress) {
   const cacheKey = CACHE_PREFIX + where;
-  try {
-    const cached = sessionStorage.getItem(cacheKey);
-    // An empty cached array is never a legitimate result for the broad
-    // queries this is actually called with (every plan, or every approved
-    // plan) - only ever seen from a fetch that silently swallowed a server
-    // outage as "zero results" (a real bug, since fixed - see fetchPage's
-    // {status:"error"} handling above). Treating [] as "not really cached"
-    // means a browser tab that got poisoned by that old bug during an
-    // outage self-heals on the next load instead of being stuck showing
-    // nothing until the tab closes and sessionStorage clears itself.
-    if (cached) {
-      const parsed = JSON.parse(cached);
-      if (parsed.length) return parsed;
-    }
-  } catch { /* private mode / storage full - just refetch */ }
+  // An empty cached array is never a legitimate result for the broad
+  // queries this is actually called with (every plan, or every approved
+  // plan) - only ever seen from a fetch that silently swallowed a server
+  // outage as "zero results" (a real bug, since fixed - see fetchPage's
+  // {status:"error"} handling above). Treating [] as "not really cached"
+  // means a cache poisoned by that old bug during an outage self-heals on
+  // the next load rather than being stuck showing nothing for a full day.
+  const cached = await idbGet(cacheKey, CACHE_MAX_AGE_MS);
+  if (cached && cached.length) return cached;
 
   const plans = [];
   let offset = 0;
@@ -136,9 +140,7 @@ export async function fetchPlans(where, onProgress) {
 
   // Same reasoning as the read side above: don't write a result that would
   // only poison a future load.
-  if (plans.length) {
-    try { sessionStorage.setItem(cacheKey, JSON.stringify(plans)); } catch { /* too large for storage - fine, just not cached */ }
-  }
+  if (plans.length) await idbSet(cacheKey, plans);
   return plans;
 }
 

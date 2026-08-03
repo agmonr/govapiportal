@@ -59,6 +59,7 @@ than shipping to whoever downloads it.
 | `plan-timeline.html` / `src/plan-timeline.js` | How long a building plan takes from submission to approval, by city, with filters (status/city/year/plan-name/min-plans-per-city), a per-plan step-by-step drill-down and a detailed Excel export. Live from Xplan - see `src/plan-data.js`. |
 | `plan-compare.html` / `src/plan-compare.js` | Same plan-duration data, compare up to 4 cities at once (same UI idiom as `tree-canopy.html`), with a per-city year-submitted trend and a per-city plan drill-down (area-colored by size). |
 | `src/plan-render.js` | Shared per-plan/per-plan-list HTML (status badge, step timeline, area-size color scale) - used by both plan pages above so the markup exists once. |
+| `src/idb-cache.js` | Tiny async IndexedDB key-value cache, used by `plan-data.js` so the ~20-27k-row Xplan fetch survives reloads/new tabs (session/localStorage are too small for it). |
 | `tools/canopy_build.py` | One-time local batch job that computes the three canopy tables above from a gitignored local shapefile |
 | `src/portal.js` | Portal drill-in: live request per portal, rendered as a table |
 | `src/explorer.js` | Live in-browser request panel |
