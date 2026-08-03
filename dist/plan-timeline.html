@@ -619,6 +619,13 @@ button.stat { cursor: pointer; }
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* plan-compare.html: the main "השוואה" chart's city labels link out to
+   plan-timeline.html?city=... (see linkifyChartCities in plan-compare.js) -
+   explicitly green via --forest rather than --accent, since --accent itself
+   turns gold under the "fashion" theme and black under "zebra" - this link
+   should read as green on every theme, not follow the chart's own colors. */
+.pc-chart-city-link { color: var(--forest); text-decoration: underline; }
+.pc-chart-city-link:hover { opacity: .8; }
 .acc-hbar-track { flex: 1; block-size: 1.1rem; background: var(--surface); border-radius: 4px; overflow: hidden; }
 .acc-hbar-fill { block-size: 100%; border-radius: 4px; background: var(--accent); }
 .acc-hbar-v { flex: 0 0 auto; font-size: .82rem; font-weight: 600; font-variant-numeric: tabular-nums; min-inline-size: 4.5rem; }
@@ -3287,7 +3294,7 @@ function renderCityTable() {
       <td>${c.maxDays == null ? '—' : num(c.maxDays)}</td>
     </tr>
     <tr class="files-row" data-city-detail="${esc(c.city)}" ${expanded ? '' : 'hidden'}>
-      <td colspan="8">${expanded ? renderPlanListHtml(c.plans) : ''}</td>
+      <td colspan="8">${expanded ? renderPlanListHtml(c.plans, { areaColor: planAreaColorScale(c.plans) }) : ''}</td>
     </tr>`;
   }).join('');
 

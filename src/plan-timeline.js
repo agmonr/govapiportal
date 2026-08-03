@@ -10,7 +10,7 @@ import { el, esc, num, debounce, buildCsv, saveCsv, saveXls, bindExpandableRows 
 import { initThemePicker } from './theme.js';
 import { renderAppContext, loadAppsData } from './apps.js';
 import { fetchPlans, groupByCity, planTimeline, PLAN_STEPS, median, receivingYear, availableYears } from './plan-data.js';
-import { renderPlanListHtml } from './plan-render.js';
+import { renderPlanListHtml, planAreaColorScale } from './plan-render.js';
 
 initThemePicker(el('themePick'));
 loadAppsData().then((data) => renderAppContext(el('appContext'), data.apps, 'plan-timeline')).catch(() => {});
@@ -147,7 +147,7 @@ function renderCityTable() {
       <td>${c.maxDays == null ? '—' : num(c.maxDays)}</td>
     </tr>
     <tr class="files-row" data-city-detail="${esc(c.city)}" ${expanded ? '' : 'hidden'}>
-      <td colspan="8">${expanded ? renderPlanListHtml(c.plans) : ''}</td>
+      <td colspan="8">${expanded ? renderPlanListHtml(c.plans, { areaColor: planAreaColorScale(c.plans) }) : ''}</td>
     </tr>`;
   }).join('');
 

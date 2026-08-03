@@ -6,26 +6,29 @@
  * src/plan-data.js for where the underlying numbers come from.
  */
 
-import { el, esc, num, debounce, buildCsv, saveCsv, bindExpandableRows } from './ui.js';
+import { el, esc, num, debounce, buildCsv, saveCsv } from './ui.js';
 import { initThemePicker } from './theme.js';
-import { renderBarChart, renderHBarChart } from './charts.js';
+import { renderBarChart, renderHBarChart, citySwatchCell } from './charts.js';
 import { renderAppContext, loadAppsData } from './apps.js';
 import { fetchPlans, groupByCity, groupByYear, avgStageDurations, receivingYear, availableYears, summarizePlans, sizeBandOf, SIZE_BANDS, sizeBandLabel } from './plan-data.js';
-import { renderPlanListHtml, planAreaColorScale } from './plan-render.js';
 
 /** Links a city name to its full row on plan-timeline.html, pre-filtered -
- *  the "second page" every per-city label on this comparison page points
- *  back to. */
+ *  only used on the main "השוואה" chart's own labels (see
+ *  linkifyChartCities below), not on every city label across the page. */
 function cityLink(city) {
-  return `<a href="plan-timeline.html?city=${encodeURIComponent(city)}">${esc(city)}</a>`;
+  return `<a class="pc-chart-city-link" href="plan-timeline.html?city=${encodeURIComponent(city)}">${esc(city)}</a>`;
 }
 
-/** Same markup as charts.js's citySwatchCell, but with the city name itself
- *  a link (see cityLink) - local rather than changing the shared helper,
- *  which other compare pages (e.g. tree-canopy.js) also use without a
- *  linkable destination of their own. */
-function pcCityCell(name, color) {
-  return `<td class="fin-city-cell"><span class="acc-legend-swatch" style="background:${color}"></span>${cityLink(name)}</td>`;
+/** Swaps the plain city-name labels renderHBarChart just wrote for #pcChart
+ *  into links (see cityLink) - done as a post-render DOM pass rather than
+ *  teaching the shared renderHBarChart about links, since every other chart
+ *  on this page (and on tree-canopy.js, which also uses it) keeps plain
+ *  labels. `entries` must be the same array/order just passed to
+ *  renderHBarChart so the i-th .acc-hbar-y matches the i-th city. */
+function linkifyChartCities(figId, entries) {
+  el(figId).querySelectorAll('.acc-hbar-y').forEach((span, i) => {
+    if (entries[i]) span.innerHTML = cityLink(entries[i].label);
+  });
 }
 
 initThemePicker(el('themePick'));
@@ -98,7 +101,7 @@ function updateRoster(query) {
 function renderCompareTable(entries) {
   const rows = entries.map((e, i) => `
     <tr>
-      ${pcCityCell(e.city, PICK_COLORS[i])}
+      ${citySwatchCell(e.city, PICK_COLORS[i])}
       <td>${num(e.count)}</td>
       <td><span class="badge warn">${num(pendingCountByCity.get(e.city) || 0)}</span></td>
       <td>${num(e.withTimeline)}</td>
@@ -190,7 +193,7 @@ function renderYearStatsTable(entries, years, byYear) {
                 aria-sort="${yearStatsSortDir === 'asc' ? 'ascending' : 'descending'}">
               שנת הגשה<span class="s-mark">${yearStatsSortDir === 'asc' ? '▲' : '▼'}</span>
             </th>
-            ${entries.map((e, i) => `<th scope="col"><span class="acc-legend-swatch" style="background:${PICK_COLORS[i]}"></span>${cityLink(e.city)}</th>`).join('')}
+            ${entries.map((e, i) => `<th scope="col"><span class="acc-legend-swatch" style="background:${PICK_COLORS[i]}"></span>${esc(e.city)}</th>`).join('')}
           </tr></thead>
           <tbody>${rows}</tbody>
         </table>
@@ -238,7 +241,7 @@ function renderStageTable(entries) {
         <table class="matrix">
           <thead><tr>
             <th scope="col">קטע</th>
-            ${entries.map((e, i) => `<th scope="col"><span class="acc-legend-swatch" style="background:${PICK_COLORS[i]}"></span>${cityLink(e.city)}</th>`).join('')}
+            ${entries.map((e, i) => `<th scope="col"><span class="acc-legend-swatch" style="background:${PICK_COLORS[i]}"></span>${esc(e.city)}</th>`).join('')}
           </tr></thead>
           <tbody>${rows}</tbody>
         </table>
@@ -260,7 +263,7 @@ function renderYearBreakdown(entries) {
   const byYear = groupByYear(cityPlans);
   if (!byYear.length) { section.hidden = true; return; }
   section.hidden = false;
-  el('pcYearBreakdownCity').innerHTML = cityLink(city);
+  el('pcYearBreakdownCity').textContent = city;
 
   const chartEntries = byYear.map((y) => ({ label: String(y.year), value: y.medianDays ?? 0 }));
   renderBarChart('pcYearBreakdownChart', `חציון ימים לפי שנת הגשה — ${city}`, chartEntries, 'ימים');
@@ -295,29 +298,6 @@ function renderYearBreakdown(entries) {
     </details>`;
 }
 
-// Every picked city's own plans, sorted longest-duration-first (same order
-// as plan-timeline.html's per-city list) - one sub-list per city, each
-// independently expandable into its plan's step timeline. The area column's
-// color scale is built from the POOL of all picked cities' plans together
-// (planAreaColorScale), not per-city, so a big plan reads as big relative to
-// everything currently on screen, not just its own city's other plans.
-function renderPlansByCity(entries) {
-  const section = el('pcPlansSection');
-  if (!entries.length) { section.hidden = true; return; }
-  section.hidden = false;
-  const areaColor = planAreaColorScale(entries.flatMap((e) => e.plans));
-  el('pcPlansByCity').innerHTML = entries.map((e, i) => `
-    <details class="fin-sheet" open>
-      <summary><span class="acc-legend-swatch" style="background:${PICK_COLORS[i]}"></span> ${cityLink(e.city)}</summary>
-      <div class="pc-city-plans" data-city-idx="${i}">
-        ${renderPlanListHtml(e.plans, { areaColor })}
-      </div>
-    </details>`).join('');
-  el('pcPlansByCity').querySelectorAll('.pc-city-plans').forEach((div) => {
-    bindExpandableRows(div, 'tr.has-detail', 'data-detail', 'planRow');
-  });
-}
-
 // One chart + table per plan-size band (see SIZE_BANDS/sizeBandOf in
 // plan-data.js) - same picked cities and median-days metric as the main
 // pcChart/pcTable above, just re-scoped to each city's plans whose
@@ -346,7 +326,7 @@ function renderSizeBands(entries) {
 
     const rows = stats.map((s) => `
       <tr>
-        ${pcCityCell(s.city, s.color)}
+        ${citySwatchCell(s.city, s.color)}
         <td>${num(s.count)}</td>
         <td>${num(s.withTimeline)}</td>
         <td>${s.medianDays == null ? '—' : num(s.medianDays)}</td>
@@ -389,7 +369,6 @@ function renderCompare() {
     section.hidden = true;
     el('pcYearStatsSection').hidden = true;
     el('pcStageSection').hidden = true;
-    el('pcPlansSection').hidden = true;
     el('pcYearBreakdownSection').hidden = true;
     el('pcSizeBandSection').hidden = true;
     return;
@@ -400,10 +379,10 @@ function renderCompare() {
     label: e.city, value: e.medianDays ?? 0, color: PICK_COLORS[i],
   }));
   renderHBarChart('pcChart', `חציון ימים, הגשה→אישור${entries.length > 1 ? ' — השוואה' : ''}`, chartEntries, 'ימים');
+  linkifyChartCities('pcChart', chartEntries);
   renderCompareTable(entries);
   renderYearStats(entries);
   renderStageTable(entries);
-  renderPlansByCity(entries);
   renderYearBreakdown(entries);
   renderSizeBands(entries);
 }
