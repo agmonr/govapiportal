@@ -2141,6 +2141,7 @@ body.accidents-page header.site h1 { inline-size: 100%; }
       <section class="acc-section" id="pcYearStatsSection" aria-labelledby="yearStatsH" hidden>
         <h2 id="yearStatsH">לפי שנים</h2>
         <p class="acc-hint" dir="auto">חציון ימים מהגשה לאישור, לכל שנת הגשה - מכל היסטוריית העיר, ללא קשר לסינון "שנת הגשה" למעלה. בלבד עבור תכניות שכבר אושרו.</p>
+        <figure id="pcYearStatsChart" class="acc-chart acc-chart-wide" role="img"></figure>
         <div id="pcYearStatsTable"></div>
       </section>
 
@@ -3429,14 +3430,43 @@ function renderCompareTable(entries) {
 // number for a given year (same as everywhere else on this page) - a year
 // that's mostly still-open plans just shows "—" rather than a number that
 // would otherwise mix finished and in-progress durations together.
-function renderYearStats(entries) {
-  const section = el('pcYearStatsSection');
-  if (!entries.length) { section.hidden = true; return; }
-  section.hidden = false;
-  const perCity = entries.map((e) => groupByYear(allPlans.filter((p) => p.plan_county_name === e.city)));
-  const years = [...new Set(perCity.flatMap((rows) => rows.map((r) => r.year)))].sort((a, b) => a - b);
-  const byYear = perCity.map((rows) => new Map(rows.map((r) => [r.year, r])));
-  const rows = years.map((year) => `
+// Table sort state for pcYearStatsTable - independent of the chart (a time
+// series reads left-to-right chronologically regardless of how the table
+// underneath happens to be sorted). Defaults to newest-first, per request.
+let yearStatsSortDir = 'desc';
+
+function renderYearStatsChart(entries, years, byYear) {
+  // Always chronological (oldest -> newest), regardless of yearStatsSortDir -
+  // a trend chart read right-to-left-reversed would be confusing even though
+  // the table next to it is sorted the other way by default.
+  const chronological = [...years].sort((a, b) => a - b);
+  const peak = Math.max(1, ...chronological.flatMap((year) => byYear.map((m) => m.get(year)?.medianDays ?? 0)));
+  const PLOT_PX = 150;
+  const groups = chronological.map((year) => `
+    <div class="fin-chart-group">
+      <div class="fin-chart-bars-wrap" style="block-size:${PLOT_PX}px">
+        <div class="fin-chart-bars">
+          ${entries.map((e, i) => {
+            const val = byYear[i].get(year)?.medianDays ?? 0;
+            const h = Math.round((val / peak) * PLOT_PX);
+            return `<div class="fin-chart-bar" style="block-size:${h}px;background:${PICK_COLORS[i]}" title="${esc(e.city)}, ${year}: ${val ? `${num(val)} ימים` : 'אין נתונים'}"></div>`;
+          }).join('')}
+        </div>
+      </div>
+      <span class="fin-chart-y">${year}</span>
+    </div>`).join('');
+  el('pcYearStatsChart').innerHTML = `
+    <figcaption>חציון ימים, הגשה→אישור, לפי שנה</figcaption>
+    <div class="acc-legend">
+      ${entries.map((e, i) => `<span class="acc-legend-item"><span class="acc-legend-swatch" style="background:${PICK_COLORS[i]}"></span>${esc(e.city)}</span>`).join('')}
+    </div>
+    <div class="fin-chart-body"><div class="fin-chart-plot">${groups}</div></div>`;
+}
+
+function renderYearStatsTable(entries, years, byYear) {
+  const dir = yearStatsSortDir === 'asc' ? 1 : -1;
+  const sortedYears = [...years].sort((a, b) => dir * (a - b));
+  const rows = sortedYears.map((year) => `
     <tr>
       <td>${year}</td>
       ${entries.map((e, ci) => {
@@ -3444,16 +3474,39 @@ function renderYearStats(entries) {
         return `<td>${y && y.medianDays != null ? `${num(y.medianDays)} <span class="acc-hint">(ממוצע ${num(y.avgDays)}, n=${num(y.withTimeline)})</span>` : '—'}</td>`;
       }).join('')}
     </tr>`).join('');
+  const nextDir = yearStatsSortDir === 'asc' ? 'desc' : 'asc';
   el('pcYearStatsTable').innerHTML = `
     <div class="matrix-wrap">
       <table class="matrix">
         <thead><tr>
-          <th scope="col">שנת הגשה</th>
+          <th class="sortable sorted" data-sort-dir="${nextDir}" tabindex="0" role="button"
+              aria-sort="${yearStatsSortDir === 'asc' ? 'ascending' : 'descending'}">
+            שנת הגשה<span class="s-mark">${yearStatsSortDir === 'asc' ? '▲' : '▼'}</span>
+          </th>
           ${entries.map((e, i) => `<th scope="col"><span class="acc-legend-swatch" style="background:${PICK_COLORS[i]}"></span>${esc(e.city)}</th>`).join('')}
         </tr></thead>
         <tbody>${rows}</tbody>
       </table>
     </div>`;
+
+  const th = el('pcYearStatsTable').querySelector('th.sortable');
+  const apply = () => {
+    yearStatsSortDir = th.dataset.sortDir;
+    renderYearStatsTable(entries, years, byYear);
+  };
+  th.addEventListener('click', apply);
+  th.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); apply(); } });
+}
+
+function renderYearStats(entries) {
+  const section = el('pcYearStatsSection');
+  if (!entries.length) { section.hidden = true; return; }
+  section.hidden = false;
+  const perCity = entries.map((e) => groupByYear(allPlans.filter((p) => p.plan_county_name === e.city)));
+  const years = [...new Set(perCity.flatMap((rows) => rows.map((r) => r.year)))];
+  const byYear = perCity.map((rows) => new Map(rows.map((r) => [r.year, r])));
+  renderYearStatsChart(entries, years, byYear);
+  renderYearStatsTable(entries, years, byYear);
 }
 
 function renderStageTable(entries) {
