@@ -17,7 +17,7 @@
  * no speed change) is dropped rather than mislabeled.
  */
 
-import { el, esc } from './ui.js';
+import { el, esc, probedAt } from './ui.js';
 import { initThemePicker } from './theme.js';
 import { renderAppContext, loadAppsData } from './apps.js';
 import { getSpeedLimitAt, hasSchoolNearby } from './trip-speed-limits.js';
@@ -1375,6 +1375,16 @@ function initLastCompletedBanner() {
 /* ---------- boot ---------- */
 
 initThemePicker(el('themePick'));
+
+// When this page itself was built/published, distinct from any "when was
+// the underlying data checked" stamp - document.lastModified is the file's
+// Last-Modified (the GitHub Pages deploy time when served, the file's mtime
+// when opened offline). Same idiom as accidents.js/committees.js/etc.
+const built = new Date(document.lastModified);
+if (!Number.isNaN(built.getTime())) {
+  el('created').textContent = `נוצר: ${probedAt(document.lastModified)}`;
+  el('created').title = built.toISOString();
+}
 loadAppsData().then((data) => renderAppContext(el('appContext'), data.apps, 'trip-report', { includeSelf: false })).catch(() => {});
 if (loadActiveFromStorage()) initResumePrompt();
 else initLastCompletedBanner();

@@ -6,7 +6,7 @@
  * src/plan-data.js for where the underlying numbers come from.
  */
 
-import { el, esc, num, debounce, buildCsv, saveCsv } from './ui.js';
+import { el, esc, num, debounce, buildCsv, saveCsv, probedAt } from './ui.js';
 import { initThemePicker } from './theme.js';
 import { renderBarChart, renderHBarChart, citySwatchCell } from './charts.js';
 import { renderAppContext, loadAppsData } from './apps.js';
@@ -32,6 +32,16 @@ function linkifyChartCities(figId, entries) {
 }
 
 initThemePicker(el('themePick'));
+
+// When this page itself was built/published, distinct from any "when was
+// the underlying data checked" stamp - document.lastModified is the file's
+// Last-Modified (the GitHub Pages deploy time when served, the file's mtime
+// when opened offline). Same idiom as accidents.js/committees.js/etc.
+const built = new Date(document.lastModified);
+if (!Number.isNaN(built.getTime())) {
+  el('created').textContent = `נוצר: ${probedAt(document.lastModified)}`;
+  el('created').title = built.toISOString();
+}
 loadAppsData().then((data) => renderAppContext(el('appContext'), data.apps, 'plan-compare')).catch(() => {});
 
 // Four distinct hues (purple/blue/green/brown), not tints of one accent -

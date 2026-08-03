@@ -2152,6 +2152,7 @@ body.accidents-page header.site h1 { inline-size: 100%; }
         <button type="button" data-theme="zebra">🦓<span class="theme-btn-label"> זברה</span></button>
       </div>
       <span class="meta"><a href="./index.html">← חזרה למפת ה-API</a></span>
+      <span class="meta" id="created"></span>
     </div>
   </header>
 
@@ -3197,6 +3198,16 @@ function renderAppContext(node, apps, currentId, { includeSelf = true } = {}) {
 
 
 initThemePicker(el('themePick'));
+
+// When this page itself was built/published, distinct from any "when was
+// the underlying data checked" stamp - document.lastModified is the file's
+// Last-Modified (the GitHub Pages deploy time when served, the file's mtime
+// when opened offline). Same idiom as accidents.js/committees.js/etc.
+const built = new Date(document.lastModified);
+if (!Number.isNaN(built.getTime())) {
+  el('created').textContent = `נוצר: ${probedAt(document.lastModified)}`;
+  el('created').title = built.toISOString();
+}
 loadAppsData().then((data) => renderAppContext(el('appContext'), data.apps, 'plan-timeline')).catch(() => {});
 
 /* ---------- state ---------- */

@@ -6,13 +6,23 @@
  * this is computable from a single live Xplan query.
  */
 
-import { el, esc, num, debounce, buildCsv, saveCsv, saveXls, bindExpandableRows } from './ui.js';
+import { el, esc, num, debounce, buildCsv, saveCsv, saveXls, bindExpandableRows, probedAt } from './ui.js';
 import { initThemePicker } from './theme.js';
 import { renderAppContext, loadAppsData } from './apps.js';
 import { fetchPlans, groupByCity, planTimeline, PLAN_STEPS, median, receivingYear, availableYears } from './plan-data.js';
 import { renderPlanListHtml, planAreaColorScale } from './plan-render.js';
 
 initThemePicker(el('themePick'));
+
+// When this page itself was built/published, distinct from any "when was
+// the underlying data checked" stamp - document.lastModified is the file's
+// Last-Modified (the GitHub Pages deploy time when served, the file's mtime
+// when opened offline). Same idiom as accidents.js/committees.js/etc.
+const built = new Date(document.lastModified);
+if (!Number.isNaN(built.getTime())) {
+  el('created').textContent = `נוצר: ${probedAt(document.lastModified)}`;
+  el('created').title = built.toISOString();
+}
 loadAppsData().then((data) => renderAppContext(el('appContext'), data.apps, 'plan-timeline')).catch(() => {});
 
 /* ---------- state ---------- */
