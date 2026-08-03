@@ -143,13 +143,25 @@ const PICK_COLORS = [
 // across a layer switch (same geometry, just recolored) but reset on
 // level/city change (currentEntities() returns different shapes entirely,
 // so a leftover zoom rectangle wouldn't line up with anything).
-const state = { level: 'city', layer: 'canopy', cityFilter: null, osm: false, selected: [], view: null };
+// `layer` (single) colors neighborhood/street level, unchanged from the
+// original design. `cityLayers` (1-3, toggled independently) is city-level
+// only: with exactly one active it behaves identically to `layer` (a
+// single choropleth fill); with 2-3 active, each city instead gets a small
+// multi-bar glyph (one bar per active metric, sized to its own value) -
+// scoped to city level specifically because that's the only level where
+// zooming in doesn't immediately drill away to something else, and where
+// ~186 shapes stay legible with an extra glyph on each.
+const state = {
+  level: 'city', layer: 'canopy', cityLayers: ['canopy'], cityFilter: null, osm: false, selected: [], view: null,
+};
 let currentZoomPan = null; // torn down and replaced fresh each renderMap() - see attachZoomPan's own docstring
 
 function readStateFromUrl() {
   const p = new URLSearchParams(location.search);
   if (p.get('level') === 'neighborhood' || p.get('level') === 'street') state.level = p.get('level');
   if (METRICS[p.get('layer')]) state.layer = p.get('layer');
+  const layers = (p.get('layers') || '').split(',').filter((id) => METRICS[id]);
+  if (layers.length) state.cityLayers = [...new Set(layers)].slice(0, 3);
   if (p.get('city')) state.cityFilter = p.get('city');
   const sel = p.getAll('sel');
   if (sel.length) {
@@ -179,6 +191,7 @@ function syncUrl() {
   const p = new URLSearchParams();
   p.set('level', state.level);
   p.set('layer', state.layer);
+  p.set('layers', state.cityLayers.join(','));
   if (state.cityFilter) p.set('city', state.cityFilter);
   state.selected.forEach((e) => p.append('sel', e.key));
   if (state.view) {
@@ -318,10 +331,14 @@ const MAX_DIM = 720; // OSM basemap fetch size in px - the flat (non-OSM) viewBo
 
 /* ---------- color scale (map fill, by the active layer) ---------- */
 
-function computeDomain(entities) {
-  const vals = entities.map((e) => valueFor(e, state.layer)).filter((v) => v != null);
+function computeDomain(entities, metricId) {
+  const vals = entities.map((e) => valueFor(e, metricId)).filter((v) => v != null);
   if (!vals.length) return [0, 1];
   return [Math.min(...vals), Math.max(...vals)];
+}
+
+function computeDomains(entities, metricIds) {
+  return Object.fromEntries(metricIds.map((id) => [id, computeDomain(entities, id)]));
 }
 
 function colorFor(value, min, max, colorVar) {
@@ -329,6 +346,40 @@ function colorFor(value, min, max, colorVar) {
   const t = max > min ? (value - min) / (max - min) : 0.5;
   const pct = Math.round(Math.max(0, Math.min(1, t)) * 100);
   return `color-mix(in srgb, ${colorVar} ${pct}%, var(--bg) ${100 - pct}%)`;
+}
+
+/* ---------- multi-metric glyph (city level, 2-3 active metrics) - one
+   small bar per active metric at the city's own centroid, height scaled to
+   that metric's own value/domain, instead of one shared fill color. Sizes
+   are plain ITM meters, not screen pixels - reasonable at city level's own
+   zoom range specifically because zooming in past a threshold there
+   already hands off to neighborhood level (zoom-to-drill) before a fixed
+   meter size would look wrong. ---------- */
+
+const GLYPH_BAR_W = 900;
+const GLYPH_BAR_GAP = 220;
+const GLYPH_MAX_H = 4200;
+const GLYPH_MIN_H = 60; // a 0-value bar still reads as "a bar," not a missing sliver
+
+function glyphMarkup(entity, metricIds, domains) {
+  const bbox = cityBBoxes()[entity.key];
+  if (!bbox) return '';
+  const [, , , , cx, cy] = bbox;
+  const n = metricIds.length;
+  const totalW = n * GLYPH_BAR_W + (n - 1) * GLYPH_BAR_GAP;
+  const startX = cx - totalW / 2;
+  const bars = metricIds.map((id, i) => {
+    const v = valueFor(entity, id);
+    const [min, max] = domains[id];
+    const frac = v != null && max > min ? Math.max(0, Math.min(1, (v - min) / (max - min))) : 0;
+    const h = Math.max(frac * GLYPH_MAX_H, GLYPH_MIN_H);
+    const x = startX + i * (GLYPH_BAR_W + GLYPH_BAR_GAP);
+    return `<rect x="${x.toFixed(1)}" y="${(cy - h).toFixed(1)}" width="${GLYPH_BAR_W}" height="${h.toFixed(1)}" fill="${METRICS[id].colorVar}" />`;
+  }).join('');
+  // pointer-events none: clicking/hovering the glyph still hits the city
+  // shape underneath (same select/tooltip behavior as clicking anywhere
+  // else on that city), not a second, separate interaction target.
+  return `<g pointer-events="none">${bars}</g>`;
 }
 
 /* ---------- selection (up to 4, toggled by map click or street search) ---------- */
@@ -366,13 +417,25 @@ function fullPageLink(metricId) {
 
 /* ---------- legend ---------- */
 
-function renderLegend(min, max, lyr) {
-  el('cmLegend').innerHTML = `
+function renderLegend(metricIds, domains) {
+  // One scale per active metric - city level can have up to 3 at once (see
+  // the bar-glyph feature above), each with its own unit/domain/color, so a
+  // single-scale legend (the old signature) can no longer say which is
+  // which. A metric label prefix is only shown when there's more than one
+  // to distinguish, so the common single-metric case looks unchanged.
+  const rows = metricIds.map((id) => {
+    const m = METRICS[id];
+    const [min, max] = domains[id];
+    const label = metricIds.length > 1 ? `<span class="cm-legend-metric">${esc(m.label)}</span>` : '';
+    return `
     <span class="cm-legend-scale" dir="ltr">
-      <span class="cm-legend-label">${num(min)}${esc(lyr.unit)}</span>
-      <span class="cm-legend-bar" style="background:linear-gradient(to right, var(--bg), ${lyr.colorVar})"></span>
-      <span class="cm-legend-label">${num(max)}${esc(lyr.unit)}</span>
-    </span>
+      ${label}
+      <span class="cm-legend-label">${num(min)}${esc(m.unit)}</span>
+      <span class="cm-legend-bar" style="background:linear-gradient(to right, var(--bg), ${m.colorVar})"></span>
+      <span class="cm-legend-label">${num(max)}${esc(m.unit)}</span>
+    </span>`;
+  }).join('');
+  el('cmLegend').innerHTML = `${rows}
     <span class="cm-legend-nodata"><span class="acc-legend-swatch" style="background:var(--map-nodata)"></span>אין נתונים</span>
   `;
 }
@@ -425,8 +488,12 @@ async function renderMap() {
   }
 
   const entities = currentEntities();
-  const lyr = METRICS[state.layer];
-  const [min, max] = computeDomain(entities);
+  // cityLayers (1-3) only ever applies at city level - neighborhood/street
+  // always use the single `layer` radio-style pick, unchanged from before
+  // this feature existed.
+  const activeMetricIds = state.level === 'city' ? state.cityLayers : [state.layer];
+  const domains = computeDomains(entities, activeMetricIds);
+  const isMultiMetric = activeMetricIds.length > 1;
 
   el('cmOsmRow').hidden = state.level !== 'neighborhood' || !state.cityFilter;
   el('cmBasemap').hidden = true;
@@ -454,16 +521,31 @@ async function renderMap() {
 
   const svg = el('cmSvg');
   const opacity = state.osm && !el('cmBasemap').hidden ? '0.72' : '1';
-  svg.innerHTML = entities.map((e) => {
-    const v = valueFor(e, state.layer);
+  const titleFor = (e) => activeMetricIds
+    .map((id) => `${METRICS[id].label}: ${valueFor(e, id) != null ? num(valueFor(e, id)) + METRICS[id].unit : 'אין נתונים'}`)
+    .join(' · ');
+  const paths = entities.map((e) => {
     const d = ringsToPathD(ringsFor(e), project);
-    const fill = colorFor(v, min, max, lyr.colorVar);
+    // Single metric: the shape's own fill carries the value, as before.
+    // Multiple: the fill goes neutral and a bar glyph (drawn after all
+    // shapes, see below) carries the values instead - a colored fill AND
+    // bars on top would visually compete for the same city-shaped space.
+    const fill = isMultiMetric
+      ? 'var(--map-nodata)'
+      : colorFor(valueFor(e, activeMetricIds[0]), ...domains[activeMetricIds[0]], METRICS[activeMetricIds[0]].colorVar);
     const i = selectedIndex(e.key);
     const stroke = i !== -1 ? PICK_COLORS[i] : 'var(--bg)';
     const strokeWidth = i !== -1 ? '2.4' : '0.6';
-    const title = `${e.label}: ${v != null ? num(v) + lyr.unit : 'אין נתונים'}`;
-    return `<path d="${d}" fill="${fill}" fill-opacity="${opacity}" stroke="${stroke}" stroke-width="${strokeWidth}" data-key="${esc(e.key)}" tabindex="0" role="button" aria-pressed="${i !== -1}"><title>${esc(title)}</title></path>`;
+    return `<path d="${d}" fill="${fill}" fill-opacity="${opacity}" stroke="${stroke}" stroke-width="${strokeWidth}" data-key="${esc(e.key)}" tabindex="0" role="button" aria-pressed="${i !== -1}"><title>${esc(titleFor(e))}</title></path>`;
   }).join('');
+  // Glyphs render after (on top of) every shape, positioned at each
+  // city's own centroid (cityBBoxes() already computes one, reused here)
+  // - city level + isItmSpace only, since neighborhood/street never reach
+  // multi-metric mode and OSM's pixel space has no matching centroid cache.
+  const glyphs = isMultiMetric && isItmSpace
+    ? entities.map((e) => glyphMarkup(e, activeMetricIds, domains)).filter(Boolean).join('')
+    : '';
+  svg.innerHTML = paths + glyphs;
 
   // svg (#cmSvg) is a persistent element - only its innerHTML/viewBox get
   // replaced each render, not the element itself - so the PREVIOUS
@@ -498,7 +580,7 @@ async function renderMap() {
     path.addEventListener('keydown', (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); go(); } });
   });
 
-  renderLegend(min, max, lyr);
+  renderLegend(activeMetricIds, domains);
   el('cmHint').textContent = state.level === 'city'
     ? `${num(entities.length)} ערים - לחיצה בוחרת/מבטלת עד ${MAX_SELECT} להשוואה`
     : (state.cityFilter ? `${num(entities.length)} שכונות ב${state.cityFilter}` : 'בחרו עיר כדי לראות את השכונות שלה');
@@ -581,7 +663,13 @@ function renderControls() {
     btn.classList.toggle('active', btn.dataset.level === state.level);
   });
   document.querySelectorAll('.cm-layer-btn').forEach((btn) => {
-    btn.classList.toggle('active', btn.dataset.layer === state.layer);
+    // City level: 1-3 layers can be active at once (multi-metric bar
+    // glyphs) - every one of state.cityLayers lights up. Other levels keep
+    // the original exclusive/radio behavior on state.layer alone.
+    const active = state.level === 'city'
+      ? state.cityLayers.includes(btn.dataset.layer)
+      : btn.dataset.layer === state.layer;
+    btn.classList.toggle('active', active);
   });
   el('cmLayerSection').hidden = state.level === 'street';
   el('cmCityPickRow').hidden = state.level !== 'neighborhood';
@@ -611,8 +699,22 @@ document.querySelectorAll('.cm-level-btn').forEach((btn) => {
 
 document.querySelectorAll('.cm-layer-btn').forEach((btn) => {
   btn.addEventListener('click', () => {
-    if (state.layer === btn.dataset.layer) return;
-    state.layer = btn.dataset.layer;
+    const id = btn.dataset.layer;
+    if (state.level === 'city') {
+      // Toggle membership (up to 3, at least 1 always active) rather than
+      // the exclusive pick used at other levels - this is what feeds the
+      // multi-metric bar glyphs in renderMap().
+      const i = state.cityLayers.indexOf(id);
+      if (i !== -1) {
+        if (state.cityLayers.length === 1) return; // never zero active metrics
+        state.cityLayers.splice(i, 1);
+      } else {
+        state.cityLayers.push(id);
+      }
+    } else {
+      if (state.layer === id) return;
+      state.layer = id;
+    }
     syncUrl();
     renderControls();
     renderMap();
