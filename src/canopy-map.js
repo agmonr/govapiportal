@@ -36,7 +36,7 @@ import { initThemePicker } from './theme.js';
 import { renderAppContext, loadAppsData } from './apps.js';
 import { fetchBasemapCanvasWGS84 } from './geo-utils.js';
 import { renderHBarChart } from './charts.js';
-import { bboxOfRingsList, buildFlatProjector, ringsToPathD, attachZoomPan } from './map-shapes.js';
+import { bboxOfRingsList, itmViewBox, projectItm, ringsToPathD, attachZoomPan } from './map-shapes.js';
 
 import { MAP_CITIES } from './map-boundaries-cities.js';
 import { MAP_NEIGHBORHOODS } from './map-boundaries-neighborhoods.js';
@@ -144,6 +144,7 @@ const PICK_COLORS = [
 // level/city change (currentEntities() returns different shapes entirely,
 // so a leftover zoom rectangle wouldn't line up with anything).
 const state = { level: 'city', layer: 'canopy', cityFilter: null, osm: false, selected: [], view: null };
+let currentZoomPan = null; // torn down and replaced fresh each renderMap() - see attachZoomPan's own docstring
 
 function readStateFromUrl() {
   const p = new URLSearchParams(location.search);
@@ -188,6 +189,101 @@ function syncUrl() {
 }
 const syncUrlDebounced = debounce(syncUrl, 300); // wheel/drag fire many updates per gesture - one URL write per pause, not per event
 
+/* ---------- zoom-to-drill: zooming into one city on the city-level map
+   switches to its own neighborhoods (and zooming back out switches back),
+   like how a real map app reveals finer detail as you zoom in, rather
+   than just enlarging the same coarse shapes forever. ---------- */
+
+// [xmin, ymin, xmax, ymax, cx, cy] per city, built once from the already-
+// loaded MAP_CITIES rings - cheap enough (186 cities) to keep around for
+// every zoom/pan event, rather than recomputing bboxes on each one.
+let cityBBoxCache = null;
+function cityBBoxes() {
+  if (!cityBBoxCache) {
+    cityBBoxCache = {};
+    for (const [name, data] of Object.entries(MAP_CITIES)) {
+      const [xmin, ymin, xmax, ymax] = bboxOfRingsList([data.rings]);
+      // Stored Y-flipped (see itmViewBox's docstring) - the same space
+      // state.view lives in - so findDrillInTarget/shouldDrillOut can
+      // compare them directly with no further conversion. Flipping swaps
+      // which raw value is the min vs the max.
+      const fymin = -ymax;
+      const fymax = -ymin;
+      cityBBoxCache[name] = [xmin, fymin, xmax, fymax, (xmin + xmax) / 2, (fymin + fymax) / 2];
+    }
+  }
+  return cityBBoxCache;
+}
+
+// Comparing view.w/view.h against a city's own w/h directly doesn't work:
+// the view's aspect ratio is inherited from the national fit (Israel is
+// ~3x taller than wide) and essentially never matches a given city's own
+// roughly-square extent, and zooming scales both dimensions by the same
+// factor - so a still-tall, narrow-enough-in-x view could satisfy a
+// width-based check while its height still spans clear past the target
+// city into another city's territory entirely (found exactly this bug
+// live: zooming toward Tel Aviv drilled into Dimona instead, because the
+// view's still-large height reached that far south). What actually
+// matters is what FRACTION OF THE CURRENT VIEW a city's bbox covers -
+// aspect-ratio-agnostic, and directly answers "is this city dominating
+// what's on screen right now."
+function overlapArea(a, b) {
+  const ox = Math.max(0, Math.min(a[2], b.x + b.w) - Math.max(a[0], b.x));
+  const oy = Math.max(0, Math.min(a[3], b.y + b.h) - Math.max(a[1], b.y));
+  return ox * oy;
+}
+
+// The view's own aspect ratio is inherited from the national fit (Israel
+// is ~3x taller than wide) and stays fixed under uniform zoom, while a
+// city's own extent is roughly square - so the view can never actually
+// reach anywhere close to "mostly this city" by area alone, no matter how
+// far zoomed in on the city's own position (whichever axis lines up with
+// the city first always leaves the other axis showing extra context far
+// beyond it). Measured directly: zooming in on Tel Aviv until it clearly
+// dominates what's visible only reached ~15-20% of the view's total area,
+// not the 50%+ a naive "fills most of the screen" reading would suggest.
+const DRILL_IN_FRACTION = 0.15;
+// Lower than DRILL_IN_FRACTION (hysteresis) so a view sitting right at the
+// boundary doesn't flicker between levels.
+const DRILL_OUT_FRACTION = 0.06;
+
+/** The city whose bbox covers the largest fraction of `view`'s own area -
+ * null if none clears DRILL_IN_FRACTION yet. */
+function findDrillInTarget(view) {
+  const viewArea = view.w * view.h;
+  let best = null;
+  let bestFrac = 0;
+  for (const [name, bbox] of Object.entries(cityBBoxes())) {
+    const frac = overlapArea(bbox, view) / viewArea;
+    if (frac > bestFrac) { bestFrac = frac; best = name; }
+  }
+  return bestFrac >= DRILL_IN_FRACTION ? best : null;
+}
+
+function shouldDrillOut(view, cityName) {
+  const bbox = cityBBoxes()[cityName];
+  if (!bbox) return false;
+  return overlapArea(bbox, view) / (view.w * view.h) < DRILL_OUT_FRACTION;
+}
+
+function drillIntoCity(cityName, priorView) {
+  state.level = 'neighborhood';
+  state.cityFilter = cityName;
+  state.selected = [];
+  state.view = { ...priorView }; // same rectangle of ITM space, now drawing neighborhoods instead - a continuation, not a jump
+  syncUrl();
+  renderAll();
+}
+
+function drillOutToCity(priorView) {
+  state.level = 'city';
+  state.cityFilter = null;
+  state.selected = [];
+  state.view = { ...priorView };
+  syncUrl();
+  renderAll();
+}
+
 /* ---------- entities for the current level ---------- */
 
 function currentEntities() {
@@ -218,10 +314,7 @@ function valueFor(entity, metricId) {
   return valueForLevel(METRICS[metricId], entity.level, entity.key);
 }
 
-/* ---------- projection: ITM -> SVG viewBox, aspect-preserving ---------- */
-
-const MAX_DIM = 720;
-const PADDING = 16;
+const MAX_DIM = 720; // OSM basemap fetch size in px - the flat (non-OSM) viewBox no longer scales into a fixed pixel box, see itmViewBox
 
 /* ---------- color scale (map fill, by the active layer) ---------- */
 
@@ -325,7 +418,11 @@ async function renderOsmBasemap(entities) {
 async function renderMap() {
   const mapSection = el('cmMapSection');
   mapSection.hidden = state.level === 'street';
-  if (state.level === 'street') return;
+  if (state.level === 'street') {
+    currentZoomPan?.destroy(); // no shapes/interaction while hidden - nothing left to leave listening
+    currentZoomPan = null;
+    return;
+  }
 
   const entities = currentEntities();
   const lyr = METRICS[state.layer];
@@ -334,18 +431,25 @@ async function renderMap() {
   el('cmOsmRow').hidden = state.level !== 'neighborhood' || !state.cityFilter;
   el('cmBasemap').hidden = true;
 
-  let width; let height; let project; let ringsFor = (e) => e.rings;
+  // `viewBox` is always {x,y,w,h} - ITM meters (Y-negated) in flat mode,
+  // OSM's own fixed pixel space when that mode is active. The two are NOT
+  // interchangeable (see itmViewBox's own docstring for why this used to
+  // be a real bug) - isItmSpace tells the onChange handler below whether
+  // it's safe to compare the live view against cityBBoxes() at all.
+  let viewBox; let project; let ringsFor = (e) => e.rings; let isItmSpace = true;
   if (state.osm && state.level === 'neighborhood' && state.cityFilter && entities.length) {
     const osm = await renderOsmBasemap(entities);
     if (osm) {
-      ({ width, height } = osm);
+      viewBox = { x: 0, y: 0, w: osm.width, h: osm.height };
       project = (x, y) => osm.project(x, y);
       ringsFor = (e) => osm.wgsRingsByKey[e.key] || [];
+      isItmSpace = false;
     }
   }
   if (!project) {
-    const bbox = entities.length ? bboxOfRingsList(entities.map((e) => e.rings)) : [0, 0, 1, 1];
-    ({ width, height, project } = buildFlatProjector(bbox, MAX_DIM, PADDING));
+    const bbox = entities.length ? bboxOfRingsList(entities.map((e) => e.rings)) : [0, -1, 1, 0];
+    viewBox = itmViewBox(bbox);
+    project = projectItm;
   }
 
   const svg = el('cmSvg');
@@ -361,13 +465,27 @@ async function renderMap() {
     return `<path d="${d}" fill="${fill}" fill-opacity="${opacity}" stroke="${stroke}" stroke-width="${strokeWidth}" data-key="${esc(e.key)}" tabindex="0" role="button" aria-pressed="${i !== -1}"><title>${esc(title)}</title></path>`;
   }).join('');
 
-  // Zoom/pan re-attaches fresh on every render (innerHTML/viewBox above
-  // already reset) - state.view (from the URL, or a prior gesture this
-  // same session) becomes the starting box instead of the plain auto-fit
-  // one when present, so a shared link opens at the same zoom/pan.
-  const zoomPan = attachZoomPan(svg, state.view || { x: 0, y: 0, w: width, h: height }, {
-    onChange: (v) => { state.view = v; syncUrlDebounced(); },
+  // svg (#cmSvg) is a persistent element - only its innerHTML/viewBox get
+  // replaced each render, not the element itself - so the PREVIOUS
+  // attachment's listeners must be torn down first, or they'd keep firing
+  // alongside the new ones (see attachZoomPan's own docstring).
+  currentZoomPan?.destroy();
+  const cityLevelAtAttach = state.level === 'city';
+  const cityFilterAtAttach = state.cityFilter;
+  const zoomPan = attachZoomPan(svg, state.view || viewBox, {
+    onChange: (v) => {
+      state.view = v;
+      syncUrlDebounced();
+      if (!isItmSpace) return; // OSM's pixel space isn't comparable to cityBBoxes() at all
+      if (cityLevelAtAttach) {
+        const target = findDrillInTarget(v);
+        if (target) drillIntoCity(target, v);
+      } else if (cityFilterAtAttach && shouldDrillOut(v, cityFilterAtAttach)) {
+        drillOutToCity(v);
+      }
+    },
   });
+  currentZoomPan = zoomPan;
   el('cmZoomIn').onclick = () => zoomPan.zoomIn();
   el('cmZoomOut').onclick = () => zoomPan.zoomOut();
   el('cmZoomReset').onclick = () => { zoomPan.reset(); state.view = null; syncUrl(); };
@@ -519,6 +637,7 @@ el('cmStreetPick').addEventListener('keydown', (ev) => { if (ev.key === 'Enter')
 
 el('cmOsmToggle').addEventListener('change', (ev) => {
   state.osm = ev.target.checked;
+  state.view = null; // OSM's pixel space and the flat ITM space aren't the same units - a carried-over view would point nowhere sensible
   renderMap();
 });
 
