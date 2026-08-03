@@ -54,6 +54,7 @@ import { CITY_HEAT } from './heat-cities.js';
 import { NEIGHBORHOOD_HEAT } from './heat-neighborhoods.js';
 import { STREET_HEAT } from './heat-streets.js';
 import { HEAT_BLOBS } from './heat-blobs.js';
+import { CANOPY_BLOBS } from './canopy-blobs.js';
 
 initThemePicker(el('themePick'));
 loadAppsData().then((data) => renderAppContext(el('appContext'), data.apps, 'canopy-map')).catch(() => {});
@@ -156,7 +157,7 @@ const PICK_COLORS = [
 // zooming in doesn't immediately drill away to something else, and where
 // ~186 shapes stay legible with an extra glyph on each.
 const state = {
-  level: 'city', layer: 'canopy', cityLayers: ['canopy'], cityFilter: null, osm: false, heatBlob: false, selected: [], view: null,
+  level: 'city', layer: 'canopy', cityLayers: ['canopy'], cityFilter: null, osm: false, heatBlob: false, canopyBlob: false, selected: [], view: null,
 };
 let currentZoomPan = null; // torn down and replaced fresh each renderMap() - see attachZoomPan's own docstring
 
@@ -574,8 +575,10 @@ async function renderMap() {
 
   el('cmOsmRow').hidden = state.level !== 'neighborhood' || !state.cityFilter;
   el('cmBasemap').hidden = true;
-  const blobAvailable = state.level === 'neighborhood' && state.cityFilter && HEAT_BLOBS[state.cityFilter];
-  el('cmBlobRow').hidden = !blobAvailable;
+  const heatBlobAvailable = state.level === 'neighborhood' && state.cityFilter && HEAT_BLOBS[state.cityFilter];
+  const canopyBlobAvailable = state.level === 'neighborhood' && state.cityFilter && CANOPY_BLOBS[state.cityFilter];
+  el('cmBlobRow').hidden = !heatBlobAvailable;
+  el('cmCanopyBlobRow').hidden = !canopyBlobAvailable;
 
   // `viewBox` is always {x,y,w,h} - ITM meters (Y-negated) in flat mode,
   // OSM's own fixed pixel space when that mode is active. The two are NOT
@@ -598,19 +601,26 @@ async function renderMap() {
     project = projectItm;
   }
   // Same ITM-meters space as the neighborhood shapes themselves (see
-  // heat-blobs.js's own build comment) - drawn straight under them with no
-  // conversion, but only when that space is actually what's on screen
-  // (isItmSpace false means OSM's own fixed pixel space is active instead).
-  const blob = blobAvailable && state.heatBlob && isItmSpace ? HEAT_BLOBS[state.cityFilter] : null;
+  // heat-blobs.js's/canopy-blobs.js's own build comments) - drawn straight
+  // under them with no conversion, but only when that space is actually
+  // what's on screen (isItmSpace false means OSM's own fixed pixel space is
+  // active instead). Heat wins if both toggles somehow end up on at once -
+  // nothing enforces them mutually exclusive, a rare enough case not to be
+  // worth a UI lock for.
+  const heatBlob = heatBlobAvailable && state.heatBlob && isItmSpace
+    ? { data: HEAT_BLOBS[state.cityFilter], metric: 'heat' } : null;
+  const canopyBlobPick = canopyBlobAvailable && state.canopyBlob && isItmSpace
+    ? { data: CANOPY_BLOBS[state.cityFilter], metric: 'canopy' } : null;
+  const blob = heatBlob || canopyBlobPick;
 
   const svg = el('cmSvg');
-  // Once the high-res raster (blob) is showing for the heat metric, the
-  // per-neighborhood choropleth fill is redundant - it's the same value at
-  // coarser granularity, sitting right on top of the pixel-accurate data.
-  // Suppressed instead of just made translucent, so only the raster and
-  // the neighborhood outlines/labels are visible - "the high-res heat map,
-  // not the old by-neighborhood one" together in one view.
-  const blobReplacesFill = !!blob && !isMultiMetric && activeMetricIds[0] === 'heat';
+  // Once a high-res raster (blob) is showing for the metric it belongs to,
+  // the per-neighborhood choropleth fill is redundant - it's the same
+  // value at coarser granularity, sitting right on top of the pixel-
+  // accurate data. Suppressed instead of just made translucent, so only
+  // the raster and the neighborhood outlines/labels are visible - "the
+  // high-res map, not the old by-neighborhood one" together in one view.
+  const blobReplacesFill = !!blob && !isMultiMetric && activeMetricIds[0] === blob.metric;
   const opacity = (state.osm && !el('cmBasemap').hidden) || blob ? '0.72' : '1';
   const titleFor = (e) => `${e.label} - ${activeMetricIds
     .map((id) => `${METRICS[id].label}: ${valueFor(e, id) != null ? num(valueFor(e, id)) + METRICS[id].unit : 'אין נתונים'}`)
@@ -643,7 +653,7 @@ async function renderMap() {
   // transparent (see opacity above) so the raster actually shows through
   // instead of being fully hidden under an opaque fill.
   const blobImage = blob
-    ? `<image href="${esc(blob.src)}" x="${blob.x}" y="${blob.y}" width="${blob.w}" height="${blob.h}" preserveAspectRatio="none" pointer-events="none" />`
+    ? `<image href="${esc(blob.data.src)}" x="${blob.data.x}" y="${blob.data.y}" width="${blob.data.w}" height="${blob.data.h}" preserveAspectRatio="none" pointer-events="none" />`
     : '';
   // Only in ITM/flat space - OSM mode projects through a different (WGS84
   // lon/lat -> its own fixed pixel space) function entirely, so a label
@@ -706,10 +716,14 @@ async function renderMap() {
 
   // The choropleth scale would describe a fill that isn't drawn any more
   // (see blobReplacesFill above) - showing it would just be wrong, not
-  // merely redundant, since the raster's own colors follow a different
-  // (per-crop, median-relative) scale entirely (see cmBlobRow's own hint).
-  if (blobReplacesFill) {
+  // merely redundant, since each raster's own coloring follows a different
+  // convention entirely (see cmBlobRow's/cmCanopyBlobRow's own hints): heat
+  // is a per-crop, median-relative scale; canopy is a plain "is there a
+  // tree crown here, yes/no" mask, not a value scale at all.
+  if (blobReplacesFill && blob.metric === 'heat') {
     el('cmLegend').innerHTML = '<span class="cm-legend-nodata">כתם החום מוצג לפי חציון האזור - אין סרגל צבע קבוע להשוואה</span>';
+  } else if (blobReplacesFill && blob.metric === 'canopy') {
+    el('cmLegend').innerHTML = '<span class="cm-legend-nodata">כל נקודה ירוקה היא צמרת עץ בודדת מהמיפוי המקורי - לא אחוז כיסוי משוכלל</span>';
   } else {
     renderLegend(activeMetricIds, domains);
   }
@@ -913,6 +927,11 @@ el('cmOsmToggle').addEventListener('change', (ev) => {
 
 el('cmBlobToggle').addEventListener('change', (ev) => {
   state.heatBlob = ev.target.checked;
+  renderMap();
+});
+
+el('cmCanopyBlobToggle').addEventListener('change', (ev) => {
+  state.canopyBlob = ev.target.checked;
   renderMap();
 });
 
