@@ -41,6 +41,12 @@
   --fin-ok: var(--leaf);
   --fin-bad: var(--danger);
   --fin-compare: var(--sky);
+
+  /* canopy-map.html's "no data for this area" fill - derived from --muted/
+     --bg rather than a fixed gray, so it automatically follows whichever
+     theme is active (including fashion/zebra below) without repeating this
+     per theme block. */
+  --map-nodata: color-mix(in srgb, var(--muted) 35%, var(--bg) 65%);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -1820,6 +1826,27 @@ body.accidents-page header.site h1 { inline-size: 100%; }
 @media (max-width: 640px) {
   #tcPicks { grid-template-columns: 1fr; grid-auto-flow: row; }
 }
+
+/* canopy-map.html - the SVG (always drawn) and the optional OSM basemap
+   canvas share exactly one footprint, the canvas absolutely positioned
+   behind the SVG rather than the two sitting in normal flow, so toggling
+   the basemap on/off never reflows the shapes above it. */
+.cm-map-wrap { position: relative; max-inline-size: 45rem; margin-inline: auto; }
+.cm-basemap { position: absolute; inset-block-start: 0; inset-inline-start: 0; inline-size: 100%; block-size: 100%; }
+/* The div itself is just a positioning wrapper - fetchBasemapCanvasWGS84's
+   own <canvas> (with real width/height attributes already matching MAX_DIM)
+   is appended into it at render time, not styled directly here. */
+.cm-basemap canvas { display: block; inline-size: 100%; block-size: 100%; border-radius: 6px; }
+.cm-svg { display: block; inline-size: 100%; block-size: auto; position: relative; }
+.cm-svg path { cursor: pointer; }
+.cm-svg path:hover, .cm-svg path:focus-visible { stroke: var(--fg); stroke-width: 1.4; outline: none; }
+
+.cm-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem; margin-block-start: .8rem; font-size: .85rem; }
+.cm-legend-scale { display: inline-flex; align-items: center; gap: .4rem; }
+.cm-legend-bar { inline-size: 8rem; block-size: .7rem; border-radius: 3px; border: 1px solid var(--border); }
+.cm-legend-nodata { display: inline-flex; align-items: center; gap: .35rem; color: var(--muted); }
+
+.cm-osm-toggle { display: inline-flex; align-items: center; gap: .5rem; cursor: pointer; }
 
 /* Intro paragraph collapses behind a normal disclosure triangle, open or
    closed on any width - unlike .more-toggle (index.html's "continue" section)

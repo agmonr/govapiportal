@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>מפת עצים וחום — כיסוי חופות, עצי רחוב ואיי חום על המפה</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗺️</text></svg>">
+  <meta name="description" content="כיסוי חופות עצים, עצי רחוב ואיי חום - שלוש שכבות נתונים על מפת ערים ושכונות אחת, לחיצה על אזור עוברת לפירוט המלא שלו.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://agmonr.github.io/govapiportal/canopy-map.html">
+  <meta property="og:title" content="מפת עצים וחום — כיסוי חופות, עצי רחוב ואיי חום על המפה">
+  <meta property="og:description" content="כיסוי חופות עצים, עצי רחוב ואיי חום - שלוש שכבות נתונים על מפת ערים ושכונות אחת, לחיצה על אזור עוברת לפירוט המלא שלו.">
+  <meta property="og:image" content="https://agmonr.github.io/govapiportal/assets/og/canopy-map.png">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="מפת עצים וחום — כיסוי חופות, עצי רחוב ואיי חום על המפה">
+  <meta name="twitter:description" content="כיסוי חופות עצים, עצי רחוב ואיי חום - שלוש שכבות נתונים על מפת ערים ושכונות אחת, לחיצה על אזור עוברת לפירוט המלא שלו.">
+  <meta name="twitter:image" content="https://agmonr.github.io/govapiportal/assets/og/canopy-map.png">
+  <script>
+    try {
+      var t = localStorage.getItem('theme');
+      if (t && t !== 'clouds') document.documentElement.setAttribute('data-theme', t);
+    } catch (e) {}
+  </script>
+  <link rel="stylesheet" href="./src/style.css">
+</head>
+<body class="accidents-page tree-canopy-page">
+  <header class="site">
+    <div class="wrap">
+      <h1>מפת עצים וחום</h1>
+      <span class="site-by">פרויקט של רם אגמון<span class="site-disclaimer">המידע באתר עלול להיות שגוי</span><a href="https://hod-hasharon.org/" target="_blank" rel="noopener">הירוקים הוד השרון</a></span>
+      <span class="meta"><a href="./tree-canopy.html">האינדקס הירוק</a> · <a href="./canopy-split.html">ציבורי מול פרטי</a> · <a href="./heat-islands.html">איי חום</a></span>
+      <div class="theme-pick" id="themePick" role="group" aria-label="ערכת נושא">
+        <button type="button" data-theme="clouds">☀️<span class="theme-btn-label"> יום</span></button>
+        <button type="button" data-theme="fashion">🌙<span class="theme-btn-label"> לילה</span></button>
+        <button type="button" data-theme="zebra">🦓<span class="theme-btn-label"> זברה</span></button>
+      </div>
+      <span class="meta" id="created"></span>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <div id="fileproto" class="notice error" dir="auto" hidden>
+      <strong>הדף נפתח כקובץ מקומי (<code dir="ltr">file://</code>) ולכן אינו יכול לטעון את הנתונים.</strong>
+      <p>
+        הדפדפן חוסם מודולי ES ממקור <code dir="ltr">null</code> — זו הגבלת אבטחה של הדפדפן, לא תקלה באתר.
+        הפעל שרת מקומי מתיקיית הפרויקט:
+      </p>
+      <pre dir="ltr"><code>python3 -m http.server 8000</code></pre>
+      <p>ולאחר מכן פתח <a href="http://localhost:8000/canopy-map.html" dir="ltr">http://localhost:8000/canopy-map.html</a>.</p>
+      <p>
+        לחלופין, ללא שרת כלל — <a href="./dist/canopy-map.html" dir="ltr">dist/canopy-map.html</a>
+        הוא קובץ יחיד ועצמאי שעובד בפתיחה ישירה מהדיסק.
+      </p>
+    </div>
+
+    <div id="app">
+      <div id="appContext" class="app-context"></div>
+      <details class="lead-details" dir="auto">
+        <summary>אותם נתונים, על מפה</summary>
+        <p class="lead" dir="auto">
+          <a href="./tree-canopy.html">האינדקס הירוק לרחוב שלי</a>, <a href="./canopy-split.html">עצים ציבוריים
+          מול פרטיים</a> ו-<a href="./heat-islands.html">איי חום עירוניים</a> - שלושת הדפים האלה כבר מציגים
+          את הנתונים כטבלה ולוח מובילים. הדף הזה הוא לא מקור מידע חדש, אלא דרך אחרת להסתכל על אותם המספרים
+          בדיוק: כל עיר או שכונה צבועה על מפה לפי הערך שלה, ולחיצה עליה עוברת לדף המקורי עם כל הפירוט (טבלה,
+          השוואה, הורדת CSV).
+        </p>
+      </details>
+
+      <details class="notice info" dir="auto">
+        <summary><strong>מה יש כאן, ומה המקור</strong></summary>
+        <p>
+          שום נתון חדש - שלוש השכבות (כיסוי חופות כולל, עצי רחוב ציבוריים, דלתת חום) הן בדיוק אותם מספרים
+          שכבר מחושבים בשלושת הדפים המקושרים למעלה. הדבר היחיד שנוסף כאן הוא <strong>צורת הגבולות</strong>
+          עצמה - עד עכשיו האתר שלח רק טבלאות שם/ערך, בלי שום גיאומטריה. הצורות (עיר ושכונה) מפושטות מאותם
+          קבצי מקור ש-<a href="./tree-canopy.html">האינדקס הירוק</a> כבר משתמש בהם (ראו שם למקור המלא).
+        </p>
+        <p>
+          <strong>ברירת המחדל היא ללא רקע OSM אמיתי:</strong> הצורות עצמן מציירות את המפה - כמו כל מפה
+          נושאית (תוצאות בחירות, מפקד אוכלוסין) שלא מציגה פרטי רחובות מתחת לצביעה. אפשר להפעיל רקע OSM אמיתי
+          (ברמת שכונה בלבד, אחרי בחירת עיר) - אבל תצוגה ארצית שלמה דורשת הרבה יותר אריחי מפה ממה שהאתר הזה
+          שולף בכל מקום אחר, ולכן לא זמינה ברמת עיר.
+        </p>
+        <p>
+          <strong>ברמת שכונה יש לבחור עיר קודם</strong> - כמו בכל דף אחר באתר: רוב השכונות בגודל של רחוב או
+          שניים, ולא יהיו קריאות בתצוגה ארצית אחת.
+        </p>
+      </details>
+
+      <section class="acc-section" aria-labelledby="levelH">
+        <h2 id="levelH">רמת השוואה</h2>
+        <div class="cm-filters" role="group" aria-label="רמת השוואה">
+          <button type="button" data-level="city" class="tc-level-btn cm-level-btn">ערים</button>
+          <button type="button" data-level="neighborhood" class="tc-level-btn cm-level-btn">שכונות</button>
+        </div>
+      </section>
+
+      <section class="acc-section" aria-labelledby="layerH">
+        <h2 id="layerH">שכבת נתונים</h2>
+        <div class="cm-filters" role="group" aria-label="שכבת נתונים">
+          <button type="button" data-layer="canopy" class="tc-level-btn cm-layer-btn">כיסוי חופות כולל</button>
+          <button type="button" data-layer="street" class="tc-level-btn cm-layer-btn">עצי רחוב (ציבורי)</button>
+          <button type="button" data-layer="heat" class="tc-level-btn cm-layer-btn">איי חום</button>
+        </div>
+      </section>
+
+      <section class="acc-section" id="cmCityPickRow" aria-labelledby="cityPickH" hidden>
+        <h2 id="cityPickH">בחירת עיר</h2>
+        <div class="acc-year-pick">
+          <label for="cmCityPick">עיר:</label>
+          <input id="cmCityPick" type="text" list="cmCityRoster" autocomplete="off" spellcheck="false"
+                 placeholder="התחילו להקליד…">
+        </div>
+        <datalist id="cmCityRoster"></datalist>
+      </section>
+
+      <section class="acc-section" id="cmOsmRow" aria-labelledby="osmH" hidden>
+        <h2 id="osmH">רקע מפה</h2>
+        <label class="cm-osm-toggle">
+          <input type="checkbox" id="cmOsmToggle">
+          הצג רקע מפת OpenStreetMap אמיתי (איטי יותר, דורש חיבור רשת)
+        </label>
+        <p id="cmOsmStatus" class="acc-hint" dir="auto"></p>
+      </section>
+
+      <section class="acc-section" aria-labelledby="mapH">
+        <h2 id="mapH">המפה</h2>
+        <p id="cmHint" class="acc-hint" dir="auto"></p>
+        <div class="cm-map-wrap">
+          <div id="cmBasemap" class="cm-basemap" hidden></div>
+          <svg id="cmSvg" class="cm-svg" role="img" aria-label="מפת ערים ושכונות צבועה לפי שכבת הנתונים הנבחרת"></svg>
+        </div>
+        <div id="cmLegend" class="cm-legend"></div>
+      </section>
+    </div>
+  </main>
+
+  <!--
+    Same guard as index.html/welfare.html: opened from disk nothing below can
+    load, because ES module scripts are refused from origin 'null'. Must be a
+    classic inline script - a module would be the first thing blocked.
+  -->
+  <script>
+    if (location.protocol === 'file:') {
+      document.getElementById('fileproto').hidden = false;
+      document.getElementById('app').hidden = true;
+    }
+  </script>
+  <script type="module" src="./src/canopy-map.js"></script>
+</body>
+</html>
