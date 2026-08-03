@@ -2,99 +2,54 @@
 """
 Builds the public/private canopy split: for each city and neighborhood, how
 much of its already-computed total tree canopy (see canopy_build.py) sits
-inside a street's 7.5m public-road buffer ("public") versus everywhere else
-("private" - gardens, yards, any private lot). Pure aggregation over the
-three tables canopy_build.py already produced - no shapefile access, no new
-geometry work.
+inside the real, unioned street-buffer area ("public" - a proper geometric
+union of every street's 7.5m buffer, intersected with the city/neighborhood
+boundary) versus everywhere else ("private" - by subtraction).
 
-public canopy for a city/neighborhood = sum of canopyAreaM2 across every
-STREET_CANOPY entry attributed to it. Two known approximations, same
-tolerance already disclosed elsewhere on this site: (1) two streets whose
-7.5m buffers overlap at an intersection each count that overlap once, a mild
-double-count of "public"; (2) neighborhood-level public sums only include
-streets whose centroid-based neighborhood attribution ("nb") resolved to
-something - unattributed streets' canopy is invisible at the neighborhood
-level (still counted at the city level, where attribution is always known -
-every STREET_CANOPY key starts with its city).
+This does real spatial geometry against the local canopy GeoPackage - the
+same rigor canopy_build.py itself uses for city/neighborhood/street canopy -
+rather than summing STREET_CANOPY's already-computed per-street numbers,
+which has two problems a proper union avoids: (1) two streets whose buffers
+overlap at an intersection would each count that overlap once in a sum -
+canopy_area_within on the true UNION counts it once; (2) a neighborhood-level
+sum relying on each street's centroid-based "nb" attribution misses any
+street whose centroid didn't resolve to a neighborhood - a direct geometric
+intersection test between a neighborhood polygon and every candidate street
+buffer has no such gap.
 
-private = max(0, total - public) per area, clamped for the rare case where
-approximation (1) pushes the public sum slightly past the total.
+City-level: for each city, union every street buffer attributed to it (by
+canopy_build.py's own street_geoms() grouping), intersect with the city
+boundary, then canopy_area_within() that intersection - same function
+canopy_build.py's build_cities()/build_neighborhoods() already use.
+
+Neighborhood-level: for each neighborhood, find every street buffer (from
+its own city, via a per-city STRtree) that actually intersects the
+neighborhood polygon - not by label, by geometry - union those, intersect
+with the neighborhood polygon, then canopy_area_within() that.
 
 Usage:
     python3 tools/canopy_split_build.py
 """
 import json
-import re
+import sys
 import time
 from pathlib import Path
+
+from osgeo import ogr
+ogr.UseExceptions()
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from canopy_build import (
+    load_muni_geoms, city_index, neighborhood_geoms, street_geoms,
+    open_canopy, canopy_area_within, write_js as _unused_write_js,
+)
 
 ROOT = Path(__file__).resolve().parent.parent
 SRC = ROOT / "src"
 
 
 def log(msg):
-    print(msg, flush=True)
-
-
-def load_export(path, varname):
-    text = path.read_text(encoding="utf-8")
-    m = re.search(rf"export const {varname} = (\{{.*\}});\s*$", text, re.DOTALL)
-    return json.loads(m.group(1))
-
-
-def build():
-    cities = load_export(SRC / "tree-canopy-cities.js", "CITY_CANOPY")
-    neighborhoods = load_export(SRC / "tree-canopy-neighborhoods.js", "NEIGHBORHOOD_CANOPY")
-    streets = load_export(SRC / "tree-canopy-streets.js", "STREET_CANOPY")
-
-    public_by_city = {}
-    public_by_nb = {}
-    for key, v in streets.items():
-        city, _name = key.split("::", 1)
-        public_by_city[city] = public_by_city.get(city, 0.0) + v["canopyAreaM2"]
-        nb = v.get("nb")
-        if nb:
-            nb_key = f"{city}::{nb}"
-            public_by_nb[nb_key] = public_by_nb.get(nb_key, 0.0) + v["canopyAreaM2"]
-
-    city_out = {}
-    for name, v in cities.items():
-        area = v["cityAreaM2"]
-        total = v["canopyAreaM2"]
-        public = min(public_by_city.get(name, 0.0), total)
-        private = total - public
-        if not area:
-            continue
-        city_out[name] = {
-            "areaM2": area,
-            "totalPct": round(100 * total / area, 2),
-            "publicPct": round(100 * public / area, 2),
-            "privatePct": round(100 * private / area, 2),
-            "totalM2": round(total, 1), "publicM2": round(public, 1), "privateM2": round(private, 1),
-        }
-
-    nb_out = {}
-    for key, v in neighborhoods.items():
-        area = v["areaM2"]
-        total = v["canopyAreaM2"]
-        public = min(public_by_nb.get(key, 0.0), total)
-        private = total - public
-        if not area:
-            continue
-        entry = {
-            "areaM2": area,
-            "totalPct": round(100 * total / area, 2),
-            "publicPct": round(100 * public / area, 2),
-            "privatePct": round(100 * private / area, 2),
-            "totalM2": round(total, 1), "publicM2": round(public, 1), "privateM2": round(private, 1),
-        }
-        if key not in public_by_nb:
-            entry["publicUnknown"] = True
-        if v.get("approx"):
-            entry["approx"] = True
-        nb_out[key] = entry
-
-    return city_out, nb_out
+    print(f"[{time.strftime('%H:%M:%S')}] {msg}", flush=True)
 
 
 def write_js(varname, data, out_path, header_comment):
@@ -106,6 +61,106 @@ def write_js(varname, data, out_path, header_comment):
     )
     kb = out_path.stat().st_size / 1024
     log(f"wrote {out_path.relative_to(ROOT)} ({kb:.1f} KB)")
+
+
+def build():
+    from shapely.ops import unary_union
+    from shapely.strtree import STRtree
+    import shapely.wkt as swkt
+
+    log("loading city boundaries...")
+    munis_all = load_muni_geoms()
+    munis_all = {k: v for k, v in munis_all.items() if not k.startswith("ללא שיפוט")}
+    names, shapes, tree = city_index(munis_all)
+    city_shape_by_name = dict(zip(names, shapes))
+
+    munis = {k: v for k, v in munis_all.items() if v[2] != "מועצה אזורית"}
+    log(f"{len(munis)} cities (regional councils excluded)")
+
+    log("loading street buffers...")
+    street_list = street_geoms(names, shapes, tree)  # (city, name, shapely buf, length_m, nb)
+
+    bufs_by_city = {}
+    for city, _name, buf, _len, _nb in street_list:
+        bufs_by_city.setdefault(city, []).append(buf)
+    log(f"streets grouped into {len(bufs_by_city)} cities")
+
+    trees_by_city = {city: STRtree(bufs) for city, bufs in bufs_by_city.items()}
+
+    log("loading neighborhood boundaries...")
+    nb_list = neighborhood_geoms(names, shapes, tree)  # (city, name, shapely geom, approx)
+
+    ds, canopy = open_canopy()
+
+    def public_area_for(city, geom_shp):
+        """canopy area within `geom_shp` (shapely) that also falls inside the
+        union of `city`'s street buffers - 0.0 if the city has no streets or
+        none reach this geometry at all."""
+        bufs = bufs_by_city.get(city)
+        if not bufs:
+            return 0.0
+        candidate_idx = trees_by_city[city].query(geom_shp)
+        candidates = [bufs[i] for i in candidate_idx if bufs[i].intersects(geom_shp)]
+        if not candidates:
+            return 0.0
+        public_shape = unary_union(candidates).intersection(geom_shp)
+        if public_shape.is_empty:
+            return 0.0
+        public_ogr = ogr.CreateGeometryFromWkt(public_shape.wkt)
+        area, _n = canopy_area_within(canopy, public_ogr)
+        return area
+
+    log("computing city-level public/private split...")
+    city_out = {}
+    t0 = time.time()
+    for i, (name, (geom_ogr, _code, _sug)) in enumerate(munis.items()):
+        area = geom_ogr.GetArea()
+        if not area:
+            continue
+        total_area, _n = canopy_area_within(canopy, geom_ogr)
+        public_area = min(public_area_for(name, city_shape_by_name[name]), total_area)
+        private_area = total_area - public_area
+        city_out[name] = {
+            "areaM2": round(area, 1),
+            "totalPct": round(100 * total_area / area, 2),
+            "publicPct": round(100 * public_area / area, 2),
+            "privatePct": round(100 * private_area / area, 2),
+            "totalM2": round(total_area, 1), "publicM2": round(public_area, 1), "privateM2": round(private_area, 1),
+        }
+        if (i + 1) % 25 == 0:
+            elapsed = time.time() - t0
+            log(f"  {i+1}/{len(munis)} cities, {elapsed:.0f}s elapsed, ~{elapsed/(i+1)*len(munis):.0f}s total est.")
+    log(f"cities done in {time.time()-t0:.0f}s")
+
+    log("computing neighborhood-level public/private split...")
+    nb_out = {}
+    t0 = time.time()
+    for i, (city, name, geom_shp, approx) in enumerate(nb_list):
+        geom_ogr = ogr.CreateGeometryFromWkt(geom_shp.wkt)
+        area = geom_ogr.GetArea()
+        if not area:
+            continue
+        total_area, _n = canopy_area_within(canopy, geom_ogr)
+        public_area = min(public_area_for(city, geom_shp), total_area) if city else 0.0
+        private_area = total_area - public_area
+        key = f"{city or '—'}::{name}"
+        entry = {
+            "areaM2": round(area, 1),
+            "totalPct": round(100 * total_area / area, 2),
+            "publicPct": round(100 * public_area / area, 2),
+            "privatePct": round(100 * private_area / area, 2),
+            "totalM2": round(total_area, 1), "publicM2": round(public_area, 1), "privateM2": round(private_area, 1),
+        }
+        if approx:
+            entry["approx"] = True
+        nb_out[key] = entry
+        if (i + 1) % 100 == 0:
+            elapsed = time.time() - t0
+            log(f"  {i+1}/{len(nb_list)} neighborhoods, {elapsed:.0f}s elapsed, ~{elapsed/(i+1)*len(nb_list):.0f}s total est.")
+    ds = None
+    log(f"neighborhoods done in {time.time()-t0:.0f}s - {len(nb_out)} total")
+
+    return city_out, nb_out
 
 
 def main():

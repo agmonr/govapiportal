@@ -50,7 +50,7 @@ const LEVELS = {
         key, label: `${name} (${city === '—' ? 'ללא עיר מזוהה' : city})`, name, city,
         totalPct: v.totalPct, publicPct: v.publicPct, privatePct: v.privatePct,
         areaM2: v.areaM2, totalM2: v.totalM2, publicM2: v.publicM2, privateM2: v.privateM2,
-        approx: v.approx, publicUnknown: v.publicUnknown,
+        approx: v.approx,
       };
     }),
   },
