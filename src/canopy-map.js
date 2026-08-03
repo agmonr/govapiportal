@@ -160,6 +160,7 @@ const state = {
   level: 'city', layer: 'canopy', cityLayers: ['canopy'], cityFilter: null, osm: false, heatBlob: false, canopyBlob: false, hiRes: false, selected: [], view: null,
 };
 let currentZoomPan = null; // torn down and replaced fresh each renderMap() - see attachZoomPan's own docstring
+let lastViewBox = null; // the ResizeObserver below (outside renderMap's own scope) falls back on this when state.view is still null (nothing panned/zoomed yet)
 
 function readStateFromUrl() {
   const p = new URLSearchParams(location.search);
@@ -222,9 +223,9 @@ function cityBBoxes() {
     for (const [name, data] of Object.entries(MAP_CITIES)) {
       const [xmin, ymin, xmax, ymax] = bboxOfRingsList([data.rings]);
       // Stored Y-flipped (see itmViewBox's docstring) - the same space
-      // state.view lives in - so findDrillInTarget/shouldDrillOut can
-      // compare them directly with no further conversion. Flipping swaps
-      // which raw value is the min vs the max.
+      // state.view lives in - so shouldDrillOut can compare them directly
+      // with no further conversion. Flipping swaps which raw value is the
+      // min vs the max.
       const fymin = -ymax;
       const fymax = -ymin;
       cityBBoxCache[name] = [xmin, fymin, xmax, fymax, (xmin + xmax) / 2, (fymin + fymax) / 2];
@@ -251,32 +252,11 @@ function overlapArea(a, b) {
   return ox * oy;
 }
 
-// The view's own aspect ratio is inherited from the national fit (Israel
-// is ~3x taller than wide) and stays fixed under uniform zoom, while a
-// city's own extent is roughly square - so the view can never actually
-// reach anywhere close to "mostly this city" by area alone, no matter how
-// far zoomed in on the city's own position (whichever axis lines up with
-// the city first always leaves the other axis showing extra context far
-// beyond it). Measured directly: zooming in on Tel Aviv until it clearly
-// dominates what's visible only reached ~15-20% of the view's total area,
-// not the 50%+ a naive "fills most of the screen" reading would suggest.
-const DRILL_IN_FRACTION = 0.15;
-// Lower than DRILL_IN_FRACTION (hysteresis) so a view sitting right at the
-// boundary doesn't flicker between levels.
+// Lower fraction of the view a city's bbox needs to cover before zooming
+// back OUT drops back to city level - picking a city to view (the reverse
+// direction) is manual only now (see the path click handler below and
+// commitCity), the map itself no longer drills IN on its own.
 const DRILL_OUT_FRACTION = 0.06;
-
-/** The city whose bbox covers the largest fraction of `view`'s own area -
- * null if none clears DRILL_IN_FRACTION yet. */
-function findDrillInTarget(view) {
-  const viewArea = view.w * view.h;
-  let best = null;
-  let bestFrac = 0;
-  for (const [name, bbox] of Object.entries(cityBBoxes())) {
-    const frac = overlapArea(bbox, view) / viewArea;
-    if (frac > bestFrac) { bestFrac = frac; best = name; }
-  }
-  return bestFrac >= DRILL_IN_FRACTION ? best : null;
-}
 
 function shouldDrillOut(view, cityName) {
   const bbox = cityBBoxes()[cityName];
@@ -284,45 +264,15 @@ function shouldDrillOut(view, cityName) {
   return overlapArea(bbox, view) / (view.w * view.h) < DRILL_OUT_FRACTION;
 }
 
-// A tight view rectangle around one city, in the same Y-flipped ITM space
-// as state.view/cityBBoxes() - used to zoom straight to a city the instant
-// it's picked (see the map-click handler below), rather than only reacting
-// to a manual scroll/pinch gesture crossing DRILL_IN_FRACTION on its own.
-function viewForCityZoom(name, paddingFrac = 0.25) {
-  const bbox = cityBBoxes()[name];
-  if (!bbox) return null;
-  const [xmin, fymin, xmax, fymax] = bbox;
-  const w = (xmax - xmin) || 1;
-  const h = (fymax - fymin) || 1;
-  const pad = Math.max(w, h) * paddingFrac;
-  return { x: xmin - pad, y: fymin - pad, w: w + pad * 2, h: h + pad * 2 };
-}
-
-function drillIntoCity(cityName, priorView) {
-  state.level = 'neighborhood';
-  state.cityFilter = cityName;
-  // Neighborhood/street level color by the single state.layer, city level
-  // by state.cityLayers (1-3 at once, for the bar glyphs) - these are two
-  // separate fields that don't sync themselves, so without this a city
-  // viewed with (say) only "heat" active in cityLayers would drill into
-  // neighborhoods still showing whatever state.layer last was (originally
-  // "canopy", if the neighborhood level had never been visited this
-  // session) - a real bug reported directly as "zooming in on heat moves
-  // to canopy". Picks the most-recently-toggled active metric.
-  state.layer = state.cityLayers[state.cityLayers.length - 1] || state.layer;
-  state.selected = [];
-  state.view = { ...priorView }; // same rectangle of ITM space, now drawing neighborhoods instead - a continuation, not a jump
-  syncUrl();
-  renderAll();
-}
-
 function drillOutToCity(priorView) {
   state.level = 'city';
   state.cityFilter = null;
-  // Same sync as drillIntoCity, in reverse - city level only ever reads
-  // state.cityLayers, so without this the map would silently fall back to
-  // whatever cityLayers was last set to (possibly the ['canopy'] default)
-  // instead of the metric just being viewed at neighborhood level.
+  // Neighborhood/street level color by the single state.layer, city level
+  // by state.cityLayers (1-3 at once, for the bar glyphs) - these are two
+  // separate fields that don't sync themselves, so without this the map
+  // would silently fall back to whatever cityLayers was last set to
+  // (possibly the ['canopy'] default) instead of the metric just being
+  // viewed at neighborhood level.
   state.cityLayers = [state.layer];
   state.selected = [];
   state.view = { ...priorView };
@@ -430,13 +380,16 @@ function entityLabelMarkup(e) {
   return `<text class="cm-label" x="${cx.toFixed(1)}" y="${cy.toFixed(1)}" data-min="${minDim.toFixed(1)}" text-anchor="middle" dominant-baseline="middle" pointer-events="none">${esc(e.label)}</text>`;
 }
 
+const LABEL_DECLUTTER_PAD_PX = 2; // a little breathing room beyond exact pixel touch, not just zero-gap
+
 // scale = screen px per meter, matching preserveAspectRatio="xMidYMid meet"'s
 // own (smaller-of-the-two-axes) fit - the same reason a city's roughly-
 // square bbox never fills 100% of the national view's tall/narrow one (see
-// overlapArea's own comment on this).
-function updateLabels(svg, view) {
+// overlapArea's own comment on this). Cheap - just a per-element number
+// comparison and attribute set, safe to run on every single zoom/pan tick.
+function updateLabelVisibility(svg, view) {
   const rect = svg.getBoundingClientRect();
-  if (!rect.width || !rect.height || !view || !view.w || !view.h) return;
+  if (!rect.width || !rect.height || !view || !view.w || !view.h) return null;
   const scale = Math.min(rect.width / view.w, rect.height / view.h);
   const fontSize = LABEL_FONT_PX / scale; // constant on-screen size at any zoom level
   svg.querySelectorAll('.cm-label').forEach((el) => {
@@ -444,6 +397,41 @@ function updateLabels(svg, view) {
     el.style.display = visible ? '' : 'none';
     if (visible) el.setAttribute('font-size', fontSize.toFixed(2));
   });
+  return scale;
+}
+
+// A cluster of small, tightly-packed neighborhoods can each individually
+// pass updateLabelVisibility()'s own per-shape size test while their
+// rendered text still overlaps each other - that test only ever looks at
+// one shape at a time, not its neighbors. This hides whichever labels in
+// a crowded cluster would visually collide, keeping only one per cluster
+// rather than shipping illegible overlapping text. getBBox() forces a
+// layout flush per call - expensive enough during a live drag/zoom to
+// visibly lag it, which is why the caller (updateLabels, below) only runs
+// this debounced, once a gesture actually settles.
+function declutterOverlappingLabels(svg, scale) {
+  if (!scale) return;
+  const padMeters = LABEL_DECLUTTER_PAD_PX / scale;
+  const candidates = [...svg.querySelectorAll('.cm-label')].filter((el) => el.style.display !== 'none');
+  // Bigger shapes win a crowded cluster - keeping the small one instead
+  // would be the least useful pick, not an arbitrary one.
+  candidates.sort((a, b) => Number(b.dataset.min) - Number(a.dataset.min));
+  const accepted = [];
+  candidates.forEach((el) => {
+    const box = el.getBBox();
+    const box2 = { x: box.x - padMeters, y: box.y - padMeters, w: box.width + 2 * padMeters, h: box.height + 2 * padMeters };
+    const overlaps = accepted.some((o) => box2.x < o.x + o.w && box2.x + box2.w > o.x && box2.y < o.y + o.h && box2.y + box2.h > o.y);
+    if (overlaps) el.style.display = 'none';
+    else accepted.push(box2);
+  });
+}
+
+const declutterDebounced = debounce(declutterOverlappingLabels, 120);
+
+function updateLabels(svg, view, { immediate = false } = {}) {
+  const scale = updateLabelVisibility(svg, view);
+  if (immediate) declutterOverlappingLabels(svg, scale);
+  else declutterDebounced(svg, scale);
 }
 
 /* ---------- selection: at most 1 entry from map clicks (city/neighborhood
@@ -650,7 +638,7 @@ async function renderMap() {
     const fillOpacity = blobReplacesFill ? '0' : opacity;
     const i = selectedIndex(e.key);
     const stroke = i !== -1 ? PICK_COLORS[i] : 'var(--bg)';
-    const strokeWidth = i !== -1 ? '2.4' : '0.6';
+    const strokeWidth = i !== -1 ? '3' : '1.2';
     return `<path d="${d}" fill="${fill}" fill-opacity="${fillOpacity}" stroke="${stroke}" stroke-width="${strokeWidth}" data-key="${esc(e.key)}" tabindex="0" role="button" aria-pressed="${i !== -1}"><title>${esc(titleFor(e))}</title></path>`;
   }).join('');
   // Glyphs render after (on top of) every shape, positioned at each
@@ -684,7 +672,6 @@ async function renderMap() {
   // attachment's listeners must be torn down first, or they'd keep firing
   // alongside the new ones (see attachZoomPan's own docstring).
   currentZoomPan?.destroy();
-  const cityLevelAtAttach = state.level === 'city';
   const cityFilterAtAttach = state.cityFilter;
   const zoomPan = attachZoomPan(svg, state.view || viewBox, {
     onChange: (v) => {
@@ -692,16 +679,23 @@ async function renderMap() {
       syncUrlDebounced();
       updateLabels(svg, v);
       if (!isItmSpace) return; // OSM's pixel space isn't comparable to cityBBoxes() at all
-      if (cityLevelAtAttach) {
-        const target = findDrillInTarget(v);
-        if (target) drillIntoCity(target, v);
-      } else if (cityFilterAtAttach && shouldDrillOut(v, cityFilterAtAttach)) {
+      // Leaving a city (zooming back out past DRILL_OUT_FRACTION) still
+      // happens on the map - only ENTERING one no longer does (see the
+      // path click handler below) - picking which city to view is manual
+      // only now (level tab + the "בחירת עיר" text input), not something
+      // the map itself triggers by scrolling/pinching in far enough.
+      if (cityFilterAtAttach && shouldDrillOut(v, cityFilterAtAttach)) {
         drillOutToCity(v);
       }
     },
   });
   currentZoomPan = zoomPan;
-  updateLabels(svg, state.view || viewBox);
+  lastViewBox = viewBox; // for the ResizeObserver below, which has no view of its own to fall back on
+  // Immediate here (not debounced) - this is a fresh render, not a live
+  // drag/zoom tick, so there's no gesture to wait out and a 120ms flash of
+  // overlapping labels before the debounce fires would just be visible lag
+  // for no reason.
+  updateLabels(svg, state.view || viewBox, { immediate: true });
   el('cmZoomIn').onclick = () => zoomPan.zoomIn();
   el('cmZoomOut').onclick = () => zoomPan.zoomOut();
   el('cmZoomReset').onclick = () => { zoomPan.reset(); state.view = null; syncUrl(); };
@@ -709,24 +703,15 @@ async function renderMap() {
   svg.querySelectorAll('path[data-key]').forEach((path) => {
     const entity = entities.find((x) => x.key === path.dataset.key);
     if (!entity) return;
-    // A single click always just selects (pickSolo) at every level,
-    // including city - it shows the name + detail bars without leaving the
-    // current view. Zooming/drilling into a city's neighborhoods is its
-    // own, separate, deliberate action: either a double-click on it, or
-    // scrolling/pinching in far enough on your own (see
-    // findDrillInTarget's own DRILL_IN_FRACTION). A single click used to
-    // also drill immediately, but that made double-click impossible to
-    // land at all - the drill already switched the view (and what's under
-    // the cursor) before the 2nd click of the pair ever landed on it.
+    // A single click just selects (pickSolo) at every level, including
+    // city - it shows the name + detail bars without leaving the current
+    // view. Picking a city to view its neighborhoods is manual only (level
+    // tab + the "בחירת עיר" text input) - the map itself no longer drills
+    // in on a double-click or on scrolling/pinching in far enough, so a
+    // click here can never accidentally jump the view out from under you.
     path.addEventListener('click', () => {
       if (zoomPan.isDragging()) return;
       pickSolo(entity);
-    });
-    path.addEventListener('dblclick', (ev) => {
-      ev.preventDefault();
-      if (state.level !== 'city') return;
-      const view = viewForCityZoom(entity.key);
-      if (view) drillIntoCity(entity.key, view);
     });
     path.addEventListener('keydown', (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); pickSolo(entity); } });
   });
@@ -752,8 +737,8 @@ async function renderMap() {
     renderLegend(activeMetricIds, domains);
   }
   el('cmHint').textContent = state.level === 'city'
-    ? `${num(entities.length)} ערים - לחיצה בוחרת עיר, לחיצה כפולה או התקרבות מתקרבת לשכונות שלה`
-    : (state.cityFilter ? `${num(entities.length)} שכונות ב${state.cityFilter} - לחיצה בוחרת שכונה אחת לצפייה בפרטים` : 'בחרו עיר כדי לראות את השכונות שלה');
+    ? `${num(entities.length)} ערים - לחיצה מציגה פרטי עיר; למעבר לשכונות שלה, עברו לרמת "שכונות" והקלידו את שמה`
+    : (state.cityFilter ? `${num(entities.length)} שכונות ב${state.cityFilter} - לחיצה בוחרת שכונה אחת לצפייה בפרטים` : 'הקלידו שם עיר למעלה כדי לראות את השכונות שלה');
 }
 
 /* ---------- selection chips (shown regardless of how a pick was made) ---------- */
@@ -882,8 +867,8 @@ document.querySelectorAll('.cm-level-btn').forEach((btn) => {
   btn.addEventListener('click', () => {
     const nextLevel = btn.dataset.level;
     if (state.level === nextLevel) return;
-    // Same state.layer <-> state.cityLayers sync as drillIntoCity/
-    // drillOutToCity - switching level via these tabs is another path
+    // Same state.layer <-> state.cityLayers sync as drillOutToCity (zooming
+    // back out of a city) - switching level via these tabs is another path
     // between the two, and needs the same fix for the same reason.
     if (state.level === 'city' && nextLevel !== 'city') {
       state.layer = state.cityLayers[state.cityLayers.length - 1] || state.layer;
@@ -963,6 +948,23 @@ el('cmHiResToggle').addEventListener('change', (ev) => {
   state.hiRes = ev.target.checked;
   renderMap();
 });
+
+// The SVG's own shapes/image always redraw correctly on a container-size
+// change - viewBox + preserveAspectRatio handle that without any JS
+// involvement. Label sizing/visibility does not: it's computed in JS from
+// the container's pixel dimensions (see updateLabelVisibility), which only
+// ever got recomputed on a pan/zoom tick - resizing the window (or a
+// layout change like the sidebar wrapping under the map on a narrow
+// screen) left labels sized/shown for the OLD dimensions until the next
+// zoom/pan, which read as the map "not always refreshing". Debounced the
+// same way declutterOverlappingLabels is - a resize firing many times in a
+// drag (window edge) shouldn't force a getBBox layout flush on every one.
+const onSvgResize = debounce(() => {
+  const svg = el('cmSvg');
+  const view = state.view || lastViewBox;
+  if (view) updateLabels(svg, view, { immediate: true });
+}, 150);
+new ResizeObserver(onSvgResize).observe(el('cmSvg'));
 
 // Back to the page's own initial state - level/layer/city pick/selection/
 // pan-zoom/every toggle (OSM basemap, both blob overlays, hi-res-only) all

@@ -1894,7 +1894,7 @@ body.accidents-page header.site h1 { inline-size: 100%; }
 }
 .cm-svg:active { cursor: grabbing; }
 .cm-svg path { cursor: pointer; }
-.cm-svg path:hover, .cm-svg path:focus-visible { stroke: var(--fg); stroke-width: 1.4; outline: none; }
+.cm-svg path:hover, .cm-svg path:focus-visible { stroke: var(--fg); stroke-width: 2.4; outline: none; }
 /* Name labels (city/neighborhood) - font-size is set per-element in JS
    (see updateLabels() in canopy-map.js), in the same meter-based user
    units the shapes themselves use, so it always renders at a constant
@@ -1903,7 +1903,14 @@ body.accidents-page header.site h1 { inline-size: 100%; }
    here can just be a plain px value - that attribute keeps it a constant
    screen-space width even though everything else in this SVG is scaled by
    an arbitrary meters-to-pixels factor. */
-.cm-label { fill: var(--fg); font-weight: 600; paint-order: stroke; stroke: var(--bg); stroke-width: 3px; stroke-linejoin: round; }
+.cm-label {
+  fill: var(--fg); font-weight: 600; paint-order: stroke; stroke: var(--bg); stroke-width: 3px; stroke-linejoin: round;
+  /* Plain SVG <text> is selectable by default - dragging to pan the map
+     (a mouse-down-and-move, exactly what text selection also looks like to
+     the browser) was highlighting whichever label the drag started or
+     passed over instead of just panning. */
+  user-select: none; -webkit-user-select: none;
+}
 
 .cm-zoom-controls { position: absolute; inset-block-start: .5rem; inset-inline-end: .5rem; display: flex; flex-direction: column; gap: .25rem; }
 .cm-zoom-controls button {
