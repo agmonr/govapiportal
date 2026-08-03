@@ -276,10 +276,18 @@ function renderYearBreakdown(entries) {
   section.hidden = false;
   el('pcYearBreakdownCity').textContent = city;
 
-  const chartEntries = byYear.map((y) => ({ label: String(y.year), value: y.medianDays ?? 0 }));
+  // Newest year first - byYear itself stays chronological (oldest first,
+  // per groupByYear's own contract) since nothing else here needs it
+  // reversed. Under this page's RTL layout, the first array entry lands at
+  // the reading-start (right) edge, so newest-first puts this year - the
+  // one someone's most likely checking - immediately visible rather than
+  // past whatever's scrolled off the left.
+  const newestFirst = [...byYear].reverse();
+
+  const chartEntries = newestFirst.map((y) => ({ label: String(y.year), value: y.medianDays ?? 0 }));
   renderBarChart('pcYearBreakdownChart', `חציון ימים לפי שנת הגשה — ${city}`, chartEntries, 'ימים');
 
-  const rows = byYear.map((y) => `
+  const rows = newestFirst.map((y) => `
     <tr>
       <td>${y.year}</td>
       <td>${num(y.count)}</td>
@@ -334,12 +342,27 @@ function renderSizeBandsChart(entries, statsByBand) {
       </div>
       <span class="fin-chart-y">${esc(SIZE_BAND_SHORT[band])}</span>
     </div>`).join('');
+
+  // Day-value axis at 100/75/50/25/0% of peak (see renderGroupedChart's own
+  // axis in charts.js for the same idiom) - the 0% end has to be included
+  // even though only 25/50/75/100 were asked for, or .fin-chart-axis-scale's
+  // space-between layout (which spaces N items evenly regardless of their
+  // value) would misplace the in-between ticks: it only lines up with the
+  // real bar heights when the two endpoints are the true min/max.
+  const axisLabels = [1, 0.75, 0.5, 0.25, 0]
+    .map((frac) => `<span>${num(Math.round(peak * frac))}</span>`).join('');
+
   el('pcSizeChart').innerHTML = `
     <figcaption>חציון ימים, הגשה→אישור, לפי גודל תכנית</figcaption>
     <div class="acc-legend">
       ${entries.map((e, i) => `<span class="acc-legend-item"><span class="acc-legend-swatch" style="background:${PICK_COLORS[i]}"></span>${esc(e.city)}</span>`).join('')}
     </div>
-    <div class="fin-chart-body"><div class="fin-chart-plot">${groups}</div></div>`;
+    <div class="fin-chart-body">
+      <div class="fin-chart-axis">
+        <div class="fin-chart-axis-scale" style="block-size:${PLOT_PX}px">${axisLabels}</div>
+      </div>
+      <div class="fin-chart-plot">${groups}</div>
+    </div>`;
 }
 
 function renderSizeBandsTable(entries, statsByBand) {

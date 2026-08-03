@@ -587,6 +587,11 @@ button.stat { cursor: pointer; }
    awkwardly. inline-size (a logical property, not width) is what makes the
    fill grow from the reading-start edge automatically in this RTL page. */
 .acc-chart-wide { max-inline-size: none; }
+/* .acc-bars (renderBarChart's vertical-bar markup) has its own independent
+   32rem cap below - acc-chart-wide alone only lifts the figure's cap, so a
+   renderBarChart-based chart (e.g. plan-compare.html's year-breakdown) needs
+   this too or it stays squeezed regardless of the class on its figure. */
+.acc-chart-wide .acc-bars { max-inline-size: none; }
 .acc-hbars { display: flex; flex-direction: column; gap: .4rem; }
 .acc-hbar { display: flex; align-items: center; gap: .6rem; }
 .acc-hbar-y {

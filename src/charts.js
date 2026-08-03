@@ -49,7 +49,11 @@ export function renderBarChart(figId, caption, entries, unit = '', colorClass = 
         <span class="acc-bar-y">${esc(e.label)}</span>
       </div>`;
   }).join('');
-  fig.className = `acc-chart${colorClass ? ` ${colorClass}` : ''}`;
+  // classList.add, not a className reset - a caller's own extra class already
+  // on the figure in the HTML (e.g. plan-compare.html's acc-chart-wide) would
+  // otherwise get silently wiped on every re-render.
+  fig.classList.add('acc-chart');
+  if (colorClass) fig.classList.add(colorClass);
   if (ariaLabel) fig.setAttribute('aria-label', ariaLabel);
   else fig.removeAttribute('aria-label');
   fig.innerHTML = `<figcaption>${esc(caption)}</figcaption><div class="acc-bars">${bars}</div>`;

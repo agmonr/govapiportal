@@ -608,6 +608,11 @@ button.stat { cursor: pointer; }
    awkwardly. inline-size (a logical property, not width) is what makes the
    fill grow from the reading-start edge automatically in this RTL page. */
 .acc-chart-wide { max-inline-size: none; }
+/* .acc-bars (renderBarChart's vertical-bar markup) has its own independent
+   32rem cap below - acc-chart-wide alone only lifts the figure's cap, so a
+   renderBarChart-based chart (e.g. plan-compare.html's year-breakdown) needs
+   this too or it stays squeezed regardless of the class on its figure. */
+.acc-chart-wide .acc-bars { max-inline-size: none; }
 .acc-hbars { display: flex; flex-direction: column; gap: .4rem; }
 .acc-hbar { display: flex; align-items: center; gap: .6rem; }
 .acc-hbar-y {
@@ -2511,7 +2516,11 @@ function renderBarChart(figId, caption, entries, unit = '', colorClass = '', opt
         <span class="acc-bar-y">${esc(e.label)}</span>
       </div>`;
   }).join('');
-  fig.className = `acc-chart${colorClass ? ` ${colorClass}` : ''}`;
+  // classList.add, not a className reset - a caller's own extra class already
+  // on the figure in the HTML (e.g. plan-compare.html's acc-chart-wide) would
+  // otherwise get silently wiped on every re-render.
+  fig.classList.add('acc-chart');
+  if (colorClass) fig.classList.add(colorClass);
   if (ariaLabel) fig.setAttribute('aria-label', ariaLabel);
   else fig.removeAttribute('aria-label');
   fig.innerHTML = `<figcaption>${esc(caption)}</figcaption><div class="acc-bars">${bars}</div>`;
@@ -3676,10 +3685,18 @@ function renderYearBreakdown(entries) {
   section.hidden = false;
   el('pcYearBreakdownCity').textContent = city;
 
-  const chartEntries = byYear.map((y) => ({ label: String(y.year), value: y.medianDays ?? 0 }));
+  // Newest year first - byYear itself stays chronological (oldest first,
+  // per groupByYear's own contract) since nothing else here needs it
+  // reversed. Under this page's RTL layout, the first array entry lands at
+  // the reading-start (right) edge, so newest-first puts this year - the
+  // one someone's most likely checking - immediately visible rather than
+  // past whatever's scrolled off the left.
+  const newestFirst = [...byYear].reverse();
+
+  const chartEntries = newestFirst.map((y) => ({ label: String(y.year), value: y.medianDays ?? 0 }));
   renderBarChart('pcYearBreakdownChart', `חציון ימים לפי שנת הגשה — ${city}`, chartEntries, 'ימים');
 
-  const rows = byYear.map((y) => `
+  const rows = newestFirst.map((y) => `
     <tr>
       <td>${y.year}</td>
       <td>${num(y.count)}</td>
@@ -3734,12 +3751,27 @@ function renderSizeBandsChart(entries, statsByBand) {
       </div>
       <span class="fin-chart-y">${esc(SIZE_BAND_SHORT[band])}</span>
     </div>`).join('');
+
+  // Day-value axis at 100/75/50/25/0% of peak (see renderGroupedChart's own
+  // axis in charts.js for the same idiom) - the 0% end has to be included
+  // even though only 25/50/75/100 were asked for, or .fin-chart-axis-scale's
+  // space-between layout (which spaces N items evenly regardless of their
+  // value) would misplace the in-between ticks: it only lines up with the
+  // real bar heights when the two endpoints are the true min/max.
+  const axisLabels = [1, 0.75, 0.5, 0.25, 0]
+    .map((frac) => `<span>${num(Math.round(peak * frac))}</span>`).join('');
+
   el('pcSizeChart').innerHTML = `
     <figcaption>חציון ימים, הגשה→אישור, לפי גודל תכנית</figcaption>
     <div class="acc-legend">
       ${entries.map((e, i) => `<span class="acc-legend-item"><span class="acc-legend-swatch" style="background:${PICK_COLORS[i]}"></span>${esc(e.city)}</span>`).join('')}
     </div>
-    <div class="fin-chart-body"><div class="fin-chart-plot">${groups}</div></div>`;
+    <div class="fin-chart-body">
+      <div class="fin-chart-axis">
+        <div class="fin-chart-axis-scale" style="block-size:${PLOT_PX}px">${axisLabels}</div>
+      </div>
+      <div class="fin-chart-plot">${groups}</div>
+    </div>`;
 }
 
 function renderSizeBandsTable(entries, statsByBand) {
