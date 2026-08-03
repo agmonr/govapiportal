@@ -73,6 +73,8 @@ APP_ICON = {
     "area-cleanup": "🧹",
     "tree-canopy": '<span class="{w}-tc-icon">🌳<span class="{w}-tc-icon-badge">🏠</span></span>',
     "tree-plans": '🌳<span class="{w}-icon-small">📋</span>',
+    "plan-timeline": '📋<span class="{w}-icon-small">⏱️</span>',
+    "plan-compare": '📋<span class="{w}-icon-small">⚖️</span>',
     "trip-report": '🚗<span class="{w}-icon-small">🎯</span>',
     "yeela-signup": "🔔",
     "report-pit": '🌳<span class="{w}-icon-small">🕳️</span>',

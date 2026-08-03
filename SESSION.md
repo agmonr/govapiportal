@@ -624,3 +624,75 @@ readmes + one non-DataStore XLSX):
 The abandoned mockup (light-blue accent `#0f96bd`, dark-mode `#5cc9ea` — only
 `--accent` overridden, following the accidents/committees/finance per-page
 pattern) is not in the repo; it was a Claude-side Artifact, not a commit.
+
+## 2026-08-03
+
+### `plan-timeline.html` / `plan-compare.html`: building-plan duration, הגשה→אישור
+
+Asked to track how long a building plan takes from submission to approval,
+with a per-plan drill-down and a detailed Excel export, plus a compare-up-to-4
+page like `tree-canopy.html`. Both shipped.
+
+**The finding that made this possible without a snapshot crawler:** Xplan's
+plan layer (`.../PlanningPublic/Xplan/MapServer/1/query`, already catalogued
+under the `iplan` portal for `blue-lines.html`) carries **nine real per-plan
+milestone date fields**, not just the current `station_desc` the sister
+project's `by_city.html` (yeela-license-tracker) reads — `receiving_date`
+(הגשה), `date_saf`, `depositing_date`, `pl_date_advertise`, `pl_rejection_date`,
+`on_hold_date`, `pl_date7`, `open_date`, and `pl_date_8` (פרסום ברשומות — the
+real legal approval date). Verified live (2026-08-03): 36,790 plans total;
+26,931 with `station_desc = 'אישור'`; **24,144 of those (90%) have both
+`receiving_date` and `pl_date_8` populated** — a real historical הגשה→אישור
+duration is computable today from one paginated query, unlike the sister
+report, which only ever reads `station_desc` + the rarely-populated
+`pl_date_advertise` and therefore needs its own daily cron snapshot to see
+anything change over time. `station_desc` itself has 18 distinct live values,
+`internet_short_status` (the public-facing label) has 27 — pulled via
+`returnDistinctValues`, not assumed.
+
+Shared fetch/aggregation logic landed in `src/plan-data.js` (paginated
+`resultOffset`/`exceededTransferLimit` loop, ported from the sister repo's own
+Python `xplan_paginated_query()`), so neither new page duplicates it.
+
+### Corner cut, then caught: `.xls` hyperlink cells and quote-escaping
+
+`src/ui.js` gained `buildXlsBlob`/`saveXls` — a SpreadsheetML `.xls` writer
+with real `=HYPERLINK()` formula cells, ported from the sister repo's
+`downloadExcel()`. First version escaped `&`/`<`/`>` for the `ss:Formula`
+attribute but not `"` — any plan name or URL containing a literal quote
+produced malformed XML (the embedded `"` closed the attribute early). Caught
+by round-tripping a real Xplan record with a `"` in its name through
+`xml.dom.minidom.parseString` in Node, not by inspection. Fixed with a
+separate `xlsAttrEscape` (adds `&quot;`) used only where escaped text lands
+inside an XML attribute, vs. `xlsEscape` for element content.
+
+### Verified in a real (headless) browser, not just `node --check`
+
+No interactive Claude-in-Chrome session was available this session. Installed
+`playwright` into `tools/node_modules` (chromium was already cached at
+`~/.cache/ms-playwright`) and drove both pages ad hoc: live data load,
+city-table sort, two-level drill-down (city → plan → step timeline), both
+status and city filters, the 4-city compare picker, the stage-duration
+breakdown table, and both export buttons — no console errors, no failed
+requests. The one-off test script itself was not committed (scratchpad only).
+
+### `dist/wordpress-embed.html` — the actual regression
+
+Forgot this file's existence when the two apps were first added to
+`apis.json`. It's `tools/wp_embed.py`'s output — a self-contained fragment
+meant to be pasted into hod-hasharon.org's WordPress "Custom HTML" block,
+i.e. **the actual page visitors coming from the WordPress site see**, not a
+by-product of `dist/*.html` (those are file:// offline copies of the app
+pages themselves; this is a completely separate embed target with its own
+hand-ported `APP_ICON` copy, kept in sync with `src/apps.js`'s by hand since
+the script has no JS runtime). `./tools/wp_embed.py --check` caught the drift
+immediately. Lesson: **`apis.json` has two independent consumers that need
+regenerating, `tools/bundle.py` (dist/*.html) and `tools/wp_embed.py`
+(dist/wordpress-embed.html) — both `--check` commands belong in the same
+"after editing apis.json" checklist, not just the first one.**
+
+Categorization: both apps were placed under `home` (`הבית והשכונה שלי`,
+alongside `blue-lines.html`) at first pass, then moved to `money`
+(`כסף וממשל מקומי`, alongside `committees.html`) per explicit direction — a
+plan-approval-speed tracker reads more as local-government accountability
+than an address-lookup tool.
