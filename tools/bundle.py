@@ -139,6 +139,18 @@ TARGETS = [
         "data": True,
     },
     {
+        "html": "heat-islands.html",
+        "out": "dist/heat-islands.html",
+        "entry": "src/heat-islands.js",
+        # Same "no live API, ship precomputed tables" shape as tree-canopy.html
+        # just above - see tools/heat_build.py. apis.json is only for apps.js's
+        # under-header category strip.
+        "sources": ["src/ui.js", "src/theme.js", "src/charts.js",
+                    "src/heat-cities.js", "src/heat-neighborhoods.js", "src/heat-streets.js",
+                    "src/apps.js", "src/heat-islands.js"],
+        "data": True,
+    },
+    {
         "html": "welfare.html",
         "out": "dist/welfare.html",
         "entry": "src/welfare.js",

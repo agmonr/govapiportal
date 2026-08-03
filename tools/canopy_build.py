@@ -342,16 +342,18 @@ def build_neighborhoods():
     return out
 
 
-def build_streets():
+def street_geoms(names, shapes, tree):
+    """[(city, name, buffered shapely geom, length_m, neighborhood)] for
+    every distinct (city, street-name) group - split out from
+    build_streets() so heat_build.py can reuse the exact same street
+    buffers without duplicating this grouping/buffering logic (mirrors why
+    neighborhood_geoms() is already its own function, for the same reason)."""
     log("loading street geometries from OSM...")
     data = json.loads(STREETS_JSON.read_text())
-    munis = load_muni_geoms()
-    munis = {k: v for k, v in munis.items() if not k.startswith("ללא שיפוט")}
-    names, shapes, tree = city_index(munis)
 
-    from shapely.geometry import Point
     from shapely.strtree import STRtree
     import shapely.wkt as swkt
+    from shapely.ops import unary_union
 
     # Reuses build_neighborhoods()'s own geometries (real polygons + Voronoi
     # cells) purely to label which neighborhood a street sits in - no canopy
@@ -381,35 +383,48 @@ def build_streets():
             continue
         groups.setdefault((city, name), []).append(line_shp)
 
-    log(f"{len(groups)} distinct (city, street) groups; buffering + joining canopy...")
-    ds, canopy = open_canopy()
-    out = {}
-    t0 = time.time()
-    for i, ((city, name), lines) in enumerate(groups.items()):
-        from shapely.ops import unary_union
+    log(f"{len(groups)} distinct (city, street) groups; buffering...")
+    result = []
+    for (city, name), lines in groups.items():
         merged = unary_union(lines)
         buf = merged.buffer(STREET_BUFFER_M)
-        buf_ogr = ogr.CreateGeometryFromWkt(buf.wkt)
-        area, n = canopy_area_within(canopy, buf_ogr)
-        buf_area = buf_ogr.GetArea()
         # A street's total mapped length (merged.length - a MultiLineString
         # if OSM split it into several segments, so this is their combined
-        # length, not just one segment's) - lets the page normalize by "per
-        # 100m of street" instead of only the raw tree count/area, which two
+        # length, not just one segment's) - lets a caller normalize by "per
+        # 100m of street" instead of only a raw count/area, which two
         # streets of very different lengths cannot otherwise be compared on.
         length_m = merged.length
 
-        # Which neighborhood the street sits in, for display only (not used
-        # in any canopy computation) - by the street's centroid, the same
-        # one-representative-point approximation city attribution above
-        # already uses. A street with disjoint OSM segments can have a
-        # centroid that isn't exactly on any of them, same limitation.
+        # Which neighborhood the street sits in, for display only - by the
+        # street's centroid, the same one-representative-point approximation
+        # city attribution above already uses. A street with disjoint OSM
+        # segments can have a centroid that isn't exactly on any of them,
+        # same limitation.
         rep_point = merged.centroid
         neighborhood = None
         for j in nb_tree.query(rep_point):
             if nb_shapes[j].contains(rep_point):
                 neighborhood = nb_geoms[j][1]
                 break
+        result.append((city, name, buf, length_m, neighborhood))
+    log(f"{len(result)} street buffers built")
+    return result
+
+
+def build_streets():
+    munis = load_muni_geoms()
+    munis = {k: v for k, v in munis.items() if not k.startswith("ללא שיפוט")}
+    names, shapes, tree = city_index(munis)
+
+    groups = street_geoms(names, shapes, tree)
+    log(f"joining canopy for {len(groups)} streets...")
+    ds, canopy = open_canopy()
+    out = {}
+    t0 = time.time()
+    for i, (city, name, buf, length_m, neighborhood) in enumerate(groups):
+        buf_ogr = ogr.CreateGeometryFromWkt(buf.wkt)
+        area, n = canopy_area_within(canopy, buf_ogr)
+        buf_area = buf_ogr.GetArea()
 
         # name/city not stored per-row - see the matching note in build_neighborhoods().
         key = f"{city}::{name}"

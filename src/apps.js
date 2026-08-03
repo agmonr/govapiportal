@@ -37,6 +37,7 @@ export const APP_ICON = {
   'local-finance': '💰', agriculture: '🌾',
   companies: '🏢', welfare: '🤝', budgetkey: '🔑', 'blue-lines': '🚇', 'area-cleanup': '🧹',
   'tree-canopy': '<span class="tc-icon">🌳<span class="tc-icon-badge">🏠</span></span>',
+  'heat-islands': '🌡️',
   'tree-plans': '🌳<span class="icon-small">📋</span>',
   'plan-timeline': '📋<span class="icon-small">⏱️</span>',
   'plan-compare': '📋<span class="icon-small">⚖️</span>',
