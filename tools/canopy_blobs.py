@@ -24,12 +24,14 @@ overlaps a lot - that module hard-imports `from osgeo import ogr` at file
 scope, and osgeo isn't installed here (no GDAL Python bindings, no network
 to add them) even though rasterio's own bundled GDAL works fine. Importing
 canopy_build.py would fail before a single line of this script's own logic
-ran. Instead this reads the neighborhood boundary geometry that already
-exists as plain ITM-meter ring coordinates in src/map-boundaries-
-neighborhoods.js (built once by tools/map_geo_build.py for the map's own
-rendering) - already exactly the same city/neighborhood grouping and
+ran. Instead this reads city/neighborhood boundary geometry that already
+exists as plain ITM-meter ring coordinates in src/map-boundaries-*.js
+(built once by tools/map_geo_build.py for the map's own rendering), via
+blob_geo.py - already exactly the same city/neighborhood grouping and
 already reprojected, so no OSM parsing or WGS84->ITM transform of its own
-is needed at all.
+is needed at all. Covers every city in MAP_CITIES, not just the ~96 with
+OSM-mapped neighborhoods - see blob_geo.city_crop_window's own municipal-
+boundary fallback.
 
 Needs pyogrio, rasterio, shapely, Pillow - same geo venv as heat_build.py/
 canopy_build.py (./tools/setup.sh --geo), except it does NOT need osgeo.
@@ -45,10 +47,8 @@ Usage:
 import base64
 import io
 import json
-import re
 import sys
 import time
-from collections import defaultdict
 from pathlib import Path
 
 import numpy as np
@@ -57,22 +57,22 @@ from rasterio.features import rasterize
 from pyogrio.raw import read as ogr_read
 import shapely
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import blob_geo  # noqa: E402
+
 ROOT = Path(__file__).resolve().parent.parent
 ZIP = ROOT / "zip"
 SRC = ROOT / "src"
 
 CANOPY_GPKG = ZIP / "canopy.gpkg"
 CANOPY_LAYER = "canopy"
-NEIGHBORHOODS_JS = SRC / "map-boundaries-neighborhoods.js"
 
-MAX_SPAN_M = 30_000  # same cutoff heat_build.py's build_heat_blobs() uses - see its own comment
 MAX_DIM_PX = 2400  # longer side of the output raster, in pixels - tested against
 # 1600 (blurs individual crowns into faint single pixels) and 4000 (visibly
 # crisper - court yards/building footprints resolvable - but ~5x the file
 # size for a gain past what's legible at normal zoom); 2400 keeps most
 # crowns 2+ pixels wide without the size blowup
 MIN_RES_M = 1.0  # never go finer than 1m/pixel even for a tiny crop - a single tree crown is a few m^2 already
-PAD_FRAC = 0.25  # matches build_heat_blobs()'s own crop margin
 
 CANOPY_RGB = (46, 125, 70)  # site's --accent (light theme), src/style.css
 ALPHA = 190
@@ -80,39 +80,6 @@ ALPHA = 190
 
 def log(msg):
     print(f"[{time.strftime('%H:%M:%S')}] {msg}", flush=True)
-
-
-def load_neighborhoods_by_city():
-    """city -> [(xmin, ymin, xmax, ymax), ...] - one bbox per neighborhood
-    ring-set, from the same MAP_NEIGHBORHOODS data canopy-map.js itself
-    renders (already ITM meters, already grouped "city::name")."""
-    text = NEIGHBORHOODS_JS.read_text(encoding="utf-8")
-    m = re.search(r"export const MAP_NEIGHBORHOODS = (\{.*\});", text, re.S)
-    data = json.loads(m.group(1))
-
-    by_city = defaultdict(list)
-    for key, val in data.items():
-        city, _, _name = key.partition("::")
-        xs = [pt[0] for ring in val["rings"] for pt in ring]
-        ys = [pt[1] for ring in val["rings"] for pt in ring]
-        if not xs:
-            continue
-        by_city[city].append((min(xs), min(ys), max(xs), max(ys)))
-    return by_city
-
-
-def city_crop_window(bboxes):
-    """Union bbox across a city's neighborhoods, padded - or None if the
-    city's own span is too big to be a meaningful "which street is
-    greener" crop (same reasoning/threshold as build_heat_blobs())."""
-    xmin = min(b[0] for b in bboxes)
-    ymin = min(b[1] for b in bboxes)
-    xmax = max(b[2] for b in bboxes)
-    ymax = max(b[3] for b in bboxes)
-    if max(xmax - xmin, ymax - ymin) > MAX_SPAN_M:
-        return None
-    pad = max(xmax - xmin, ymax - ymin) * PAD_FRAC
-    return xmin - pad, ymin - pad, xmax + pad, ymax + pad
 
 
 def render_city_canopy(x0, y0, x1, y1):
@@ -157,17 +124,19 @@ def render_city_canopy(x0, y0, x1, y1):
 
 
 def build_all():
-    log("loading neighborhood boundaries from map-boundaries-neighborhoods.js...")
-    by_city = load_neighborhoods_by_city()
-    cities = sorted(by_city.keys())
-    log(f"{len(cities)} cities have OSM-mapped neighborhoods - building a canopy blob for each")
+    log("loading city/neighborhood boundaries...")
+    city_boxes = blob_geo.load_city_boxes()
+    nb_boxes_by_city = blob_geo.load_neighborhood_boxes_by_city()
+    cities = sorted(city_boxes.keys())
+    log(f"{len(cities)} cities total ({len(nb_boxes_by_city)} with OSM-mapped neighborhoods, "
+        f"{len(cities) - len(nb_boxes_by_city)} falling back to their own municipal boundary) - building a canopy blob for each")
 
     out = {}
     skipped_span = 0
     skipped_empty = 0
     t0 = time.time()
     for i, city in enumerate(cities):
-        window = city_crop_window(by_city[city])
+        window = blob_geo.city_crop_window(city, nb_boxes_by_city, city_boxes)
         if window is None:
             skipped_span += 1
             continue
@@ -181,7 +150,7 @@ def build_all():
         if (i + 1) % 20 == 0:
             elapsed = time.time() - t0
             log(f"  {i+1}/{len(cities)} cities, {elapsed:.0f}s elapsed, ~{elapsed/(i+1)*len(cities):.0f}s total est.")
-    log(f"done - {len(out)} canopy blobs built ({skipped_span} skipped: span > {MAX_SPAN_M}m, {skipped_empty} skipped: no canopy in crop)")
+    log(f"done - {len(out)} canopy blobs built ({skipped_span} skipped: span > {blob_geo.MAX_SPAN_M}m, {skipped_empty} skipped: no canopy in crop)")
     return out
 
 
@@ -201,12 +170,13 @@ def write_js(data):
 def main():
     if len(sys.argv) > 1:
         city = sys.argv[1]
-        by_city = load_neighborhoods_by_city()
-        if city not in by_city:
-            sys.exit(f"no neighborhoods found for city {city!r} - known cities include: {sorted(by_city)[:10]}")
-        window = city_crop_window(by_city[city])
+        city_boxes = blob_geo.load_city_boxes()
+        if city not in city_boxes:
+            sys.exit(f"no such city {city!r} - known cities include: {sorted(city_boxes)[:10]}")
+        nb_boxes_by_city = blob_geo.load_neighborhood_boxes_by_city()
+        window = blob_geo.city_crop_window(city, nb_boxes_by_city, city_boxes)
         if window is None:
-            sys.exit(f"{city}'s own span exceeds {MAX_SPAN_M}m - skipped in the real build too")
+            sys.exit(f"{city}'s own span exceeds {blob_geo.MAX_SPAN_M}m - skipped in the real build too")
         result = render_city_canopy(*window)
         if result is None:
             sys.exit(f"no canopy polygons found in {city}'s crop")
