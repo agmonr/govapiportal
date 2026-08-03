@@ -200,43 +200,46 @@ export function median(sortedNums) {
 }
 
 /**
+ * Duration stats (count/withTimeline/avgDays/medianDays/minDays/maxDays) for
+ * one flat list of plans - the per-bucket computation shared by
+ * aggregateByKey below and by the size-band breakdown (see sizeBandOf),
+ * which needs the same numbers re-scoped to an already-picked city's plans
+ * rather than a fresh grouping pass.
+ */
+export function summarizePlans(plans) {
+  const days = [];
+  for (const plan of plans) {
+    const { totalDays } = planTimeline(plan);
+    if (totalDays != null && totalDays >= 0) days.push(totalDays);
+  }
+  const sorted = days.sort((a, b) => a - b);
+  const sum = sorted.reduce((acc, d) => acc + d, 0);
+  return {
+    count: plans.length,
+    withTimeline: sorted.length,
+    avgDays: sorted.length ? Math.round(sum / sorted.length) : null,
+    medianDays: sorted.length ? Math.round(median(sorted)) : null,
+    minDays: sorted.length ? sorted[0] : null,
+    maxDays: sorted.length ? sorted[sorted.length - 1] : null,
+    plans,
+  };
+}
+
+/**
  * Aggregates `plans` by whatever `keyFn` returns (null/undefined keys are
  * dropped), same duration stats either way. Shared by groupByCity (key =
  * city) and groupByYear (key = הגשה year) below - only the grouping key
- * differs between them. Only plans with a computable totalDays contribute to
- * the duration stats (i.e. already approved, with both dates - a plan still
- * open contributes to `count` but not to the duration numbers); `withTimeline`
- * tracks how many of a bucket's plans that was, out of `count` total, so a
- * thin sample is visible rather than silently averaged over a handful of
- * plans.
+ * differs between them.
  */
 function aggregateByKey(plans, keyFn, keyName) {
   const buckets = new Map();
   for (const plan of plans) {
     const key = keyFn(plan);
     if (key == null) continue;
-    if (!buckets.has(key)) buckets.set(key, { count: 0, plans: [], days: [] });
-    const bucket = buckets.get(key);
-    bucket.count += 1;
-    bucket.plans.push(plan);
-    const { totalDays } = planTimeline(plan);
-    if (totalDays != null && totalDays >= 0) bucket.days.push(totalDays);
+    if (!buckets.has(key)) buckets.set(key, []);
+    buckets.get(key).push(plan);
   }
-
-  return [...buckets.entries()].map(([key, bucket]) => {
-    const sorted = [...bucket.days].sort((a, b) => a - b);
-    const sum = sorted.reduce((acc, d) => acc + d, 0);
-    return {
-      [keyName]: key,
-      count: bucket.count,
-      withTimeline: sorted.length,
-      avgDays: sorted.length ? Math.round(sum / sorted.length) : null,
-      medianDays: sorted.length ? Math.round(median(sorted)) : null,
-      minDays: sorted.length ? sorted[0] : null,
-      maxDays: sorted.length ? sorted[sorted.length - 1] : null,
-      plans: bucket.plans,
-    };
-  });
+  return [...buckets.entries()].map(([key, bucketPlans]) => ({ [keyName]: key, ...summarizePlans(bucketPlans) }));
 }
 
 /** Aggregates `plans` by plan_county_name (the settlement/city field - same
@@ -250,6 +253,35 @@ export function groupByCity(plans) {
  *  when exactly one city is picked. Sorted chronologically, oldest first. */
 export function groupByYear(plans) {
   return aggregateByKey(plans, receivingYear, 'year').sort((a, b) => a.year - b.year);
+}
+
+/** Plan-size bands by pl_area_dunam, same "small/medium/large/very-large"
+ *  idiom local-finance.js uses for population tiers - plan-compare.html's
+ *  per-size-band comparison charts/tables. A plan with no numeric area
+ *  belongs to no band (sizeBandOf returns null) rather than being guessed
+ *  into one. */
+export const SIZE_SMALL_MAX = 2;
+export const SIZE_MEDIUM_MAX = 10;
+export const SIZE_BIG_MAX = 50;
+
+export const SIZE_BANDS = ['small', 'medium', 'big', 'huge'];
+
+export function sizeBandOf(plan) {
+  const a = plan.pl_area_dunam;
+  if (typeof a !== 'number' || a < 0) return null;
+  if (a <= SIZE_SMALL_MAX) return 'small';
+  if (a <= SIZE_MEDIUM_MAX) return 'medium';
+  if (a <= SIZE_BIG_MAX) return 'big';
+  return 'huge';
+}
+
+export function sizeBandLabel(band) {
+  return {
+    small: `תכניות קטנות (עד ${SIZE_SMALL_MAX} דונם)`,
+    medium: `תכניות בינוניות (${SIZE_SMALL_MAX}–${SIZE_MEDIUM_MAX} דונם)`,
+    big: `תכניות גדולות (${SIZE_MEDIUM_MAX}–${SIZE_BIG_MAX} דונם)`,
+    huge: `תכניות ענקיות (מעל ${SIZE_BIG_MAX} דונם)`,
+  }[band];
 }
 
 /** Average days spent in each PLAN_STEPS segment, across every plan with a

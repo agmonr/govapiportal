@@ -2211,6 +2211,12 @@ body.accidents-page header.site h1 { inline-size: 100%; }
         <div id="pcYearBreakdownTable"></div>
       </section>
 
+      <section class="acc-section" id="pcSizeBandSection" aria-labelledby="sizeBandH" hidden>
+        <h2 id="sizeBandH">השוואה לפי גודל תכנית</h2>
+        <p class="acc-hint" dir="auto">אותה השוואה כמו למעלה, מפולחת לפי שטח התכנית (דונם) - קטנה עד 2 דונם, בינונית עד 10, גדולה עד 50, וענקית מעל 50. בלבד עבור תכניות עם שטח ידוע.</p>
+        <div id="pcSizeBands"></div>
+      </section>
+
       <section class="acc-section" aria-labelledby="csvH">
         <h2 id="csvH">הורדת נתונים</h2>
         <div class="fin-export-row">
@@ -2966,43 +2972,46 @@ function median(sortedNums) {
 }
 
 /**
+ * Duration stats (count/withTimeline/avgDays/medianDays/minDays/maxDays) for
+ * one flat list of plans - the per-bucket computation shared by
+ * aggregateByKey below and by the size-band breakdown (see sizeBandOf),
+ * which needs the same numbers re-scoped to an already-picked city's plans
+ * rather than a fresh grouping pass.
+ */
+function summarizePlans(plans) {
+  const days = [];
+  for (const plan of plans) {
+    const { totalDays } = planTimeline(plan);
+    if (totalDays != null && totalDays >= 0) days.push(totalDays);
+  }
+  const sorted = days.sort((a, b) => a - b);
+  const sum = sorted.reduce((acc, d) => acc + d, 0);
+  return {
+    count: plans.length,
+    withTimeline: sorted.length,
+    avgDays: sorted.length ? Math.round(sum / sorted.length) : null,
+    medianDays: sorted.length ? Math.round(median(sorted)) : null,
+    minDays: sorted.length ? sorted[0] : null,
+    maxDays: sorted.length ? sorted[sorted.length - 1] : null,
+    plans,
+  };
+}
+
+/**
  * Aggregates `plans` by whatever `keyFn` returns (null/undefined keys are
  * dropped), same duration stats either way. Shared by groupByCity (key =
  * city) and groupByYear (key = הגשה year) below - only the grouping key
- * differs between them. Only plans with a computable totalDays contribute to
- * the duration stats (i.e. already approved, with both dates - a plan still
- * open contributes to `count` but not to the duration numbers); `withTimeline`
- * tracks how many of a bucket's plans that was, out of `count` total, so a
- * thin sample is visible rather than silently averaged over a handful of
- * plans.
+ * differs between them.
  */
 function aggregateByKey(plans, keyFn, keyName) {
   const buckets = new Map();
   for (const plan of plans) {
     const key = keyFn(plan);
     if (key == null) continue;
-    if (!buckets.has(key)) buckets.set(key, { count: 0, plans: [], days: [] });
-    const bucket = buckets.get(key);
-    bucket.count += 1;
-    bucket.plans.push(plan);
-    const { totalDays } = planTimeline(plan);
-    if (totalDays != null && totalDays >= 0) bucket.days.push(totalDays);
+    if (!buckets.has(key)) buckets.set(key, []);
+    buckets.get(key).push(plan);
   }
-
-  return [...buckets.entries()].map(([key, bucket]) => {
-    const sorted = [...bucket.days].sort((a, b) => a - b);
-    const sum = sorted.reduce((acc, d) => acc + d, 0);
-    return {
-      [keyName]: key,
-      count: bucket.count,
-      withTimeline: sorted.length,
-      avgDays: sorted.length ? Math.round(sum / sorted.length) : null,
-      medianDays: sorted.length ? Math.round(median(sorted)) : null,
-      minDays: sorted.length ? sorted[0] : null,
-      maxDays: sorted.length ? sorted[sorted.length - 1] : null,
-      plans: bucket.plans,
-    };
-  });
+  return [...buckets.entries()].map(([key, bucketPlans]) => ({ [keyName]: key, ...summarizePlans(bucketPlans) }));
 }
 
 /** Aggregates `plans` by plan_county_name (the settlement/city field - same
@@ -3016,6 +3025,35 @@ function groupByCity(plans) {
  *  when exactly one city is picked. Sorted chronologically, oldest first. */
 function groupByYear(plans) {
   return aggregateByKey(plans, receivingYear, 'year').sort((a, b) => a.year - b.year);
+}
+
+/** Plan-size bands by pl_area_dunam, same "small/medium/large/very-large"
+ *  idiom local-finance.js uses for population tiers - plan-compare.html's
+ *  per-size-band comparison charts/tables. A plan with no numeric area
+ *  belongs to no band (sizeBandOf returns null) rather than being guessed
+ *  into one. */
+const SIZE_SMALL_MAX = 2;
+const SIZE_MEDIUM_MAX = 10;
+const SIZE_BIG_MAX = 50;
+
+const SIZE_BANDS = ['small', 'medium', 'big', 'huge'];
+
+function sizeBandOf(plan) {
+  const a = plan.pl_area_dunam;
+  if (typeof a !== 'number' || a < 0) return null;
+  if (a <= SIZE_SMALL_MAX) return 'small';
+  if (a <= SIZE_MEDIUM_MAX) return 'medium';
+  if (a <= SIZE_BIG_MAX) return 'big';
+  return 'huge';
+}
+
+function sizeBandLabel(band) {
+  return {
+    small: `תכניות קטנות (עד ${SIZE_SMALL_MAX} דונם)`,
+    medium: `תכניות בינוניות (${SIZE_SMALL_MAX}–${SIZE_MEDIUM_MAX} דונם)`,
+    big: `תכניות גדולות (${SIZE_MEDIUM_MAX}–${SIZE_BIG_MAX} דונם)`,
+    huge: `תכניות ענקיות (מעל ${SIZE_BIG_MAX} דונם)`,
+  }[band];
 }
 
 /** Average days spent in each PLAN_STEPS segment, across every plan with a
@@ -3373,6 +3411,21 @@ function renderAppContext(node, apps, currentId, { includeSelf = true } = {}) {
 
 
 
+/** Links a city name to its full row on plan-timeline.html, pre-filtered -
+ *  the "second page" every per-city label on this comparison page points
+ *  back to. */
+function cityLink(city) {
+  return `<a href="plan-timeline.html?city=${encodeURIComponent(city)}">${esc(city)}</a>`;
+}
+
+/** Same markup as charts.js's citySwatchCell, but with the city name itself
+ *  a link (see cityLink) - local rather than changing the shared helper,
+ *  which other compare pages (e.g. tree-canopy.js) also use without a
+ *  linkable destination of their own. */
+function pcCityCell(name, color) {
+  return `<td class="fin-city-cell"><span class="acc-legend-swatch" style="background:${color}"></span>${cityLink(name)}</td>`;
+}
+
 initThemePicker(el('themePick'));
 loadAppsData().then((data) => renderAppContext(el('appContext'), data.apps, 'plan-compare')).catch(() => {});
 
@@ -3443,7 +3496,7 @@ function updateRoster(query) {
 function renderCompareTable(entries) {
   const rows = entries.map((e, i) => `
     <tr>
-      ${citySwatchCell(e.city, PICK_COLORS[i])}
+      ${pcCityCell(e.city, PICK_COLORS[i])}
       <td>${num(e.count)}</td>
       <td><span class="badge warn">${num(pendingCountByCity.get(e.city) || 0)}</span></td>
       <td>${num(e.withTimeline)}</td>
@@ -3453,21 +3506,24 @@ function renderCompareTable(entries) {
       <td>${e.maxDays == null ? '—' : num(e.maxDays)}</td>
     </tr>`).join('');
   el('pcTable').innerHTML = `
-    <div class="matrix-wrap">
-      <table class="matrix">
-        <thead><tr>
-          <th scope="col">עיר</th>
-          <th scope="col">תכניות מאושרות</th>
-          <th scope="col">תוכניות בתהליך</th>
-          <th scope="col">עם משך זמן</th>
-          <th scope="col">חציון ימים</th>
-          <th scope="col">ממוצע ימים</th>
-          <th scope="col">מינימום</th>
-          <th scope="col">מקסימום</th>
-        </tr></thead>
-        <tbody>${rows}</tbody>
-      </table>
-    </div>`;
+    <details class="fin-sheet" open>
+      <summary>טבלת השוואה</summary>
+      <div class="matrix-wrap">
+        <table class="matrix">
+          <thead><tr>
+            <th scope="col">עיר</th>
+            <th scope="col">תכניות מאושרות</th>
+            <th scope="col">תוכניות בתהליך</th>
+            <th scope="col">עם משך זמן</th>
+            <th scope="col">חציון ימים</th>
+            <th scope="col">ממוצע ימים</th>
+            <th scope="col">מינימום</th>
+            <th scope="col">מקסימום</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </details>`;
 }
 
 // Cross-city, one row per שנת הגשה (not per plan) - each picked city's FULL
@@ -3523,18 +3579,21 @@ function renderYearStatsTable(entries, years, byYear) {
     </tr>`).join('');
   const nextDir = yearStatsSortDir === 'asc' ? 'desc' : 'asc';
   el('pcYearStatsTable').innerHTML = `
-    <div class="matrix-wrap">
-      <table class="matrix">
-        <thead><tr>
-          <th class="sortable sorted" data-sort-dir="${nextDir}" tabindex="0" role="button"
-              aria-sort="${yearStatsSortDir === 'asc' ? 'ascending' : 'descending'}">
-            שנת הגשה<span class="s-mark">${yearStatsSortDir === 'asc' ? '▲' : '▼'}</span>
-          </th>
-          ${entries.map((e, i) => `<th scope="col"><span class="acc-legend-swatch" style="background:${PICK_COLORS[i]}"></span>${esc(e.city)}</th>`).join('')}
-        </tr></thead>
-        <tbody>${rows}</tbody>
-      </table>
-    </div>`;
+    <details class="fin-sheet" open>
+      <summary>טבלה לפי שנים</summary>
+      <div class="matrix-wrap">
+        <table class="matrix">
+          <thead><tr>
+            <th class="sortable sorted" data-sort-dir="${nextDir}" tabindex="0" role="button"
+                aria-sort="${yearStatsSortDir === 'asc' ? 'ascending' : 'descending'}">
+              שנת הגשה<span class="s-mark">${yearStatsSortDir === 'asc' ? '▲' : '▼'}</span>
+            </th>
+            ${entries.map((e, i) => `<th scope="col"><span class="acc-legend-swatch" style="background:${PICK_COLORS[i]}"></span>${cityLink(e.city)}</th>`).join('')}
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </details>`;
 
   const th = el('pcYearStatsTable').querySelector('th.sortable');
   const apply = () => {
@@ -3571,15 +3630,18 @@ function renderStageTable(entries) {
       }).join('')}
     </tr>`).join('');
   el('pcStageTable').innerHTML = `
-    <div class="matrix-wrap">
-      <table class="matrix">
-        <thead><tr>
-          <th scope="col">קטע</th>
-          ${entries.map((e, i) => `<th scope="col"><span class="acc-legend-swatch" style="background:${PICK_COLORS[i]}"></span>${esc(e.city)}</th>`).join('')}
-        </tr></thead>
-        <tbody>${rows}</tbody>
-      </table>
-    </div>`;
+    <details class="fin-sheet" open>
+      <summary>טבלה לפי שלב</summary>
+      <div class="matrix-wrap">
+        <table class="matrix">
+          <thead><tr>
+            <th scope="col">קטע</th>
+            ${entries.map((e, i) => `<th scope="col"><span class="acc-legend-swatch" style="background:${PICK_COLORS[i]}"></span>${cityLink(e.city)}</th>`).join('')}
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </details>`;
 }
 
 // Only meaningful for a single picked city (comparing several cities' own
@@ -3596,7 +3658,7 @@ function renderYearBreakdown(entries) {
   const byYear = groupByYear(cityPlans);
   if (!byYear.length) { section.hidden = true; return; }
   section.hidden = false;
-  el('pcYearBreakdownCity').textContent = city;
+  el('pcYearBreakdownCity').innerHTML = cityLink(city);
 
   const chartEntries = byYear.map((y) => ({ label: String(y.year), value: y.medianDays ?? 0 }));
   renderBarChart('pcYearBreakdownChart', `חציון ימים לפי שנת הגשה — ${city}`, chartEntries, 'ימים');
@@ -3612,20 +3674,23 @@ function renderYearBreakdown(entries) {
       <td>${y.maxDays == null ? '—' : num(y.maxDays)}</td>
     </tr>`).join('');
   el('pcYearBreakdownTable').innerHTML = `
-    <div class="matrix-wrap">
-      <table class="matrix">
-        <thead><tr>
-          <th scope="col">שנת הגשה</th>
-          <th scope="col">תכניות</th>
-          <th scope="col">עם משך זמן</th>
-          <th scope="col">חציון ימים</th>
-          <th scope="col">ממוצע ימים</th>
-          <th scope="col">מינימום</th>
-          <th scope="col">מקסימום</th>
-        </tr></thead>
-        <tbody>${rows}</tbody>
-      </table>
-    </div>`;
+    <details class="fin-sheet" open>
+      <summary>טבלה לפי שנת הגשה</summary>
+      <div class="matrix-wrap">
+        <table class="matrix">
+          <thead><tr>
+            <th scope="col">שנת הגשה</th>
+            <th scope="col">תכניות</th>
+            <th scope="col">עם משך זמן</th>
+            <th scope="col">חציון ימים</th>
+            <th scope="col">ממוצע ימים</th>
+            <th scope="col">מינימום</th>
+            <th scope="col">מקסימום</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </details>`;
 }
 
 // Every picked city's own plans, sorted longest-duration-first (same order
@@ -3640,13 +3705,72 @@ function renderPlansByCity(entries) {
   section.hidden = false;
   const areaColor = planAreaColorScale(entries.flatMap((e) => e.plans));
   el('pcPlansByCity').innerHTML = entries.map((e, i) => `
-    <h3 dir="auto"><span class="acc-legend-swatch" style="background:${PICK_COLORS[i]}"></span> ${esc(e.city)}</h3>
-    <div class="pc-city-plans" data-city-idx="${i}">
-      ${renderPlanListHtml(e.plans, { areaColor })}
-    </div>`).join('');
+    <details class="fin-sheet" open>
+      <summary><span class="acc-legend-swatch" style="background:${PICK_COLORS[i]}"></span> ${cityLink(e.city)}</summary>
+      <div class="pc-city-plans" data-city-idx="${i}">
+        ${renderPlanListHtml(e.plans, { areaColor })}
+      </div>
+    </details>`).join('');
   el('pcPlansByCity').querySelectorAll('.pc-city-plans').forEach((div) => {
     bindExpandableRows(div, 'tr.has-detail', 'data-detail', 'planRow');
   });
+}
+
+// One chart + table per plan-size band (see SIZE_BANDS/sizeBandOf in
+// plan-data.js) - same picked cities and median-days metric as the main
+// pcChart/pcTable above, just re-scoped to each city's plans whose
+// pl_area_dunam falls in that band, so a city that looks fast overall but
+// slow on its huge plans (or vice versa) shows up here rather than being
+// averaged away.
+function renderSizeBands(entries) {
+  const section = el('pcSizeBandSection');
+  if (!entries.length) { section.hidden = true; return; }
+  section.hidden = false;
+
+  el('pcSizeBands').innerHTML = SIZE_BANDS.map((band) => `
+    <h3 dir="auto">${esc(sizeBandLabel(band))}</h3>
+    <figure id="pcSizeChart-${band}" class="acc-chart acc-chart-wide" role="img"></figure>
+    <div id="pcSizeTable-${band}"></div>`).join('');
+
+  for (const band of SIZE_BANDS) {
+    const stats = entries.map((e, i) => ({
+      city: e.city,
+      color: PICK_COLORS[i],
+      ...summarizePlans(e.plans.filter((p) => sizeBandOf(p) === band)),
+    }));
+
+    const chartEntries = stats.map((s) => ({ label: s.city, value: s.medianDays ?? 0, color: s.color }));
+    renderHBarChart(`pcSizeChart-${band}`, `חציון ימים, הגשה→אישור — ${sizeBandLabel(band)}`, chartEntries, 'ימים');
+
+    const rows = stats.map((s) => `
+      <tr>
+        ${pcCityCell(s.city, s.color)}
+        <td>${num(s.count)}</td>
+        <td>${num(s.withTimeline)}</td>
+        <td>${s.medianDays == null ? '—' : num(s.medianDays)}</td>
+        <td>${s.avgDays == null ? '—' : num(s.avgDays)}</td>
+        <td>${s.minDays == null ? '—' : num(s.minDays)}</td>
+        <td>${s.maxDays == null ? '—' : num(s.maxDays)}</td>
+      </tr>`).join('');
+    el(`pcSizeTable-${band}`).innerHTML = `
+      <details class="fin-sheet" open>
+        <summary>טבלה — ${esc(sizeBandLabel(band))}</summary>
+        <div class="matrix-wrap">
+          <table class="matrix">
+            <thead><tr>
+              <th scope="col">עיר</th>
+              <th scope="col">תכניות</th>
+              <th scope="col">עם משך זמן</th>
+              <th scope="col">חציון ימים</th>
+              <th scope="col">ממוצע ימים</th>
+              <th scope="col">מינימום</th>
+              <th scope="col">מקסימום</th>
+            </tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+      </details>`;
+  }
 }
 
 function renderCompare() {
@@ -3665,6 +3789,7 @@ function renderCompare() {
     el('pcStageSection').hidden = true;
     el('pcPlansSection').hidden = true;
     el('pcYearBreakdownSection').hidden = true;
+    el('pcSizeBandSection').hidden = true;
     return;
   }
   section.hidden = false;
@@ -3678,6 +3803,7 @@ function renderCompare() {
   renderStageTable(entries);
   renderPlansByCity(entries);
   renderYearBreakdown(entries);
+  renderSizeBands(entries);
 }
 
 /* ---------- CSV ---------- */

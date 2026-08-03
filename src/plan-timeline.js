@@ -31,6 +31,22 @@ const state = {
 
 let allPlans = [];
 
+/* ---------- URL linkability (city only - see plan-compare.js's per-city
+   links, which point here via ?city=) ---------- */
+
+function readCityFromUrl() {
+  const city = new URLSearchParams(location.search).get('city');
+  if (city) state.cityFilter = city;
+}
+
+function syncCityUrl() {
+  const p = new URLSearchParams(location.search);
+  if (state.cityFilter) p.set('city', state.cityFilter);
+  else p.delete('city');
+  const qs = p.toString();
+  history.replaceState(null, '', qs ? `?${qs}` : location.pathname);
+}
+
 /* ---------- helpers ---------- */
 
 const fmtExportDate = (d) => (d ? d.toLocaleDateString('he-IL') : '—');
@@ -258,6 +274,7 @@ const cityFilterInput = el('ptCityFilter');
 const commitCityFilter = debounce(() => {
   state.cityFilter = cityFilterInput.value.trim() || null;
   state.expandedCity = null;
+  syncCityUrl();
   renderAll();
 }, 200);
 cityFilterInput.addEventListener('input', commitCityFilter);
@@ -294,5 +311,7 @@ minPlansInput.addEventListener('input', commitMinPlans);
   el('ptLoading').textContent = `נטענו ${num(allPlans.length)} תכניות.`;
   updateCityRoster();
   populateYearFilter();
+  readCityFromUrl();
+  cityFilterInput.value = state.cityFilter || '';
   renderAll();
 }());
