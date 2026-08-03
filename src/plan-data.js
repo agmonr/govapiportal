@@ -202,9 +202,11 @@ export function median(sortedNums) {
  * dropped), same duration stats either way. Shared by groupByCity (key =
  * city) and groupByYear (key = הגשה year) below - only the grouping key
  * differs between them. Only plans with a computable totalDays contribute to
- * the duration stats; `withTimeline` tracks how many of a bucket's plans
- * that was, out of `count` total, so a thin sample is visible rather than
- * silently averaged over a handful of plans.
+ * the duration stats (i.e. already approved, with both dates - a plan still
+ * open contributes to `count` but not to the duration numbers); `withTimeline`
+ * tracks how many of a bucket's plans that was, out of `count` total, so a
+ * thin sample is visible rather than silently averaged over a handful of
+ * plans.
  */
 function aggregateByKey(plans, keyFn, keyName) {
   const buckets = new Map();

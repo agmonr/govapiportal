@@ -2138,6 +2138,12 @@ body.accidents-page header.site h1 { inline-size: 100%; }
         <div id="pcTable"></div>
       </section>
 
+      <section class="acc-section" id="pcYearStatsSection" aria-labelledby="yearStatsH" hidden>
+        <h2 id="yearStatsH">לפי שנים</h2>
+        <p class="acc-hint" dir="auto">חציון ימים מהגשה לאישור, לכל שנת הגשה - מכל היסטוריית העיר, ללא קשר לסינון "שנת הגשה" למעלה. בלבד עבור תכניות שכבר אושרו.</p>
+        <div id="pcYearStatsTable"></div>
+      </section>
+
       <section class="acc-section" id="pcStageSection" aria-labelledby="stageH" hidden>
         <h2 id="stageH">פירוט לפי שלב</h2>
         <p class="acc-hint" dir="auto">ממוצע ימים לכל קטע בצינור התכנון, לכל עיר שנבחרה - בלבד עבור תכניות עם שני התאריכים של אותו קטע.</p>
@@ -2844,9 +2850,11 @@ function median(sortedNums) {
  * dropped), same duration stats either way. Shared by groupByCity (key =
  * city) and groupByYear (key = הגשה year) below - only the grouping key
  * differs between them. Only plans with a computable totalDays contribute to
- * the duration stats; `withTimeline` tracks how many of a bucket's plans
- * that was, out of `count` total, so a thin sample is visible rather than
- * silently averaged over a handful of plans.
+ * the duration stats (i.e. already approved, with both dates - a plan still
+ * open contributes to `count` but not to the duration numbers); `withTimeline`
+ * tracks how many of a bucket's plans that was, out of `count` total, so a
+ * thin sample is visible rather than silently averaged over a handful of
+ * plans.
  */
 function aggregateByKey(plans, keyFn, keyName) {
   const buckets = new Map();
@@ -3327,6 +3335,40 @@ function renderCompareTable(entries) {
     </div>`;
 }
 
+// Cross-city, one row per שנת הגשה (not per plan) - each picked city's FULL
+// history via allPlans, ignoring the global "שנת הגשה" filter above for the
+// same reason renderYearBreakdown does (a by-year breakdown needs more than
+// one year to say anything). Only already-approved plans contribute a
+// number for a given year (same as everywhere else on this page) - a year
+// that's mostly still-open plans just shows "—" rather than a number that
+// would otherwise mix finished and in-progress durations together.
+function renderYearStats(entries) {
+  const section = el('pcYearStatsSection');
+  if (!entries.length) { section.hidden = true; return; }
+  section.hidden = false;
+  const perCity = entries.map((e) => groupByYear(allPlans.filter((p) => p.plan_county_name === e.city)));
+  const years = [...new Set(perCity.flatMap((rows) => rows.map((r) => r.year)))].sort((a, b) => a - b);
+  const byYear = perCity.map((rows) => new Map(rows.map((r) => [r.year, r])));
+  const rows = years.map((year) => `
+    <tr>
+      <td>${year}</td>
+      ${entries.map((e, ci) => {
+        const y = byYear[ci].get(year);
+        return `<td>${y && y.medianDays != null ? `${num(y.medianDays)} <span class="acc-hint">(ממוצע ${num(y.avgDays)}, n=${num(y.withTimeline)})</span>` : '—'}</td>`;
+      }).join('')}
+    </tr>`).join('');
+  el('pcYearStatsTable').innerHTML = `
+    <div class="matrix-wrap">
+      <table class="matrix">
+        <thead><tr>
+          <th scope="col">שנת הגשה</th>
+          ${entries.map((e, i) => `<th scope="col"><span class="acc-legend-swatch" style="background:${PICK_COLORS[i]}"></span>${esc(e.city)}</th>`).join('')}
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+}
+
 function renderStageTable(entries) {
   const section = el('pcStageSection');
   if (!entries.length) { section.hidden = true; return; }
@@ -3432,6 +3474,7 @@ function renderCompare() {
   const section = el('pcCompareSection');
   if (!entries.length) {
     section.hidden = true;
+    el('pcYearStatsSection').hidden = true;
     el('pcStageSection').hidden = true;
     el('pcPlansSection').hidden = true;
     el('pcYearBreakdownSection').hidden = true;
@@ -3444,6 +3487,7 @@ function renderCompare() {
   }));
   renderHBarChart('pcChart', `חציון ימים, הגשה→אישור${entries.length > 1 ? ' — השוואה' : ''}`, chartEntries, 'ימים');
   renderCompareTable(entries);
+  renderYearStats(entries);
   renderStageTable(entries);
   renderPlansByCity(entries);
   renderYearBreakdown(entries);

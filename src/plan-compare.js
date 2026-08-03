@@ -95,6 +95,40 @@ function renderCompareTable(entries) {
     </div>`;
 }
 
+// Cross-city, one row per שנת הגשה (not per plan) - each picked city's FULL
+// history via allPlans, ignoring the global "שנת הגשה" filter above for the
+// same reason renderYearBreakdown does (a by-year breakdown needs more than
+// one year to say anything). Only already-approved plans contribute a
+// number for a given year (same as everywhere else on this page) - a year
+// that's mostly still-open plans just shows "—" rather than a number that
+// would otherwise mix finished and in-progress durations together.
+function renderYearStats(entries) {
+  const section = el('pcYearStatsSection');
+  if (!entries.length) { section.hidden = true; return; }
+  section.hidden = false;
+  const perCity = entries.map((e) => groupByYear(allPlans.filter((p) => p.plan_county_name === e.city)));
+  const years = [...new Set(perCity.flatMap((rows) => rows.map((r) => r.year)))].sort((a, b) => a - b);
+  const byYear = perCity.map((rows) => new Map(rows.map((r) => [r.year, r])));
+  const rows = years.map((year) => `
+    <tr>
+      <td>${year}</td>
+      ${entries.map((e, ci) => {
+        const y = byYear[ci].get(year);
+        return `<td>${y && y.medianDays != null ? `${num(y.medianDays)} <span class="acc-hint">(ממוצע ${num(y.avgDays)}, n=${num(y.withTimeline)})</span>` : '—'}</td>`;
+      }).join('')}
+    </tr>`).join('');
+  el('pcYearStatsTable').innerHTML = `
+    <div class="matrix-wrap">
+      <table class="matrix">
+        <thead><tr>
+          <th scope="col">שנת הגשה</th>
+          ${entries.map((e, i) => `<th scope="col"><span class="acc-legend-swatch" style="background:${PICK_COLORS[i]}"></span>${esc(e.city)}</th>`).join('')}
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+}
+
 function renderStageTable(entries) {
   const section = el('pcStageSection');
   if (!entries.length) { section.hidden = true; return; }
@@ -200,6 +234,7 @@ function renderCompare() {
   const section = el('pcCompareSection');
   if (!entries.length) {
     section.hidden = true;
+    el('pcYearStatsSection').hidden = true;
     el('pcStageSection').hidden = true;
     el('pcPlansSection').hidden = true;
     el('pcYearBreakdownSection').hidden = true;
@@ -212,6 +247,7 @@ function renderCompare() {
   }));
   renderHBarChart('pcChart', `חציון ימים, הגשה→אישור${entries.length > 1 ? ' — השוואה' : ''}`, chartEntries, 'ימים');
   renderCompareTable(entries);
+  renderYearStats(entries);
   renderStageTable(entries);
   renderPlansByCity(entries);
   renderYearBreakdown(entries);
