@@ -307,20 +307,32 @@ function dealYearCounts(deals) {
   return Object.keys(counts).sort().map((year) => ({ label: year, value: counts[year] }));
 }
 
-const DEALS_ROW_CAP = 300;
-// Per-entity sort choice, keyed by entity key so switching between picks
-// (or re-rendering after a level/order change elsewhere) doesn't reset a
-// sort the visitor already set up - metric: 'price' (נומינלי מלא) or
-// 'perSqm' (מחיר למ״ר, the page's own overall theme, so it's the default).
-const dealsSortState = {};
-function sortStateFor(key) {
-  if (!dealsSortState[key]) dealsSortState[key] = { metric: 'perSqm', dir: 'desc' };
-  return dealsSortState[key];
+const DEALS_ROW_CAP = 300; // hard ceiling on how many (already sorted/filtered) rows ever reach the DOM
+const DEALS_INITIAL_ROWS = 10; // visible before "הצג עוד" - the rest sits in a second, hidden tbody
+
+const DEAL_COLUMNS = [
+  { key: 'dt', label: 'תאריך', type: 'text', get: (d) => d.dt || '' },
+  { key: 'addr', label: 'כתובת', type: 'text', get: (d) => [d.st, d.hn].filter((v) => v != null && v !== '').join(' ') },
+  { key: 'area', label: 'שטח (מ״ר)', type: 'num', get: (d) => d.area },
+  { key: 'amt', label: 'מחיר', type: 'num', get: (d) => d.amt },
+  { key: 'perSqm', label: 'מחיר למ״ר', type: 'num', get: (d) => (d.area ? d.amt / d.area : null) },
+];
+const DEAL_COLUMN_BY_KEY = Object.fromEntries(DEAL_COLUMNS.map((c) => [c.key, c]));
+
+// Per-entity sort/search state, keyed by entity key so switching between
+// picks (or a level/order change elsewhere) doesn't reset a sort/search the
+// visitor already set up. Default sort is מחיר למ״ר desc - the page's own
+// overall theme.
+const dealsUiState = {};
+function dealsStateFor(key) {
+  if (!dealsUiState[key]) dealsUiState[key] = { col: 'amt', dir: 'desc', q: '' };
+  return dealsUiState[key];
 }
 
-function dealValue(d, metric) {
-  if (metric === 'price') return d.amt;
-  return d.area ? d.amt / d.area : 0;
+function matchesSearch(d, q) {
+  if (!q) return true;
+  const hay = `${d.dt || ''} ${d.st || ''} ${d.hn ?? ''} ${d.nb || ''}`.toLowerCase();
+  return hay.includes(q);
 }
 
 async function renderDealsBlock(entry, index) {
@@ -334,49 +346,53 @@ async function renderDealsBlock(entry, index) {
   if (!el(blockId)) return; // re-rendered away (picks changed) while the fetch was in flight
 
   const deals = dealsForEntry(entry, cityDeals);
-  const sortState = sortStateFor(entry.key);
+  const state = dealsStateFor(entry.key);
   const yearFigId = `${blockId}Year`;
+  const searchId = `${blockId}Search`;
   const tableId = `${blockId}Table`;
 
+  // Collapsed by default (no `open` attribute) - a visitor who picked 4
+  // entities to compare doesn't want 4 long deal tables blocking the page;
+  // opening one is a deliberate choice, same idiom as the site's other
+  // <details class="notice ..."> explainer blocks.
   block.innerHTML = `
-    <h3 dir="auto">${esc(entry.label)}</h3>
-    <div class="cm-filters" id="${blockId}MetricPick" role="group" aria-label="מיון לפי">
-      <button type="button" data-metric="perSqm" class="tc-level-btn">מחיר למ״ר</button>
-      <button type="button" data-metric="price" class="tc-level-btn">מחיר מלא</button>
-    </div>
-    <div class="cm-filters" id="${blockId}DirPick" role="group" aria-label="כיוון מיון">
-      <button type="button" data-dir="desc" class="tc-level-btn">מהגבוה לנמוך</button>
-      <button type="button" data-dir="asc" class="tc-level-btn">מהנמוך לגבוה</button>
-    </div>
-    <figure id="${yearFigId}" class="acc-chart" role="img"></figure>
-    <div id="${tableId}"></div>`;
+    <details class="notice info">
+      <summary><strong dir="auto">${esc(entry.label)} - עסקאות בודדות</strong></summary>
+      <figure id="${yearFigId}" class="acc-chart" role="img"></figure>
+      <div class="acc-year-pick">
+        <label for="${searchId}">חיפוש (רחוב, תאריך, שכונה):</label>
+        <input id="${searchId}" type="text" autocomplete="off" spellcheck="false" placeholder="למשל: הרצל, 2024, רמת אשכול…">
+      </div>
+      <div id="${tableId}"></div>
+    </details>`;
 
-  const rerender = () => {
-    el(`${blockId}MetricPick`).querySelectorAll('.tc-level-btn').forEach((btn) => {
-      btn.classList.toggle('active', btn.dataset.metric === sortState.metric);
-    });
-    el(`${blockId}DirPick`).querySelectorAll('.tc-level-btn').forEach((btn) => {
-      btn.classList.toggle('active', btn.dataset.dir === sortState.dir);
-    });
-    renderDealsTableSorted(tableId, deals, sortState);
-  };
+  const rerender = () => renderDealsTableSorted(tableId, deals, state);
 
-  el(`${blockId}MetricPick`).querySelectorAll('.tc-level-btn').forEach((btn) => {
-    btn.addEventListener('click', () => { sortState.metric = btn.dataset.metric; rerender(); });
-  });
-  el(`${blockId}DirPick`).querySelectorAll('.tc-level-btn').forEach((btn) => {
-    btn.addEventListener('click', () => { sortState.dir = btn.dataset.dir; rerender(); });
-  });
+  el(searchId).addEventListener('input', debounce((ev) => {
+    state.q = ev.target.value.trim().toLowerCase();
+    rerender();
+  }, 150));
 
   renderBarChart(yearFigId, 'עסקאות לפי שנה', dealYearCounts(deals));
   rerender();
 }
 
-function renderDealsTableSorted(containerId, deals, sortState) {
-  const sorted = [...deals].sort((a, b) => dealValue(a, sortState.metric) - dealValue(b, sortState.metric));
-  if (sortState.dir === 'desc') sorted.reverse();
+function renderDealsTableSorted(containerId, deals, state) {
+  const col = DEAL_COLUMN_BY_KEY[state.col] || DEAL_COLUMN_BY_KEY.perSqm;
+  const filtered = state.q ? deals.filter((d) => matchesSearch(d, state.q)) : deals;
+  const sorted = [...filtered].sort((a, b) => {
+    const va = col.get(a); const vb = col.get(b);
+    if (va == null && vb == null) return 0;
+    if (va == null) return 1; // missing values sink to the bottom regardless of direction
+    if (vb == null) return -1;
+    return col.type === 'text' ? String(va).localeCompare(String(vb), 'he') : va - vb;
+  });
+  if (state.dir === 'desc') sorted.reverse();
   const shown = sorted.slice(0, DEALS_ROW_CAP);
-  const rows = shown.map((d) => {
+  const firstRows = shown.slice(0, DEALS_INITIAL_ROWS);
+  const restRows = shown.slice(DEALS_INITIAL_ROWS);
+
+  const rowHtml = (d) => {
     const perSqm = d.area ? Math.round(d.amt / d.area) : null;
     const addr = [d.st, d.hn].filter((v) => v != null && v !== '').join(' ');
     return `
@@ -387,22 +403,58 @@ function renderDealsTableSorted(containerId, deals, sortState) {
       <td>${num(d.amt)} ₪</td>
       <td>${perSqm != null ? `${num(perSqm)} ₪` : '—'}</td>
     </tr>`;
-  }).join('');
-  const capNote = deals.length > DEALS_ROW_CAP ? ` (מוצגות ${num(DEALS_ROW_CAP)} מתוך ${num(deals.length)})` : '';
+  };
+
+  // Same th.sortable/data-sort-key/data-sort-dir/s-mark convention as
+  // plan-render.js's own sortTh() - the next click's direction is baked
+  // into data-sort-dir at render time, so the click handler just reads it
+  // back rather than re-deriving a toggle.
+  const headCell = (c) => {
+    const active = state.col === c.key;
+    const nextDir = active && state.dir === 'asc' ? 'desc' : 'asc';
+    return `<th class="sortable${active ? ' sorted' : ''}" data-sort-key="${c.key}" data-sort-dir="${nextDir}"
+                tabindex="0" role="button"
+                aria-sort="${active ? (state.dir === 'asc' ? 'ascending' : 'descending') : 'none'}">
+      ${esc(c.label)}<span class="s-mark">${active ? (state.dir === 'asc' ? '▲' : '▼') : '↕'}</span>
+    </th>`;
+  };
+
+  const capNote = deals.length > shown.length
+    ? ` (מוצגות ${num(shown.length)} מתוך ${num(state.q ? filtered.length : deals.length)}${state.q ? ` שנמצאו מתוך ${num(deals.length)}` : ''})`
+    : (state.q ? ` (${num(filtered.length)} מתוך ${num(deals.length)} תואמות לחיפוש)` : '');
+
+  const restId = `${containerId}Rest`;
+  const moreBtnId = `${containerId}More`;
+
   el(containerId).innerHTML = `
     <div class="matrix-wrap">
       <table class="matrix preview">
-        <thead><tr>
-          <th scope="col">תאריך</th>
-          <th scope="col">כתובת</th>
-          <th scope="col">שטח (מ״ר)</th>
-          <th scope="col">מחיר</th>
-          <th scope="col">מחיר למ״ר</th>
-        </tr></thead>
-        <tbody>${rows}</tbody>
+        <thead><tr>${DEAL_COLUMNS.map(headCell).join('')}</tr></thead>
+        <tbody>${firstRows.map(rowHtml).join('')}</tbody>
+        <tbody id="${restId}" hidden>${restRows.map(rowHtml).join('')}</tbody>
       </table>
     </div>
-    <p class="acc-hint" dir="auto">${num(deals.length)} עסקאות${capNote}</p>`;
+    <p class="acc-hint" dir="auto">${num(shown.length)} עסקאות מוצגות${capNote}</p>
+    ${restRows.length ? `<button type="button" id="${moreBtnId}" class="drill-dl">הצג עוד ${num(restRows.length)} עסקאות ▾</button>` : ''}`;
+
+  el(containerId).querySelectorAll('th.sortable').forEach((th) => {
+    const apply = () => {
+      state.col = th.dataset.sortKey;
+      state.dir = th.dataset.sortDir;
+      renderDealsTableSorted(containerId, deals, state);
+    };
+    th.addEventListener('click', apply);
+    th.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); apply(); } });
+  });
+
+  if (restRows.length) {
+    el(moreBtnId).addEventListener('click', () => {
+      const rest = el(restId);
+      const btn = el(moreBtnId);
+      rest.hidden = !rest.hidden;
+      btn.textContent = rest.hidden ? `הצג עוד ${num(restRows.length)} עסקאות ▾` : 'הצג פחות ▴';
+    });
+  }
 }
 
 let dealsRenderGen = 0;
@@ -493,22 +545,34 @@ function renderBoard() {
   el('recBoardHint').textContent = scopeNote.join(' · ');
 
   const cityForNb = singlePickedCity();
-  el('recBoardLevel').textContent = cityForNb ? `שכונות ב${cityForNb}, ואז ${lvl.boardTitle}` : lvl.boardTitle;
-  const nbEntries = cityForNb ? levelEntries('neighborhood').filter((e) => e.city === cityForNb) : null;
+  el('recBoardLevel').textContent = 'דירוג ארצי';
 
-  const nbFigIds = cityForNb ? METRIC_ORDER.map((_, i) => `rec-board-nb-${i}`) : [];
-  const figIds = METRIC_ORDER.map((_, i) => `rec-board-${i}`);
-  const container = el('recBoardCharts');
-  container.innerHTML = [...nbFigIds, ...figIds]
-    .map((figId) => `<figure id="${figId}" class="acc-chart acc-chart-wide tc-board-scroll" role="img"></figure>`).join('');
-
+  // Each group is its own collapsed-by-default <details> - a visitor who
+  // picked one city to drill into its neighborhoods doesn't also want the
+  // full national city ranking splashed open below it uninvited; opening
+  // either one is a deliberate click, same idiom as the deals blocks above.
+  const groups = [];
   if (cityForNb) {
-    METRIC_ORDER.forEach((metricId, i) => {
-      renderMetricBoard(nbFigIds[i], metricId, nbEntries, { labelPlural: `שכונות ב${cityForNb}` });
+    groups.push({
+      id: 'nb',
+      title: `שכונות ב${cityForNb}`,
+      entries: levelEntries('neighborhood').filter((e) => e.city === cityForNb),
+      capAll: false,
     });
   }
-  METRIC_ORDER.forEach((metricId, i) => {
-    renderMetricBoard(figIds[i], metricId, entries, { labelPlural: lvl.labelPlural, capAll: state.level === 'city' });
+  groups.push({ id: 'main', title: lvl.boardTitle, entries, capAll: state.level === 'city' });
+
+  const container = el('recBoardCharts');
+  container.innerHTML = groups.map((g) => `
+    <details class="notice info">
+      <summary><strong dir="auto">${esc(g.title)}</strong></summary>
+      ${METRIC_ORDER.map((_, i) => `<figure id="rec-board-${g.id}-${i}" class="acc-chart acc-chart-wide tc-board-scroll" role="img"></figure>`).join('')}
+    </details>`).join('');
+
+  groups.forEach((g) => {
+    METRIC_ORDER.forEach((metricId, i) => {
+      renderMetricBoard(`rec-board-${g.id}-${i}`, metricId, g.entries, { labelPlural: g.title, capAll: g.capAll });
+    });
   });
 }
 
