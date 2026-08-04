@@ -986,7 +986,14 @@ function commitCityAddPick() {
   if (!MAP_CITIES[name]) return;
   input.value = '';
   el('cmCityAddRoster').innerHTML = '';
-  toggleSelect({ key: name, label: name, city: name, level: 'city', rings: MAP_CITIES[name].rings });
+  const entity = { key: name, label: name, city: name, level: 'city', rings: MAP_CITIES[name].rings };
+  // Only on the way IN - toggleSelect() below also handles re-typing an
+  // already-selected city to remove it again, and jumping the view to a
+  // city that's being taken OFF the comparison list would be backwards.
+  if (selectedIndex(entity.key) === -1) {
+    state.view = itmViewBox(bboxOfRingsList([entity.rings]));
+  }
+  toggleSelect(entity);
 }
 
 /* ---------- neighborhood picker (neighborhood level) - a map click always
