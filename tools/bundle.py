@@ -183,11 +183,15 @@ TARGETS = [
         "html": "real-estate-compare.html",
         "out": "dist/real-estate-compare.html",
         "entry": "src/real-estate-compare.js",
-        # No new data - reuses real-estate-map.html's own city/neighborhood
-        # tables, merged/ranked in src/real-estate-compare.js itself. apis.json
-        # is only for apps.js's under-header category strip.
+        # Mostly reuses real-estate-map.html's own city/neighborhood tables,
+        # merged/ranked in src/real-estate-compare.js itself - the one new
+        # source is real-estate-streets.js, a small nationwide street-name
+        # index (see tools/real_estate_build.py's own write_street_index())
+        # that lets the street-level picker search without a city chosen
+        # first. apis.json is only for apps.js's under-header category strip.
         "sources": ["src/ui.js", "src/theme.js", "src/charts.js",
                     "src/real-estate-cities.js", "src/real-estate-neighborhoods.js",
+                    "src/real-estate-streets.js",
                     "src/apps.js", "src/real-estate-compare.js"],
         "data": True,
     },

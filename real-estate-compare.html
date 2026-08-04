@@ -98,17 +98,11 @@
 
       <section class="acc-section" id="recStreetPickSection" aria-labelledby="streetPickH" hidden>
         <h2 id="streetPickH">בחירת רחובות</h2>
-        <p class="acc-hint" dir="auto">בחרו עיר, ואז רחוב בתוכה - עד 10 רחובות, אפשר מכמה ערים. כל הרחובות שנבחרו מוצגים בטבלה משולבת אחת.</p>
-        <div class="acc-year-pick">
-          <label for="recStreetCityPick">עיר:</label>
-          <input id="recStreetCityPick" type="text" list="recStreetCityRoster" autocomplete="off" spellcheck="false"
-                 placeholder="התחילו להקליד…">
-        </div>
-        <datalist id="recStreetCityRoster"></datalist>
+        <p class="acc-hint" dir="auto">חפשו רחוב מכל מקום בארץ - עד 10, אין צורך לבחור עיר קודם (שם העיר מופיע לצד כל תוצאה, למקרה ששם הרחוב חוזר בכמה ערים). כל הרחובות שנבחרו מוצגים בטבלה משולבת אחת.</p>
         <div class="acc-year-pick">
           <label for="recStreetPick">רחוב:</label>
           <input id="recStreetPick" type="text" list="recStreetRoster" autocomplete="off" spellcheck="false"
-                 placeholder="בחרו עיר קודם…" disabled>
+                 placeholder="התחילו להקליד שם רחוב…">
         </div>
         <datalist id="recStreetRoster"></datalist>
         <div id="recStreetChips" class="cm-chips" hidden></div>

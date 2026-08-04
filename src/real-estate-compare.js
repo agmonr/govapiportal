@@ -30,6 +30,7 @@ import { initThemePicker } from './theme.js';
 import { renderHBarChart, renderBarChart, citySwatchCell } from './charts.js';
 import { CITY_REAL_ESTATE } from './real-estate-cities.js';
 import { NEIGHBORHOOD_REAL_ESTATE } from './real-estate-neighborhoods.js';
+import { STREET_INDEX } from './real-estate-streets.js';
 import { renderAppContext, loadAppsData } from './apps.js';
 
 initThemePicker(el('themePick'));
@@ -597,47 +598,54 @@ let globalDealsRenderGen = 0;
 const globalDealsGen = { bump: () => (globalDealsRenderGen += 1), stale: (g) => g !== globalDealsRenderGen };
 
 /* ---------- street level - up to MAX_STREET_PICKS (city, street) pairs,
-   each picked from a city chosen first (streets have no precomputed
-   roster - see this file's own state+URL docstring above - so the only
-   street names available to search are whichever city's deals file is
-   already fetched). Always renders as ONE combined table via
-   renderCombinedDealsInto(), the same "street pseudo-entries" idiom
-   dealsForEntry()'s own 'street' branch above exists for - there is no
-   per-street chart/board here at all, unlike city/neighborhood. */
+   searched directly nationwide (no city picked first - real-estate-
+   streets.js is a small, EAGERLY-loaded {s: street, c: city} index built
+   once by tools/real_estate_build.py from the same per-city deal files,
+   specifically so a street can be found without fetching every city's own
+   deals just to search - city is only needed to disambiguate a street name
+   that repeats across cities, which is why every roster/chip label still
+   shows it in parens rather than requiring it as a separate field). Always
+   renders as ONE combined table via renderCombinedDealsInto(), the same
+   "street pseudo-entries" idiom dealsForEntry()'s own 'street' branch
+   above exists for - there is no per-street chart/board here at all,
+   unlike city/neighborhood. */
 
 function streetPickLabel(city, street) {
   return `${street} (${city})`;
 }
 
-async function updateStreetRoster(query) {
-  const cityName = el('recStreetCityPick').value.trim();
-  const streetInput = el('recStreetPick');
-  if (!CITY_REAL_ESTATE[cityName]) {
-    streetInput.disabled = true;
-    streetInput.placeholder = 'בחרו עיר קודם…';
-    el('recStreetRoster').innerHTML = '';
-    return;
+let streetLabelMapCache = null;
+function streetLabelMap() {
+  if (!streetLabelMapCache) {
+    streetLabelMapCache = new Map(STREET_INDEX.map((e) => [streetPickLabel(e.c, e.s), e]));
   }
-  streetInput.disabled = false;
-  streetInput.placeholder = 'התחילו להקליד…';
-  const deals = await fetchCityDeals(cityName);
-  if (el('recStreetCityPick').value.trim() !== cityName) return; // city changed again while this fetch was in flight
-  const streets = [...new Set(deals.map((d) => d.st).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'he'));
-  const q = query.trim().toLowerCase();
-  const hits = q ? streets.filter((s) => s.toLowerCase().includes(q)) : streets;
-  el('recStreetRoster').innerHTML = hits.slice(0, 40).map((s) => `<option value="${esc(s)}">`).join('');
+  return streetLabelMapCache;
 }
 
-async function commitStreetPick() {
-  const cityName = el('recStreetCityPick').value.trim();
+function updateStreetRoster(query) {
+  const q = query.trim().toLowerCase();
+  if (!q) { el('recStreetRoster').innerHTML = ''; return; }
+  // Street-name-first hits (the far more common way to search) ranked
+  // ahead of a match that only happens to hit the city name in the label -
+  // same nameHits/otherHits split candidateEntries() already uses for
+  // city/neighborhood search.
+  const nameHits = [];
+  const otherHits = [];
+  for (const e of STREET_INDEX) {
+    if (e.s.toLowerCase().includes(q)) nameHits.push(e);
+    else if (e.c.toLowerCase().includes(q)) otherHits.push(e);
+  }
+  const hits = [...nameHits, ...otherHits].slice(0, 40);
+  el('recStreetRoster').innerHTML = hits.map((e) => `<option value="${esc(streetPickLabel(e.c, e.s))}">`).join('');
+}
+
+function commitStreetPick() {
   const streetInput = el('recStreetPick');
-  const street = streetInput.value.trim();
-  if (!CITY_REAL_ESTATE[cityName] || !street) return;
+  const entry = streetLabelMap().get(streetInput.value.trim());
+  if (!entry) return;
   if (state.streetPicks.length >= MAX_STREET_PICKS) return;
-  if (state.streetPicks.some((p) => p.city === cityName && p.street === street)) return;
-  const deals = await fetchCityDeals(cityName);
-  if (!deals.some((d) => d.st === street)) return; // free-typed value that isn't a real street in this city
-  state.streetPicks.push({ city: cityName, street });
+  if (state.streetPicks.some((p) => p.city === entry.c && p.street === entry.s)) return;
+  state.streetPicks.push({ city: entry.c, street: entry.s });
   streetInput.value = '';
   el('recStreetRoster').innerHTML = '';
   syncUrl();
@@ -886,9 +894,8 @@ function renderAll() {
 
   if (isStreet) {
     el('recCityFilterRow').hidden = true;
-    el('recStreetCityPick').value = '';
     el('recStreetPick').value = '';
-    updateStreetRoster('');
+    el('recStreetRoster').innerHTML = '';
     renderStreetPickUI();
     renderStreetLevelDeals();
     return;
@@ -932,18 +939,6 @@ el('recCityFilter').addEventListener('change', () => {
   renderAll();
 });
 
-function updateStreetCityRoster(query) {
-  const q = query.trim().toLowerCase();
-  const names = levelEntries('city').map((e) => e.name);
-  const hits = q ? names.filter((n) => n.toLowerCase().includes(q)) : names;
-  el('recStreetCityRoster').innerHTML = hits.slice(0, 40).map((n) => `<option value="${esc(n)}">`).join('');
-}
-updateStreetCityRoster('');
-
-el('recStreetCityPick').addEventListener('input', debounce((ev) => {
-  updateStreetCityRoster(ev.target.value);
-  updateStreetRoster('');
-}, 120));
 el('recStreetPick').addEventListener('input', debounce((ev) => updateStreetRoster(ev.target.value), 120));
 el('recStreetPick').addEventListener('change', commitStreetPick);
 el('recStreetPick').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); commitStreetPick(); } });

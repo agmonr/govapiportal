@@ -217,6 +217,7 @@ def build():
 
     log(f"{len(city_out)} cities, {len(nb_out)} neighborhoods with >= min samples")
     write_deal_files(deals_by_city, city_out)
+    write_street_index(deals_by_city, city_out)
     return city_out, nb_out
 
 
@@ -241,6 +242,27 @@ def write_deal_files(deals_by_city, city_out):
         total_kb += out_path.stat().st_size / 1024
         n_written += 1
     log(f"wrote {n_written} per-city deal files under assets/deals/ ({total_kb:.0f} KB total)")
+
+
+def write_street_index(deals_by_city, city_out):
+    """A single small, EAGERLY-loaded nationwide index - [{"s":street,
+    "c":city}, ...], names only, no deal records - unlike assets/deals/
+    above, which is per-city and lazy (a full city's deals can be a few MB,
+    too much to ship for all 142 cities up front). Street names alone are
+    small enough (a few thousand distinct (city, street) pairs nationwide)
+    to ship as one file, which is what lets the street-level compare
+    picker search "every street in the country" directly instead of
+    requiring a city to be picked first."""
+    stamp = time.strftime("%Y-%m-%dT%H:%M%z") or time.strftime("%Y-%m-%dT%H:%M")
+    index = []
+    for city, records in deals_by_city.items():
+        if city not in city_out:
+            continue
+        for s in sorted({r["st"] for r in records if r.get("st")}):
+            index.append({"s": s, "c": city})
+    write_js("STREET_INDEX", index, SRC / "real-estate-streets.js",
+              f"Nationwide street-name index (names only, no deal records), computed {stamp} - "
+              f"used for the street-level compare picker's national search.")
 
 
 def main():
