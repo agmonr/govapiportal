@@ -152,6 +152,14 @@ function nbLabelMap() {
   return nbLabelMapCache;
 }
 
+// Press-and-hold (mouse or touch) on a city/neighborhood shape, used by the
+// context-submenu wiring further down - a fixed delay before it fires
+// (matches the general "long press" feel on mobile OSes) and a small
+// movement tolerance (a real long press on a touchscreen rarely holds
+// perfectly still) before it's cancelled as a pan/drag starting instead.
+const LONG_PRESS_MS = 550;
+const LONG_PRESS_MOVE_TOLERANCE_PX = 10;
+
 /* ---------- state + URL ---------- */
 
 const MAX_SELECT = 4;
@@ -655,6 +663,7 @@ async function renderOsmBasemap(entities) {
 
 async function renderMap() {
   hideContextMenu(); // a fresh render replaces svg.innerHTML entirely - an open menu's own item(s) would point at now-stale entities/closures
+  cancelActivePress(); // same reason - a pending long-press timer's own closure (entity, ev.clientX/Y) would otherwise fire against a path that no longer exists
   const mapSection = el('cmMapSection');
   mapSection.hidden = state.level === 'street';
   if (state.level === 'street') {
@@ -765,7 +774,14 @@ async function renderMap() {
     // failing to load, it was every border blending into the page.
     const stroke = i !== -1 ? PICK_COLORS[i] : (blobReplacesFill ? 'var(--fg)' : 'var(--bg)');
     const strokeWidth = i !== -1 ? '3' : '1.2';
-    return `<path d="${d}" fill="${fill}" fill-opacity="${fillOpacity}" stroke="${stroke}" stroke-width="${strokeWidth}" data-key="${esc(e.key)}" tabindex="0" role="button" aria-pressed="${i !== -1}"><title>${esc(titleFor(e))}</title></path>`;
+    // pointer-events="all": SVG's own default (visiblePainted) only counts
+    // a hit on the STROKE once fill="none" (hi-res-only mode, the site's
+    // own default state) - the shape's entire interior silently stopped
+    // registering clicks/right-clicks/long-presses the moment fill-opacity
+    // dropped to 0, leaving only its ~1.2px-wide outline as a real target.
+    // "all" restores hit-testing across the whole shape regardless of
+    // whether its fill is actually painted.
+    return `<path d="${d}" fill="${fill}" fill-opacity="${fillOpacity}" stroke="${stroke}" stroke-width="${strokeWidth}" pointer-events="all" data-key="${esc(e.key)}" tabindex="0" role="button" aria-pressed="${i !== -1}"><title>${esc(titleFor(e))}</title></path>`;
   }).join('');
   // Glyphs render after (on top of) every shape, positioned at each
   // city's own centroid (cityBBoxes() already computes one, reused here)
@@ -859,42 +875,42 @@ async function renderMap() {
   svg.querySelectorAll('path[data-key]').forEach((path) => {
     const entity = entities.find((x) => x.key === path.dataset.key);
     if (!entity) return;
-    // A single click just selects (pickSolo) at every level, including
-    // city - it shows the name + detail bars without leaving the current
-    // view. Picking a city to view its neighborhoods is manual only (level
-    // tab + the "בחירת עיר" text input) - the map itself no longer drills
-    // in on scrolling/pinching in far enough, so a click here can never
-    // accidentally jump the view out from under you. A double-click DOES
-    // navigate now (see below) - not a drill, a deep link off this page
-    // entirely, so it can't collide with the same "no surprise jumps"
-    // reasoning a same-page drill-in would.
-    path.addEventListener('click', () => {
-      if (zoomPan.isDragging()) return;
-      pickSolo(entity);
-    });
     path.addEventListener('keydown', (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); pickSolo(entity); } });
-    // Right-click opens a submenu (see showContextMenu below) instead of
-    // the browser's own native one - currently one item, deep-linking into
-    // canopy-heat-compare.html's own up-to-4 compare page pre-loaded with
-    // this one entity (same level/p1/city query shape fullPageLink() above
-    // already builds for the metric-specific pages). entity.level here is
-    // always 'city' or 'neighborhood' (street has no map shapes at all -
-    // see currentEntities()), matching exactly what that page's own
-    // readStateFromUrl() expects.
-    path.addEventListener('contextmenu', (ev) => {
-      ev.preventDefault();
-      showContextMenu(ev.clientX, ev.clientY, [
-        {
-          label: 'מידע איזורי על עצים וחום ←',
-          onSelect: () => {
-            const p = new URLSearchParams();
-            p.set('level', entity.level);
-            p.set('p1', entity.label);
-            if (entity.level === 'neighborhood' && state.cityFilter) p.set('city', state.cityFilter);
-            location.href = `./canopy-heat-compare.html?${p}`;
+    // Press-and-hold (mouse or touch) opens a submenu (see showContextMenu
+    // below) - a right-click's own native 'contextmenu' event turned out
+    // unreliable here in practice (mobile has no right-click at all, and
+    // desktop browsers don't consistently deliver one once
+    // setPointerCapture() - already in use by attachZoomPan's own
+    // wheel/drag handling on this same svg - has claimed the pointer).
+    // Only pointerdown is attached here, on the path itself, to learn
+    // WHICH entity is being pressed - the cancel-tracking half (movement/
+    // release) is a single shared document-level listener further below
+    // (activePress), not one per path, specifically because that same
+    // setPointerCapture() retargets every subsequent pointermove/pointerup
+    // for this pointer to the svg element regardless of which child was
+    // actually pressed - a pointermove/pointerup listener attached to this
+    // path would simply never fire once capture kicks in on the very same
+    // pointerdown.
+    path.addEventListener('pointerdown', (ev) => {
+      if (ev.button != null && ev.button !== 0) return; // a real right-click still shouldn't ALSO start a long-press timer
+      cancelActivePress();
+      const timer = setTimeout(() => {
+        activePress = null;
+        lastLongPressKey = entity.key;
+        showContextMenu(ev.clientX, ev.clientY, [
+          {
+            label: 'מידע איזורי על עצים וחום ←',
+            onSelect: () => {
+              const p = new URLSearchParams();
+              p.set('level', entity.level);
+              p.set('p1', entity.label);
+              if (entity.level === 'neighborhood' && state.cityFilter) p.set('city', state.cityFilter);
+              location.href = `./canopy-heat-compare.html?${p}`;
+            },
           },
-        },
-      ]);
+        ]);
+      }, LONG_PRESS_MS);
+      activePress = { pointerId: ev.pointerId, startX: ev.clientX, startY: ev.clientY, timer };
     });
   });
 
@@ -1213,12 +1229,80 @@ el('cmFullReset').addEventListener('click', () => {
   renderAll();
 });
 
-/* ---------- right-click submenu (replaces the browser's own native
-   context menu on a city/neighborhood shape - see the 'contextmenu'
-   listener above) - a plain floating <ul> positioned at the cursor,
-   currently offering one item (the canopy-heat-compare.html deep link),
-   but built generically (a list of {label, onSelect}) so a second item
-   later doesn't need a second menu component. ---------- */
+/* ---------- press-and-hold submenu trigger + right-click-style menu ----------
+   Shared, single tracker (not one per path) for the "cancel a pending long
+   press" half of the pointerdown wiring above - see that wiring's own
+   comment for why a per-path pointermove/pointerup listener doesn't work
+   here (setPointerCapture retargeting). At most one press can be
+   candidate/active at a time (one pointer), so one module-level slot is
+   enough regardless of how many shapes exist. */
+
+let activePress = null; // { pointerId, startX, startY, timer } | null
+let lastLongPressKey = null; // entity.key a long press JUST fired for - the click below (see its own comment) that follows release should skip picking it
+
+function cancelActivePress() {
+  if (activePress) clearTimeout(activePress.timer);
+  activePress = null;
+}
+
+// Single delegated listener (attached once here, to the persistent #cmSvg
+// element itself, NOT one per path/per render) for every city/neighborhood
+// pick - the per-path 'click' listener this used to be attached directly
+// to each <path> turned out to never fire for a REAL mouse/touch user:
+// attachZoomPan's own pointerdown handler (map-shapes.js) calls
+// svgEl.setPointerCapture() on every press (needed for drag-panning), and
+// once that capture is active, Chromium retargets the resulting 'click'
+// event's own `target` to the CAPTURING element (the svg) rather than
+// whatever was actually under the cursor - verified directly (a real
+// Playwright mouse click, not a synthetic dispatchEvent, landed with
+// ev.target === the svg element itself, every single time). A path-level
+// listener silently never receiving real clicks read as "picking a city/
+// neighborhood on the map doesn't work" - not caught earlier because
+// every prior test in this codebase used dispatchEvent(), which bypasses
+// real hit-testing/capture retargeting entirely and gave false confidence.
+// Fix: listen on the (never-retargeted) svg element and use
+// document.elementFromPoint() - itself dependent on the path having
+// pointer-events="all" (see the paths.map() above) rather than SVG's
+// default visiblePainted, which stops registering hits the moment a
+// shape's fill is transparent (hi-res-only mode, the site's own default) -
+// to find which shape, if any, is actually under ev.clientX/clientY.
+el('cmSvg').addEventListener('click', (ev) => {
+  if (currentZoomPan?.isDragging()) return;
+  const hit = document.elementFromPoint(ev.clientX, ev.clientY);
+  const path = hit?.closest?.('path[data-key]');
+  if (!path) return;
+  if (lastLongPressKey === path.dataset.key) {
+    // Releasing a long press also fires this click (ordinary browser
+    // behavior for a pointerdown+pointerup with little movement between
+    // them) - don't ALSO treat it as a pick, and stop it from bubbling to
+    // the document-level dismiss listener below, which would otherwise
+    // close the submenu this exact press just opened.
+    lastLongPressKey = null;
+    ev.stopPropagation();
+    return;
+  }
+  const entity = currentEntities().find((x) => x.key === path.dataset.key);
+  if (entity) pickSolo(entity);
+});
+
+document.addEventListener('pointermove', (ev) => {
+  if (!activePress || ev.pointerId !== activePress.pointerId) return;
+  const dx = ev.clientX - activePress.startX;
+  const dy = ev.clientY - activePress.startY;
+  if (Math.hypot(dx, dy) > LONG_PRESS_MOVE_TOLERANCE_PX) cancelActivePress();
+});
+document.addEventListener('pointerup', (ev) => {
+  if (activePress && ev.pointerId === activePress.pointerId) cancelActivePress();
+});
+document.addEventListener('pointercancel', (ev) => {
+  if (activePress && ev.pointerId === activePress.pointerId) cancelActivePress();
+});
+
+/* ---------- the submenu itself - a plain floating <ul> positioned at the
+   cursor/touch point, currently offering one item (the canopy-heat-
+   compare.html deep link), but built generically (a list of
+   {label, onSelect}) so a second item later doesn't need a second menu
+   component. ---------- */
 
 function hideContextMenu() {
   const menu = el('cmContextMenu');
@@ -1232,8 +1316,8 @@ function showContextMenu(x, y, items) {
     <li role="none"><button type="button" role="menuitem" data-idx="${i}">${esc(item.label)}</button></li>`).join('');
   menu.hidden = false;
   // Measured only after becoming visible (hidden elements have no real
-  // box) - clamped so a right-click near the map's own edge doesn't open
-  // a menu that spills off-screen.
+  // box) - clamped so a press near the map's own edge doesn't open a menu
+  // that spills off-screen.
   const rect = menu.getBoundingClientRect();
   const left = Math.max(8, Math.min(x, window.innerWidth - rect.width - 8));
   const top = Math.max(8, Math.min(y, window.innerHeight - rect.height - 8));
@@ -1247,11 +1331,13 @@ function showContextMenu(x, y, items) {
   });
 }
 
-// Dismiss on a click anywhere else (a right-click's own contextmenu event
-// doesn't fire a following 'click', so this can't immediately close a menu
-// it just opened), Escape, or the viewport changing under it (scroll/
-// resize - a still-open menu positioned for a stale cursor location would
-// otherwise float over the wrong spot).
+// Dismiss on a click anywhere else - the long press's own trailing click
+// (see the path-level 'click' handler's own comment above) is
+// stopPropagation()'d before it ever reaches here, so this only ever sees
+// a GENUINE click elsewhere, not the same press that just opened the menu
+// - Escape, or the viewport changing under it (scroll/resize - a still-
+// open menu positioned for a stale cursor location would otherwise float
+// over the wrong spot).
 document.addEventListener('click', (ev) => {
   if (!ev.target.closest('#cmContextMenu')) hideContextMenu();
 });
