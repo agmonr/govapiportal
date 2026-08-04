@@ -67,6 +67,12 @@ export function ringsToPathD(rings, project) {
 const ZOOM_MIN_FACTOR = 0.002;
 const ZOOM_MAX_FACTOR = 6; // how far out
 const DRAG_THRESHOLD_PX = 6; // below this, a pointerdown->up counts as a tap, not a pan
+// A plain 1:1 drag (the point under the cursor stays under the cursor,
+// exactly what contentRect()'s own conversion factor gives you) read as too
+// slow/heavy to actually move around the map - deliberately above 1 so a
+// given drag distance pans further than the cursor itself moved, at the
+// cost of that 1:1 tracking feel.
+const DRAG_SENSITIVITY = 1.8;
 
 /**
  * Wires zoom/pan onto `svgEl`, whose viewBox starts at `initial`
@@ -207,8 +213,8 @@ export function attachZoomPan(svgEl, initial, { onChange } = {}) {
       const dy = ev.clientY - lastSingle.y;
       if (Math.hypot(dx, dy) > DRAG_THRESHOLD_PX) dragged = true;
       const rect = contentRect(); // NOT svgEl.getBoundingClientRect() - see its own comment above
-      view.x -= (dx / rect.width) * view.w;
-      view.y -= (dy / rect.height) * view.h;
+      view.x -= (dx / rect.width) * view.w * DRAG_SENSITIVITY;
+      view.y -= (dy / rect.height) * view.h * DRAG_SENSITIVITY;
       apply();
       lastSingle = { x: ev.clientX, y: ev.clientY };
     }

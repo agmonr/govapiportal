@@ -298,12 +298,21 @@ function shouldDrillOut(view, cityName) {
 // threshold (so blobs only ever appeared zoomed in close on one city) -
 // widened to every city clearing a much lower bar, so blobs also show
 // while zoomed out far enough to see a cluster of cities at once, not just
-// one. CITY_VIEW_MAX_COUNT is a hard cap regardless of how many clear the
-// bar - without it, the fully-zoomed-out national view (all 186 cities)
-// would fetch every city's blobs at once, defeating the point of lazy-
-// loading them in the first place (see HEAT_BLOBS'/CANOPY_BLOBS' own
-// header comments).
-const CITY_VIEW_MIN_FRACTION = 0.01;
+// one. CITY_VIEW_MAX_COUNT (the top N by view-overlap) is what actually
+// bounds this now, NOT the fraction floor: a percentage-of-view threshold
+// mathematically can't survive zooming out much further than "a handful of
+// cities visible at once" - once a dozen-plus cities share the view, every
+// one of them individually drops under almost any fixed floor, which was a
+// real bug (blobs would vanish - "holes in the map" - well before the
+// count cap ever kicked in, even though visibly showing up to
+// CITY_VIEW_MAX_COUNT cities was exactly the point). CITY_VIEW_MIN_FRACTION
+// only filters out a city barely grazing the view's edge, not "is this
+// city prominent" - that's what the sort + slice below is for. Even the
+// fully-zoomed-out national view stays bounded at CITY_VIEW_MAX_COUNT
+// simultaneous fetches (the largest cities by view-overlap), rather than
+// all 186 at once, which would defeat the point of lazy-loading them in
+// the first place (see HEAT_BLOBS'/CANOPY_BLOBS' own header comments).
+const CITY_VIEW_MIN_FRACTION = 0.0002;
 const CITY_VIEW_MAX_COUNT = 15;
 function citiesInView(view) {
   if (!view) return [];
