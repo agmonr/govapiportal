@@ -42,6 +42,32 @@
       "category_he": "הבית והשכונה שלי"
     },
     {
+      "id": "real-estate-map",
+      "name": "Real-Estate Price Map — CPI-Adjusted ₪/m² by City/Neighborhood",
+      "name_he": "מפת מחירי נדל״ן",
+      "kind": "אפליקציה",
+      "about": "חציון מחיר למ״ר, מתוקנן למדד המחירים לצרכן, צבוע על מפת ערים ושכונות - מ-285 אלף עסקאות נדל״ן אמיתיות שדווחו מאוגוסט 2021 ועד היום, דרך ה-API הציבורי של GovMap (משרד הבינוי והשיכון). לחיצה על עיר/שכונה מציגה את הפרטים המלאים שלה. אותן גבולות עיר/שכונה שמפת עצים וחום כבר משתמשת בהם. עסקאות קרקע/מגרש ומחירי קיצון (מתחת ל-2,000 או מעל 150,000 ₪ למ״ר) לא נכללים.",
+      "href": "./real-estate-map.html",
+      "external": false,
+      "home": "https://www.govmap.gov.il/",
+      "computed_at": "2026-08-04T13:34+03:00",
+      "category": "home",
+      "category_he": "הבית והשכונה שלי"
+    },
+    {
+      "id": "real-estate-compare",
+      "name": "Real-Estate Prices — Regional Info",
+      "name_he": "מידע איזורי על מחירי נדל״ן",
+      "kind": "אפליקציה",
+      "about": "השוואה של עד 4 ערים/שכונות זה לצד זה, לפי מחיר למ״ר וכמות עסקאות גם יחד - לא מקור נתונים חדש, רק חיבור של הטבלה שכבר מחושבת במפת מחירי נדל״ן לתצוגה אחת, כולל דירוג ארצי וייצוא CSV.",
+      "href": "./real-estate-compare.html",
+      "external": false,
+      "home": "https://www.govmap.gov.il/",
+      "computed_at": "2026-08-04T13:34+03:00",
+      "category": "home",
+      "category_he": "הבית והשכונה שלי"
+    },
+    {
       "id": "blue-lines",
       "name": "Blue Lines — Address to Plans & Metro Levy Check",
       "name_he": "המטרו והבית שלי",

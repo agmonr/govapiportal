@@ -46,6 +46,9 @@ export const APP_ICON = {
   'trip-report': '🚗<span class="icon-small">🎯</span>',
   'yeela-signup': '🔔',
   'report-pit': '🌳<span class="icon-small">🕳️</span>',
+  'real-estate-map': '🏘️',
+  'real-estate-compare': '💰<span class="icon-small">🏘️</span>',
+  'canopy-heat-compare': '🌳<span class="icon-small">🌡️</span>',
 };
 
 // Render order for categories - not alphabetical on the Hebrew label, and

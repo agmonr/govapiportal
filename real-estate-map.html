@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>מפת מחירי נדל״ן — מחיר למ״ר לפי עיר ושכונה</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏘️</text></svg>">
+  <meta name="description" content="מחיר למ״ר, מתוקנן למדד המחירים לצרכן, על מפת ערים ושכונות - לחיצה על אזור מציגה את הפרטים המלאים שלו.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://agmonr.github.io/govapiportal/real-estate-map.html">
+  <meta property="og:title" content="מפת מחירי נדל״ן — מחיר למ״ר לפי עיר ושכונה">
+  <meta property="og:description" content="מחיר למ״ר, מתוקנן למדד המחירים לצרכן, על מפת ערים ושכונות - לחיצה על אזור מציגה את הפרטים המלאים שלו.">
+  <meta property="og:image" content="https://agmonr.github.io/govapiportal/assets/og/real-estate-map.png">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="מפת מחירי נדל״ן — מחיר למ״ר לפי עיר ושכונה">
+  <meta name="twitter:description" content="מחיר למ״ר, מתוקנן למדד המחירים לצרכן, על מפת ערים ושכונות - לחיצה על אזור מציגה את הפרטים המלאים שלו.">
+  <meta name="twitter:image" content="https://agmonr.github.io/govapiportal/assets/og/real-estate-map.png">
+  <script>
+    try {
+      var t = localStorage.getItem('theme');
+      if (t) document.documentElement.setAttribute('data-theme', t);
+    } catch (e) {}
+  </script>
+  <link rel="stylesheet" href="./src/style.css">
+</head>
+<body class="accidents-page tree-canopy-page">
+  <header class="site">
+    <div class="wrap">
+      <h1>מפת מחירי נדל״ן</h1>
+      <span class="site-by">פרויקט של רם אגמון<span class="site-disclaimer">המידע באתר עלול להיות שגוי</span><a href="https://hod-hasharon.org/" target="_blank" rel="noopener">הירוקים הוד השרון</a></span>
+      <div class="theme-pick" id="themePick" role="group" aria-label="ערכת נושא">
+        <button type="button" data-theme="clouds">☀️<span class="theme-btn-label"> יום</span></button>
+        <button type="button" data-theme="fashion">🌙<span class="theme-btn-label"> לילה</span></button>
+        <button type="button" data-theme="zebra">🦓<span class="theme-btn-label"> זברה</span></button>
+      </div>
+      <span class="meta" id="created"></span>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <div id="fileproto" class="notice error" dir="auto" hidden>
+      <strong>הדף נפתח כקובץ מקומי (<code dir="ltr">file://</code>) ולכן אינו יכול לטעון את הנתונים.</strong>
+      <p>
+        הדפדפן חוסם מודולי ES ממקור <code dir="ltr">null</code> — זו הגבלת אבטחה של הדפדפן, לא תקלה באתר.
+        הפעל שרת מקומי מתיקיית הפרויקט:
+      </p>
+      <pre dir="ltr"><code>python3 -m http.server 8000</code></pre>
+      <p>ולאחר מכן פתח <a href="http://localhost:8000/real-estate-map.html" dir="ltr">http://localhost:8000/real-estate-map.html</a>.</p>
+      <p>
+        לחלופין, ללא שרת כלל — <a href="./dist/real-estate-map.html" dir="ltr">dist/real-estate-map.html</a>
+        הוא קובץ יחיד ועצמאי שעובד בפתיחה ישירה מהדיסק.
+      </p>
+    </div>
+
+    <div id="app">
+      <div id="appContext" class="app-context"></div>
+      <details class="lead-details" dir="auto">
+        <summary>כמה עולה מ״ר, בפועל ולא לפי שמועה</summary>
+        <p class="lead" dir="auto">
+          חציון מחיר למ״ר, מחושב מעסקאות נדל״ן אמיתיות שדווחו (לא הערכות שמאי או מחירי מבוקש) ומתוקנן למדד
+          המחירים לצרכן - כדי שעסקה מ-2021 ועסקה מהיום יהיו בני-השוואה. מעבר לרמת "שכונות" והקלדת שם עיר עובר
+          לשכונות שלה, ולחיצה על עיר/שכונה במפה מציגה את הפרטים המלאים שלה. להשוואה בין כמה ערים/שכונות יחד -
+          עד 4 - יש חיפוש שם חופשי.
+        </p>
+      </details>
+
+      <details class="notice info" dir="auto">
+        <summary><strong>מה יש כאן, ומה המקור</strong></summary>
+        <p>
+          כל עסקה נלקחת מ-API הנדל״ן הציבורי של GovMap (משרד הבינוי והשיכון) - כ-285 אלף עסקאות ארציות
+          שדווחו מאוגוסט 2021 ועד היום. עסקאות קרקע/מגרש/משק חקלאי לא נכללות (מחיר למ״ר של קרקע פנויה לא
+          בר-השוואה למחיר דירה/בית), וכך גם עסקאות עם מחיר למ״ר חריג (מתחת ל-2,000 ₪ או מעל 150,000 ₪ למ״ר) -
+          כמעט תמיד טעות דיווח, לא עסקה אמיתית.
+        </p>
+        <p>
+          <strong>תיקנון למדד:</strong> כל עסקה מוכפלת ביחס בין מדד המחירים לצרכן (הכללי) בחודש הפרסום האחרון
+          לבין המדד בחודש שבו בוצעה העסקה - כדי שהשוואה בין עסקה ישנה לחדשה תשקף שינוי מחיר אמיתי, לא רק
+          אינפלציה כללית.
+        </p>
+        <p>
+          <strong>גבולות העיר/שכונה</strong> זהים לאלה ש<a href="./canopy-map.html">מפת עצים וחום</a> כבר
+          משתמשת בהם - אותו מקור, אותה שכבת גבולות מפושטת (עיריות רשמיות, שכונות OSM + תאי Voronoi איפה שאין
+          פוליגון אמיתי). עיר/שכונה עם פחות מ-5 עסקאות בתקופה לא מוצגת - מדגם קטן מדי בשביל חציון אמין.
+        </p>
+        <p>
+          <strong>אין מפה לרחובות:</strong> הנתון עצמו כן קיים ברמת רחוב (שם הרחוב מגיע עם כל עסקה), אבל בלי
+          שכבת גבולות רחוב על המפה בשלב הזה - כמו ב<a href="./canopy-map.html">מפת עצים וחום</a>, מאותה סיבה
+          בדיוק.
+        </p>
+        <p>
+          <strong>ברירת המחדל היא ללא רקע OSM אמיתי:</strong> הצורות עצמן מציירות את המפה, כמו כל מפה נושאית.
+          אפשר להפעיל רקע OSM אמיתי ברמת שכונה בלבד, אחרי בחירת עיר.
+        </p>
+      </details>
+
+      <section class="acc-section" aria-labelledby="levelH">
+        <h2 id="levelH">רמת השוואה</h2>
+        <div class="cm-filters" role="group" aria-label="רמת השוואה">
+          <button type="button" data-level="city" class="tc-level-btn cm-level-btn">ערים</button>
+          <button type="button" data-level="neighborhood" class="tc-level-btn cm-level-btn">שכונות</button>
+        </div>
+      </section>
+
+      <section class="acc-section" id="remLayerSection" aria-labelledby="layerH">
+        <h2 id="layerH">שכבת צביעת המפה</h2>
+        <p class="acc-hint" dir="auto">קובעת רק את צבע המפה עצמה - הבחירה שלכם (למטה) תמיד תציג את שני המדדים יחד. ברמת עיר אפשר לבחור את שני המדדים בו-זמנית: כל עיר תוצג אז עם עמודות קטנות, מדד לצד מדד, במקום צבע אחיד.</p>
+        <div class="cm-filters" role="group" aria-label="שכבת צביעת המפה">
+          <button type="button" data-layer="price" class="tc-level-btn cm-layer-btn">מחיר למ״ר</button>
+          <button type="button" data-layer="volume" class="tc-level-btn cm-layer-btn">כמות עסקאות</button>
+        </div>
+      </section>
+
+      <section class="acc-section" id="remCityAddRow" aria-labelledby="cityAddH" hidden>
+        <h2 id="cityAddH">הוספת עיר להשוואה</h2>
+        <p class="acc-hint" dir="auto">
+          לחיצה על עיר במפה מציגה אותה לבד; כדי להשוות כמה ערים יחד (עד 4) - הוסיפו אותן כאן.
+        </p>
+        <div class="acc-year-pick">
+          <label for="remCityAddPick">עיר:</label>
+          <input id="remCityAddPick" type="text" list="remCityAddRoster" autocomplete="off" spellcheck="false"
+                 placeholder="התחילו להקליד…">
+        </div>
+        <datalist id="remCityAddRoster"></datalist>
+      </section>
+
+      <section class="acc-section" id="remCityPickRow" aria-labelledby="cityPickH" hidden>
+        <h2 id="cityPickH">בחירת עיר</h2>
+        <div class="acc-year-pick">
+          <label for="remCityPick">עיר:</label>
+          <input id="remCityPick" type="text" list="remCityRoster" autocomplete="off" spellcheck="false"
+                 placeholder="התחילו להקליד…">
+        </div>
+        <datalist id="remCityRoster"></datalist>
+      </section>
+
+      <section class="acc-section" id="remNbPickRow" aria-labelledby="nbPickH" hidden>
+        <h2 id="nbPickH">הוספת שכונה להשוואה</h2>
+        <p class="acc-hint" dir="auto">אפשר לבחור עד 4 שכונות, מכל עיר - להשוואה בין שכונות בערים שונות.</p>
+        <div class="acc-year-pick">
+          <label for="remNbPick">שכונה:</label>
+          <input id="remNbPick" type="text" list="remNbRoster" autocomplete="off" spellcheck="false"
+                 placeholder="התחילו להקליד…">
+        </div>
+        <datalist id="remNbRoster"></datalist>
+      </section>
+
+      <section class="acc-section" id="remMapSection" aria-labelledby="mapH">
+        <h2 id="mapH">המפה</h2>
+        <p id="remHint" class="acc-hint" dir="auto"></p>
+        <div class="cm-map-wrap">
+          <div id="remBasemap" class="cm-basemap" hidden></div>
+          <svg id="remSvg" class="cm-svg" role="img" preserveAspectRatio="xMidYMid meet" aria-label="מפת ערים ושכונות צבועה לפי מחיר למ״ר או כמות עסקאות"></svg>
+          <div class="cm-zoom-controls">
+            <button type="button" id="remZoomIn" aria-label="התקרבות">+</button>
+            <button type="button" id="remZoomOut" aria-label="התרחקות">−</button>
+            <button type="button" id="remZoomReset" aria-label="איפוס תצוגה">⟲</button>
+            <button type="button" id="remMapFullscreenToggle" aria-label="מסך מלא">⛶</button>
+          </div>
+          <button type="button" id="remMapExitFullscreen" class="cm-map-exit-fullscreen" aria-label="חזרה" hidden>→</button>
+        </div>
+        <ul id="remContextMenu" class="cm-context-menu" role="menu" hidden></ul>
+        <p class="acc-hint" dir="auto">גלגלת עכבר או צביטה בשתי אצבעות להתקרבות/התרחקות, גרירה להזזה.</p>
+        <button type="button" id="remFullReset" class="cm-full-reset">איפוס למפה המקורית</button>
+        <div id="remLegend" class="cm-legend"></div>
+
+        <section class="acc-section" id="remOsmRow" aria-labelledby="osmH" hidden>
+          <h2 id="osmH">רקע מפה</h2>
+          <label class="cm-osm-toggle">
+            <input type="checkbox" id="remOsmToggle">
+            הצג רקע מפת OpenStreetMap אמיתי (איטי יותר, דורש חיבור רשת)
+          </label>
+          <p id="remOsmStatus" class="acc-hint" dir="auto"></p>
+        </section>
+      </section>
+
+      <section class="acc-section" aria-labelledby="chipsH">
+        <h2 id="chipsH">נבחרו להשוואה</h2>
+        <div id="remChips" class="cm-chips" hidden></div>
+      </section>
+
+      <section class="acc-section" id="remDetailSection" aria-labelledby="detailH" hidden>
+        <h2 id="detailH">שני המדדים יחד</h2>
+        <figure id="remDetailPrice" class="acc-chart acc-chart-wide" role="img"></figure>
+        <figure id="remDetailVolume" class="acc-chart acc-chart-wide" role="img"></figure>
+      </section>
+    </div>
+  </main>
+
+  <!--
+    Same guard as index.html/welfare.html: opened from disk nothing below can
+    load, because ES module scripts are refused from origin 'null'. Must be a
+    classic inline script - a module would be the first thing blocked.
+  -->
+  <script>
+    if (location.protocol === 'file:') {
+      document.getElementById('fileproto').hidden = false;
+      document.getElementById('app').hidden = true;
+    }
+  </script>
+  <script type="module" src="./src/real-estate-map.js"></script>
+</body>
+</html>

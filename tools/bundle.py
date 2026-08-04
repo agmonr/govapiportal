@@ -164,6 +164,34 @@ TARGETS = [
         "data": True,
     },
     {
+        "html": "real-estate-map.html",
+        "out": "dist/real-estate-map.html",
+        "entry": "src/real-estate-map.js",
+        # Mirrors canopy-map.html's own bundle shape - same boundary shapes
+        # (map-shapes.js/map-boundaries-*.js) and OSM-basemap helper (geo-
+        # utils.js), one new data source (real-estate-cities.js/real-estate-
+        # neighborhoods.js, see tools/real_estate_build.py) instead of three.
+        # No street-level boundary/blob files - this page has neither.
+        "sources": ["src/ui.js", "src/theme.js", "src/charts.js", "src/geo-utils.js", "src/map-shapes.js",
+                    "src/map-boundaries-cities.js", "src/map-boundaries-neighborhoods.js",
+                    "src/map-boundaries-neighborhoods-wgs84.js",
+                    "src/real-estate-cities.js", "src/real-estate-neighborhoods.js",
+                    "src/apps.js", "src/real-estate-map.js"],
+        "data": True,
+    },
+    {
+        "html": "real-estate-compare.html",
+        "out": "dist/real-estate-compare.html",
+        "entry": "src/real-estate-compare.js",
+        # No new data - reuses real-estate-map.html's own city/neighborhood
+        # tables, merged/ranked in src/real-estate-compare.js itself. apis.json
+        # is only for apps.js's under-header category strip.
+        "sources": ["src/ui.js", "src/theme.js", "src/charts.js",
+                    "src/real-estate-cities.js", "src/real-estate-neighborhoods.js",
+                    "src/apps.js", "src/real-estate-compare.js"],
+        "data": True,
+    },
+    {
         "html": "welfare.html",
         "out": "dist/welfare.html",
         "entry": "src/welfare.js",

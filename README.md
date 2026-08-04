@@ -354,6 +354,53 @@ Regenerate all three after re-downloading the source shapefile into `zip/`:
 python3 tools/canopy_build.py all       # or: cities / neighborhoods / streets
 ```
 
+## What does a m² actually cost — CPI-adjusted real-estate prices
+
+**`real-estate-map.html`/`real-estate-compare.html` reuse `canopy-map.html`'s
+own boundary geometry and multi-select/compare idiom, but the underlying
+price data is a live GovMap API pull, not an offline shapefile.** GovMap's
+real-estate/"nadlan" layer (`lay=16` on govmap.gov.il itself) has no
+published API docs, but works with a plain, unauthenticated `requests` call
+once you know the two-step shape: resolve any point to a deal-bearing
+`polygon_id` via `GET /api/real-estate/deals/{x},{y}/{tolerance}` (Web
+Mercator coordinates), then page `GET
+/api/real-estate/settlement-deals/{polygon_id}` for every deal in that whole
+settlement — the `polygon_id` just needs to belong to *some* real, indexed
+parcel in the target settlement, not the exact parcel you care about.
+
+`tools/real_estate_build.py` resolves one such point per settlement (via
+GovMap's own `search-service/autocomplete`, `type: "settlement"` results),
+pulls up to 5,000 recent deals each (last 5 years, ~285k nationally), then
+reuses `canopy_build.py`'s `load_muni_geoms()`/`city_index()`/
+`neighborhood_geoms()` as-is — the exact same city/neighborhood boundaries
+the canopy pipeline already computed, no new geometry — to assign each deal
+to a city/neighborhood by its own polygon centroid, exactly like a tree
+canopy shape gets assigned to a boundary. Land/lot/farm deals
+(קרקע/מגרש/משק חקלאי) are excluded (their ₪/m² isn't comparable to a built
+dwelling's) and each deal's price is CPI-adjusted (Israel's general
+consumer price index, `api.cbs.gov.il` series `120010`) to the latest
+published month before the median is taken, so a 2021 deal and a 2026 deal
+compare on real terms, not nominal ones. A city/neighborhood with fewer than
+5 qualifying deals in the window is left out of both the map and the
+leaderboard — too small a sample for a median anyone should trust.
+
+Unlike canopy/heat, an expensive city isn't a "better" one and a quiet
+market isn't a "worse" one — `real-estate-compare.html`'s leaderboard order
+toggle is deliberately framed as neutral high→low / low→high, not
+best/worst, and both metrics (₪/m², deal count) always sort the same
+direction for a given toggle position. No street-level page exists yet
+(streets are already broken out per-deal in the raw data, just not wired
+into a boundary/roster yet), and there's no raw-pixel "blob" overlay the way
+canopy/heat have — that pipeline needs a pre-rendered PNG per city, which a
+point dataset this size could support but wasn't built here.
+
+Regenerate after re-fetching deals into `zip/real_estate_deals_raw.jsonl`
+and the CPI table into `zip/cpi_table.json`:
+
+```bash
+python3 tools/real_estate_build.py
+```
+
 ## Downloading files
 
 data.gov.il rows expand into their files — click a dataset to see its CSV, XLSX,
