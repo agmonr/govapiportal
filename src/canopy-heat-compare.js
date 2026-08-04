@@ -109,16 +109,23 @@ function streetLabel(city, name, nb) {
   return `${name}, ${city}${nb ? ` (${nb})` : ''}`;
 }
 
+// Per-level best/worse wording, gendered to agree with labelPlural
+// (ערים/שכונות are feminine, רחובות is masculine) - "worse" is phrased as
+// "less good" (הפחות טובות/טובים) rather than "the worst" (הכי גרועות), a
+// softer framing for a place that's simply behind its peers on this one
+// metric, not objectively bad.
 const LEVELS = {
   city: {
-    label: 'עיר', labelPlural: 'ערים', pickLabel: 'עיר:', boardTitle: 'ערים מובילות', rankedWord: 'מדורגות',
+    label: 'עיר', labelPlural: 'ערים', pickLabel: 'עיר:', boardTitle: 'ערים מובילות',
+    orderWord: { best: 'הכי טובות', worst: 'הפחות טובות' },
     entries: () => {
       const keys = new Set([...Object.keys(CITY_CANOPY_SPLIT), ...Object.keys(CITY_HEAT)]);
       return [...keys].map((name) => ({ key: name, label: name, name, city: name, level: 'city' }));
     },
   },
   neighborhood: {
-    label: 'שכונה', labelPlural: 'שכונות', pickLabel: 'שכונה:', boardTitle: 'שכונות מובילות', rankedWord: 'מדורגות',
+    label: 'שכונה', labelPlural: 'שכונות', pickLabel: 'שכונה:', boardTitle: 'שכונות מובילות',
+    orderWord: { best: 'הכי טובות', worst: 'הפחות טובות' },
     entries: () => {
       const keys = new Set([...Object.keys(NEIGHBORHOOD_CANOPY_SPLIT), ...Object.keys(NEIGHBORHOOD_HEAT)]);
       return [...keys].map((key) => {
@@ -128,7 +135,8 @@ const LEVELS = {
     },
   },
   street: {
-    label: 'רחוב', labelPlural: 'רחובות', pickLabel: 'רחוב:', boardTitle: 'רחובות מובילים', rankedWord: 'מדורגים',
+    label: 'רחוב', labelPlural: 'רחובות', pickLabel: 'רחוב:', boardTitle: 'רחובות מובילים',
+    orderWord: { best: 'הכי טובים', worst: 'הפחות טובים' },
     entries: () => {
       const keys = new Set([...Object.keys(STREET_CANOPY), ...Object.keys(STREET_HEAT)]);
       return [...keys].map((key) => {
@@ -496,7 +504,6 @@ function renderBoardChartChunked(figId, caption, rowsHtml) {
 function wantDescending(higherIsBetter) {
   return (state.boardOrder === 'best') === higherIsBetter;
 }
-const ORDER_WORD = { best: 'הכי טובים', worst: 'הכי גרועים' };
 
 function renderBoard() {
   const lvl = LEVELS[state.level];
@@ -537,7 +544,7 @@ function renderBoard() {
           <span class="acc-hbar-v">${num(Number(r.total.toFixed(1)))}%</span>
         </div>`;
       });
-      renderBoardChartChunked(figId, `${num(capped.length)} ${lvl.labelPlural} ${ORDER_WORD[state.boardOrder]} לפי כיסוי חופות עצים (ציבורי+פרטי)${capNote}`, rowsHtml);
+      renderBoardChartChunked(figId, `${num(capped.length)} ${lvl.labelPlural} ${lvl.orderWord[state.boardOrder]} לפי כיסוי חופות עצים (ציבורי+פרטי)${capNote}`, rowsHtml);
     } else {
       const m = METRICS[group.metric];
       const desc = wantDescending(HIGHER_IS_BETTER[group.metric]);
@@ -554,7 +561,7 @@ function renderBoard() {
           <div class="acc-hbar-track"><div class="acc-hbar-fill" style="inline-size:${peak ? (Math.abs(r.value) / peak) * 100 : 0}%;background:${group.metric === 'heat' ? 'var(--danger)' : 'var(--accent)'}"></div></div>
           <span class="acc-hbar-v">${num(Number(r.value.toFixed(1)))}</span>
         </div>`);
-      renderBoardChartChunked(figId, `${num(capped.length)} ${lvl.labelPlural} ${ORDER_WORD[state.boardOrder]} לפי ${m.label}${capNote}`, rowsHtml);
+      renderBoardChartChunked(figId, `${num(capped.length)} ${lvl.labelPlural} ${lvl.orderWord[state.boardOrder]} לפי ${m.label}${capNote}`, rowsHtml);
     }
   });
 }
@@ -619,6 +626,7 @@ function renderAll() {
   el('chcCityFilter').value = state.cityFilter || '';
   updateCityRoster('');
   for (const btn of el('chcBoardOrderPick').querySelectorAll('.tc-level-btn')) {
+    btn.textContent = lvl.orderWord[btn.dataset.order];
     btn.classList.toggle('active', btn.dataset.order === state.boardOrder);
   }
   updateRosterOptions('');
