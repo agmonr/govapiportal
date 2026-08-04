@@ -38,3 +38,30 @@ say "Ready"
 echo "  Nothing else to install - the site has no dependencies."
 echo "  Start it with:"
 echo "      ./run.sh"
+
+# --- Monthly real-estate data refresh (tools/real_estate_refresh.sh) -------
+#
+# Separate from everything above: this doesn't run the site, it keeps the
+# real-estate deals dataset current. GovMap's API only ever exposes a recent
+# rolling window per settlement (see tools/real_estate_fetch.py), so
+# multi-year coverage only comes from running this every month for years and
+# accumulating - a cron job, not a one-off. Needs tools/real_estate_build.py's
+# own heavier deps (GDAL/osgeo, shapely, pyproj, numpy) already on this
+# machine, and a git remote already configured for push - neither is checked
+# here, this only registers the schedule.
+say "Real-estate data refresh (monthly cron)"
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REFRESH_SCRIPT="$ROOT/tools/real_estate_refresh.sh"
+CRON_LINE="0 3 1 * * $REFRESH_SCRIPT >> $ROOT/zip/real_estate_refresh.cron.log 2>&1"
+
+if ! command -v crontab >/dev/null 2>&1; then
+  fail "crontab not found - add this manually to whatever scheduler this machine uses:"
+  echo "      $REFRESH_SCRIPT"
+elif crontab -l 2>/dev/null | grep -qF "$REFRESH_SCRIPT"; then
+  ok "monthly cron job already installed"
+else
+  (crontab -l 2>/dev/null; echo "$CRON_LINE") | crontab -
+  ok "installed: runs on the 1st of every month at 03:00"
+  echo "      $CRON_LINE"
+fi

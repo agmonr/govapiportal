@@ -35,12 +35,22 @@ DEALS_OUT_DIR = ROOT / "assets" / "deals"
 
 DEALS_FILE = ZIP / "real_estate_deals_raw.jsonl"
 CPI_FILE = ZIP / "cpi_table.json"
-LATEST_CPI_MONTH = "2026-06"
-EXCLUDE_TYPES = {"קרקע", "מגרש", "משק חקלאי", "משק עזר"}
+STATS_EXCLUDE_TYPES = {"קרקע", "מגרש", "משק חקלאי", "משק עזר"}  # kept out of city/neighborhood price/sqm stats - land price/sqm isn't comparable to built-property price/sqm - but (unlike before) still shown in the individual-deals list, see PLOT_TYPES
 MIN_PRICE_SQM = 2000
 MAX_PRICE_SQM = 150000
 MIN_SAMPLES_CITY = 5
 MIN_SAMPLES_NB = 5
+
+# Deal types where "how big is MY plot" is a meaningful question, so we attach
+# a "pa" (plot area m^2, from the deal's own גוש/חלקה polygon - see
+# plot_area_sqm()) - and, when that polygon is shared with other registered
+# sub-parcels, a "pu" (how many). Ordinary apartment types are excluded - an
+# apartment owner's fractional share of the building's land isn't "their
+# plot" the way a house's registered parcel is.
+PLOT_TYPES = {
+    "חד משפחתי (וילה)", "קוטג' חד משפחתי", "קוטג' דו משפחתי", "בנין",
+    "קרקע", "מגרש", "משק חקלאי", "משק עזר", "עסק", "אחר",
+}
 
 CENTROID_RE = re.compile(r"(-?\d+\.?\d*)\s+(-?\d+\.?\d*)")
 
@@ -70,7 +80,31 @@ def polygon_centroid_3857(shape):
     return sum(xs) / len(xs), sum(ys) / len(ys)
 
 
-def load_deals():
+_plot_area_cache = {}  # polygonId (or raw shape, if that's missing) -> area m^2 - many PLOT_TYPES deals
+                        # (esp. multiple units of the same "בנין") repeat the identical shape string
+
+
+def plot_area_sqm(shape, poly_id, transformer):
+    """Area (m^2) of the deal's own גוש/חלקה polygon, reprojected to ITM
+    (EPSG:2039, effectively equal-area for a country this narrow). This is the
+    physical land parcel the deal's shape traces - not the built/asset area
+    (see PLOT_TYPES) - so it's what answers "how big is the plot", not "how
+    big is the unit"."""
+    cache_key = poly_id or shape
+    if cache_key in _plot_area_cache:
+        return _plot_area_cache[cache_key]
+    from shapely import wkt as shapely_wkt
+    from shapely.ops import transform as shapely_transform
+    try:
+        poly_itm = shapely_transform(transformer.transform, shapely_wkt.loads(shape))
+        area = poly_itm.area
+    except Exception:
+        area = None
+    _plot_area_cache[cache_key] = area
+    return area
+
+
+def load_deals(transformer):
     """Yields (x_3857, y_3857, adj_price_per_sqm, raw) for every deal that
     passes the same filters build_heatmap.py (the earlier national-heatmap
     pass) used, so the two views stay numerically consistent. `raw` carries
@@ -81,7 +115,8 @@ def load_deals():
     CPI-adjusted one - the two numbers answer different questions and
     shouldn't be silently mixed."""
     cpi = json.loads(CPI_FILE.read_text())
-    cpi_latest = cpi[LATEST_CPI_MONTH]
+    latest_cpi_month = max(cpi)  # "YYYY-MM" sorts chronologically as a string - refreshed monthly by real_estate_fetch.py, no manual edit needed here
+    cpi_latest = cpi[latest_cpi_month]
     n_total = 0
     n_kept = 0
     with open(DEALS_FILE) as f:
@@ -97,16 +132,20 @@ def load_deals():
                 continue
             if area <= 0 or amount <= 0:
                 continue
-            if ptype in EXCLUDE_TYPES:
-                continue
-            price_sqm_raw = amount / area
-            if price_sqm_raw < MIN_PRICE_SQM or price_sqm_raw > MAX_PRICE_SQM:
-                continue
-            ym = date[:7]
-            cpi_deal = cpi.get(ym)
-            if not cpi_deal:
-                continue
-            adj = price_sqm_raw * (cpi_latest / cpi_deal)
+            # Land/farm types are still yielded now (see PLOT_TYPES below) so
+            # they show up in the deals list, just never in the price/sqm
+            # stats - land ₪/sqm isn't comparable to built-property ₪/sqm.
+            in_stats = ptype not in STATS_EXCLUDE_TYPES
+            adj = None
+            if in_stats:
+                price_sqm_raw = amount / area
+                if price_sqm_raw < MIN_PRICE_SQM or price_sqm_raw > MAX_PRICE_SQM:
+                    continue
+                ym = date[:7]
+                cpi_deal = cpi.get(ym)
+                if not cpi_deal:
+                    continue
+                adj = price_sqm_raw * (cpi_latest / cpi_deal)
             cen = polygon_centroid_3857(shape)
             if not cen:
                 continue
@@ -120,7 +159,17 @@ def load_deals():
                 "g": d.get("gushNum"),
                 "p": d.get("parcelNum"),
                 "sp": d.get("subParcelNum"),
+                "pt": ptype,
             }
+            if ptype in PLOT_TYPES:
+                pa = plot_area_sqm(shape, d.get("polygonId"), transformer)
+                # Sanity floor: a plot can't be smaller than what's built on
+                # it. When it is, the polygon usually isn't really this
+                # deal's own plot (e.g. a shared access/common-area parcel
+                # picked up instead, seen in some newer developments) -
+                # better to omit than ship a number known to be wrong.
+                if pa and pa >= area:
+                    raw["pa"] = round(pa)
             yield cen[0], cen[1], adj, raw
     log(f"deals: total={n_total} kept={n_kept}")
 
@@ -150,19 +199,19 @@ def build():
     nb_shapes = [g for _c, _n, g, _a in nb_list]
     nb_tree = STRtree(nb_shapes)
 
+    transformer = Transformer.from_crs("EPSG:3857", "EPSG:2039", always_xy=True)
+
     log("loading + reprojecting deals...")
     xs, ys, prices, raws = [], [], [], []
-    for x, y, price, raw in load_deals():
+    for x, y, price, raw in load_deals(transformer):
         xs.append(x)
         ys.append(y)
-        prices.append(price)
+        prices.append(price)  # None for STATS_EXCLUDE_TYPES (land/farm) - still assigned/listed below, just not statted
         raws.append(raw)
     xs = np.array(xs)
     ys = np.array(ys)
-    prices = np.array(prices)
-    log(f"{len(prices)} priced deals to assign")
+    log(f"{len(prices)} deals to assign")
 
-    transformer = Transformer.from_crs("EPSG:3857", "EPSG:2039", always_xy=True)
     itm_x, itm_y = transformer.transform(xs, ys)
 
     log("assigning each deal to a city + neighborhood...")
@@ -175,7 +224,8 @@ def build():
         city = find_city(pt, names, shapes, tree)
         if city is None or city not in munis:
             continue
-        by_city.setdefault(city, []).append(prices[i])
+        if prices[i] is not None:
+            by_city.setdefault(city, []).append(prices[i])
 
         nb_name = None
         for j in nb_tree.query(pt):
@@ -184,8 +234,9 @@ def build():
                 nb_city, nb_name_candidate, _g, _approx = nb_list[j]
                 if nb_city == city:
                     nb_name = nb_name_candidate
-                    key = f"{city}::{nb_name}"
-                    by_nb.setdefault(key, []).append(prices[i])
+                    if prices[i] is not None:
+                        key = f"{city}::{nb_name}"
+                        by_nb.setdefault(key, []).append(prices[i])
                 break
 
         rec = dict(raws[i])
@@ -224,9 +275,36 @@ def build():
     n_nb_with_median = sum(1 for e in nb_out.values() if "medianPricePerSqm" in e)
     log(f"{len(city_out)} cities ({n_city_with_median} with median), "
         f"{len(nb_out)} neighborhoods ({n_nb_with_median} with median)")
+    mark_shared_plots(deals_by_city)
     write_deal_files(deals_by_city, city_out)
     write_street_index(deals_by_city, city_out)
-    return city_out, nb_out
+    earliest_dt = min(r["dt"] for records in deals_by_city.values() for r in records)
+    latest_cpi_month = max(json.loads(CPI_FILE.read_text()))
+    return city_out, nb_out, earliest_dt, latest_cpi_month
+
+
+def mark_shared_plots(deals_by_city):
+    """Adds "pu" (plot units) to every PLOT_TYPES deal ("pa" present) whose
+    גוש/חלקה is shared with other registered sub-parcels (e.g. the two halves
+    of a semi-detached קוטג' דו משפחתי, or the many units of a "בנין") - a
+    lower bound, since it only counts sub-parcels that appear somewhere in
+    this same nationwide deal set, not the true unit count on that parcel.
+    Omitted (implying a single, non-shared unit) when only one sub-parcel is
+    known - which for a קוטג' דו משפחתי may just mean its other half never
+    sold in the tracked period, not that the plot definitely isn't shared."""
+    parcel_subunits = {}
+    for records in deals_by_city.values():
+        for r in records:
+            if r.get("g") is None or r.get("p") is None:
+                continue
+            parcel_subunits.setdefault((r["g"], r["p"]), set()).add(r.get("sp"))
+    for records in deals_by_city.values():
+        for r in records:
+            if "pa" not in r:
+                continue
+            units = parcel_subunits.get((r.get("g"), r.get("p")))
+            if units and len(units) > 1:
+                r["pu"] = len(units)
 
 
 def write_deal_files(deals_by_city, city_out):
@@ -275,13 +353,13 @@ def write_street_index(deals_by_city, city_out):
 
 def main():
     stamp = time.strftime("%Y-%m-%dT%H:%M%z") or time.strftime("%Y-%m-%dT%H:%M")
-    city_out, nb_out = build()
+    city_out, nb_out, earliest_dt, latest_cpi_month = build()
     write_js("CITY_REAL_ESTATE", city_out, SRC / "real-estate-cities.js",
               f"City-level median/mean CPI-adjusted price per m2, computed {stamp} "
-              f"(deals since 2021-08, CPI-adjusted to {LATEST_CPI_MONTH}, GovMap real-estate API)")
+              f"(deals since {earliest_dt}, CPI-adjusted to {latest_cpi_month}, GovMap real-estate API)")
     write_js("NEIGHBORHOOD_REAL_ESTATE", nb_out, SRC / "real-estate-neighborhoods.js",
               f"Neighborhood-level median/mean CPI-adjusted price per m2, computed {stamp} "
-              f"(deals since 2021-08, CPI-adjusted to {LATEST_CPI_MONTH}, GovMap real-estate API)")
+              f"(deals since {earliest_dt}, CPI-adjusted to {latest_cpi_month}, GovMap real-estate API)")
 
 
 if __name__ == "__main__":

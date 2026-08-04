@@ -358,6 +358,27 @@ function gushHelkaText(d) {
   return d.g != null ? [d.g, d.p, d.sp].filter((v) => v != null).join('/') : '';
 }
 
+// "pu" (plot units) is only present when tools/real_estate_build.py found the
+// deal's גוש/חלקה shared with other registered sub-parcels elsewhere in the
+// dataset - see mark_shared_plots() there. Its absence does NOT mean the plot
+// is definitely exclusive to this deal, just that no sibling unit turned up.
+function plotAreaText(d) {
+  if (d.pa == null) return null;
+  if (d.pu > 1) {
+    const perUnit = Math.round(d.pa / d.pu);
+    // An equal split across the pu known sub-parcels isn't always plausible
+    // (a unit's "share" coming out smaller than what's built on it) - real
+    // subdivisions aren't always even, so don't assert a per-unit number we
+    // can't back up; show the honest total instead.
+    if (d.area != null && perUnit < d.area) {
+      return `${num(d.pa)} מ״ר לכלל החלקה (משותפת ל-${num(d.pu)} יח׳ ידועות, לא ניתן להעריך חלוקה ליחידה)`;
+    }
+    return `${num(d.pa)} מ״ר סה״כ (משותף ל-${num(d.pu)} יח׳ ידועות, כ-${num(perUnit)} מ״ר ליחידה)`;
+  }
+  if (d.pt === "קוטג' דו משפחתי") return `${num(d.pa)} מ״ר (ייתכן משותף לבית הצמוד)`;
+  return `${num(d.pa)} מ״ר`;
+}
+
 function dealYearCounts(deals) {
   const counts = {};
   for (const d of deals) {
@@ -374,7 +395,9 @@ const DEAL_COLUMNS = [
   { key: 'dt', label: 'תאריך', type: 'text', get: (d) => d.dt || '' },
   { key: 'addr', label: 'כתובת', type: 'text', get: (d) => [d.st, d.hn].filter((v) => v != null && v !== '').join(' ') },
   { key: 'gush', label: 'גוש/חלקה', type: 'text', get: (d) => gushHelkaText(d) },
+  { key: 'ptype', label: 'סוג נכס', type: 'text', get: (d) => d.pt || '' },
   { key: 'area', label: 'שטח (מ״ר)', type: 'num', get: (d) => d.area },
+  { key: 'plot', label: 'שטח מגרש (מ״ר)', type: 'num', get: (d) => d.pa },
   { key: 'amt', label: 'מחיר', type: 'num', get: (d) => d.amt },
   { key: 'perSqm', label: 'מחיר למ״ר', type: 'num', get: (d) => (d.area ? d.amt / d.area : null) },
 ];
@@ -391,7 +414,7 @@ function dealsStateFor(key) {
 
 function matchesSearch(d, q) {
   if (!q) return true;
-  const hay = `${d.dt || ''} ${d.st || ''} ${d.hn ?? ''} ${d.nb || ''} ${d._area || ''} ${d._city || ''} ${gushHelkaText(d)}`.toLowerCase();
+  const hay = `${d.dt || ''} ${d.st || ''} ${d.hn ?? ''} ${d.nb || ''} ${d._area || ''} ${d._city || ''} ${gushHelkaText(d)} ${d.pt || ''}`.toLowerCase();
   return hay.includes(q);
 }
 
@@ -463,12 +486,15 @@ function renderDealsTableSorted(containerId, deals, state) {
     const addrCell = d.st
       ? `<a href="${esc(googleMapsUrl(d.st, d.hn, d._city))}" target="_blank" rel="noopener">${esc(addr || '—')}</a>`
       : esc(addr || '—');
+    const plotText = plotAreaText(d);
     return `
     <tr>
       <td dir="ltr">${esc(d.dt)}</td>
       <td dir="auto">${addrCell}</td>
       <td dir="ltr">${esc(gushHelkaText(d) || '—')}</td>
+      <td dir="auto">${esc(d.pt || '—')}</td>
       <td>${d.area != null ? num(d.area) : '—'}</td>
+      <td dir="auto">${plotText ? esc(plotText) : '—'}</td>
       <td>${num(d.amt)} ₪</td>
       <td>${perSqm != null ? `${num(perSqm)} ₪` : '—'}</td>
     </tr>`;
