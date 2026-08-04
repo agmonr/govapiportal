@@ -299,9 +299,42 @@ function renderBoardChartChunked(figId, caption, rowsHtml) {
   appendChunk();
 }
 
+// Renders one metric's ranked bars into figId - shared by the main level
+// board and the single-picked-city neighborhoods pre-section below, which
+// differ only in which entries/cap/caption they use.
+function renderMetricBoard(figId, metricId, entries, { labelPlural, capAll = false }) {
+  const m = METRICS[metricId];
+  const desc = state.boardOrder === 'best';
+  const withVals = entries
+    .map((e) => ({ label: e.label, value: valueFor(e, metricId) }))
+    .filter((r) => r.value != null)
+    .sort((a, b) => (desc ? b.value - a.value : a.value - b.value));
+  const capped = capAll ? withVals : withVals.slice(0, BOARD_CAP);
+  const capNote = capped.length < withVals.length ? ` (${num(BOARD_CAP)} מתוך ${num(withVals.length)})` : '';
+  const peak = Math.max(0, ...capped.map((r) => r.value));
+  const orderWord = desc ? 'מהגבוה לנמוך' : 'מהנמוך לגבוה';
+  const rowsHtml = capped.map((r) => `
+    <div class="acc-hbar" title="${esc(r.label)}: ${num(r.value)}${m.unit ? ` ${esc(m.unit)}` : ''}">
+      <span class="acc-hbar-y" dir="auto">${esc(r.label)}</span>
+      <div class="acc-hbar-track"><div class="acc-hbar-fill" style="inline-size:${peak ? (r.value / peak) * 100 : 0}%;background:${metricId === 'volume' ? 'var(--danger)' : 'var(--accent)'}"></div></div>
+      <span class="acc-hbar-v">${num(r.value)}</span>
+    </div>`);
+  renderBoardChartChunked(figId, `${num(capped.length)} ${labelPlural}, ${orderWord} לפי ${m.label}${capNote}`, rowsHtml);
+}
+
+// When exactly one city is picked at city level (whether from a map deep
+// link's own p1 param or typed into the pick field by hand), that city's
+// own neighborhoods are shown FIRST, ahead of the national city list - a
+// natural "what does this one city look like inside" drill-down, without
+// having to switch level and retype the city into the neighborhood filter.
+function singlePickedCity() {
+  if (state.level !== 'city') return null;
+  const picked = state.picks.filter(Boolean);
+  return picked.length === 1 && CITY_REAL_ESTATE[picked[0]] ? picked[0] : null;
+}
+
 function renderBoard() {
   const lvl = LEVELS[state.level];
-  el('recBoardLevel').textContent = lvl.boardTitle;
   let entries = levelEntries(state.level);
   const scopeNote = [];
   if (state.cityFilter) {
@@ -310,28 +343,23 @@ function renderBoard() {
   }
   el('recBoardHint').textContent = scopeNote.join(' · ');
 
-  const container = el('recBoardCharts');
-  container.innerHTML = METRIC_ORDER.map((_, i) => `<figure id="rec-board-${i}" class="acc-chart acc-chart-wide tc-board-scroll" role="img"></figure>`).join('');
+  const cityForNb = singlePickedCity();
+  el('recBoardLevel').textContent = cityForNb ? `שכונות ב${cityForNb}, ואז ${lvl.boardTitle}` : lvl.boardTitle;
+  const nbEntries = cityForNb ? levelEntries('neighborhood').filter((e) => e.city === cityForNb) : null;
 
+  const nbFigIds = cityForNb ? METRIC_ORDER.map((_, i) => `rec-board-nb-${i}`) : [];
+  const figIds = METRIC_ORDER.map((_, i) => `rec-board-${i}`);
+  const container = el('recBoardCharts');
+  container.innerHTML = [...nbFigIds, ...figIds]
+    .map((figId) => `<figure id="${figId}" class="acc-chart acc-chart-wide tc-board-scroll" role="img"></figure>`).join('');
+
+  if (cityForNb) {
+    METRIC_ORDER.forEach((metricId, i) => {
+      renderMetricBoard(nbFigIds[i], metricId, nbEntries, { labelPlural: `שכונות ב${cityForNb}` });
+    });
+  }
   METRIC_ORDER.forEach((metricId, i) => {
-    const figId = `rec-board-${i}`;
-    const m = METRICS[metricId];
-    const desc = state.boardOrder === 'best';
-    const withVals = entries
-      .map((e) => ({ label: e.label, value: valueFor(e, metricId) }))
-      .filter((r) => r.value != null)
-      .sort((a, b) => (desc ? b.value - a.value : a.value - b.value));
-    const capped = state.level === 'city' ? withVals : withVals.slice(0, BOARD_CAP);
-    const capNote = capped.length < withVals.length ? ` (${num(BOARD_CAP)} מתוך ${num(withVals.length)})` : '';
-    const peak = Math.max(0, ...capped.map((r) => r.value));
-    const orderWord = desc ? 'מהגבוה לנמוך' : 'מהנמוך לגבוה';
-    const rowsHtml = capped.map((r) => `
-      <div class="acc-hbar" title="${esc(r.label)}: ${num(r.value)}${m.unit ? ` ${esc(m.unit)}` : ''}">
-        <span class="acc-hbar-y" dir="auto">${esc(r.label)}</span>
-        <div class="acc-hbar-track"><div class="acc-hbar-fill" style="inline-size:${peak ? (r.value / peak) * 100 : 0}%;background:${metricId === 'volume' ? 'var(--danger)' : 'var(--accent)'}"></div></div>
-        <span class="acc-hbar-v">${num(r.value)}</span>
-      </div>`);
-    renderBoardChartChunked(figId, `${num(capped.length)} ${lvl.labelPlural}, ${orderWord} לפי ${m.label}${capNote}`, rowsHtml);
+    renderMetricBoard(figIds[i], metricId, entries, { labelPlural: lvl.labelPlural, capAll: state.level === 'city' });
   });
 }
 
