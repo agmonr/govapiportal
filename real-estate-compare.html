@@ -88,33 +88,8 @@
 
       <section class="acc-section" aria-labelledby="pickH">
         <h2 id="pickH">בחירה להשוואה</h2>
-        <p class="acc-hint" dir="auto">אפשר להשוות עד 4 בבת אחת - השדה הראשון נדרש, השאר אופציונליים.</p>
-        <div class="cm-filters tc-picks" id="recPicks">
-          <div class="acc-year-pick">
-            <label for="recPick0" id="recPickLabel0">עיר:</label>
-            <input id="recPick0" type="text" list="recRoster" autocomplete="off" spellcheck="false"
-                   placeholder="התחילו להקליד…">
-            <span class="tc-pick-confirm" id="recPickConfirm0" aria-live="polite"></span>
-          </div>
-          <div class="acc-year-pick">
-            <label for="recPick1" id="recPickLabel1">השוואה 2 (אופציונלי):</label>
-            <input id="recPick1" type="text" list="recRoster" autocomplete="off" spellcheck="false"
-                   placeholder="התחילו להקליד…">
-            <span class="tc-pick-confirm" id="recPickConfirm1" aria-live="polite"></span>
-          </div>
-          <div class="acc-year-pick">
-            <label for="recPick2" id="recPickLabel2">השוואה 3 (אופציונלי):</label>
-            <input id="recPick2" type="text" list="recRoster" autocomplete="off" spellcheck="false"
-                   placeholder="התחילו להקליד…">
-            <span class="tc-pick-confirm" id="recPickConfirm2" aria-live="polite"></span>
-          </div>
-          <div class="acc-year-pick">
-            <label for="recPick3" id="recPickLabel3">השוואה 4 (אופציונלי):</label>
-            <input id="recPick3" type="text" list="recRoster" autocomplete="off" spellcheck="false"
-                   placeholder="התחילו להקליד…">
-            <span class="tc-pick-confirm" id="recPickConfirm3" aria-live="polite"></span>
-          </div>
-        </div>
+        <p class="acc-hint" dir="auto" id="recPickHint"></p>
+        <div class="cm-filters tc-picks" id="recPicks"></div>
         <datalist id="recRoster"></datalist>
         <p id="recRosterHint" class="acc-hint" dir="auto"></p>
         <p id="recWarn" class="notice error" dir="auto" hidden></p>

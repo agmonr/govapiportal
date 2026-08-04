@@ -1,6 +1,6 @@
 /**
  * Entry point for real-estate-compare.html - מידע איזורי על מחירי נדל״ן.
- * Mirrors canopy-heat-compare.js's architecture (up-to-4 compare, national
+ * Mirrors canopy-heat-compare.js's architecture (up-to-N compare, national
  * leaderboard, CSV/WhatsApp export, city-scoped in-city rank) but for a
  * single new source (real-estate-cities.js/real-estate-neighborhoods.js -
  * see tools/real_estate_build.py) with two metrics instead of three, and no
@@ -11,6 +11,15 @@
  * bad one - so the board's order toggle is framed as a neutral high->low /
  * low->high, not best/worst, and both metrics always sort the same
  * direction for a given toggle position (no per-metric HIGHER_IS_BETTER).
+ *
+ * Compare cap differs by level (LEVELS[level].maxPicks): 4 for cities, 10
+ * for neighborhoods - a visitor comparing neighborhoods is far more likely
+ * to want a wide multi-way look (e.g. every neighborhood in one city) than
+ * a visitor comparing whole cities. Picking exactly one neighborhood shows
+ * its own deals block (chart + table), same as a single city; picking 2+
+ * neighborhoods combines all of them into ONE shared deals table instead
+ * of N side-by-side blocks - a flat list across the selected area, not a
+ * per-entity comparison, so it skips the per-entity chart entirely.
  */
 
 import { el, esc, num, debounce, buildCsv, saveCsv } from './ui.js';
@@ -60,11 +69,11 @@ function neighborhoodLabel(city, name) {
 
 const LEVELS = {
   city: {
-    label: 'עיר', labelPlural: 'ערים', pickLabel: 'עיר:', boardTitle: 'ערים',
+    label: 'עיר', labelPlural: 'ערים', pickLabel: 'עיר:', boardTitle: 'ערים', maxPicks: 4,
     entries: () => Object.keys(CITY_REAL_ESTATE).map((name) => ({ key: name, label: name, name, city: name, level: 'city' })),
   },
   neighborhood: {
-    label: 'שכונה', labelPlural: 'שכונות', pickLabel: 'שכונה:', boardTitle: 'שכונות',
+    label: 'שכונה', labelPlural: 'שכונות', pickLabel: 'שכונה:', boardTitle: 'שכונות', maxPicks: 10,
     entries: () => Object.keys(NEIGHBORHOOD_REAL_ESTATE).map((key) => {
       const [city, name] = key.split('::');
       return { key, label: neighborhoodLabel(city, name), name, city, level: 'neighborhood' };
@@ -87,32 +96,32 @@ function labelMap(level) {
   return labelMapCache[level];
 }
 
-const PICK_COLORS = [
-  'var(--accent)',
-  'color-mix(in srgb, var(--accent) 70%, var(--bg) 30%)',
-  'color-mix(in srgb, var(--accent) 45%, var(--bg) 55%)',
-  'color-mix(in srgb, var(--accent) 22%, var(--bg) 78%)',
-];
-const VOLUME_PICK_COLORS = [
-  'var(--danger)',
-  'color-mix(in srgb, var(--danger) 70%, var(--bg) 30%)',
-  'color-mix(in srgb, var(--danger) 45%, var(--bg) 55%)',
-  'color-mix(in srgb, var(--danger) 22%, var(--bg) 78%)',
-];
-const METRIC_PICK_COLORS = { price: PICK_COLORS, volume: VOLUME_PICK_COLORS };
-
-const MAX_PICKS = 4;
+// A fixed 10-step fade (not a formula) so the first 4 values exactly match
+// this page's original 4-pick palette (100/70/45/22%) - zero visual change
+// for city level, which is still capped at 4 - while still giving
+// neighborhoods' up-to-10 picks visibly distinct (if increasingly subtle)
+// shades rather than repeating a short cycle.
+const PICK_PCTS = [100, 70, 45, 22, 15, 11, 9, 7, 6, 5];
+function pickColor(i, base) {
+  const pct = PICK_PCTS[i] ?? 5;
+  return pct >= 100 ? base : `color-mix(in srgb, ${base} ${pct}%, var(--bg) ${100 - pct}%)`;
+}
+const pickColorFor = (i) => pickColor(i, 'var(--accent)');
+const volumeColorFor = (i) => pickColor(i, 'var(--danger)');
+const METRIC_COLOR_FOR = { price: pickColorFor, volume: volumeColorFor };
 
 /* ---------- state + URL ---------- */
 
 const state = {
-  level: 'city', picks: [null, null, null, null], cityFilter: null, boardOrder: 'best',
+  level: 'city', picks: new Array(LEVELS.city.maxPicks).fill(null), cityFilter: null, boardOrder: 'best',
 };
 
 function readStateFromUrl() {
   const p = new URLSearchParams(location.search);
   if (LEVELS[p.get('level')]) state.level = p.get('level');
-  for (let i = 0; i < MAX_PICKS; i += 1) {
+  const maxPicks = LEVELS[state.level].maxPicks;
+  state.picks = new Array(maxPicks).fill(null);
+  for (let i = 0; i < maxPicks; i += 1) {
     const v = p.get(`p${i + 1}`);
     if (v) state.picks[i] = v;
   }
@@ -172,7 +181,7 @@ function updateRosterHint() {
   }
 }
 
-/* ---------- comparison (up to 4 picks) ---------- */
+/* ---------- comparison (up to LEVELS[level].maxPicks picks) ---------- */
 
 function renderCompareTable(entries) {
   const rows = entries.map((e, i) => {
@@ -180,7 +189,7 @@ function renderCompareTable(entries) {
     const vol = valueFor(e, 'volume');
     return `
     <tr>
-      ${citySwatchCell(e.label, PICK_COLORS[i])}
+      ${citySwatchCell(e.label, pickColorFor(i))}
       <td>${price != null ? `${num(price)} ₪` : '—'}</td>
       <td>${vol != null ? num(vol) : '—'}</td>
     </tr>`;
@@ -204,11 +213,11 @@ function renderCompareCharts(entries) {
   METRIC_ORDER.forEach((metricId, i) => {
     const figId = `rec-compare-${i}`;
     const m = METRICS[metricId];
-    const colors = METRIC_PICK_COLORS[metricId];
+    const colorFor = METRIC_COLOR_FOR[metricId];
     const chartEntries = entries
       .map((e, idx) => ({ e, idx }))
       .filter(({ e }) => valueFor(e, metricId) != null)
-      .map(({ e, idx }) => ({ label: e.label, value: valueFor(e, metricId), color: colors[idx] }));
+      .map(({ e, idx }) => ({ label: e.label, value: valueFor(e, metricId), color: colorFor(idx) }));
     renderHBarChart(figId, `${m.label}${m.unit ? ` (${m.unit})` : ''}${entries.length > 1 ? ' — השוואה' : ''}`, chartEntries, m.unit);
   });
 }
@@ -272,7 +281,15 @@ function renderCompare() {
   renderCompareCharts(entries);
   renderCompareTable(entries);
   renderRanks(entries);
-  renderDealsSections(entries);
+
+  // Exactly one entity (either level) keeps the per-entity block (chart +
+  // table); 2+ neighborhoods combine into one shared table instead - see
+  // this file's own top docstring for why only neighborhoods get this.
+  if (state.level === 'neighborhood' && entries.length > 1) {
+    renderCombinedDeals(entries);
+  } else {
+    renderDealsSections(entries);
+  }
 }
 
 /* ---------- individual deals - lazily fetched per city (one plain JSON
@@ -321,8 +338,7 @@ const DEAL_COLUMN_BY_KEY = Object.fromEntries(DEAL_COLUMNS.map((c) => [c.key, c]
 
 // Per-entity sort/search state, keyed by entity key so switching between
 // picks (or a level/order change elsewhere) doesn't reset a sort/search the
-// visitor already set up. Default sort is מחיר למ״ר desc - the page's own
-// overall theme.
+// visitor already set up. Default sort is מחיר (full price) desc.
 const dealsUiState = {};
 function dealsStateFor(key) {
   if (!dealsUiState[key]) dealsUiState[key] = { col: 'amt', dir: 'desc', q: '' };
@@ -331,11 +347,11 @@ function dealsStateFor(key) {
 
 function matchesSearch(d, q) {
   if (!q) return true;
-  const hay = `${d.dt || ''} ${d.st || ''} ${d.hn ?? ''} ${d.nb || ''}`.toLowerCase();
+  const hay = `${d.dt || ''} ${d.st || ''} ${d.hn ?? ''} ${d.nb || ''} ${d._area || ''}`.toLowerCase();
   return hay.includes(q);
 }
 
-async function renderDealsBlock(entry, index) {
+async function renderDealsBlock(entry, index, myGen) {
   const blockId = `recDealsBlock${index}`;
   const block = el(blockId);
   if (!block) return;
@@ -343,7 +359,14 @@ async function renderDealsBlock(entry, index) {
 
   const cityName = entry.level === 'city' ? entry.name : entry.city;
   const cityDeals = await fetchCityDeals(cityName);
-  if (!el(blockId)) return; // re-rendered away (picks changed) while the fetch was in flight
+  // Superseded while the fetch was in flight - either another pick change
+  // re-ran renderDealsSections (myGen check), or the whole feature moved on
+  // to city level / a single-neighborhood / combined-table view and this
+  // block's own container no longer exists (el(blockId) check). Checking
+  // BEFORE touching the DOM, not after - see the two call sites: neither
+  // used to actually guard anything since generation was only checked in a
+  // .then() that ran once this function had already finished mutating.
+  if (myGen !== dealsRenderGen || !el(blockId)) return;
 
   const deals = dealsForEntry(entry, cityDeals);
   const state = dealsStateFor(entry.key);
@@ -351,10 +374,10 @@ async function renderDealsBlock(entry, index) {
   const searchId = `${blockId}Search`;
   const tableId = `${blockId}Table`;
 
-  // Collapsed by default (no `open` attribute) - a visitor who picked 4
-  // entities to compare doesn't want 4 long deal tables blocking the page;
-  // opening one is a deliberate choice, same idiom as the site's other
-  // <details class="notice ..."> explainer blocks.
+  // Collapsed by default (no `open` attribute) - a visitor comparing
+  // several entities doesn't want that many long deal tables blocking the
+  // page; opening one is a deliberate choice, same idiom as the site's
+  // other <details class="notice ..."> explainer blocks.
   block.innerHTML = `
     <details class="notice info">
       <summary><strong dir="auto">${esc(entry.label)} - עסקאות בודדות</strong></summary>
@@ -378,6 +401,7 @@ async function renderDealsBlock(entry, index) {
 }
 
 function renderDealsTableSorted(containerId, deals, state) {
+  if (!el(containerId)) return; // caller's own container was already replaced (level/pick change raced a debounced search callback)
   const col = DEAL_COLUMN_BY_KEY[state.col] || DEAL_COLUMN_BY_KEY.perSqm;
   const filtered = state.q ? deals.filter((d) => matchesSearch(d, state.q)) : deals;
   const sorted = [...filtered].sort((a, b) => {
@@ -394,7 +418,8 @@ function renderDealsTableSorted(containerId, deals, state) {
 
   const rowHtml = (d) => {
     const perSqm = d.area ? Math.round(d.amt / d.area) : null;
-    const addr = [d.st, d.hn].filter((v) => v != null && v !== '').join(' ');
+    let addr = [d.st, d.hn].filter((v) => v != null && v !== '').join(' ');
+    if (d._area) addr = `${addr || '—'} — ${d._area}`; // combined multi-neighborhood table - see renderCombinedDeals()
     return `
     <tr>
       <td dir="ltr">${esc(d.dt)}</td>
@@ -462,17 +487,68 @@ function renderDealsSections(entries) {
   const myGen = (dealsRenderGen += 1);
   const container = el('recDealsSections');
   container.innerHTML = entries.map((_, i) => `<div id="recDealsBlock${i}" class="rec-deals-block"></div>`).join('');
-  entries.forEach((entry, i) => {
-    renderDealsBlock(entry, i).then(() => {
-      if (myGen !== dealsRenderGen) return; // superseded by a newer pick change - nothing to reconcile, the container itself was already replaced
-    });
-  });
+  entries.forEach((entry, i) => renderDealsBlock(entry, i, myGen));
+}
+
+/* ---------- combined deals table - 2+ neighborhoods picked at once. One
+   flat, sortable/searchable table across all of them (each row tagged with
+   which neighborhood it came from), no per-entity chart - the point here
+   is "everything that sold across this whole area," not a side-by-side
+   comparison (that's what the price/volume bar charts above already are).
+   Reuses renderDealsTableSorted as-is, same as the single-entity blocks. ---------- */
+
+const combinedTableState = { col: 'amt', dir: 'desc', q: '' };
+let combinedDeals = [];
+
+// Shares dealsRenderGen with renderDealsSections()/renderDealsBlock() above,
+// not a separate counter - both write into the same #recDealsSections
+// container and are mutually-exclusive alternatives (single/city-level
+// picks vs. 2+ neighborhoods), so switching from one to the other must
+// invalidate whichever one had a fetch in flight. Two independent counters
+// here would each only ever notice a repeat of their OWN kind of render,
+// not the other - which was a real bug caught live (switching away mid-
+// fetch threw "Cannot set properties of null" from the orphaned render
+// still trying to write into a container the other mode had replaced).
+async function renderCombinedDeals(entries) {
+  const myGen = (dealsRenderGen += 1);
+  const container = el('recDealsSections');
+  const searchId = 'recCombinedSearch';
+  const tableId = 'recCombinedTable';
+
+  container.innerHTML = `
+    <details class="notice info">
+      <summary><strong dir="auto">${num(entries.length)} שכונות שנבחרו - טבלה משולבת</strong></summary>
+      <div class="acc-year-pick">
+        <label for="${searchId}">חיפוש (כתובת, תאריך, שכונה):</label>
+        <input id="${searchId}" type="text" autocomplete="off" spellcheck="false" placeholder="למשל: הרצל, 2024, רמת אשכול…">
+      </div>
+      <div id="${tableId}"></div>
+    </details>`;
+
+  el(searchId).addEventListener('input', debounce((ev) => {
+    if (myGen !== dealsRenderGen) return; // this whole block was superseded - its own search box shouldn't still be able to write anywhere
+    combinedTableState.q = ev.target.value.trim().toLowerCase();
+    renderDealsTableSorted(tableId, combinedDeals, combinedTableState);
+  }, 150));
+
+  const cities = [...new Set(entries.map((e) => e.city))];
+  const dealsPerCity = await Promise.all(cities.map((c) => fetchCityDeals(c)));
+  if (myGen !== dealsRenderGen || !el(tableId)) return; // picks/level changed again while these fetches were in flight
+  const byCity = Object.fromEntries(cities.map((c, i) => [c, dealsPerCity[i]]));
+
+  combinedDeals = [];
+  for (const entry of entries) {
+    for (const d of dealsForEntry(entry, byCity[entry.city] || [])) {
+      combinedDeals.push({ ...d, _area: entry.label });
+    }
+  }
+  renderDealsTableSorted(tableId, combinedDeals, combinedTableState);
 }
 
 /* ---------- national leaderboard - every entity at the current level,
    unscoped by picks, chunked across animation frames (see canopy-heat-
    compare.js's own comment - identical reasoning: neighborhood level has
-   ~980 rows, cities 142, both fine unchunked really, but kept for
+   ~1k rows, cities 142, both fine unchunked really, but kept for
    consistency and future-proofing if the dataset grows). ---------- */
 
 const BOARD_CHUNK = 300;
@@ -611,16 +687,58 @@ el('recShare').addEventListener('click', () => {
 
 /* ---------- wiring ---------- */
 
-const pickInputs = Array.from({ length: MAX_PICKS }, (_, i) => el(`recPick${i}`));
-const PICK_LABELS = ['', ' 2', ' 3', ' 4'];
+// Rebuilt (not just relabeled) whenever the level changes, since city/
+// neighborhood have different maxPicks - see wirePickInputs(). Listeners
+// are attached once per rebuild, not on every renderAll(), so typing into
+// a pick field mid-interaction never gets its own input element replaced
+// out from under it (renderAll() itself is never called from a pick's own
+// input handler - only on level/cityFilter/board-order changes).
+let pickInputs = [];
+
+function showPickConfirm(i, ok) {
+  const confirmEl = el(`recPickConfirm${i}`);
+  if (!confirmEl) return;
+  clearTimeout(confirmEl._timer);
+  confirmEl.classList.remove('tc-pick-confirm-show');
+  if (!ok) return;
+  confirmEl.textContent = '✓ נטען';
+  void confirmEl.offsetWidth;
+  confirmEl.classList.add('tc-pick-confirm-show');
+  confirmEl._timer = setTimeout(() => confirmEl.classList.remove('tc-pick-confirm-show'), 1500);
+}
+
+function wirePickInputs() {
+  const lvl = LEVELS[state.level];
+  const n = lvl.maxPicks;
+  el('recPicks').innerHTML = Array.from({ length: n }, (_, i) => `
+    <div class="acc-year-pick">
+      <label for="recPick${i}" id="recPickLabel${i}"></label>
+      <input id="recPick${i}" type="text" list="recRoster" autocomplete="off" spellcheck="false" placeholder="התחילו להקליד…">
+      <span class="tc-pick-confirm" id="recPickConfirm${i}" aria-live="polite"></span>
+    </div>`).join('');
+  pickInputs = Array.from({ length: n }, (_, i) => el(`recPick${i}`));
+  pickInputs.forEach((input, i) => {
+    input.addEventListener('input', debounce(() => updateRosterOptions(input.value), 120));
+    const commit = () => {
+      state.picks[i] = input.value.trim() || null;
+      syncUrl();
+      renderCompare();
+      showPickConfirm(i, Boolean(state.picks[i] && labelMap(state.level).has(state.picks[i])));
+    };
+    input.addEventListener('change', commit);
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); commit(); } });
+  });
+}
 
 function renderAll() {
   for (const btn of el('recLevelPick').querySelectorAll('.tc-level-btn')) {
     btn.classList.toggle('active', btn.dataset.level === state.level);
   }
   const lvl = LEVELS[state.level];
+  if (pickInputs.length !== lvl.maxPicks) wirePickInputs();
+  el('recPickHint').textContent = `אפשר להשוות עד ${lvl.maxPicks} בבת אחת - השדה הראשון נדרש, השאר אופציונליים.`;
   pickInputs.forEach((input, i) => {
-    el(`recPickLabel${i}`).textContent = i === 0 ? lvl.pickLabel : `השוואה${PICK_LABELS[i]} (אופציונלי):`;
+    el(`recPickLabel${i}`).textContent = i === 0 ? lvl.pickLabel : `השוואה ${i + 1} (אופציונלי):`;
     input.value = state.picks[i] || '';
   });
   el('recCityFilterRow').hidden = state.level === 'city';
@@ -639,7 +757,7 @@ el('recLevelPick').querySelectorAll('.tc-level-btn').forEach((btn) => {
   btn.addEventListener('click', () => {
     if (state.level === btn.dataset.level) return;
     state.level = btn.dataset.level;
-    state.picks = [null, null, null, null];
+    state.picks = new Array(LEVELS[state.level].maxPicks).fill(null);
     state.cityFilter = null;
     syncUrl();
     renderAll();
@@ -661,30 +779,6 @@ el('recBoardOrderPick').querySelectorAll('.tc-level-btn').forEach((btn) => {
     syncUrl();
     renderAll();
   });
-});
-
-const pickConfirmTimers = [];
-function showPickConfirm(i, ok) {
-  const confirmEl = el(`recPickConfirm${i}`);
-  clearTimeout(pickConfirmTimers[i]);
-  confirmEl.classList.remove('tc-pick-confirm-show');
-  if (!ok) return;
-  confirmEl.textContent = '✓ נטען';
-  void confirmEl.offsetWidth;
-  confirmEl.classList.add('tc-pick-confirm-show');
-  pickConfirmTimers[i] = setTimeout(() => confirmEl.classList.remove('tc-pick-confirm-show'), 1500);
-}
-
-pickInputs.forEach((input, i) => {
-  input.addEventListener('input', debounce(() => updateRosterOptions(input.value), 120));
-  const commit = () => {
-    state.picks[i] = input.value.trim() || null;
-    syncUrl();
-    renderCompare();
-    showPickConfirm(i, Boolean(state.picks[i] && labelMap(state.level).has(state.picks[i])));
-  };
-  input.addEventListener('change', commit);
-  input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); commit(); } });
 });
 
 readStateFromUrl();
