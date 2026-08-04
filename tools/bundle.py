@@ -176,12 +176,16 @@ TARGETS = [
         "html": "canopy-heat-compare.html",
         "out": "dist/canopy-heat-compare.html",
         "entry": "src/canopy-heat-compare.js",
-        # No new data at all - reuses tree-canopy.html's and heat-
-        # islands.html's own city/neighborhood/street tables verbatim,
-        # merged by key in src/canopy-heat-compare.js itself. apis.json is
-        # only for apps.js's under-header category strip.
+        # No new data at all - reuses tree-canopy.html's own street-level
+        # canopy table (a street IS the public portion by definition, see
+        # canopy-heat-compare.js's own METRICS.street), canopy-split.html's
+        # own city/neighborhood public/private breakdown, and heat-
+        # islands.html's own city/neighborhood/street tables, all merged by
+        # key in src/canopy-heat-compare.js itself. apis.json is only for
+        # apps.js's under-header category strip.
         "sources": ["src/ui.js", "src/theme.js", "src/charts.js",
-                    "src/tree-canopy-cities.js", "src/tree-canopy-neighborhoods.js", "src/tree-canopy-streets.js",
+                    "src/tree-canopy-streets.js",
+                    "src/canopy-split-cities.js", "src/canopy-split-neighborhoods.js",
                     "src/heat-cities.js", "src/heat-neighborhoods.js", "src/heat-streets.js",
                     "src/apps.js", "src/canopy-heat-compare.js"],
         "data": True,

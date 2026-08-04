@@ -625,6 +625,15 @@ button.stat { cursor: pointer; }
 .acc-hbar-compare .acc-hbar-fill { background: color-mix(in srgb, var(--accent) 55%, var(--bg) 45%); }
 .acc-hbar-compare .acc-hbar-y { color: color-mix(in srgb, var(--muted) 80%, transparent); font-size: .78rem; }
 
+/* Two-segment "combined" bar (canopy-heat-compare.js's own
+   renderStackedBarChart - public+private tree % shown as one bar instead
+   of two separate ones when both are active). display:flex row of two
+   fills instead of one - each segment stays square (no radius; the parent
+   track's own border-radius + overflow:hidden already rounds the OUTER
+   ends of the combined bar, exactly like a single fill normally gets). */
+.acc-hbar-track-stacked { display: flex; }
+.acc-hbar-track-stacked .acc-hbar-fill { border-radius: 0; }
+
 /* Grouped bar chart with a gridlined y-axis (local-finance's revenue/
    expense, per-resident and liabilities charts) - see renderGroupedChart().
    Side-by-side bars on a shared axis, not layered/overlapping ones: a value
@@ -1910,11 +1919,10 @@ body.accidents-page header.site h1 { inline-size: 100%; }
 }
 .cm-map-exit-fullscreen:hover { border-color: var(--accent); }
 
-/* Right-click submenu on a city/neighborhood shape (canopy-map.js's own
-   showContextMenu()) - a plain <ul> positioned at the cursor via inline
-   left/top (JS-set, clamped to stay inside the viewport), styled like a
-   small floating card rather than the browser's own native context menu
-   it replaces (preventDefault()'d on the triggering contextmenu event). */
+/* Press-and-hold submenu on a city/neighborhood shape (canopy-map.js's own
+   showContextMenu()) - a plain <ul> positioned at the cursor/touch point
+   via inline left/top (JS-set, clamped to stay inside the viewport),
+   styled like a small floating card. */
 .cm-context-menu {
   position: fixed; z-index: 1002; margin: 0; padding: .3rem; list-style: none;
   min-inline-size: 12rem; border-radius: 8px; border: 1px solid var(--border);
@@ -1926,6 +1934,15 @@ body.accidents-page header.site h1 { inline-size: 100%; }
   font-size: .9rem; cursor: pointer;
 }
 .cm-context-menu button:hover, .cm-context-menu button:focus-visible { background: var(--surface); outline: none; }
+/* Plain data-preview rows (showContextMenu's own {info} item shape) - not
+   a button, just a quick "what does this city/neighborhood look like"
+   readout above the actionable rows, so the numbers are visible without
+   navigating anywhere. */
+.cm-context-menu-info {
+  padding: .3rem .7rem; color: var(--muted); font-size: .82rem;
+  border-block-end: 1px solid var(--border); margin-block-end: .2rem;
+}
+.cm-context-menu-info:first-child { font-weight: 600; color: var(--fg); }
 
 .cm-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem; margin-block-start: .8rem; font-size: .85rem; }
 .cm-legend-scale { display: inline-flex; align-items: center; gap: .4rem; }

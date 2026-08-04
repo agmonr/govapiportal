@@ -61,9 +61,10 @@
       <details class="notice info" dir="auto">
         <summary><strong>מה יש כאן, ומה המקור</strong></summary>
         <p>
-          כיסוי חופות עצים (%) ודלתת חום מרבית (°C), זה לצד זה, לפי <strong>עיר, שכונה או רחוב</strong> - לא
-          מקור נתונים חדש, אלא חיבור של שתי טבלאות שכבר מחושבות במקום אחר באתר: <a href="./tree-canopy.html">האינדקס
-          הירוק לרחוב שלי</a> (כיסוי חופות עצים, מיפוי מפ"י) ו<a href="./heat-islands.html">כמה חם כאן</a>
+          עצי רחוב ציבוריים, עצים פרטיים (גינות וחצרות) ודלתת חום מרבית, זה לצד זה, לפי <strong>עיר, שכונה או
+          רחוב</strong> - לא מקור נתונים חדש, אלא חיבור של טבלאות שכבר מחושבות במקום אחר באתר:
+          <a href="./tree-canopy.html">האינדקס הירוק לרחוב שלי</a> ו<a href="./canopy-split.html">עצים ציבוריים
+          מול פרטיים</a> (כיסוי חופות עצים, מיפוי מפ"י) ו<a href="./heat-islands.html">כמה חם כאן</a>
           (דלתת חום, מפת הסיכונים האקלימית של המשרד להגנת הסביבה). לפירוט מלא על כל מדד בנפרד - כולל מתודולוגיה,
           דיוק ומגבלות - ראו את הדף המקורי שלו.
         </p>
@@ -71,6 +72,11 @@
           <strong>ישות שחסרה לה מדד אחד עדיין מוצגת:</strong> אם עיר/שכונה/רחוב מופיעים בטבלה אחת בלבד (למשל
           יש להם נתוני חום אך לא זוהתה עבורם חופת עץ), הם עדיין ניתנים לבחירה - הגרף של המדד החסר פשוט לא
           יציג עמודה עבורם, במקום להסתיר אותם לגמרי מרשימת הבחירה.
+        </p>
+        <p>
+          <strong>עצי רחוב ועצים פרטיים מוצגים כגרף אחד משולב</strong> כששניהם פעילים יחד (סימון ירוק, שני
+          גוונים) - כל עמודה מציגה את שני הרכיבים אחד ליד השני עד לסה"כ הכיסוי הכולל. דלתת חום מוצגת תמיד
+          בנפרד, בסימון אדום.
         </p>
       </details>
 
@@ -80,6 +86,16 @@
           <button type="button" data-level="city" class="tc-level-btn">ערים</button>
           <button type="button" data-level="neighborhood" class="tc-level-btn">שכונות</button>
           <button type="button" data-level="street" class="tc-level-btn">רחובות</button>
+        </div>
+      </section>
+
+      <section class="acc-section" aria-labelledby="metricH">
+        <h2 id="metricH">מדדים לגרף</h2>
+        <p class="acc-hint" dir="auto">אפשר לבחור יותר ממדד אחד בו-זמנית - עצי רחוב ועצים פרטיים יחד מוצגים כגרף משולב אחד.</p>
+        <div class="cm-filters" id="chcMetricPick" role="group" aria-label="מדדים לגרף">
+          <button type="button" data-metric="street" class="tc-level-btn chc-metric-btn">עצי רחוב (ציבורי)</button>
+          <button type="button" data-metric="private" class="tc-level-btn chc-metric-btn">עצים פרטיים</button>
+          <button type="button" data-metric="heat" class="tc-level-btn chc-metric-btn">דלתת חום</button>
         </div>
       </section>
 
@@ -119,12 +135,17 @@
 
       <section class="acc-section" id="chcCompareSection" aria-labelledby="compareH" hidden>
         <h2 id="compareH">השוואה</h2>
-        <figure id="chcChartCanopy" class="acc-chart acc-chart-wide" role="img"></figure>
-        <figure id="chcChartHeat" class="acc-chart acc-chart-wide" role="img"></figure>
+        <div id="chcCompareCharts"></div>
         <div id="chcTable"></div>
         <div class="fin-export-row">
           <button type="button" id="chcShare" class="drill-dl">שיתוף ההשוואה בוואטסאפ ⤴</button>
         </div>
+      </section>
+
+      <section class="acc-section" aria-labelledby="boardH">
+        <h2 id="boardH"><span id="chcBoardLevel"></span></h2>
+        <p class="acc-hint" dir="auto" id="chcBoardHint"></p>
+        <div id="chcBoardCharts"></div>
       </section>
 
       <section class="acc-section" aria-labelledby="csvH">

@@ -897,7 +897,18 @@ async function renderMap() {
       const timer = setTimeout(() => {
         activePress = null;
         lastLongPressKey = entity.key;
+        // Quick data preview (canopy % + heat °C, the same two METRICS
+        // canopy-heat-compare.html itself charts) shown right in the menu -
+        // the numbers a visitor most likely wants are visible without
+        // navigating anywhere; the link below is for the full compare view.
+        const canopyVal = valueFor(entity, 'canopy');
+        const heatVal = valueFor(entity, 'heat');
+        const canopyText = canopyVal != null ? `${canopyVal.toFixed(1)}%` : 'אין נתונים';
+        const heatText = heatVal != null ? `${heatVal > 0 ? '+' : ''}${heatVal.toFixed(1)}°C` : 'אין נתונים';
         showContextMenu(ev.clientX, ev.clientY, [
+          { info: entity.label },
+          { info: `${METRICS.canopy.label}: ${canopyText}` },
+          { info: `${METRICS.heat.label}: ${heatText}` },
           {
             label: 'מידע איזורי על עצים וחום ←',
             onSelect: () => {
@@ -1310,10 +1321,15 @@ function hideContextMenu() {
   menu.innerHTML = '';
 }
 
+// items: {label, onSelect}[] for an actionable row, or {info}[] for a
+// plain, non-interactive text row (e.g. a quick data preview above the
+// actionable rows) - only the former gets a <button data-idx>, so the
+// click-wiring loop further down only ever touches actionable rows.
 function showContextMenu(x, y, items) {
   const menu = el('cmContextMenu');
-  menu.innerHTML = items.map((item, i) => `
-    <li role="none"><button type="button" role="menuitem" data-idx="${i}">${esc(item.label)}</button></li>`).join('');
+  menu.innerHTML = items.map((item, i) => (item.info
+    ? `<li role="none" class="cm-context-menu-info" dir="auto">${esc(item.info)}</li>`
+    : `<li role="none"><button type="button" role="menuitem" data-idx="${i}">${esc(item.label)}</button></li>`)).join('');
   menu.hidden = false;
   // Measured only after becoming visible (hidden elements have no real
   // box) - clamped so a press near the map's own edge doesn't open a menu
