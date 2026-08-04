@@ -3525,12 +3525,8 @@ async function renderDealsBlock(entry, index, myGen) {
   const searchId = `${blockId}Search`;
   const tableId = `${blockId}Table`;
 
-  // Collapsed by default (no `open` attribute) - a visitor comparing
-  // several entities doesn't want that many long deal tables blocking the
-  // page; opening one is a deliberate choice, same idiom as the site's
-  // other <details class="notice ..."> explainer blocks.
   block.innerHTML = `
-    <details class="notice info">
+    <details class="notice info" open>
       <summary><strong dir="auto">${esc(entry.label)} - עסקאות בודדות</strong></summary>
       <figure id="${yearFigId}" class="acc-chart" role="img"></figure>
       <div class="acc-year-pick">
@@ -3680,7 +3676,7 @@ async function renderCombinedDealsInto(containerElId, entries, heading, gen) {
   const tableId = `${containerElId}Table`;
 
   container.innerHTML = `
-    <details class="notice info">
+    <details class="notice info" open>
       <summary><strong dir="auto">${esc(heading)}</strong></summary>
       <div class="acc-year-pick">
         <label for="${searchId}">חיפוש (כתובת, תאריך, שכונה):</label>
