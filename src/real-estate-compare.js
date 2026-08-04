@@ -427,7 +427,7 @@ function renderDealsTableSorted(containerId, deals, state) {
   const moreBtnId = `${containerId}More`;
 
   el(containerId).innerHTML = `
-    <div class="matrix-wrap">
+    <div class="matrix-wrap scroll">
       <table class="matrix preview">
         <thead><tr>${DEAL_COLUMNS.map(headCell).join('')}</tr></thead>
         <tbody>${firstRows.map(rowHtml).join('')}</tbody>
