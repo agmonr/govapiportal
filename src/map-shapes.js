@@ -105,8 +105,49 @@ export function attachZoomPan(svgEl, initial, { onChange } = {}) {
     if (onChange) onChange({ ...view });
   }
 
-  function screenToView(px, py) {
+  // svgEl's own box (.cm-svg) is a fixed, roughly-square aspect-ratio in
+  // CSS, but the viewBox it's showing rarely matches that aspect - Israel's
+  // own national fit is ~1:2.9 (tall/narrow), a picked city's is closer to
+  // 1:1, canopy-map.html's own Jerusalem-zoomed default view is ~1:2.9
+  // again. preserveAspectRatio="xMidYMid meet" (the SVG default) letterboxes
+  // whichever dimension doesn't fill the box - blank bars on left+right when
+  // the view is relatively TALLER than the box, blank bars top+bottom when
+  // it's relatively WIDER - so the box's own getBoundingClientRect() is
+  // NOT the rendered content's actual on-screen size. Using it directly as
+  // the px<->view-units conversion factor (the old version of this
+  // function) was fine on whichever axis happens to be the limiting one
+  // (no letterboxing there, box size == content size) but wrong on the
+  // other - a fixed screen-px drag mapped to a SMALLER view-units change
+  // than it geometrically should, on whichever axis has the blank bars
+  // (measured: Jerusalem's own default view has bars on left+right, so a
+  // given horizontal mouse-drag distance panned noticeably less than the
+  // same distance panned vertically - "left/right is harder than up/down").
+  function contentRect() {
     const rect = svgEl.getBoundingClientRect();
+    const boxAspect = rect.width / rect.height;
+    const viewAspect = view.w / view.h;
+    let width; let height;
+    if (viewAspect < boxAspect) {
+      // view is relatively taller than the box - box height is the
+      // limiting dimension, width letterboxed (bars left+right).
+      height = rect.height;
+      width = rect.height * viewAspect;
+    } else {
+      // view is relatively wider than the box - box width is the limiting
+      // dimension, height letterboxed (bars top+bottom).
+      width = rect.width;
+      height = rect.width / viewAspect;
+    }
+    return {
+      left: rect.left + (rect.width - width) / 2,
+      top: rect.top + (rect.height - height) / 2,
+      width,
+      height,
+    };
+  }
+
+  function screenToView(px, py) {
+    const rect = contentRect();
     return [
       view.x + ((px - rect.left) / rect.width) * view.w,
       view.y + ((py - rect.top) / rect.height) * view.h,
@@ -165,7 +206,7 @@ export function attachZoomPan(svgEl, initial, { onChange } = {}) {
       const dx = ev.clientX - lastSingle.x;
       const dy = ev.clientY - lastSingle.y;
       if (Math.hypot(dx, dy) > DRAG_THRESHOLD_PX) dragged = true;
-      const rect = svgEl.getBoundingClientRect();
+      const rect = contentRect(); // NOT svgEl.getBoundingClientRect() - see its own comment above
       view.x -= (dx / rect.width) * view.w;
       view.y -= (dy / rect.height) * view.h;
       apply();

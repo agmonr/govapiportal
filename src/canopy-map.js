@@ -291,21 +291,29 @@ function shouldDrillOut(view, cityName) {
   return overlapArea(bbox, view) / (view.w * view.h) < DRILL_OUT_FRACTION;
 }
 
-// Inverse question from shouldDrillOut, used only to decide which city's
-// hi-res blobs to show at city level itself: is one city dominating the
-// current view closely enough to treat it as "the" city on screen, without
-// an actual level switch or city pick? Threshold is much higher than
-// DRILL_OUT_FRACTION on purpose - "zoomed in close on this one city," not
-// merely "closer to it than to others."
-const CITY_FOCUS_FRACTION = 0.5;
-function focusedCity(view) {
-  if (!view) return null;
-  let best = null; let bestFrac = 0;
+// Different question from shouldDrillOut, used only to decide which
+// cities' hi-res blobs to show at city level itself, without an actual
+// level switch or city pick: which cities are meaningfully on screen right
+// now? Originally just the single most-dominant city above a high
+// threshold (so blobs only ever appeared zoomed in close on one city) -
+// widened to every city clearing a much lower bar, so blobs also show
+// while zoomed out far enough to see a cluster of cities at once, not just
+// one. CITY_VIEW_MAX_COUNT is a hard cap regardless of how many clear the
+// bar - without it, the fully-zoomed-out national view (all 186 cities)
+// would fetch every city's blobs at once, defeating the point of lazy-
+// loading them in the first place (see HEAT_BLOBS'/CANOPY_BLOBS' own
+// header comments).
+const CITY_VIEW_MIN_FRACTION = 0.01;
+const CITY_VIEW_MAX_COUNT = 15;
+function citiesInView(view) {
+  if (!view) return [];
+  const hits = [];
   for (const [name, bbox] of Object.entries(cityBBoxes())) {
     const frac = overlapArea(bbox, view) / (view.w * view.h);
-    if (frac > bestFrac) { bestFrac = frac; best = name; }
+    if (frac >= CITY_VIEW_MIN_FRACTION) hits.push([name, frac]);
   }
-  return bestFrac >= CITY_FOCUS_FRACTION ? best : null;
+  hits.sort((a, b) => b[1] - a[1]);
+  return hits.slice(0, CITY_VIEW_MAX_COUNT).map(([name]) => name);
 }
 
 function drillOutToCity(priorView) {
@@ -628,37 +636,39 @@ async function renderMap() {
     viewBox = itmViewBox(bbox);
     project = projectItm;
   }
-  // Which single city's raw-pixel/tree data (if any) backs the two hi-res
-  // blobs: the traditional case is neighborhood level with a city chosen
-  // via the text picker, but zoomed in close on one city at city level -
-  // even with nothing picked or selected - reads the same way to someone
-  // looking at the map, so it counts too (see focusedCity's own comment).
-  const blobCity = state.level === 'neighborhood'
-    ? state.cityFilter
-    : (state.level === 'city' && isItmSpace ? focusedCity(state.view || viewBox) : null);
-  const heatBlobAvailable = blobCity && HEAT_BLOBS[blobCity];
-  const canopyBlobAvailable = blobCity && CANOPY_BLOBS[blobCity];
+  // Which cities' raw-pixel/tree data (if any) backs the two hi-res blobs:
+  // the traditional case is neighborhood level with a city chosen via the
+  // text picker (always exactly one), but at city level - even with
+  // nothing picked or selected - every city meaningfully on screen counts
+  // too, whether that's one city zoomed in close or several zoomed out far
+  // enough to see as a cluster (see citiesInView's own comment).
+  const blobCities = state.level === 'neighborhood'
+    ? (state.cityFilter ? [state.cityFilter] : [])
+    : (state.level === 'city' && isItmSpace ? citiesInView(state.view || viewBox) : []);
+  const heatBlobCities = blobCities.filter((c) => HEAT_BLOBS[c]);
+  const canopyBlobCities = blobCities.filter((c) => CANOPY_BLOBS[c]);
   // The per-metric toggles are redundant once "hi-res only" mode (below)
   // forces both rasters on together - hidden rather than left sitting
   // there unchecked, which would misleadingly imply they're what's
   // controlling the current view.
-  el('cmBlobRow').hidden = !heatBlobAvailable || state.hiRes;
-  el('cmCanopyBlobRow').hidden = !canopyBlobAvailable || state.hiRes;
+  el('cmBlobRow').hidden = !heatBlobCities.length || state.hiRes;
+  el('cmCanopyBlobRow').hidden = !canopyBlobCities.length || state.hiRes;
   // Same ITM-meters space as the neighborhood shapes themselves (see
   // heat-blobs.js's/canopy-blobs.js's own build comments) - drawn straight
   // under them with no conversion, but only when that space is actually
   // what's on screen (isItmSpace false means OSM's own fixed pixel space is
-  // active instead). Normal mode: at most one raster shows, whichever
-  // per-metric toggle is on (heat wins if both somehow are - nothing
-  // enforces them mutually exclusive, a rare enough case not to be worth a
-  // UI lock for). Hi-res-only mode forces BOTH on together regardless of
-  // those toggles - "the high-res map of heat AND trees", not either/or.
-  const heatBlob = heatBlobAvailable && isItmSpace && (state.hiRes || state.heatBlob)
-    ? { data: HEAT_BLOBS[blobCity], metric: 'heat' } : null;
-  const canopyBlobPick = canopyBlobAvailable && isItmSpace && (state.hiRes || state.canopyBlob)
-    ? { data: CANOPY_BLOBS[blobCity], metric: 'canopy' } : null;
-  const blobs = [heatBlob, canopyBlobPick].filter(Boolean);
-  const blob = blobs[0] || null; // single-blob call sites below (legend text, blobReplacesFill's own metric check) only ever look at one
+  // active instead). Normal mode: at most one raster TYPE shows (heat or
+  // canopy, whichever per-metric toggle is on - heat wins if both somehow
+  // are, nothing enforces them mutually exclusive, a rare enough case not
+  // to be worth a UI lock for), but every in-view city's own image for
+  // that type. Hi-res-only mode forces BOTH types on together regardless
+  // of those toggles - "the high-res map of heat AND trees", not either/or.
+  const heatBlobs = isItmSpace && (state.hiRes || state.heatBlob)
+    ? heatBlobCities.map((c) => ({ data: HEAT_BLOBS[c], metric: 'heat' })) : [];
+  const canopyBlobPicks = isItmSpace && (state.hiRes || state.canopyBlob)
+    ? canopyBlobCities.map((c) => ({ data: CANOPY_BLOBS[c], metric: 'canopy' })) : [];
+  const blobs = [...heatBlobs, ...canopyBlobPicks];
+  const blob = blobs[0] || null; // single-blob call sites below (legend text, blobReplacesFill's own metric check) only care which TYPE is present, not which city - every entry of a given type shares the same metric
 
   const svg = el('cmSvg');
   // Once a high-res raster (blob) is showing for the metric it belongs to,
@@ -732,7 +742,7 @@ async function renderMap() {
   currentZoomPan?.destroy();
   const cityFilterAtAttach = state.cityFilter;
   const levelAtAttach = state.level;
-  const blobCityAtAttach = blobCity;
+  const blobCitiesKeyAtAttach = [...blobCities].sort().join(' ');
   const zoomPan = attachZoomPan(svg, state.view || viewBox, {
     onChange: (v) => {
       state.view = v;
@@ -748,12 +758,13 @@ async function renderMap() {
         drillOutToCity(v);
         return;
       }
-      // City level's own hi-res blobs (see blobCity above) track whichever
-      // city currently dominates the view, purely from panning/zooming -
-      // no drill, no pick. A full re-render is the only way to swap which
-      // city's blob images are on screen, so one is triggered, but only
-      // when the answer actually changed (not on every pan/zoom tick).
-      if (levelAtAttach === 'city' && focusedCity(v) !== blobCityAtAttach) {
+      // City level's own hi-res blobs (see blobCities above) track
+      // whichever cities are currently in view, purely from panning/
+      // zooming - no drill, no pick. A full re-render is the only way to
+      // swap which cities' blob images are on screen, so one is triggered,
+      // but only when the actual set changed (not on every pan/zoom tick,
+      // and not just because the same cities got reordered by distance).
+      if (levelAtAttach === 'city' && citiesInView(v).sort().join(' ') !== blobCitiesKeyAtAttach) {
         renderMap();
       }
     },
@@ -795,8 +806,8 @@ async function renderMap() {
   // value scale at all.
   if (state.hiRes) {
     const parts = [];
-    if (heatBlob) parts.push('כתם החום יחסי לחציון האזור, משוקלל לפי חום העיר ארצית');
-    if (canopyBlobPick) parts.push('כל נקודה ירוקה = צמרת עץ בודדת מהמיפוי המקורי');
+    if (heatBlobs.length) parts.push('כתם החום יחסי לחציון האזור, משוקלל לפי חום העיר ארצית');
+    if (canopyBlobPicks.length) parts.push('כל נקודה ירוקה = צמרת עץ בודדת מהמיפוי המקורי');
     el('cmLegend').innerHTML = parts.length
       ? `<span class="cm-legend-nodata">גבולות בלבד, בלי צביעת ממוצע - ${esc(parts.join(' · '))}</span>`
       : '<span class="cm-legend-nodata">גבולות בלבד, בלי צביעת ממוצע - בחרו עיר והתקרבו לשכונות כדי לראות את הכתמים</span>';

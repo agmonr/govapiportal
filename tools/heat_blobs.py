@@ -70,13 +70,25 @@ def log(msg):
     print(f"[{time.strftime('%H:%M:%S')}] {msg}", flush=True)
 
 
-def colorize(t):
-    """(h, w) float array (deviation from a crop's own median, in units of
-    its own span) -> (h, w, 4) uint8 RGBA. Identical to heat_build.py's own
-    colorize() - diverging cool/neutral/hot ramp, alpha scales with |t| so
-    pixels near the crop's own median fade toward fully transparent."""
-    nan_mask = np.isnan(t)
-    tt = np.nan_to_num(t, nan=0.0)
+def colorize(t_color, t_alpha=None):
+    """(h, w) float arrays -> (h, w, 4) uint8 RGBA. t_color (deviation from
+    a crop's own median, in units of its own span, then weighted by how hot
+    that city runs nationally - see render_city_heat) picks the diverging
+    cool/neutral/hot color itself. t_alpha (defaults to t_color) picks how
+    opaque each pixel is - deliberately kept UNweighted (the raw local
+    deviation, before the national multiplier) rather than reusing t_color:
+    weighting alpha too made a real local heat island in a nationally-cool
+    city fade to almost nothing (that city's own weight can be as low as
+    0.5x) - invisible reads as "no heat here" to someone looking at the map,
+    not "this heat matters less," which isn't what a lower weight is meant
+    to say. Keeping alpha on the unweighted value means a genuine local
+    anomaly always shows up; only its color (how deep red vs. how pale)
+    reflects the national weighting."""
+    if t_alpha is None:
+        t_alpha = t_color
+    nan_mask = np.isnan(t_color)
+    tt = np.nan_to_num(t_color, nan=0.0)
+    ta = np.nan_to_num(t_alpha, nan=0.0)
     cool = np.array([59, 111, 181], dtype=np.float64)
     neutral = np.array([242, 234, 217], dtype=np.float64)
     hot = np.array([224, 83, 83], dtype=np.float64)  # matches the site's own --danger
@@ -86,7 +98,7 @@ def colorize(t):
     rgb = (neutral[None, None, :] * frac_mid[..., None]
            + cool[None, None, :] * frac_cool[..., None]
            + hot[None, None, :] * frac_hot[..., None])
-    alpha = (np.clip(np.abs(tt), 0, 1) ** 1.2) * 210
+    alpha = (np.clip(np.abs(ta), 0, 1) ** 1.2) * 210
     alpha = np.where(nan_mask, 0, alpha)
     rgba = np.concatenate([rgb, alpha[..., None]], axis=-1)
     return np.clip(rgba, 0, 255).astype(np.uint8)
@@ -99,12 +111,14 @@ def render_city_heat(src, x0, y0, x1, y1, city_weight=1.0):
     heat_build.py's build_heat_blobs used: <16).
 
     city_weight (see blob_geo.load_city_heat_weights) scales the per-crop-
-    relative deviation before colorizing: a pixel that's, say, 80% of the
+    relative deviation before picking each pixel's COLOR (see colorize's own
+    docstring for why not its alpha too): a pixel that's, say, 80% of the
     way to this crop's own hottest point reads as more intense - a bigger
     slice of the color ramp, saturating at a smaller local anomaly - in a
     city that runs hot nationally than the identical 80%-of-local-span pixel
     in a naturally cool city. Local pattern still drives WHERE the hot spots
-    are drawn inside a crop; this only rescales how strongly they read."""
+    are drawn inside a crop and whether they're visible at all; the national
+    weighting only rescales how saturated/red they read."""
     window = rasterio.windows.from_bounds(x0, y0, x1, y1, transform=src.transform)
     arr = src.read(1, window=window, boundless=True, fill_value=np.nan)
     if arr.size == 0:
@@ -115,7 +129,8 @@ def render_city_heat(src, x0, y0, x1, y1, city_weight=1.0):
     median = float(np.median(valid))
     lo, hi = float(valid.min()), float(valid.max())
     span = max(hi - median, median - lo, 0.3)  # avoid a near-zero divisor on a near-flat crop
-    rgba = colorize((arr - median) / span * city_weight)
+    t_local = (arr - median) / span
+    rgba = colorize(t_local * city_weight, t_alpha=t_local)
 
     from PIL import Image
     buf = io.BytesIO()
