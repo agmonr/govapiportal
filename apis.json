@@ -16,32 +16,6 @@
       "category_he": "פעילות חברתית ומעורבות אזרחית"
     },
     {
-      "id": "tree-canopy",
-      "name": "Tree Canopy Coverage — City / Neighborhood / Street Comparison",
-      "name_he": "האינדקס הירוק לרחוב שלי",
-      "kind": "אפליקציה",
-      "about": "כיסוי חופות עצים - כמה משטח מקום מכוסה בצמרות עצים מלמעלה - לפי מיפוי חופות העצים הארצי של המרכז למיפוי ישראל (מפ\"י, data.gov.il, החלטת ממשלה 1022), 2.89 מיליון צורות חופה. בניגוד לכל אפליקציה אחרת באתר, למקור אין API בכלל - shapefile של 358MB המוגש מאחורי WAF - אז הכיסוי חושב פעם אחת מקומית (לא בדפדפן) לכל אחת משלוש רמות: 186 ערים (גבולות GovMap muni_il, מועצות אזוריות הוחרגו - השוואה שלהן ברמת \"עיר\" אינה הוגנת, ראו בעמוד), 1,281 שכונות (245 מתוכן פוליגון אמיתי ב-OpenStreetMap; 1,036 נוספות משוערות - תא Voronoi סביב נקודת שם בלבד, מסומנות ככאלה) ו-35,938 צירופי (עיר, רחוב) נבדלים (מ-98,488 קטעי דרך ב-OpenStreetMap, בחיץ 7.5 מ' מהציר - אותה שיטה שמקור הנתונים עצמו מתאר). כיסוי חופה מיוחס לפי חפיפה אמיתית עם הגבול, לא רק מרכז הכובד, למניעת ניפוח כיסוי בגבולות צרים.",
-      "href": "./tree-canopy.html",
-      "external": false,
-      "home": "https://data.gov.il/dataset/nationalcanopytrees",
-      "computed_at": "2026-07-27T11:00+03:00",
-      "category": "home",
-      "category_he": "הבית והשכונה שלי"
-    },
-    {
-      "id": "canopy-split",
-      "name": "Tree Canopy — Public Street vs. Private Land Split",
-      "name_he": "עצים ציבוריים מול פרטיים",
-      "kind": "אפליקציה",
-      "about": "פילוח של האינדקס הירוק לרחוב שלי: לא מקור נתונים חדש, אלא חיבור - לכל עיר ושכונה, כמה מכיסוי החופה הכולל שלה יושב על הרצועה הציבורית לצד רחוב (7.5 מ' מהציר, אותו חישוב מרמת ה'רחוב') וכמה בכל שאר השטח (בעיקר גינות וחצרות פרטיות, לפי חיסור). שני מספרים חדשים לכל עיר/שכונה, מעל 186 הערים ו-1,281 השכונות שכבר קיימות שם.",
-      "href": "./canopy-split.html",
-      "external": false,
-      "home": "https://data.gov.il/dataset/nationalcanopytrees",
-      "computed_at": "2026-08-03T14:45+03:00",
-      "category": "home",
-      "category_he": "הבית והשכונה שלי"
-    },
-    {
       "id": "canopy-map",
       "name": "Tree Canopy & Heat Map — Choropleth by City/Neighborhood",
       "name_he": "מפת עצים וחום",
@@ -51,19 +25,6 @@
       "external": false,
       "home": "https://data.gov.il/dataset/nationalcanopytrees",
       "computed_at": "2026-08-03T16:10+03:00",
-      "category": "home",
-      "category_he": "הבית והשכונה שלי"
-    },
-    {
-      "id": "heat-islands",
-      "name": "Urban Heat Islands — City / Neighborhood / Street Comparison",
-      "name_he": "כמה חם כאן",
-      "kind": "אפליקציה",
-      "about": "כמה חם יותר מקום מסוים ביחס לשטח הפתוח שסביב אותו יישוב - לפי מפת הסיכונים האקלימית הארצית של המשרד להגנת הסביבה (עם Tomorrow.io והשירות המטאורולוגי הישראלי), שכבת דלתת חום אוגוסט 21:00 ברזולוציה של כ-43 מ'. כמו האינדקס הירוק לרחוב שלי, גם כאן אין API רגיל למקור עצמו - שכבת ה-ImageServer חסומה לשאילתות (רק אריחי תמונה גולמיים, מקודדים ב-LERC) - אז דלתת החום המרבית חושבה פעם אחת מקומית (לא בדפדפן), לכל אחת משלוש הרמות: אותם 186 ערים, 1,281 שכונות ו-35,938 צירופי (עיר, רחוב) של האינדקס הירוק, כדי לאפשר השוואה ישירה בין חום לכיסוי חופה.",
-      "href": "./heat-islands.html",
-      "external": false,
-      "home": "https://experience.arcgis.com/experience/080449da58404be494851e46940c8239",
-      "computed_at": "2026-08-03T14:16+03:00",
       "category": "home",
       "category_he": "הבית והשכונה שלי"
     },

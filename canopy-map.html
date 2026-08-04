@@ -18,7 +18,7 @@
   <script>
     try {
       var t = localStorage.getItem('theme');
-      if (t && t !== 'clouds') document.documentElement.setAttribute('data-theme', t);
+      if (t) document.documentElement.setAttribute('data-theme', t);
     } catch (e) {}
   </script>
   <link rel="stylesheet" href="./src/style.css">
@@ -28,7 +28,6 @@
     <div class="wrap">
       <h1>מפת עצים וחום</h1>
       <span class="site-by">פרויקט של רם אגמון<span class="site-disclaimer">המידע באתר עלול להיות שגוי</span><a href="https://hod-hasharon.org/" target="_blank" rel="noopener">הירוקים הוד השרון</a></span>
-      <span class="meta"><a href="./tree-canopy.html">האינדקס הירוק</a> · <a href="./canopy-split.html">ציבורי מול פרטי</a></span>
       <div class="theme-pick" id="themePick" role="group" aria-label="ערכת נושא">
         <button type="button" data-theme="clouds">☀️<span class="theme-btn-label"> יום</span></button>
         <button type="button" data-theme="fashion">🌙<span class="theme-btn-label"> לילה</span></button>
@@ -58,22 +57,19 @@
       <details class="lead-details" dir="auto">
         <summary>אותם נתונים, במקום אחד</summary>
         <p class="lead" dir="auto">
-          <a href="./tree-canopy.html">האינדקס הירוק לרחוב שלי</a>, <a href="./canopy-split.html">עצים ציבוריים
-          מול פרטיים</a> ואיי חום עירוניים - שלושת המדדים האלה כבר מוצגים כטבלה ולוח מובילים במקום אחר באתר,
-          כל אחד למדד אחד. הדף הזה מאחד אותם: מעבר לרמת "שכונות" והקלדת שם עיר
+          כיסוי חופות עצים כולל, עצים ציבוריים מול פרטיים ואיי חום עירוניים - שלושת המדדים האלה מוצגים כאן
+          יחד על מפה אחת. מעבר לרמת "שכונות" והקלדת שם עיר
           עובר לשכונות שלה, ולחיצה על שכונה במפה מציגה את כל המדדים הרלוונטיים לה יחד, צבועים לפי מי הוא.
-          להשוואה בין כמה רחובות - מכל עיר - יש חיפוש שם חופשי (עד 4). קישור לדף המלא (טבלה, השוואה, הורדת
-          CSV) נשאר זמין לצד כל מדד.
+          להשוואה בין כמה רחובות - מכל עיר - יש חיפוש שם חופשי (עד 4).
         </p>
       </details>
 
       <details class="notice info" dir="auto">
         <summary><strong>מה יש כאן, ומה המקור</strong></summary>
         <p>
-          שלושת המדדים הצבועים (כיסוי חופות כולל, עצי רחוב ציבוריים, דלתת חום) הם בדיוק אותם מספרים שכבר
-          מחושבים בשלושת הדפים המקושרים למעלה, וכך גם <strong>צורת הגבולות</strong> עצמה (עיר ושכונה) -
-          מפושטת מאותם קבצי מקור ש-<a href="./tree-canopy.html">האינדקס הירוק</a> כבר משתמש בהם (ראו שם
-          למקור המלא). מה שכן חדש כאן, ולא קיים באף דף אחר באתר: שני "הכתמים" ברזולוציה גבוהה - חום ועצים -
+          שלושת המדדים הצבועים (כיסוי חופות כולל, עצי רחוב ציבוריים, דלתת חום) מחושבים מאותם קבצי מקור
+          שכל שאר האתר משתמש בהם, וכך גם <strong>צורת הגבולות</strong> עצמה (עיר ושכונה) - מפושטת מאותם
+          קבצים. מה שכן חדש כאן, ולא קיים באף דף אחר באתר: שני "הכתמים" ברזולוציה גבוהה - חום ועצים -
           שמפורטים למטה. אלה לא ממוצע/אחוז לפי אזור אלא הנתון הגולמי עצמו (פיקסל חום או עץ בודד), מחושבים
           במיוחד לדף הזה.
         </p>
@@ -116,7 +112,7 @@
           </li>
           <li>
             <strong>חופות עצים ברזולוציה גבוהה</strong> - מקורו באותו shapefile של כ-2.89 מיליון צמרות עצים
-            בודדות שמפורט ב<a href="./tree-canopy.html">האינדקס הירוק</a>. במקום אחוז כיסוי ממוצע לפי עיר או
+            בודדות. במקום אחוז כיסוי ממוצע לפי עיר או
             שכונה, כל צמרת עץ עצמה מצוירת (<code dir="ltr">tools/canopy_blobs.py</code>) - צביעה שמראה בדיוק
             אילו רחובות/מגרשים ירוקים בפועל, לא רק כמה ירוקה השכונה בממוצע.
           </li>
@@ -141,7 +137,7 @@
         <p class="acc-hint" dir="auto">קובעת רק את צבע המפה עצמה - הבחירה שלכם (למטה) תמיד תציג את כל המדדים יחד. ברמת עיר אפשר לבחור יותר ממדד אחד בו-זמנית: כל עיר תוצג אז עם עמודות קטנות, מדד לצד מדד, במקום צבע אחיד.</p>
         <div class="cm-filters" role="group" aria-label="שכבת צביעת המפה">
           <button type="button" data-layer="canopy" class="tc-level-btn cm-layer-btn">כיסוי חופות כולל</button>
-          <button type="button" data-layer="street" class="tc-level-btn cm-layer-btn">עצי רחוב (ציבורי)</button>
+          <button type="button" data-layer="street" class="tc-level-btn cm-layer-btn">עצי רחוב</button>
           <button type="button" data-layer="heat" class="tc-level-btn cm-layer-btn">איי חום</button>
         </div>
       </section>
@@ -274,11 +270,8 @@
       <section class="acc-section" id="cmDetailSection" aria-labelledby="detailH" hidden>
         <h2 id="detailH">כל המדדים יחד</h2>
         <figure id="cmDetailCanopy" class="acc-chart acc-chart-wide" role="img"></figure>
-        <a id="cmDetailCanopyLink" class="cm-detail-link" hidden>האינדקס הירוק - טבלה, השוואה ו-CSV ←</a>
         <figure id="cmDetailStreet" class="acc-chart acc-chart-wide" role="img"></figure>
-        <a id="cmDetailStreetLink" class="cm-detail-link" hidden>עצים ציבוריים מול פרטיים - טבלה מלאה ←</a>
         <figure id="cmDetailHeat" class="acc-chart acc-chart-wide" role="img"></figure>
-        <a id="cmDetailHeatLink" class="cm-detail-link" hidden>איי חום - טבלה, השוואה ו-CSV ←</a>
       </section>
     </div>
   </main>

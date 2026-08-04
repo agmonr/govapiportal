@@ -71,18 +71,18 @@ if (!Number.isNaN(created.getTime())) {
  * had a street level to source this from. */
 const METRICS = {
   canopy: {
-    label: 'כיסוי חופות כולל', unit: '%', colorVar: 'var(--accent)', page: './tree-canopy.html',
+    label: 'כיסוי חופות כולל', unit: '%', colorVar: 'var(--accent)',
     valueForCity: (name) => CITY_CANOPY[name]?.pct,
     valueForNb: (key) => NEIGHBORHOOD_CANOPY[key]?.pct,
     valueForStreet: (key) => STREET_CANOPY[key]?.pct,
   },
   street: {
-    label: 'עצי רחוב (ציבורי)', unit: '%', colorVar: 'var(--accent)', page: './canopy-split.html',
+    label: 'עצי רחוב (ציבורי)', unit: '%', colorVar: 'var(--accent)',
     valueForCity: (name) => CITY_CANOPY_SPLIT[name]?.publicPct,
     valueForNb: (key) => NEIGHBORHOOD_CANOPY_SPLIT[key]?.publicPct,
   },
   heat: {
-    label: 'דלתת חום מרבית', unit: '°C', colorVar: 'var(--danger)', page: './heat-islands.html',
+    label: 'דלתת חום מרבית', unit: '°C', colorVar: 'var(--danger)',
     valueForCity: (name) => CITY_HEAT[name]?.maxC,
     valueForNb: (key) => NEIGHBORHOOD_HEAT[key]?.maxC,
     valueForStreet: (key) => STREET_HEAT[key]?.maxC,
@@ -584,20 +584,6 @@ function pickSolo(entity) {
   renderAll();
 }
 
-/* ---------- full-page links: canopy-map is an index INTO the existing
-   pages, not a replacement for their tables/leaderboards/CSV export ---------- */
-
-function fullPageLink(metricId) {
-  const m = METRICS[metricId];
-  const entries = state.selected.filter((e) => valueForLevel(m, e.level, e.key) != null);
-  if (!entries.length) return null;
-  const p = new URLSearchParams();
-  p.set('level', state.level);
-  entries.forEach((e, i) => p.set(`p${i + 1}`, e.label));
-  if (state.level === 'neighborhood' && state.cityFilter) p.set('city', state.cityFilter);
-  return `${m.page}?${p}`;
-}
-
 /* ---------- legend ---------- */
 
 function renderLegend(metricIds, domains) {
@@ -982,9 +968,6 @@ function renderDetailMetric(metricId, figId) {
     .filter((row) => row.v != null)
     .map((row) => ({ label: row.e.label, value: row.v, color: PICK_COLORS[row.i] }));
   renderHBarChart(figId, m.label, entries, m.unit);
-  const link = fullPageLink(metricId);
-  const linkEl = el(`${figId}Link`);
-  if (link) { linkEl.hidden = false; linkEl.href = link; } else { linkEl.hidden = true; }
 }
 
 function renderDetail() {

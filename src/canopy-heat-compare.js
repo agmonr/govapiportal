@@ -81,6 +81,11 @@ const METRICS = {
   },
 };
 const METRIC_ORDER = ['street', 'private', 'heat'];
+// Trees: higher % is better. Heat: lower delta is better (cooler than the
+// city's own open-land baseline). Drives both the board's best/worst toggle
+// and rankInCity() below, so "5th greenest" and "5th hottest" always agree
+// with what "best"/"worst" mean for that metric.
+const HIGHER_IS_BETTER = { street: true, private: true, heat: false };
 
 function valueForLevel(metric, level, key) {
   if (level === 'city') return metric.valueForCity(key);
@@ -196,6 +201,7 @@ const MAX_PICKS = 4;
 
 const state = {
   level: 'city', picks: [null, null, null, null], cityFilter: null, activeMetrics: ['street', 'private', 'heat'],
+  boardOrder: 'best',
 };
 
 function readStateFromUrl() {
@@ -208,6 +214,7 @@ function readStateFromUrl() {
   if (p.get('city')) state.cityFilter = p.get('city');
   const metrics = (p.get('metrics') || '').split(',').filter((id) => METRICS[id]);
   if (metrics.length) state.activeMetrics = [...new Set(metrics)];
+  if (p.get('order') === 'worst') state.boardOrder = 'worst';
 }
 
 function syncUrl() {
@@ -216,6 +223,7 @@ function syncUrl() {
   state.picks.forEach((v, i) => { if (v) p.set(`p${i + 1}`, v); });
   if (state.cityFilter) p.set('city', state.cityFilter);
   p.set('metrics', state.activeMetrics.join(','));
+  if (state.boardOrder === 'worst') p.set('order', 'worst');
   history.replaceState(null, '', `?${p}`);
 }
 
@@ -239,6 +247,17 @@ function candidateEntries(query) {
     else if (e.label.toLowerCase().includes(q)) otherHits.push(e);
   }
   return [...nameHits, ...otherHits];
+}
+
+// City-filter input at neighborhood/street level - lets a visitor scope the
+// board (and the pick roster) to one city's own streets/neighborhoods
+// instead of the national list, same idea as canopy-map.html's own
+// cmCityPick at its neighborhood level.
+function updateCityRoster(query) {
+  const q = query.trim().toLowerCase();
+  const names = levelEntries('city').map((e) => e.name);
+  const hits = q ? names.filter((n) => n.toLowerCase().includes(q)) : names;
+  el('chcCityRoster').innerHTML = hits.slice(0, 40).map((n) => `<option value="${esc(n)}">`).join('');
 }
 
 function updateRosterOptions(query) {
@@ -337,6 +356,47 @@ function renderCompareCharts(entries) {
   });
 }
 
+// Where a neighborhood/street ranks among every other entity of the same
+// level IN ITS OWN CITY, per metric - "5th of 40 streets in Hod HaSharon by
+// street trees" rather than a national rank, since a national street rank
+// mostly just reflects city size. Rank 1 always means "best" per
+// HIGHER_IS_BETTER (so heat ranks coolest-first regardless of the board's
+// own best/worst toggle - a street's rank is a fixed fact, not a view). Not
+// meaningful for city-level entities (no enclosing city to rank within).
+function rankInCity(entity) {
+  if (entity.level === 'city' || !entity.city) return null;
+  const siblings = levelEntries(entity.level).filter((e) => e.city === entity.city);
+  const ranks = {};
+  for (const id of METRIC_ORDER) {
+    const withVals = siblings
+      .map((e) => ({ key: e.key, value: valueFor(e, id) }))
+      .filter((r) => r.value != null)
+      .sort((a, b) => (HIGHER_IS_BETTER[id] ? b.value - a.value : a.value - b.value));
+    const idx = withVals.findIndex((r) => r.key === entity.key);
+    if (idx !== -1) ranks[id] = { rank: idx + 1, total: withVals.length, value: withVals[idx].value };
+  }
+  return Object.keys(ranks).length ? ranks : null;
+}
+
+function ordinalHe(n) {
+  return `מקום ${n}`;
+}
+
+function renderRanks(entries) {
+  const box = el('chcRanks');
+  const lines = entries.map((e) => {
+    const ranks = rankInCity(e);
+    if (!ranks) return null;
+    const parts = METRIC_ORDER.filter((id) => ranks[id]).map((id) => {
+      const r = ranks[id];
+      const unit = id === 'heat' ? `${r.value > 0 ? '+' : ''}${r.value.toFixed(1)}°C` : `${r.value.toFixed(1)}%`;
+      return `${ordinalHe(r.rank)} מתוך ${num(r.total)} ב${METRICS[id].label} (${unit})`;
+    });
+    return parts.length ? `<p dir="auto"><strong>${esc(e.label)}</strong> בתוך ${esc(e.city)}: ${parts.join(' · ')}</p>` : null;
+  }).filter(Boolean);
+  box.innerHTML = lines.join('');
+}
+
 function renderCompare() {
   const lvl = LEVELS[state.level];
   const map = labelMap(state.level);
@@ -354,6 +414,7 @@ function renderCompare() {
 
   renderCompareCharts(entries);
   renderCompareTable(entries);
+  renderRanks(entries);
 }
 
 /* ---------- stacked (public+private combined) bar chart - not part of
@@ -428,6 +489,15 @@ function renderBoardChartChunked(figId, caption, rowsHtml) {
   appendChunk();
 }
 
+// true if the board should list highest-value first for a metric where
+// `higherIsBetter` describes what "best" means for it - so e.g. heat's
+// board defaults to coolest-first (state.boardOrder 'best'), and flipping
+// the toggle to 'worst' shows hottest-first instead.
+function wantDescending(higherIsBetter) {
+  return (state.boardOrder === 'best') === higherIsBetter;
+}
+const ORDER_WORD = { best: 'הכי טובים', worst: 'הכי גרועים' };
+
 function renderBoard() {
   const lvl = LEVELS[state.level];
   el('chcBoardLevel').textContent = lvl.boardTitle;
@@ -450,7 +520,7 @@ function renderBoard() {
         .map((e) => ({ label: e.label, streetVal: valueFor(e, 'street'), privateVal: valueFor(e, 'private') }))
         .filter((r) => r.streetVal != null || r.privateVal != null)
         .map((r) => ({ ...r, total: (r.streetVal ?? 0) + (r.privateVal ?? 0) }))
-        .sort((a, b) => b.total - a.total);
+        .sort((a, b) => (wantDescending(true) ? b.total - a.total : a.total - b.total));
       const capped = state.level === 'city' ? withVals : withVals.slice(0, BOARD_CAP);
       const capNote = capped.length < withVals.length ? ` (${num(BOARD_CAP)} מתוך ${num(withVals.length)})` : '';
       const peak = Math.max(0, ...capped.map((r) => r.total));
@@ -467,13 +537,14 @@ function renderBoard() {
           <span class="acc-hbar-v">${num(Number(r.total.toFixed(1)))}%</span>
         </div>`;
       });
-      renderBoardChartChunked(figId, `${num(capped.length)} ${lvl.labelPlural} ${lvl.rankedWord} לפי כיסוי חופות עצים (ציבורי+פרטי)${capNote}`, rowsHtml);
+      renderBoardChartChunked(figId, `${num(capped.length)} ${lvl.labelPlural} ${ORDER_WORD[state.boardOrder]} לפי כיסוי חופות עצים (ציבורי+פרטי)${capNote}`, rowsHtml);
     } else {
       const m = METRICS[group.metric];
+      const desc = wantDescending(HIGHER_IS_BETTER[group.metric]);
       const withVals = entries
         .map((e) => ({ label: e.label, value: valueFor(e, group.metric) }))
         .filter((r) => r.value != null)
-        .sort((a, b) => b.value - a.value);
+        .sort((a, b) => (desc ? b.value - a.value : a.value - b.value));
       const capped = state.level === 'city' ? withVals : withVals.slice(0, BOARD_CAP);
       const capNote = capped.length < withVals.length ? ` (${num(BOARD_CAP)} מתוך ${num(withVals.length)})` : '';
       const peak = Math.max(0, ...capped.map((r) => Math.abs(r.value)));
@@ -483,7 +554,7 @@ function renderBoard() {
           <div class="acc-hbar-track"><div class="acc-hbar-fill" style="inline-size:${peak ? (Math.abs(r.value) / peak) * 100 : 0}%;background:${group.metric === 'heat' ? 'var(--danger)' : 'var(--accent)'}"></div></div>
           <span class="acc-hbar-v">${num(Number(r.value.toFixed(1)))}</span>
         </div>`);
-      renderBoardChartChunked(figId, `${num(capped.length)} ${lvl.labelPlural} ${lvl.rankedWord} לפי ${m.label}${capNote}`, rowsHtml);
+      renderBoardChartChunked(figId, `${num(capped.length)} ${lvl.labelPlural} ${ORDER_WORD[state.boardOrder]} לפי ${m.label}${capNote}`, rowsHtml);
     }
   });
 }
@@ -544,6 +615,12 @@ function renderAll() {
     el(`chcPickLabel${i}`).textContent = i === 0 ? lvl.pickLabel : `השוואה${PICK_LABELS[i]} (אופציונלי):`;
     input.value = state.picks[i] || '';
   });
+  el('chcCityFilterRow').hidden = state.level === 'city';
+  el('chcCityFilter').value = state.cityFilter || '';
+  updateCityRoster('');
+  for (const btn of el('chcBoardOrderPick').querySelectorAll('.tc-level-btn')) {
+    btn.classList.toggle('active', btn.dataset.order === state.boardOrder);
+  }
   updateRosterOptions('');
   updateRosterHint();
   renderCompare();
@@ -563,6 +640,23 @@ el('chcLevelPick').querySelectorAll('.tc-level-btn').forEach((btn) => {
     state.level = btn.dataset.level;
     state.picks = [null, null, null, null];
     state.cityFilter = null;
+    syncUrl();
+    renderAll();
+  });
+});
+
+el('chcCityFilter').addEventListener('input', debounce(() => updateCityRoster(el('chcCityFilter').value), 120));
+el('chcCityFilter').addEventListener('change', () => {
+  const v = el('chcCityFilter').value.trim();
+  state.cityFilter = v && levelEntries('city').some((e) => e.name === v) ? v : null;
+  syncUrl();
+  renderAll();
+});
+
+el('chcBoardOrderPick').querySelectorAll('.tc-level-btn').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    if (state.boardOrder === btn.dataset.order) return;
+    state.boardOrder = btn.dataset.order;
     syncUrl();
     renderAll();
   });

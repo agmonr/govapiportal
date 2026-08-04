@@ -125,33 +125,6 @@ TARGETS = [
         "data": True,
     },
     {
-        "html": "tree-canopy.html",
-        "out": "dist/tree-canopy.html",
-        "entry": "src/tree-canopy.js",
-        # No live API at all for the canopy data itself - see
-        # tools/canopy_build.py. Ships three locally-precomputed tables
-        # (city/neighborhood/street canopy %), same "dated snapshot" shape as
-        # city-stats.js for accidents.html, just three of them. No portal.js
-        # machinery. apis.json IS now inlined too, purely for apps.js's
-        # under-header category strip.
-        "sources": ["src/ui.js", "src/theme.js", "src/charts.js",
-                    "src/tree-canopy-cities.js", "src/tree-canopy-neighborhoods.js", "src/tree-canopy-streets.js",
-                    "src/apps.js", "src/tree-canopy.js"],
-        "data": True,
-    },
-    {
-        "html": "heat-islands.html",
-        "out": "dist/heat-islands.html",
-        "entry": "src/heat-islands.js",
-        # Same "no live API, ship precomputed tables" shape as tree-canopy.html
-        # just above - see tools/heat_build.py. apis.json is only for apps.js's
-        # under-header category strip.
-        "sources": ["src/ui.js", "src/theme.js", "src/charts.js",
-                    "src/heat-cities.js", "src/heat-neighborhoods.js", "src/heat-streets.js",
-                    "src/apps.js", "src/heat-islands.js"],
-        "data": True,
-    },
-    {
         "html": "canopy-map.html",
         "out": "dist/canopy-map.html",
         "entry": "src/canopy-map.js",
@@ -188,18 +161,6 @@ TARGETS = [
                     "src/canopy-split-cities.js", "src/canopy-split-neighborhoods.js",
                     "src/heat-cities.js", "src/heat-neighborhoods.js", "src/heat-streets.js",
                     "src/apps.js", "src/canopy-heat-compare.js"],
-        "data": True,
-    },
-    {
-        "html": "canopy-split.html",
-        "out": "dist/canopy-split.html",
-        "entry": "src/canopy-split.js",
-        # Pure aggregation of tree-canopy.html's own three tables - see
-        # tools/canopy_split_build.py. apis.json is only for apps.js's
-        # under-header category strip.
-        "sources": ["src/ui.js", "src/theme.js", "src/charts.js",
-                    "src/canopy-split-cities.js", "src/canopy-split-neighborhoods.js",
-                    "src/apps.js", "src/canopy-split.js"],
         "data": True,
     },
     {

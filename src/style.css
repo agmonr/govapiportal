@@ -75,6 +75,34 @@
   }
 }
 
+/* Explicit "יום" pick: pins the same light values as the default :root block
+   above, unconditionally (not inside a prefers-color-scheme query), so a
+   visitor who explicitly chose day mode gets it even when their OS/browser
+   prefers dark - otherwise the @media block above silently wins and e.g.
+   canopy-map.html's choropleth colors mismatch the desktop/light look. */
+[data-theme="clouds"] {
+  --bg: #f2f7ee;
+  --fg: #24331f;
+  --muted: #5b6f56;
+  --border: #dfe9d8;
+  --accent: #2e7d46;
+  --surface: #eaf3e6;
+  --danger: #e05353;
+  --card: #ffffff;
+
+  --forest-dark: #1b5e34;
+  --forest: #2e7d46;
+  --leaf: #4caf50;
+  --leaf-light: #a5d6a7;
+  --sun: #f5a623;
+  --sky: #2ba8e0;
+  --berry: #e05353;
+  --bark: #a1725c;
+  --terracotta: #e08130;
+  --shadow: rgba(27, 94, 52, 0.16);
+  --shadow-soft: rgba(27, 94, 52, 0.10);
+}
+
 * { box-sizing: border-box; }
 
 body {

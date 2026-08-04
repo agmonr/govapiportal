@@ -1,10 +1,14 @@
 /**
  * The theme picker. Three looks, labeled יום/לילה/זברה in the markup: "clouds"
- * (יום, default, unset data-theme), "fashion" (לילה, opt-in black/gold - see
- * [data-theme="fashion"] in style.css) and "zebra" (זברה, opt-in black/white
- * - see [data-theme="zebra"]). The choice is applied to <html> before first
- * paint by an inline script in <head> - see index.html/datagov.html - so
- * switching pages or reloading never flashes another theme first.
+ * (יום, default - see [data-theme="clouds"] in style.css), "fashion" (לילה,
+ * opt-in black/gold - see [data-theme="fashion"]) and "zebra" (זברה, opt-in
+ * black/white - see [data-theme="zebra"]). An explicit choice always sets
+ * data-theme (even for clouds) so it pins the palette regardless of the
+ * visitor's OS color-scheme preference - a page with no saved choice at all
+ * has no attribute and follows prefers-color-scheme instead. The choice is
+ * applied to <html> before first paint by an inline script in <head> - see
+ * index.html/datagov.html - so switching pages or reloading never flashes
+ * another theme first.
  */
 const KEY = 'theme';
 const DEFAULT = 'clouds';
@@ -26,8 +30,7 @@ export function initThemePicker(root) {
   root.querySelectorAll('button[data-theme]').forEach((b) => {
     b.addEventListener('click', () => {
       const choice = b.dataset.theme;
-      if (choice === DEFAULT) document.documentElement.removeAttribute('data-theme');
-      else document.documentElement.setAttribute('data-theme', choice);
+      document.documentElement.setAttribute('data-theme', choice);
       try { localStorage.setItem(KEY, choice); } catch { /* private mode, etc. - theme just won't persist */ }
       sync();
     });

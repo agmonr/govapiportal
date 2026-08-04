@@ -26,7 +26,7 @@
   <script>
     try {
       var t = localStorage.getItem('theme');
-      if (t && t !== 'clouds') document.documentElement.setAttribute('data-theme', t);
+      if (t) document.documentElement.setAttribute('data-theme', t);
     } catch (e) {}
   </script>
   <style>
@@ -105,6 +105,34 @@
     --bark: #b88a6e;
     --terracotta: #e0985a;
   }
+}
+
+/* Explicit "יום" pick: pins the same light values as the default :root block
+   above, unconditionally (not inside a prefers-color-scheme query), so a
+   visitor who explicitly chose day mode gets it even when their OS/browser
+   prefers dark - otherwise the @media block above silently wins and e.g.
+   canopy-map.html's choropleth colors mismatch the desktop/light look. */
+[data-theme="clouds"] {
+  --bg: #f2f7ee;
+  --fg: #24331f;
+  --muted: #5b6f56;
+  --border: #dfe9d8;
+  --accent: #2e7d46;
+  --surface: #eaf3e6;
+  --danger: #e05353;
+  --card: #ffffff;
+
+  --forest-dark: #1b5e34;
+  --forest: #2e7d46;
+  --leaf: #4caf50;
+  --leaf-light: #a5d6a7;
+  --sun: #f5a623;
+  --sky: #2ba8e0;
+  --berry: #e05353;
+  --bark: #a1725c;
+  --terracotta: #e08130;
+  --shadow: rgba(27, 94, 52, 0.16);
+  --shadow-soft: rgba(27, 94, 52, 0.10);
 }
 
 * { box-sizing: border-box; }
@@ -2524,11 +2552,15 @@ function saveXls(sheetName, headers, records, filename) {
 
 /**
  * The theme picker. Three looks, labeled יום/לילה/זברה in the markup: "clouds"
- * (יום, default, unset data-theme), "fashion" (לילה, opt-in black/gold - see
- * [data-theme="fashion"] in style.css) and "zebra" (זברה, opt-in black/white
- * - see [data-theme="zebra"]). The choice is applied to <html> before first
- * paint by an inline script in <head> - see index.html/datagov.html - so
- * switching pages or reloading never flashes another theme first.
+ * (יום, default - see [data-theme="clouds"] in style.css), "fashion" (לילה,
+ * opt-in black/gold - see [data-theme="fashion"]) and "zebra" (זברה, opt-in
+ * black/white - see [data-theme="zebra"]). An explicit choice always sets
+ * data-theme (even for clouds) so it pins the palette regardless of the
+ * visitor's OS color-scheme preference - a page with no saved choice at all
+ * has no attribute and follows prefers-color-scheme instead. The choice is
+ * applied to <html> before first paint by an inline script in <head> - see
+ * index.html/datagov.html - so switching pages or reloading never flashes
+ * another theme first.
  */
 const KEY = 'theme';
 const DEFAULT = 'clouds';
@@ -2550,8 +2582,7 @@ function initThemePicker(root) {
   root.querySelectorAll('button[data-theme]').forEach((b) => {
     b.addEventListener('click', () => {
       const choice = b.dataset.theme;
-      if (choice === DEFAULT) document.documentElement.removeAttribute('data-theme');
-      else document.documentElement.setAttribute('data-theme', choice);
+      document.documentElement.setAttribute('data-theme', choice);
       try { localStorage.setItem(KEY, choice); } catch { /* private mode, etc. - theme just won't persist */ }
       sync();
     });

@@ -21,7 +21,7 @@
   <script>
     try {
       var t = localStorage.getItem('theme');
-      if (t && t !== 'clouds') document.documentElement.setAttribute('data-theme', t);
+      if (t) document.documentElement.setAttribute('data-theme', t);
     } catch (e) {}
   </script>
   <link rel="stylesheet" href="./src/style.css">
@@ -36,7 +36,7 @@
         <button type="button" data-theme="fashion">🌙<span class="theme-btn-label"> לילה</span></button>
         <button type="button" data-theme="zebra">🦓<span class="theme-btn-label"> זברה</span></button>
       </div>
-      <span class="meta"><a href="./tree-canopy.html">האינדקס הירוק</a> · <a href="./heat-islands.html">כמה חם כאן</a> · <a href="./canopy-map.html">מפת עצים וחום</a></span>
+      <span class="meta"><a href="./canopy-map.html">מפת עצים וחום</a></span>
       <span class="meta" id="created"></span>
     </div>
   </header>
@@ -62,11 +62,9 @@
         <summary><strong>מה יש כאן, ומה המקור</strong></summary>
         <p>
           עצי רחוב ציבוריים, עצים פרטיים (גינות וחצרות) ודלתת חום מרבית, זה לצד זה, לפי <strong>עיר, שכונה או
-          רחוב</strong> - לא מקור נתונים חדש, אלא חיבור של טבלאות שכבר מחושבות במקום אחר באתר:
-          <a href="./tree-canopy.html">האינדקס הירוק לרחוב שלי</a> ו<a href="./canopy-split.html">עצים ציבוריים
-          מול פרטיים</a> (כיסוי חופות עצים, מיפוי מפ"י) ו<a href="./heat-islands.html">כמה חם כאן</a>
-          (דלתת חום, מפת הסיכונים האקלימית של המשרד להגנת הסביבה). לפירוט מלא על כל מדד בנפרד - כולל מתודולוגיה,
-          דיוק ומגבלות - ראו את הדף המקורי שלו.
+          רחוב</strong> - לא מקור נתונים חדש, אלא חיבור של טבלאות שכבר מחושבות במקום אחר באתר: כיסוי חופות
+          עצים (מיפוי מפ"י) ודלתת חום (מפת הסיכונים האקלימית של המשרד להגנת הסביבה). לתצוגה חזותית על מפה
+          ראו <a href="./canopy-map.html">מפת עצים וחום</a>.
         </p>
         <p>
           <strong>ישות שחסרה לה מדד אחד עדיין מוצגת:</strong> אם עיר/שכונה/רחוב מופיעים בטבלה אחת בלבד (למשל
@@ -93,10 +91,20 @@
         <h2 id="metricH">מדדים לגרף</h2>
         <p class="acc-hint" dir="auto">אפשר לבחור יותר ממדד אחד בו-זמנית - עצי רחוב ועצים פרטיים יחד מוצגים כגרף משולב אחד.</p>
         <div class="cm-filters" id="chcMetricPick" role="group" aria-label="מדדים לגרף">
-          <button type="button" data-metric="street" class="tc-level-btn chc-metric-btn">עצי רחוב (ציבורי)</button>
+          <button type="button" data-metric="street" class="tc-level-btn chc-metric-btn">עצי רחוב</button>
           <button type="button" data-metric="private" class="tc-level-btn chc-metric-btn">עצים פרטיים</button>
           <button type="button" data-metric="heat" class="tc-level-btn chc-metric-btn">דלתת חום</button>
         </div>
+      </section>
+
+      <section class="acc-section" id="chcCityFilterRow" aria-labelledby="cityFilterH" hidden>
+        <h2 id="cityFilterH">סינון לפי עיר</h2>
+        <div class="acc-year-pick">
+          <label for="chcCityFilter">עיר:</label>
+          <input id="chcCityFilter" type="text" list="chcCityRoster" autocomplete="off" spellcheck="false"
+                 placeholder="התחילו להקליד…">
+        </div>
+        <datalist id="chcCityRoster"></datalist>
       </section>
 
       <section class="acc-section" aria-labelledby="pickH">
@@ -137,6 +145,7 @@
         <h2 id="compareH">השוואה</h2>
         <div id="chcCompareCharts"></div>
         <div id="chcTable"></div>
+        <div id="chcRanks" class="acc-hint" dir="auto"></div>
         <div class="fin-export-row">
           <button type="button" id="chcShare" class="drill-dl">שיתוף ההשוואה בוואטסאפ ⤴</button>
         </div>
@@ -144,6 +153,10 @@
 
       <section class="acc-section" aria-labelledby="boardH">
         <h2 id="boardH"><span id="chcBoardLevel"></span></h2>
+        <div class="cm-filters" id="chcBoardOrderPick" role="group" aria-label="סדר הצגה">
+          <button type="button" data-order="best" class="tc-level-btn">הכי טובים</button>
+          <button type="button" data-order="worst" class="tc-level-btn">הכי גרועים</button>
+        </div>
         <p class="acc-hint" dir="auto" id="chcBoardHint"></p>
         <div id="chcBoardCharts"></div>
       </section>

@@ -55,9 +55,8 @@ than shipping to whoever downloads it.
 | `index.html` / `src/map.js` | Top view + portal grid + API list, filterable |
 | `datagov.html` / `src/ckan.js` | The data.gov.il explorer: catalogue → dataset → records |
 | `moag.html` / `src/moag-explorer.js` | The Ministry of Agriculture explorer: catalogue → dataset → FeatureServer records |
-| `tree-canopy.html` / `src/tree-canopy.js` | Tree canopy % by city/neighborhood/street, compare-two-entities UI. Data is precomputed - see below. |
 | `plan-timeline.html` / `src/plan-timeline.js` | How long a building plan takes from submission to approval, by city, with filters (status/city/year/plan-name/min-plans-per-city), a per-plan step-by-step drill-down and a detailed Excel export. Live from Xplan - see `src/plan-data.js`. |
-| `plan-compare.html` / `src/plan-compare.js` | Same plan-duration data, compare up to 4 cities at once (same UI idiom as `tree-canopy.html`), with a per-city year-submitted trend and a per-city plan drill-down (area-colored by size). |
+| `plan-compare.html` / `src/plan-compare.js` | Same plan-duration data, compare up to 4 cities at once (same compare-multiple-entities idiom as `canopy-map.html`), with a per-city year-submitted trend and a per-city plan drill-down (area-colored by size). |
 | `src/plan-render.js` | Shared per-plan/per-plan-list HTML (status badge, step timeline, area-size color scale) - used by both plan pages above so the markup exists once. |
 | `src/idb-cache.js` | Tiny async IndexedDB key-value cache, used by `plan-data.js` so the ~20-27k-row Xplan fetch survives reloads/new tabs (session/localStorage are too small for it). |
 | `tools/canopy_build.py` | One-time local batch job that computes the three canopy tables above from a gitignored local shapefile |
@@ -275,10 +274,11 @@ CSV download works the same way it does everywhere else on this site: built
 here from the same paged `/query` calls already used to show the table, not
 from a server-side export.
 
-## How green is your city — a page with no live API behind it at all
+## How green is your city — a data pipeline with no live API behind it at all
 
-**`tree-canopy.html` is a different shape from everything else here.** Every
-other page fetches from a live government API, even the ones with a
+**The canopy/heat data feeding `canopy-map.html` and `canopy-heat-compare.html`
+is a different shape from everything else here.** Every other page fetches
+from a live government API, even the ones with a
 precomputed snapshot (accidents.html's numbers are dated, but the *source*
 is still `datastore_search`, live, if you want to recompute them). Tree
 canopy coverage has no API at all: the source is a 358 MB Esri shapefile
