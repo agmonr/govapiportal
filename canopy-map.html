@@ -218,6 +218,12 @@
           </div>
           <button type="button" id="cmMapExitFullscreen" class="cm-map-exit-fullscreen" aria-label="חזרה" hidden>→</button>
         </div>
+        <!-- Outside .cm-map-wrap on purpose: that container has its own
+             overflow:hidden (for the SVG/basemap it normally holds), which
+             can still clip a position:fixed descendant positioned beyond
+             its own visible box, even though fixed positioning computes
+             its offset against the viewport, not that ancestor. -->
+        <ul id="cmContextMenu" class="cm-context-menu" role="menu" hidden></ul>
         <p class="acc-hint" dir="auto">גלגלת עכבר או צביטה בשתי אצבעות להתקרבות/התרחקות, גרירה להזזה.</p>
         <button type="button" id="cmFullReset" class="cm-full-reset">איפוס למפה המקורית</button>
         <div id="cmLegend" class="cm-legend"></div>

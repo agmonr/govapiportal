@@ -654,6 +654,7 @@ async function renderOsmBasemap(entities) {
 /* ---------- map (city/neighborhood only) ---------- */
 
 async function renderMap() {
+  hideContextMenu(); // a fresh render replaces svg.innerHTML entirely - an open menu's own item(s) would point at now-stale entities/closures
   const mapSection = el('cmMapSection');
   mapSection.hidden = state.level === 'street';
   if (state.level === 'street') {
@@ -872,19 +873,28 @@ async function renderMap() {
       pickSolo(entity);
     });
     path.addEventListener('keydown', (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); pickSolo(entity); } });
-    // Deep-links into canopy-heat-compare.html's own up-to-4 compare page,
-    // pre-loaded with this one entity - same level/p1/city query shape
-    // fullPageLink() above already builds for the metric-specific pages,
-    // just for a single double-clicked shape rather than the current
-    // multi-select. entity.level here is always 'city' or 'neighborhood'
-    // (street has no map shapes at all - see currentEntities()), matching
-    // exactly what that page's own readStateFromUrl() expects.
-    path.addEventListener('dblclick', () => {
-      const p = new URLSearchParams();
-      p.set('level', entity.level);
-      p.set('p1', entity.label);
-      if (entity.level === 'neighborhood' && state.cityFilter) p.set('city', state.cityFilter);
-      location.href = `./canopy-heat-compare.html?${p}`;
+    // Right-click opens a submenu (see showContextMenu below) instead of
+    // the browser's own native one - currently one item, deep-linking into
+    // canopy-heat-compare.html's own up-to-4 compare page pre-loaded with
+    // this one entity (same level/p1/city query shape fullPageLink() above
+    // already builds for the metric-specific pages). entity.level here is
+    // always 'city' or 'neighborhood' (street has no map shapes at all -
+    // see currentEntities()), matching exactly what that page's own
+    // readStateFromUrl() expects.
+    path.addEventListener('contextmenu', (ev) => {
+      ev.preventDefault();
+      showContextMenu(ev.clientX, ev.clientY, [
+        {
+          label: 'מידע איזורי על עצים וחום ←',
+          onSelect: () => {
+            const p = new URLSearchParams();
+            p.set('level', entity.level);
+            p.set('p1', entity.label);
+            if (entity.level === 'neighborhood' && state.cityFilter) p.set('city', state.cityFilter);
+            location.href = `./canopy-heat-compare.html?${p}`;
+          },
+        },
+      ]);
     });
   });
 
@@ -1202,6 +1212,52 @@ el('cmFullReset').addEventListener('click', () => {
   syncUrl();
   renderAll();
 });
+
+/* ---------- right-click submenu (replaces the browser's own native
+   context menu on a city/neighborhood shape - see the 'contextmenu'
+   listener above) - a plain floating <ul> positioned at the cursor,
+   currently offering one item (the canopy-heat-compare.html deep link),
+   but built generically (a list of {label, onSelect}) so a second item
+   later doesn't need a second menu component. ---------- */
+
+function hideContextMenu() {
+  const menu = el('cmContextMenu');
+  menu.hidden = true;
+  menu.innerHTML = '';
+}
+
+function showContextMenu(x, y, items) {
+  const menu = el('cmContextMenu');
+  menu.innerHTML = items.map((item, i) => `
+    <li role="none"><button type="button" role="menuitem" data-idx="${i}">${esc(item.label)}</button></li>`).join('');
+  menu.hidden = false;
+  // Measured only after becoming visible (hidden elements have no real
+  // box) - clamped so a right-click near the map's own edge doesn't open
+  // a menu that spills off-screen.
+  const rect = menu.getBoundingClientRect();
+  const left = Math.max(8, Math.min(x, window.innerWidth - rect.width - 8));
+  const top = Math.max(8, Math.min(y, window.innerHeight - rect.height - 8));
+  menu.style.left = `${left}px`;
+  menu.style.top = `${top}px`;
+  menu.querySelectorAll('button[data-idx]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      hideContextMenu();
+      items[Number(btn.dataset.idx)].onSelect();
+    });
+  });
+}
+
+// Dismiss on a click anywhere else (a right-click's own contextmenu event
+// doesn't fire a following 'click', so this can't immediately close a menu
+// it just opened), Escape, or the viewport changing under it (scroll/
+// resize - a still-open menu positioned for a stale cursor location would
+// otherwise float over the wrong spot).
+document.addEventListener('click', (ev) => {
+  if (!ev.target.closest('#cmContextMenu')) hideContextMenu();
+});
+document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape') hideContextMenu(); });
+window.addEventListener('scroll', hideContextMenu, true);
+window.addEventListener('resize', hideContextMenu);
 
 /* ---------- mobile fullscreen takeover - a tap on the map on a narrow
    viewport expands #cmSvg's own container to fill the screen instead of

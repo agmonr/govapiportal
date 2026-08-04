@@ -1939,6 +1939,23 @@ body.accidents-page header.site h1 { inline-size: 100%; }
 }
 .cm-map-exit-fullscreen:hover { border-color: var(--accent); }
 
+/* Right-click submenu on a city/neighborhood shape (canopy-map.js's own
+   showContextMenu()) - a plain <ul> positioned at the cursor via inline
+   left/top (JS-set, clamped to stay inside the viewport), styled like a
+   small floating card rather than the browser's own native context menu
+   it replaces (preventDefault()'d on the triggering contextmenu event). */
+.cm-context-menu {
+  position: fixed; z-index: 1002; margin: 0; padding: .3rem; list-style: none;
+  min-inline-size: 12rem; border-radius: 8px; border: 1px solid var(--border);
+  background: var(--card); box-shadow: 0 4px 16px rgba(0, 0, 0, .3);
+}
+.cm-context-menu button {
+  display: block; inline-size: 100%; text-align: start; padding: .5rem .7rem;
+  border: none; border-radius: 6px; background: none; color: var(--fg);
+  font-size: .9rem; cursor: pointer;
+}
+.cm-context-menu button:hover, .cm-context-menu button:focus-visible { background: var(--surface); outline: none; }
+
 .cm-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem; margin-block-start: .8rem; font-size: .85rem; }
 .cm-legend-scale { display: inline-flex; align-items: center; gap: .4rem; }
 .cm-legend-bar { inline-size: 8rem; block-size: .7rem; border-radius: 3px; border: 1px solid var(--border); }
