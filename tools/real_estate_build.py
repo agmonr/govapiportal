@@ -195,27 +195,32 @@ def build():
             log(f"  {i+1}/{len(prices)} deals assigned, {elapsed:.0f}s elapsed")
     log(f"assignment done in {time.time()-t0:.0f}s")
 
+    # Every city/neighborhood with at least one priced deal is included -
+    # median/mean are only added once the sample is large enough to be a
+    # reliable statistic (MIN_SAMPLES_*). Below that, the entry still carries
+    # "n" and still gets a deal file (see write_deal_files) and a roster/board
+    # entry - the individual reported prices are real data even when there
+    # aren't enough of them for a trustworthy median/mean.
     city_out = {}
     for city, vals in by_city.items():
-        if len(vals) < MIN_SAMPLES_CITY:
-            continue
-        city_out[city] = {
-            "medianPricePerSqm": round(median(vals)),
-            "meanPricePerSqm": round(sum(vals) / len(vals)),
-            "n": len(vals),
-        }
+        entry = {"n": len(vals)}
+        if len(vals) >= MIN_SAMPLES_CITY:
+            entry["medianPricePerSqm"] = round(median(vals))
+            entry["meanPricePerSqm"] = round(sum(vals) / len(vals))
+        city_out[city] = entry
 
     nb_out = {}
     for key, vals in by_nb.items():
-        if len(vals) < MIN_SAMPLES_NB:
-            continue
-        nb_out[key] = {
-            "medianPricePerSqm": round(median(vals)),
-            "meanPricePerSqm": round(sum(vals) / len(vals)),
-            "n": len(vals),
-        }
+        entry = {"n": len(vals)}
+        if len(vals) >= MIN_SAMPLES_NB:
+            entry["medianPricePerSqm"] = round(median(vals))
+            entry["meanPricePerSqm"] = round(sum(vals) / len(vals))
+        nb_out[key] = entry
 
-    log(f"{len(city_out)} cities, {len(nb_out)} neighborhoods with >= min samples")
+    n_city_with_median = sum(1 for e in city_out.values() if "medianPricePerSqm" in e)
+    n_nb_with_median = sum(1 for e in nb_out.values() if "medianPricePerSqm" in e)
+    log(f"{len(city_out)} cities ({n_city_with_median} with median), "
+        f"{len(nb_out)} neighborhoods ({n_nb_with_median} with median)")
     write_deal_files(deals_by_city, city_out)
     write_street_index(deals_by_city, city_out)
     return city_out, nb_out
