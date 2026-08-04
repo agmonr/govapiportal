@@ -354,6 +354,10 @@ function googleMapsUrl(street, houseNum, city) {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(parts.join(', '))}`;
 }
 
+function gushHelkaText(d) {
+  return d.g != null ? [d.g, d.p, d.sp].filter((v) => v != null).join('/') : '';
+}
+
 function dealYearCounts(deals) {
   const counts = {};
   for (const d of deals) {
@@ -369,6 +373,7 @@ const DEALS_INITIAL_ROWS = 10; // visible before "הצג עוד" - the rest sits
 const DEAL_COLUMNS = [
   { key: 'dt', label: 'תאריך', type: 'text', get: (d) => d.dt || '' },
   { key: 'addr', label: 'כתובת', type: 'text', get: (d) => [d.st, d.hn].filter((v) => v != null && v !== '').join(' ') },
+  { key: 'gush', label: 'גוש/חלקה', type: 'text', get: (d) => gushHelkaText(d) },
   { key: 'area', label: 'שטח (מ״ר)', type: 'num', get: (d) => d.area },
   { key: 'amt', label: 'מחיר', type: 'num', get: (d) => d.amt },
   { key: 'perSqm', label: 'מחיר למ״ר', type: 'num', get: (d) => (d.area ? d.amt / d.area : null) },
@@ -386,7 +391,7 @@ function dealsStateFor(key) {
 
 function matchesSearch(d, q) {
   if (!q) return true;
-  const hay = `${d.dt || ''} ${d.st || ''} ${d.hn ?? ''} ${d.nb || ''} ${d._area || ''}`.toLowerCase();
+  const hay = `${d.dt || ''} ${d.st || ''} ${d.hn ?? ''} ${d.nb || ''} ${d._area || ''} ${d._city || ''} ${gushHelkaText(d)}`.toLowerCase();
   return hay.includes(q);
 }
 
@@ -418,8 +423,8 @@ async function renderDealsBlock(entry, index, myGen) {
       <summary><strong dir="auto">${esc(entry.label)} - עסקאות בודדות</strong></summary>
       <figure id="${yearFigId}" class="acc-chart" role="img"></figure>
       <div class="acc-year-pick">
-        <label for="${searchId}">חיפוש (רחוב, תאריך, שכונה):</label>
-        <input id="${searchId}" type="text" autocomplete="off" spellcheck="false" placeholder="למשל: הרצל, 2024, רמת אשכול…">
+        <label for="${searchId}">חיפוש (רחוב, גוש/חלקה, תאריך, שכונה):</label>
+        <input id="${searchId}" type="text" autocomplete="off" spellcheck="false" placeholder="למשל: הרצל, 18788/43, 2024, רמת אשכול…">
       </div>
       <div id="${tableId}"></div>
     </details>`;
@@ -462,6 +467,7 @@ function renderDealsTableSorted(containerId, deals, state) {
     <tr>
       <td dir="ltr">${esc(d.dt)}</td>
       <td dir="auto">${addrCell}</td>
+      <td dir="ltr">${esc(gushHelkaText(d) || '—')}</td>
       <td>${d.area != null ? num(d.area) : '—'}</td>
       <td>${num(d.amt)} ₪</td>
       <td>${perSqm != null ? `${num(perSqm)} ₪` : '—'}</td>
@@ -567,8 +573,8 @@ async function renderCombinedDealsInto(containerElId, entries, heading, gen) {
     <details class="notice info" open>
       <summary><strong dir="auto">${esc(heading)}</strong></summary>
       <div class="acc-year-pick">
-        <label for="${searchId}">חיפוש (כתובת, תאריך, שכונה):</label>
-        <input id="${searchId}" type="text" autocomplete="off" spellcheck="false" placeholder="למשל: הרצל, 2024, רמת אשכול…">
+        <label for="${searchId}">חיפוש (כתובת, גוש/חלקה, תאריך, שכונה, עיר):</label>
+        <input id="${searchId}" type="text" autocomplete="off" spellcheck="false" placeholder="למשל: הרצל, 18788/43, 2024, רמת אשכול, הוד השרון…">
       </div>
       <div id="${tableId}"></div>
     </details>`;

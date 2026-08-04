@@ -117,6 +117,9 @@ def load_deals():
                 "area": area,
                 "st": d.get("streetNameHeb"),
                 "hn": d.get("houseNum"),
+                "g": d.get("gushNum"),
+                "p": d.get("parcelNum"),
+                "sp": d.get("subParcelNum"),
             }
             yield cen[0], cen[1], adj, raw
     log(f"deals: total={n_total} kept={n_kept}")
