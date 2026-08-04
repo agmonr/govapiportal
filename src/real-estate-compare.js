@@ -349,6 +349,11 @@ function dealsForEntry(entry, cityDeals) {
   return cityDeals;
 }
 
+function googleMapsUrl(street, houseNum, city) {
+  const parts = [[street, houseNum].filter((v) => v != null && v !== '').join(' '), city, 'ישראל'].filter((v) => v);
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(parts.join(', '))}`;
+}
+
 function dealYearCounts(deals) {
   const counts = {};
   for (const d of deals) {
@@ -402,7 +407,7 @@ async function renderDealsBlock(entry, index, myGen) {
   // .then() that ran once this function had already finished mutating.
   if (myGen !== dealsRenderGen || !el(blockId)) return;
 
-  const deals = dealsForEntry(entry, cityDeals);
+  const deals = dealsForEntry(entry, cityDeals).map((d) => ({ ...d, _city: entry.city }));
   const state = dealsStateFor(entry.key);
   const yearFigId = `${blockId}Year`;
   const searchId = `${blockId}Search`;
@@ -454,10 +459,13 @@ function renderDealsTableSorted(containerId, deals, state) {
     const perSqm = d.area ? Math.round(d.amt / d.area) : null;
     let addr = [d.st, d.hn].filter((v) => v != null && v !== '').join(' ');
     if (d._area) addr = `${addr || '—'} — ${d._area}`; // combined multi-neighborhood table - see renderCombinedDeals()
+    const addrCell = d.st
+      ? `<a href="${esc(googleMapsUrl(d.st, d.hn, d._city))}" target="_blank" rel="noopener">${esc(addr || '—')}</a>`
+      : esc(addr || '—');
     return `
     <tr>
       <td dir="ltr">${esc(d.dt)}</td>
-      <td dir="auto">${esc(addr || '—')}</td>
+      <td dir="auto">${addrCell}</td>
       <td>${d.area != null ? num(d.area) : '—'}</td>
       <td>${num(d.amt)} ₪</td>
       <td>${perSqm != null ? `${num(perSqm)} ₪` : '—'}</td>
@@ -586,7 +594,7 @@ async function renderCombinedDealsInto(containerElId, entries, heading, gen) {
       // areaTag overrides the default entry.label tag - streets need just
       // the city here (entry.label would repeat the street name the
       // address column already shows, e.g. "הרצל 13 — הרצל (תל אביב)").
-      combined.push({ ...d, _area: entry.areaTag || entry.label });
+      combined.push({ ...d, _area: entry.areaTag || entry.label, _city: entry.city });
     }
   }
   combinedDealsCache[containerElId] = combined;
