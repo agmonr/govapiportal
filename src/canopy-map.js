@@ -325,6 +325,54 @@ function citiesInView(view) {
   return hits.slice(0, CITY_VIEW_MAX_COUNT).map(([name]) => name);
 }
 
+// Background warm-up for cities just outside citiesInView()'s own rendered
+// top-CITY_VIEW_MAX_COUNT set: right now a city's blob PNG only starts
+// downloading the instant it becomes one of the RENDERED cities, so
+// panning, zooming out to reveal more cities, or zooming further into one
+// that was on screen but past the render cap, all show a visible pop-in
+// while that first-ever fetch is in flight. The browser's own HTTP cache
+// already makes a REVISIT free (no re-fetch for a city already viewed) -
+// this only adds a proactive warm-up for cities close enough that panning/
+// zooming to bring them into the rendered set is one gesture away, so
+// their fetch is already resolved (or well under way) by the time they'd
+// actually need to appear. `pad` widens the scan past the exact current
+// view (covers panning/zooming out just beyond the edges); cities pushed
+// out by the render cap while still literally on screen (the zoom-IN case)
+// are covered too, since the scan has no count cap of its own here - only
+// PREFETCH_MAX bounds how many NEW warm-ups happen per call, so a fully
+// zoomed-out national view doesn't warm every one of the 186 cities.
+const PREFETCH_PAD = 0.5; // view padded by this fraction (each side) before scanning for candidates
+const PREFETCH_MAX = 45;
+const warmedBlobCities = new Set(); // cities already warmed this page load - re-triggering Image().src is a harmless cache hit, but no need to bother
+function warmBlobImage(src) {
+  const img = new Image();
+  if ('fetchPriority' in img) img.fetchPriority = 'low'; // best-effort - Chromium supports it, a browser without it just fetches at normal priority
+  img.src = src;
+}
+function prefetchNearbyBlobs(view, renderedCities) {
+  if (!view) return;
+  const padded = {
+    x: view.x - (view.w * PREFETCH_PAD) / 2,
+    y: view.y - (view.h * PREFETCH_PAD) / 2,
+    w: view.w * (1 + PREFETCH_PAD),
+    h: view.h * (1 + PREFETCH_PAD),
+  };
+  const rendered = new Set(renderedCities);
+  const candidates = [];
+  for (const [name, bbox] of Object.entries(cityBBoxes())) {
+    if (rendered.has(name) || warmedBlobCities.has(name)) continue;
+    if (!HEAT_BLOBS[name] && !CANOPY_BLOBS[name]) continue;
+    const frac = overlapArea(bbox, padded) / (padded.w * padded.h);
+    if (frac >= CITY_VIEW_MIN_FRACTION) candidates.push([name, frac]);
+  }
+  candidates.sort((a, b) => b[1] - a[1]); // nearest/most-prominent first, in case PREFETCH_MAX cuts the list off
+  for (const [name] of candidates.slice(0, PREFETCH_MAX)) {
+    if (HEAT_BLOBS[name]) warmBlobImage(HEAT_BLOBS[name].src);
+    if (CANOPY_BLOBS[name]) warmBlobImage(CANOPY_BLOBS[name].src);
+    warmedBlobCities.add(name);
+  }
+}
+
 function drillOutToCity(priorView) {
   state.level = 'city';
   state.cityFilter = null;
@@ -751,7 +799,25 @@ async function renderMap() {
   currentZoomPan?.destroy();
   const cityFilterAtAttach = state.cityFilter;
   const levelAtAttach = state.level;
-  const blobCitiesKeyAtAttach = [...blobCities].sort().join(' ');
+  const blobCitiesKeyAtAttach = [...blobCities].sort().join(' ');
+  // citiesInView() (an O(186) scan + sort) and the renderMap() it can
+  // trigger (full svg.innerHTML rebuild + attachZoomPan teardown/recreate)
+  // are too expensive to run on every single wheel tick/pointermove sample
+  // of an active gesture - debounced so they run once ~180ms after the
+  // gesture pauses (including at release, since nothing keeps resetting
+  // the timer once ticks stop) rather than on every intermediate sample.
+  // Blobs still refresh live as a pan/zoom continues (the earlier "holes
+  // in the map" fix's whole point) - just once per pause, not per event.
+  const checkBlobCitiesDebounced = debounce((v) => {
+    const inView = citiesInView(v);
+    // .sort() here is alphabetical (a stable order for the SET-equality
+    // string comparison below, matching blobCitiesKeyAtAttach's own
+    // construction) - NOT the same as citiesInView's own internal
+    // by-overlap-fraction sort, which prefetchNearbyBlobs below still
+    // wants (nearest/most-prominent first), so it gets the pre-sort array.
+    if ([...inView].sort().join(' ') !== blobCitiesKeyAtAttach) renderMap();
+    prefetchNearbyBlobs(v, inView); // independent of whether the rendered set itself changed - see its own comment
+  }, 180);
   const zoomPan = attachZoomPan(svg, state.view || viewBox, {
     onChange: (v) => {
       state.view = v;
@@ -762,7 +828,9 @@ async function renderMap() {
       // happens on the map - only ENTERING one no longer does (see the
       // path click handler below) - picking which city to view is manual
       // only now (level tab + the "בחירת עיר" text input), not something
-      // the map itself triggers by scrolling/pinching in far enough.
+      // the map itself triggers by scrolling/pinching in far enough. Kept
+      // un-debounced (unlike the blob check below) - it's a cheap O(1)
+      // bbox comparison, not a scan, so there's no per-tick cost to defer.
       if (cityFilterAtAttach && shouldDrillOut(v, cityFilterAtAttach)) {
         drillOutToCity(v);
         return;
@@ -773,9 +841,7 @@ async function renderMap() {
       // swap which cities' blob images are on screen, so one is triggered,
       // but only when the actual set changed (not on every pan/zoom tick,
       // and not just because the same cities got reordered by distance).
-      if (levelAtAttach === 'city' && citiesInView(v).sort().join(' ') !== blobCitiesKeyAtAttach) {
-        renderMap();
-      }
+      if (levelAtAttach === 'city') checkBlobCitiesDebounced(v);
     },
   });
   currentZoomPan = zoomPan;
@@ -1078,6 +1144,7 @@ el('cmHiResToggle').addEventListener('change', (ev) => {
 // same way declutterOverlappingLabels is - a resize firing many times in a
 // drag (window edge) shouldn't force a getBBox layout flush on every one.
 const onSvgResize = debounce(() => {
+  currentZoomPan?.invalidateRect(); // attachZoomPan's own cached getBoundingClientRect() - see its own comment - is now stale
   const svg = el('cmSvg');
   const view = state.view || lastViewBox;
   if (view) updateLabels(svg, view, { immediate: true });

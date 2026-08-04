@@ -73,6 +73,18 @@ const DRAG_THRESHOLD_PX = 6; // below this, a pointerdown->up counts as a tap, n
 // given drag distance pans further than the cursor itself moved, at the
 // cost of that 1:1 tracking feel.
 const DRAG_SENSITIVITY = 1.8;
+// Wheel zoom step, scaled by how hard a single event's deltaY was rather
+// than a flat rate - a light trackpad nudge (small deltaY) and an
+// aggressive mouse-wheel/trackpad fling (large deltaY) used to zoom at the
+// identical per-event rate, which read as sluggish for a fast fling and
+// twitchy for a light nudge. 100 is a rough "one normal mouse-wheel notch"
+// reference point (most browsers report ~100-120 per notch); the exponent
+// is clamped so neither a tiny nor a huge deltaY pushes the per-event zoom
+// step outside a reasonable range.
+const WHEEL_BASE_FACTOR = 1.15;
+const WHEEL_DELTA_REFERENCE = 100;
+const WHEEL_INTENSITY_MIN = 0.3;
+const WHEEL_INTENSITY_MAX = 3;
 
 /**
  * Wires zoom/pan onto `svgEl`, whose viewBox starts at `initial`
@@ -95,6 +107,18 @@ export function attachZoomPan(svgEl, initial, { onChange } = {}) {
   // Set directly (not via apply()) so restoring a URL-provided view on
   // attach doesn't also fire onChange for a "change" that didn't happen.
   svgEl.setAttribute('viewBox', `${view.x} ${view.y} ${view.w} ${view.h}`);
+  // getBoundingClientRect() only changes when svgEl itself resizes/
+  // relayouts - never merely because view.w/h changed from a zoom tick -
+  // so it's cached across an entire gesture (and across gestures) instead
+  // of re-measured (a forced synchronous layout read) on every wheel tick/
+  // pointermove. Invalidated on pointerdown (cheap insurance against any
+  // layout change since the last gesture) and via invalidateRect() below,
+  // which the caller's own ResizeObserver on this same element should call.
+  let cachedRect = null;
+  function getRect() {
+    if (!cachedRect) cachedRect = svgEl.getBoundingClientRect();
+    return cachedRect;
+  }
   let dragging = false;
   let dragged = false;
   let lastSingle = null; // {x,y} screen px, single-pointer pan
@@ -109,6 +133,29 @@ export function attachZoomPan(svgEl, initial, { onChange } = {}) {
   function apply() {
     svgEl.setAttribute('viewBox', `${view.x} ${view.y} ${view.w} ${view.h}`);
     if (onChange) onChange({ ...view });
+  }
+
+  // Batched variant for the high-frequency continuous gestures (wheel
+  // ticks, drag/pinch pointermove) - `view` itself is still mutated
+  // synchronously by the caller before this runs, only the DOM write +
+  // onChange callback (which does further DOM work in canopy-map.js's own
+  // handler) are deferred to a single rAF per paint, so a fast trackpad
+  // fling or drag doesn't force a full synchronous reflow chain on every
+  // native event. Deliberately NOT used by reset()/zoomIn()/zoomOut()
+  // (discrete click actions, not per-tick) - one of them
+  // (canopy-map.html's own cmZoomReset handler) sets state.view = null
+  // synchronously right after calling reset(), relying on apply()'s
+  // onChange having already run and been overwritten by that null - a
+  // deferred onChange firing on the NEXT frame would instead overwrite
+  // that null back to a real value, silently breaking "not customized, use
+  // auto-fit" after a reset. Not worth batching single clicks anyway.
+  let rafId = null;
+  function applyBatched() {
+    if (rafId != null) return; // already scheduled - the pending frame reads the latest `view` when it runs
+    rafId = requestAnimationFrame(() => {
+      rafId = null;
+      apply();
+    });
   }
 
   // svgEl's own box (.cm-svg) is a fixed, roughly-square aspect-ratio in
@@ -129,7 +176,7 @@ export function attachZoomPan(svgEl, initial, { onChange } = {}) {
   // given horizontal mouse-drag distance panned noticeably less than the
   // same distance panned vertically - "left/right is harder than up/down").
   function contentRect() {
-    const rect = svgEl.getBoundingClientRect();
+    const rect = getRect();
     const boxAspect = rect.width / rect.height;
     const viewAspect = view.w / view.h;
     let width; let height;
@@ -160,7 +207,7 @@ export function attachZoomPan(svgEl, initial, { onChange } = {}) {
     ];
   }
 
-  function zoomAtView(vx, vy, factor) {
+  function zoomAtView(vx, vy, factor, { immediate = true } = {}) {
     const minW = initial.w * ZOOM_MIN_FACTOR;
     const maxW = initial.w * ZOOM_MAX_FACTOR;
     const newW = Math.min(maxW, Math.max(minW, view.w * factor));
@@ -170,16 +217,20 @@ export function attachZoomPan(svgEl, initial, { onChange } = {}) {
     view.y = vy - (vy - view.y) * appliedFactor;
     view.w = newW;
     view.h = newH;
-    apply();
+    if (immediate) apply(); else applyBatched();
   }
 
   on('wheel', (ev) => {
     ev.preventDefault();
     const [vx, vy] = screenToView(ev.clientX, ev.clientY);
-    zoomAtView(vx, vy, ev.deltaY > 0 ? 1.15 : 1 / 1.15);
+    const intensity = Math.min(WHEEL_INTENSITY_MAX,
+      Math.max(WHEEL_INTENSITY_MIN, Math.abs(ev.deltaY) / WHEEL_DELTA_REFERENCE));
+    const factor = WHEEL_BASE_FACTOR ** intensity;
+    zoomAtView(vx, vy, ev.deltaY > 0 ? factor : 1 / factor, { immediate: false });
   }, { passive: false });
 
   on('pointerdown', (ev) => {
+    cachedRect = null; // fresh measurement for this gesture - see getRect's own comment
     svgEl.setPointerCapture(ev.pointerId);
     pointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
     if (pointers.size === 1) {
@@ -201,7 +252,7 @@ export function attachZoomPan(svgEl, initial, { onChange } = {}) {
       const dist = Math.hypot(a.x - b.x, a.y - b.y);
       if (lastPinchDist != null) {
         const [vx, vy] = screenToView((a.x + b.x) / 2, (a.y + b.y) / 2);
-        zoomAtView(vx, vy, lastPinchDist / dist);
+        zoomAtView(vx, vy, lastPinchDist / dist, { immediate: false });
       }
       lastPinchDist = dist;
       dragged = true;
@@ -215,7 +266,7 @@ export function attachZoomPan(svgEl, initial, { onChange } = {}) {
       const rect = contentRect(); // NOT svgEl.getBoundingClientRect() - see its own comment above
       view.x -= (dx / rect.width) * view.w * DRAG_SENSITIVITY;
       view.y -= (dy / rect.height) * view.h * DRAG_SENSITIVITY;
-      apply();
+      applyBatched();
       lastSingle = { x: ev.clientX, y: ev.clientY };
     }
   });
@@ -242,9 +293,21 @@ export function attachZoomPan(svgEl, initial, { onChange } = {}) {
     zoomIn() { zoomAtView(view.x + view.w / 2, view.y + view.h / 2, 1 / 1.4); },
     zoomOut() { zoomAtView(view.x + view.w / 2, view.y + view.h / 2, 1.4); },
     isDragging: () => dragged,
+    // Call when svgEl's own on-screen size may have changed for a reason
+    // other than a gesture handled above (e.g. a ResizeObserver on this
+    // same element) - the next contentRect() computation re-measures
+    // instead of reusing the (now possibly stale) cached rect.
+    invalidateRect() { cachedRect = null; },
     destroy() {
       listeners.forEach(([type, handler, opts]) => svgEl.removeEventListener(type, handler, opts));
       listeners.length = 0;
+      // A pending applyBatched() frame would otherwise fire after teardown
+      // and call this (now-replaced) attachment's own `onChange` closure -
+      // stale `levelAtAttach`/`blobCitiesKeyAtAttach` etc. from the caller's
+      // side (see canopy-map.js's own renderMap()) could then trigger a
+      // wrong drill-out or blob re-render against state that's already
+      // moved on.
+      if (rafId != null) { cancelAnimationFrame(rafId); rafId = null; }
     },
   };
 }
