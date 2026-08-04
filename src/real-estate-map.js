@@ -216,6 +216,36 @@ function valueFor(entity, metricId) {
   return valueForLevel(METRICS[metricId], entity.level, entity.key);
 }
 
+/* ---------- per-year deal counts for the long-press menu - lazily fetched
+   from the same per-city deal files real-estate-compare.js already uses
+   (assets/deals/<city>.json), not precomputed into real-estate-cities.js/
+   real-estate-neighborhoods.js, since it's only ever needed for the one
+   entity currently long-pressed. ---------- */
+
+const cityDealsCache = new Map();
+function fetchCityDeals(cityName) {
+  if (!cityDealsCache.has(cityName)) {
+    cityDealsCache.set(cityName, fetch(`./assets/deals/${encodeURIComponent(cityName)}.json`)
+      .then((r) => (r.ok ? r.json() : []))
+      .catch(() => []));
+  }
+  return cityDealsCache.get(cityName);
+}
+
+function dealsForEntity(entity, cityDeals) {
+  return entity.level === 'neighborhood' ? cityDeals.filter((d) => d.nb === entity.name) : cityDeals;
+}
+
+function yearCountsText(deals) {
+  if (!deals.length) return 'אין נתונים';
+  const counts = {};
+  for (const d of deals) {
+    const y = d.dt.slice(0, 4);
+    counts[y] = (counts[y] || 0) + 1;
+  }
+  return Object.keys(counts).sort().map((y) => `${y}: ${num(counts[y])}`).join(' · ');
+}
+
 const MAX_DIM = 720;
 
 /* ---------- color scale ---------- */
@@ -471,25 +501,13 @@ async function renderMap() {
       const timer = setTimeout(() => {
         activePress = null;
         lastLongPressKey = entity.key;
-        const priceVal = valueFor(entity, 'price');
-        const volVal = valueFor(entity, 'volume');
-        const priceText = priceVal != null ? `${num(priceVal)} ₪` : 'אין נתונים';
-        const volText = volVal != null ? num(volVal) : 'אין נתונים';
-        showContextMenu(ev.clientX, ev.clientY, [
-          { info: entity.label },
-          { info: `${METRICS.price.label}: ${priceText}` },
-          { info: `${METRICS.volume.label}: ${volText}` },
-          {
-            label: 'מידע איזורי על מחירי נדל״ן ←',
-            onSelect: () => {
-              const p = new URLSearchParams();
-              p.set('level', entity.level);
-              p.set('p1', entity.label);
-              if (entity.level === 'neighborhood' && state.cityFilter) p.set('city', state.cityFilter);
-              location.href = `./real-estate-compare.html?${p}`;
-            },
-          },
-        ]);
+        const myToken = (contextMenuToken += 1);
+        const x = ev.clientX; const y = ev.clientY;
+        showContextMenu(x, y, contextMenuItems(entity, null));
+        fetchCityDeals(entity.city).then((cityDeals) => {
+          if (myToken !== contextMenuToken || el('remContextMenu').hidden) return;
+          showContextMenu(x, y, contextMenuItems(entity, yearCountsText(dealsForEntity(entity, cityDeals))));
+        });
       }, LONG_PRESS_MS);
       activePress = { pointerId: ev.pointerId, startX: ev.clientX, startY: ev.clientY, timer };
     });
@@ -706,6 +724,34 @@ el('remFullReset').addEventListener('click', () => {
 
 let activePress = null;
 let lastLongPressKey = null;
+let contextMenuToken = 0;
+
+// yearText is null while the per-city deal file (see fetchCityDeals above)
+// is still in flight - the menu opens immediately with "טוען…" for that one
+// line and re-renders in place once it resolves, rather than waiting on the
+// fetch before showing anything.
+function contextMenuItems(entity, yearText) {
+  const priceVal = valueFor(entity, 'price');
+  const volVal = valueFor(entity, 'volume');
+  const priceText = priceVal != null ? `${num(priceVal)} ₪` : 'אין נתונים';
+  const volText = volVal != null ? num(volVal) : 'אין נתונים';
+  return [
+    { info: entity.label },
+    { info: `${METRICS.price.label}: ${priceText}` },
+    { info: `${METRICS.volume.label}: ${volText}` },
+    { info: `לפי שנה: ${yearText ?? 'טוען…'}` },
+    {
+      label: 'מידע איזורי על מחירי נדל״ן ←',
+      onSelect: () => {
+        const p = new URLSearchParams();
+        p.set('level', entity.level);
+        p.set('p1', entity.label);
+        if (entity.level === 'neighborhood' && state.cityFilter) p.set('city', state.cityFilter);
+        location.href = `./real-estate-compare.html?${p}`;
+      },
+    },
+  ];
+}
 
 function cancelActivePress() {
   if (activePress) clearTimeout(activePress.timer);
