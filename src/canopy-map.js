@@ -156,8 +156,12 @@ const PICK_COLORS = [
 // scoped to city level specifically because that's the only level where
 // zooming in doesn't immediately drill away to something else, and where
 // ~186 shapes stay legible with an extra glyph on each.
+// Jerusalem, zoomed in - the page's own starting view (and what "איפוס למפה
+// המקורית" below returns to), rather than the auto-fit full-country box.
+const DEFAULT_VIEW = { x: 208021, y: -653494.8, w: 12749.7, h: 36901.5 };
+
 const state = {
-  level: 'city', layer: 'canopy', cityLayers: ['canopy'], cityFilter: null, osm: false, heatBlob: false, canopyBlob: false, hiRes: false, selected: [], view: null,
+  level: 'city', layer: 'heat', cityLayers: ['heat'], cityFilter: null, osm: false, heatBlob: false, canopyBlob: false, hiRes: true, selected: [], view: { ...DEFAULT_VIEW },
 };
 let currentZoomPan = null; // torn down and replaced fresh each renderMap() - see attachZoomPan's own docstring
 let lastViewBox = null; // the ResizeObserver below (outside renderMap's own scope) falls back on this when state.view is still null (nothing panned/zoomed yet)
@@ -262,6 +266,23 @@ function shouldDrillOut(view, cityName) {
   const bbox = cityBBoxes()[cityName];
   if (!bbox) return false;
   return overlapArea(bbox, view) / (view.w * view.h) < DRILL_OUT_FRACTION;
+}
+
+// Inverse question from shouldDrillOut, used only to decide which city's
+// hi-res blobs to show at city level itself: is one city dominating the
+// current view closely enough to treat it as "the" city on screen, without
+// an actual level switch or city pick? Threshold is much higher than
+// DRILL_OUT_FRACTION on purpose - "zoomed in close on this one city," not
+// merely "closer to it than to others."
+const CITY_FOCUS_FRACTION = 0.5;
+function focusedCity(view) {
+  if (!view) return null;
+  let best = null; let bestFrac = 0;
+  for (const [name, bbox] of Object.entries(cityBBoxes())) {
+    const frac = overlapArea(bbox, view) / (view.w * view.h);
+    if (frac > bestFrac) { bestFrac = frac; best = name; }
+  }
+  return bestFrac >= CITY_FOCUS_FRACTION ? best : null;
 }
 
 function drillOutToCity(priorView) {
@@ -563,14 +584,6 @@ async function renderMap() {
 
   el('cmOsmRow').hidden = state.level !== 'neighborhood' || !state.cityFilter;
   el('cmBasemap').hidden = true;
-  const heatBlobAvailable = state.level === 'neighborhood' && state.cityFilter && HEAT_BLOBS[state.cityFilter];
-  const canopyBlobAvailable = state.level === 'neighborhood' && state.cityFilter && CANOPY_BLOBS[state.cityFilter];
-  // The per-metric toggles are redundant once "hi-res only" mode (below)
-  // forces both rasters on together - hidden rather than left sitting
-  // there unchecked, which would misleadingly imply they're what's
-  // controlling the current view.
-  el('cmBlobRow').hidden = !heatBlobAvailable || state.hiRes;
-  el('cmCanopyBlobRow').hidden = !canopyBlobAvailable || state.hiRes;
 
   // `viewBox` is always {x,y,w,h} - ITM meters (Y-negated) in flat mode,
   // OSM's own fixed pixel space when that mode is active. The two are NOT
@@ -592,6 +605,22 @@ async function renderMap() {
     viewBox = itmViewBox(bbox);
     project = projectItm;
   }
+  // Which single city's raw-pixel/tree data (if any) backs the two hi-res
+  // blobs: the traditional case is neighborhood level with a city chosen
+  // via the text picker, but zoomed in close on one city at city level -
+  // even with nothing picked or selected - reads the same way to someone
+  // looking at the map, so it counts too (see focusedCity's own comment).
+  const blobCity = state.level === 'neighborhood'
+    ? state.cityFilter
+    : (state.level === 'city' && isItmSpace ? focusedCity(state.view || viewBox) : null);
+  const heatBlobAvailable = blobCity && HEAT_BLOBS[blobCity];
+  const canopyBlobAvailable = blobCity && CANOPY_BLOBS[blobCity];
+  // The per-metric toggles are redundant once "hi-res only" mode (below)
+  // forces both rasters on together - hidden rather than left sitting
+  // there unchecked, which would misleadingly imply they're what's
+  // controlling the current view.
+  el('cmBlobRow').hidden = !heatBlobAvailable || state.hiRes;
+  el('cmCanopyBlobRow').hidden = !canopyBlobAvailable || state.hiRes;
   // Same ITM-meters space as the neighborhood shapes themselves (see
   // heat-blobs.js's/canopy-blobs.js's own build comments) - drawn straight
   // under them with no conversion, but only when that space is actually
@@ -602,9 +631,9 @@ async function renderMap() {
   // UI lock for). Hi-res-only mode forces BOTH on together regardless of
   // those toggles - "the high-res map of heat AND trees", not either/or.
   const heatBlob = heatBlobAvailable && isItmSpace && (state.hiRes || state.heatBlob)
-    ? { data: HEAT_BLOBS[state.cityFilter], metric: 'heat' } : null;
+    ? { data: HEAT_BLOBS[blobCity], metric: 'heat' } : null;
   const canopyBlobPick = canopyBlobAvailable && isItmSpace && (state.hiRes || state.canopyBlob)
-    ? { data: CANOPY_BLOBS[state.cityFilter], metric: 'canopy' } : null;
+    ? { data: CANOPY_BLOBS[blobCity], metric: 'canopy' } : null;
   const blobs = [heatBlob, canopyBlobPick].filter(Boolean);
   const blob = blobs[0] || null; // single-blob call sites below (legend text, blobReplacesFill's own metric check) only ever look at one
 
@@ -679,6 +708,8 @@ async function renderMap() {
   // alongside the new ones (see attachZoomPan's own docstring).
   currentZoomPan?.destroy();
   const cityFilterAtAttach = state.cityFilter;
+  const levelAtAttach = state.level;
+  const blobCityAtAttach = blobCity;
   const zoomPan = attachZoomPan(svg, state.view || viewBox, {
     onChange: (v) => {
       state.view = v;
@@ -692,6 +723,15 @@ async function renderMap() {
       // the map itself triggers by scrolling/pinching in far enough.
       if (cityFilterAtAttach && shouldDrillOut(v, cityFilterAtAttach)) {
         drillOutToCity(v);
+        return;
+      }
+      // City level's own hi-res blobs (see blobCity above) track whichever
+      // city currently dominates the view, purely from panning/zooming -
+      // no drill, no pick. A full re-render is the only way to swap which
+      // city's blob images are on screen, so one is triggered, but only
+      // when the answer actually changed (not on every pan/zoom tick).
+      if (levelAtAttach === 'city' && focusedCity(v) !== blobCityAtAttach) {
+        renderMap();
       }
     },
   });
@@ -983,19 +1023,19 @@ new ResizeObserver(onSvgResize).observe(el('cmSvg'));
 // while the map itself shows another.
 el('cmFullReset').addEventListener('click', () => {
   state.level = 'city';
-  state.layer = 'canopy';
-  state.cityLayers = ['canopy'];
+  state.layer = 'heat';
+  state.cityLayers = ['heat'];
   state.cityFilter = null;
   state.osm = false;
   state.heatBlob = false;
   state.canopyBlob = false;
-  state.hiRes = false;
+  state.hiRes = true;
   state.selected = [];
-  state.view = null;
+  state.view = { ...DEFAULT_VIEW };
   el('cmOsmToggle').checked = false;
   el('cmBlobToggle').checked = false;
   el('cmCanopyBlobToggle').checked = false;
-  el('cmHiResToggle').checked = false;
+  el('cmHiResToggle').checked = true;
   syncUrl();
   renderAll();
 });
