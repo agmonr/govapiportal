@@ -9,6 +9,15 @@
 
 const GEOMETRY = 'https://ags.iplan.gov.il/arcgisiplan/rest/services/Utilities/Geometry/GeometryServer';
 const OSM_TILE = (z, x, y) => `https://tile.openstreetmap.org/${z}/${x}/${y}.png`;
+// Esri's free World Imagery basemap - same anonymous, no-API-key access as
+// the OSM tiles above, just row/col reversed (ArcGIS's own tile REST
+// convention, {z}/{y}/{x} - same order this codebase already deals with for
+// the heat ImageServer, see canopy-map.html's "כתם חום" explainer).
+const AERIAL_TILE = (z, x, y) => `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}`;
+const TILE_ATTRIBUTION = {
+  street: '© OpenStreetMap contributors',
+  aerial: 'Imagery © Esri, Maxar, Earthstar Geographics',
+};
 
 export const ITM_WKID = 2039;
 export const WGS84_WKID = 4326;
@@ -66,19 +75,20 @@ function mercatorToPixel(mx, my, zoom) {
   return [px, py];
 }
 
-async function fetchTileBitmap(z, x, y) {
-  const res = await fetch(OSM_TILE(z, x, y));
+async function fetchTileBitmap(z, x, y, kind) {
+  const tileUrl = kind === 'aerial' ? AERIAL_TILE : OSM_TILE;
+  const res = await fetch(tileUrl(z, x, y));
   if (!res.ok) throw new Error(`tile ${z}/${x}/${y}: HTTP ${res.status}`);
   return createImageBitmap(await res.blob());
 }
 
-/** A basemap canvas (size x size), stitched from OSM tiles and aligned to
- * `bbox` (ITM). */
-export async function fetchBasemapCanvas(bbox, size) {
+/** A basemap canvas (size x size), stitched from OSM (or, with
+ * kind: 'aerial', Esri World Imagery) tiles and aligned to `bbox` (ITM). */
+export async function fetchBasemapCanvas(bbox, size, kind = 'street') {
   const [xmin, ymin, xmax, ymax] = bbox;
   const cornersItm = [[xmin, ymin], [xmax, ymin], [xmax, ymax], [xmin, ymax]];
   const cornersWgs84 = await projectPoints(cornersItm, ITM_WKID, WGS84_WKID);
-  return (await stitchBasemap(cornersWgs84, size)).canvas;
+  return (await stitchBasemap(cornersWgs84, size, kind)).canvas;
 }
 
 /** Same basemap, for a WGS84 (lon/lat) bbox directly - no iplan Geometry
@@ -86,15 +96,18 @@ export async function fetchBasemapCanvas(bbox, size) {
  * blue-lines.js/area-cleanup.js's ITM-native Xplan/GovMap layers above). Also
  * returns `project`, a closure over this same fetch's zoom/tile origin, so a
  * caller can place further points (a live route, not just a static centre
- * pin) on the same canvas without re-deriving the transform. */
-export async function fetchBasemapCanvasWGS84([lonMin, latMin, lonMax, latMax], size) {
+ * pin) on the same canvas without re-deriving the transform. `kind` picks
+ * the tile source: 'street' (default, OSM) or 'aerial' (Esri World
+ * Imagery) - both share the same slippy-tile grid, so the projector math
+ * below is identical either way. */
+export async function fetchBasemapCanvasWGS84([lonMin, latMin, lonMax, latMax], size, kind = 'street') {
   const cornersWgs84 = [[lonMin, latMin], [lonMax, latMin], [lonMax, latMax], [lonMin, latMax]];
-  return stitchBasemap(cornersWgs84, size);
+  return stitchBasemap(cornersWgs84, size, kind);
 }
 
 /** Shared tail of both basemap fetchers above: WGS84 corners -> a stitched
- * OSM canvas plus a lon/lat -> pixel projector for that same canvas. */
-async function stitchBasemap(cornersWgs84, size) {
+ * OSM/aerial canvas plus a lon/lat -> pixel projector for that same canvas. */
+async function stitchBasemap(cornersWgs84, size, kind = 'street') {
   const cornersMerc = cornersWgs84.map(([lon, lat]) => lonLatToMercator(lon, lat));
 
   const mxs = cornersMerc.map((c) => c[0]);
@@ -123,14 +136,16 @@ async function stitchBasemap(cornersWgs84, size) {
   canvas.height = (tyMax - tyMin + 1) * TILE_PX;
   const ctx = canvas.getContext('2d');
 
-  // OSM's tile usage policy: no more than 2 simultaneous connections.
+  // OSM's tile usage policy: no more than 2 simultaneous connections. Kept
+  // for the aerial source too, rather than a separate/looser limit - simplest
+  // to stay polite by default even though Esri's own limit is more lenient.
   const queue = tiles.slice();
   async function worker() {
     let next;
     // eslint-disable-next-line no-cond-assign
     while ((next = queue.shift())) {
       const [tx, ty] = next;
-      const bmp = await fetchTileBitmap(zoom, tx, ty);
+      const bmp = await fetchTileBitmap(zoom, tx, ty, kind);
       ctx.drawImage(bmp, (tx - txMin) * TILE_PX, (ty - tyMin) * TILE_PX);
     }
   }
@@ -146,7 +161,7 @@ async function stitchBasemap(cornersWgs84, size) {
     0, 0, size, size,
   );
   octx.font = '11px sans-serif';
-  const label = '© OpenStreetMap contributors';
+  const label = TILE_ATTRIBUTION[kind] || TILE_ATTRIBUTION.street;
   const tw = octx.measureText(label).width;
   octx.fillStyle = 'rgba(255,255,255,0.75)';
   octx.fillRect(0, size - 16, tw + 8, 16);

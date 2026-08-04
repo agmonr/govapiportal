@@ -228,8 +228,12 @@
           <h2 id="osmH">רקע מפה</h2>
           <label class="cm-osm-toggle">
             <input type="checkbox" id="cmOsmToggle">
-            הצג רקע מפת OpenStreetMap אמיתי (איטי יותר, דורש חיבור רשת)
+            הצג רקע מפה אמיתי (איטי יותר, דורש חיבור רשת)
           </label>
+          <div class="cm-filters cm-basemap-kind-row" id="cmBasemapKindRow" role="group" aria-label="סוג רקע המפה" hidden>
+            <button type="button" data-basemap="street" class="tc-level-btn cm-basemap-btn active">מפת רחובות</button>
+            <button type="button" data-basemap="aerial" class="tc-level-btn cm-basemap-btn">תצלום אוויר</button>
+          </div>
           <p id="cmOsmStatus" class="acc-hint" dir="auto"></p>
         </section>
 

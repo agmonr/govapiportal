@@ -192,7 +192,7 @@ const PICK_COLORS = [
 const DEFAULT_VIEW = { x: 208021, y: -653494.8, w: 12749.7, h: 36901.5 };
 
 const state = {
-  level: 'city', layer: 'heat', cityLayers: ['heat'], cityFilter: null, osm: false, heatBlob: false, canopyBlob: false, hiRes: true, selected: [], view: { ...DEFAULT_VIEW },
+  level: 'city', layer: 'heat', cityLayers: ['heat'], cityFilter: null, osm: false, basemapKind: 'street', heatBlob: false, canopyBlob: false, hiRes: true, selected: [], view: { ...DEFAULT_VIEW },
 };
 let currentZoomPan = null; // torn down and replaced fresh each renderMap() - see attachZoomPan's own docstring
 let lastViewBox = null; // the ResizeObserver below (outside renderMap's own scope) falls back on this when state.view is still null (nothing panned/zoomed yet)
@@ -621,7 +621,7 @@ async function renderOsmBasemap(entities) {
   const bbox = bboxOfRingsList(wgsRingsList);
   statusEl.textContent = 'טוען מפת רקע…';
   try {
-    const { canvas, project } = await fetchBasemapCanvasWGS84(bbox, MAX_DIM);
+    const { canvas, project } = await fetchBasemapCanvasWGS84(bbox, MAX_DIM, state.basemapKind);
     if (myToken !== osmToken) return null; // superseded meanwhile
     canvasEl.replaceChildren(canvas);
     canvasEl.hidden = false;
@@ -667,6 +667,7 @@ async function renderMap() {
   const isMultiMetric = activeMetricIds.length > 1;
 
   el('cmOsmRow').hidden = state.level !== 'neighborhood' || !state.cityFilter;
+  el('cmBasemapKindRow').hidden = !state.osm;
   el('cmBasemap').hidden = true;
 
   // `viewBox` is always {x,y,w,h} - ITM meters (Y-negated) in flat mode,
@@ -1162,6 +1163,22 @@ el('cmOsmToggle').addEventListener('change', (ev) => {
   renderMap();
 });
 
+// Street vs. aerial-photo tile source for the real-map background above -
+// both share the same slippy-tile grid (see geo-utils.js's stitchBasemap),
+// so switching needs nothing beyond re-fetching with the new kind: no
+// state.view reset like the checkbox above needs.
+document.querySelectorAll('.cm-basemap-btn').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    const kind = btn.dataset.basemap;
+    if (state.basemapKind === kind) return;
+    state.basemapKind = kind;
+    document.querySelectorAll('.cm-basemap-btn').forEach((b) => {
+      b.classList.toggle('active', b.dataset.basemap === kind);
+    });
+    renderMap();
+  });
+});
+
 el('cmBlobToggle').addEventListener('change', (ev) => {
   state.heatBlob = ev.target.checked;
   renderMap();
@@ -1210,12 +1227,16 @@ el('cmFullReset').addEventListener('click', () => {
   state.cityLayers = ['heat'];
   state.cityFilter = null;
   state.osm = false;
+  state.basemapKind = 'street';
   state.heatBlob = false;
   state.canopyBlob = false;
   state.hiRes = true;
   state.selected = [];
   state.view = { ...DEFAULT_VIEW };
   el('cmOsmToggle').checked = false;
+  document.querySelectorAll('.cm-basemap-btn').forEach((b) => {
+    b.classList.toggle('active', b.dataset.basemap === 'street');
+  });
   el('cmBlobToggle').checked = false;
   el('cmCanopyBlobToggle').checked = false;
   el('cmHiResToggle').checked = true;
