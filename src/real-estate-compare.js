@@ -12,14 +12,17 @@
  * low->high, not best/worst, and both metrics always sort the same
  * direction for a given toggle position (no per-metric HIGHER_IS_BETTER).
  *
- * Compare cap differs by level (LEVELS[level].maxPicks): 4 for cities, 10
- * for neighborhoods - a visitor comparing neighborhoods is far more likely
- * to want a wide multi-way look (e.g. every neighborhood in one city) than
- * a visitor comparing whole cities. Picking exactly one neighborhood shows
- * its own deals block (chart + table), same as a single city; picking 2+
- * neighborhoods combines all of them into ONE shared deals table instead
- * of N side-by-side blocks - a flat list across the selected area, not a
- * per-entity comparison, so it skips the per-entity chart entirely.
+ * Compare cap is 10 for both levels (LEVELS[level].maxPicks). Picking
+ * exactly one entity (either level) shows its own deals block (chart +
+ * table). Picking 2+ differs by level, deliberately:
+ *  - Neighborhoods: the per-entity blocks are REPLACED by one shared,
+ *    combined deals table (no chart) - a flat list across the selected
+ *    area, not a side-by-side comparison (that's what the price/volume
+ *    bar charts above already are).
+ *  - Cities: the per-entity blocks stay, and a combined "global" table is
+ *    ADDED before them (#recGlobalDealsBlock) - both views at once, since
+ *    a city-level compare is more often "these specific cities side by
+ *    side, but also let me see everything together."
  */
 
 import { el, esc, num, debounce, buildCsv, saveCsv } from './ui.js';
@@ -69,7 +72,7 @@ function neighborhoodLabel(city, name) {
 
 const LEVELS = {
   city: {
-    label: 'עיר', labelPlural: 'ערים', pickLabel: 'עיר:', boardTitle: 'ערים', maxPicks: 4,
+    label: 'עיר', labelPlural: 'ערים', pickLabel: 'עיר:', boardTitle: 'ערים', maxPicks: 10,
     entries: () => Object.keys(CITY_REAL_ESTATE).map((name) => ({ key: name, label: name, name, city: name, level: 'city' })),
   },
   neighborhood: {
@@ -110,16 +113,26 @@ const pickColorFor = (i) => pickColor(i, 'var(--accent)');
 const volumeColorFor = (i) => pickColor(i, 'var(--danger)');
 const METRIC_COLOR_FOR = { price: pickColorFor, volume: volumeColorFor };
 
-/* ---------- state + URL ---------- */
+/* ---------- state + URL ----------
+ * 'street' is a valid state.level value but deliberately NOT a key in
+ * LEVELS above - it has no precomputed national roster/aggregate (see
+ * tools/real_estate_build.py's own README note: no street-level boundary
+ * or roster was built), so it can't support a compare chart or a national
+ * leaderboard the way city/neighborhood do. It's handled as its own
+ * separate code path throughout (state.streetPicks, not state.picks) -
+ * see renderStreetPickUI()/renderStreetLevelDeals() below. */
+
+const MAX_STREET_PICKS = 10;
+const VALID_LEVELS = ['city', 'neighborhood', 'street'];
 
 const state = {
-  level: 'city', picks: new Array(LEVELS.city.maxPicks).fill(null), cityFilter: null, boardOrder: 'best',
+  level: 'city', picks: new Array(LEVELS.city.maxPicks).fill(null), cityFilter: null, boardOrder: 'best', streetPicks: [],
 };
 
 function readStateFromUrl() {
   const p = new URLSearchParams(location.search);
-  if (LEVELS[p.get('level')]) state.level = p.get('level');
-  const maxPicks = LEVELS[state.level].maxPicks;
+  if (VALID_LEVELS.includes(p.get('level'))) state.level = p.get('level');
+  const maxPicks = LEVELS[state.level]?.maxPicks || 0;
   state.picks = new Array(maxPicks).fill(null);
   for (let i = 0; i < maxPicks; i += 1) {
     const v = p.get(`p${i + 1}`);
@@ -127,6 +140,10 @@ function readStateFromUrl() {
   }
   if (p.get('city')) state.cityFilter = p.get('city');
   if (p.get('order') === 'worst') state.boardOrder = 'worst';
+  state.streetPicks = p.getAll('st').map((s) => {
+    const i = s.indexOf('::');
+    return i === -1 ? null : { city: s.slice(0, i), street: s.slice(i + 2) };
+  }).filter(Boolean).slice(0, MAX_STREET_PICKS);
 }
 
 function syncUrl() {
@@ -135,6 +152,7 @@ function syncUrl() {
   state.picks.forEach((v, i) => { if (v) p.set(`p${i + 1}`, v); });
   if (state.cityFilter) p.set('city', state.cityFilter);
   if (state.boardOrder === 'worst') p.set('order', 'worst');
+  state.streetPicks.forEach(({ city, street }) => p.append('st', `${city}::${street}`));
   history.replaceState(null, '', `?${p}`);
 }
 
@@ -282,13 +300,26 @@ function renderCompare() {
   renderCompareTable(entries);
   renderRanks(entries);
 
-  // Exactly one entity (either level) keeps the per-entity block (chart +
-  // table); 2+ neighborhoods combine into one shared table instead - see
-  // this file's own top docstring for why only neighborhoods get this.
-  if (state.level === 'neighborhood' && entries.length > 1) {
-    renderCombinedDeals(entries);
-  } else {
+  // See this file's own top docstring: neighborhoods REPLACE the per-
+  // entity blocks with one combined table on 2+ picks; cities ADD a global
+  // combined table before their per-entity blocks, which still render
+  // normally regardless of count.
+  if (state.level === 'city') {
+    if (entries.length > 1) {
+      renderCombinedDealsInto('recGlobalDealsBlock', entries, `${num(entries.length)} ערים שנבחרו - טבלה משולבת`, globalDealsGen);
+    } else {
+      globalDealsGen.bump(); // invalidate any in-flight global fetch from a moment ago, then clear its stale content
+      el('recGlobalDealsBlock').innerHTML = '';
+    }
     renderDealsSections(entries);
+  } else {
+    globalDealsGen.bump(); // same invalidation, for the (rarer) case of switching straight from a multi-city global table to neighborhood level
+    el('recGlobalDealsBlock').innerHTML = '';
+    if (entries.length > 1) {
+      renderCombinedDealsInto('recDealsSections', entries, `${num(entries.length)} שכונות שנבחרו - טבלה משולבת`, dealsGen);
+    } else {
+      renderDealsSections(entries);
+    }
   }
 }
 
@@ -312,7 +343,9 @@ function fetchCityDeals(cityName) {
 }
 
 function dealsForEntry(entry, cityDeals) {
-  return entry.level === 'neighborhood' ? cityDeals.filter((d) => d.nb === entry.name) : cityDeals;
+  if (entry.level === 'neighborhood') return cityDeals.filter((d) => d.nb === entry.name);
+  if (entry.level === 'street') return cityDeals.filter((d) => d.st === entry.street);
+  return cityDeals;
 }
 
 function dealYearCounts(deals) {
@@ -490,34 +523,44 @@ function renderDealsSections(entries) {
   entries.forEach((entry, i) => renderDealsBlock(entry, i, myGen));
 }
 
-/* ---------- combined deals table - 2+ neighborhoods picked at once. One
-   flat, sortable/searchable table across all of them (each row tagged with
-   which neighborhood it came from), no per-entity chart - the point here
-   is "everything that sold across this whole area," not a side-by-side
-   comparison (that's what the price/volume bar charts above already are).
-   Reuses renderDealsTableSorted as-is, same as the single-entity blocks. ---------- */
+/* ---------- combined deals table - one flat, sortable/searchable table
+   across several picked entities at once (each row tagged with which one
+   it came from), no per-entity chart - the point is "everything that sold
+   across this whole area," not a side-by-side comparison (that's what the
+   price/volume bar charts above already are). Reuses renderDealsTableSorted
+   as-is, same as the single-entity blocks.
 
-const combinedTableState = { col: 'amt', dir: 'desc', q: '' };
-let combinedDeals = [];
+   Two call sites, two different relationships to the per-entity blocks
+   (see this file's own top docstring):
+    - Neighborhoods (2+ picks): REPLACES the per-entity blocks, written
+      into #recDealsSections - the same container renderDealsSections()/
+      renderDealsBlock() use, so it shares their dealsRenderGen counter.
+    - Cities (2+ picks): ADDED before the per-entity blocks (which still
+      render normally), written into its own #recGlobalDealsBlock - a
+      separate globalDealsRenderGen counter, since both this and a normal
+      renderDealsSections() call run in the SAME renderCompare() pass at
+      city level, each writing to a different container; sharing one
+      counter would let the second call's bump spuriously invalidate the
+      first's still-in-flight fetch even though nothing superseded it. */
 
-// Shares dealsRenderGen with renderDealsSections()/renderDealsBlock() above,
-// not a separate counter - both write into the same #recDealsSections
-// container and are mutually-exclusive alternatives (single/city-level
-// picks vs. 2+ neighborhoods), so switching from one to the other must
-// invalidate whichever one had a fetch in flight. Two independent counters
-// here would each only ever notice a repeat of their OWN kind of render,
-// not the other - which was a real bug caught live (switching away mid-
-// fetch threw "Cannot set properties of null" from the orphaned render
-// still trying to write into a container the other mode had replaced).
-async function renderCombinedDeals(entries) {
-  const myGen = (dealsRenderGen += 1);
-  const container = el('recDealsSections');
-  const searchId = 'recCombinedSearch';
-  const tableId = 'recCombinedTable';
+const combinedUiState = {}; // containerElId -> {col,dir,q}, one per call site so city's global table and neighborhood's combined table never share a sort/search
+function combinedStateFor(containerElId) {
+  if (!combinedUiState[containerElId]) combinedUiState[containerElId] = { col: 'amt', dir: 'desc', q: '' };
+  return combinedUiState[containerElId];
+}
+const combinedDealsCache = {}; // containerElId -> last-computed combined array, so the debounced search handler below can re-filter without re-fetching
+
+async function renderCombinedDealsInto(containerElId, entries, heading, gen) {
+  const myGen = gen.bump();
+  const container = el(containerElId);
+  if (!container) return;
+  const state = combinedStateFor(containerElId);
+  const searchId = `${containerElId}Search`;
+  const tableId = `${containerElId}Table`;
 
   container.innerHTML = `
     <details class="notice info">
-      <summary><strong dir="auto">${num(entries.length)} שכונות שנבחרו - טבלה משולבת</strong></summary>
+      <summary><strong dir="auto">${esc(heading)}</strong></summary>
       <div class="acc-year-pick">
         <label for="${searchId}">חיפוש (כתובת, תאריך, שכונה):</label>
         <input id="${searchId}" type="text" autocomplete="off" spellcheck="false" placeholder="למשל: הרצל, 2024, רמת אשכול…">
@@ -526,23 +569,123 @@ async function renderCombinedDeals(entries) {
     </details>`;
 
   el(searchId).addEventListener('input', debounce((ev) => {
-    if (myGen !== dealsRenderGen) return; // this whole block was superseded - its own search box shouldn't still be able to write anywhere
-    combinedTableState.q = ev.target.value.trim().toLowerCase();
-    renderDealsTableSorted(tableId, combinedDeals, combinedTableState);
+    if (gen.stale(myGen)) return; // this whole block was superseded - its own search box shouldn't still be able to write anywhere
+    state.q = ev.target.value.trim().toLowerCase();
+    renderDealsTableSorted(tableId, combinedDealsCache[containerElId] || [], state);
   }, 150));
 
   const cities = [...new Set(entries.map((e) => e.city))];
   const dealsPerCity = await Promise.all(cities.map((c) => fetchCityDeals(c)));
-  if (myGen !== dealsRenderGen || !el(tableId)) return; // picks/level changed again while these fetches were in flight
+  if (gen.stale(myGen) || !el(tableId)) return; // picks/level changed again while these fetches were in flight
   const byCity = Object.fromEntries(cities.map((c, i) => [c, dealsPerCity[i]]));
 
-  combinedDeals = [];
+  const combined = [];
   for (const entry of entries) {
     for (const d of dealsForEntry(entry, byCity[entry.city] || [])) {
-      combinedDeals.push({ ...d, _area: entry.label });
+      // areaTag overrides the default entry.label tag - streets need just
+      // the city here (entry.label would repeat the street name the
+      // address column already shows, e.g. "הרצל 13 — הרצל (תל אביב)").
+      combined.push({ ...d, _area: entry.areaTag || entry.label });
     }
   }
-  renderDealsTableSorted(tableId, combinedDeals, combinedTableState);
+  combinedDealsCache[containerElId] = combined;
+  renderDealsTableSorted(tableId, combined, state);
+}
+
+const dealsGen = { bump: () => (dealsRenderGen += 1), stale: (g) => g !== dealsRenderGen };
+let globalDealsRenderGen = 0;
+const globalDealsGen = { bump: () => (globalDealsRenderGen += 1), stale: (g) => g !== globalDealsRenderGen };
+
+/* ---------- street level - up to MAX_STREET_PICKS (city, street) pairs,
+   each picked from a city chosen first (streets have no precomputed
+   roster - see this file's own state+URL docstring above - so the only
+   street names available to search are whichever city's deals file is
+   already fetched). Always renders as ONE combined table via
+   renderCombinedDealsInto(), the same "street pseudo-entries" idiom
+   dealsForEntry()'s own 'street' branch above exists for - there is no
+   per-street chart/board here at all, unlike city/neighborhood. */
+
+function streetPickLabel(city, street) {
+  return `${street} (${city})`;
+}
+
+async function updateStreetRoster(query) {
+  const cityName = el('recStreetCityPick').value.trim();
+  const streetInput = el('recStreetPick');
+  if (!CITY_REAL_ESTATE[cityName]) {
+    streetInput.disabled = true;
+    streetInput.placeholder = 'בחרו עיר קודם…';
+    el('recStreetRoster').innerHTML = '';
+    return;
+  }
+  streetInput.disabled = false;
+  streetInput.placeholder = 'התחילו להקליד…';
+  const deals = await fetchCityDeals(cityName);
+  if (el('recStreetCityPick').value.trim() !== cityName) return; // city changed again while this fetch was in flight
+  const streets = [...new Set(deals.map((d) => d.st).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'he'));
+  const q = query.trim().toLowerCase();
+  const hits = q ? streets.filter((s) => s.toLowerCase().includes(q)) : streets;
+  el('recStreetRoster').innerHTML = hits.slice(0, 40).map((s) => `<option value="${esc(s)}">`).join('');
+}
+
+async function commitStreetPick() {
+  const cityName = el('recStreetCityPick').value.trim();
+  const streetInput = el('recStreetPick');
+  const street = streetInput.value.trim();
+  if (!CITY_REAL_ESTATE[cityName] || !street) return;
+  if (state.streetPicks.length >= MAX_STREET_PICKS) return;
+  if (state.streetPicks.some((p) => p.city === cityName && p.street === street)) return;
+  const deals = await fetchCityDeals(cityName);
+  if (!deals.some((d) => d.st === street)) return; // free-typed value that isn't a real street in this city
+  state.streetPicks.push({ city: cityName, street });
+  streetInput.value = '';
+  el('recStreetRoster').innerHTML = '';
+  syncUrl();
+  renderStreetPickUI();
+  renderStreetLevelDeals();
+}
+
+function removeStreetPick(city, street) {
+  state.streetPicks = state.streetPicks.filter((p) => !(p.city === city && p.street === street));
+  syncUrl();
+  renderStreetPickUI();
+  renderStreetLevelDeals();
+}
+
+function renderStreetPickUI() {
+  const chips = el('recStreetChips');
+  if (!state.streetPicks.length) {
+    chips.hidden = true;
+    chips.innerHTML = '';
+    return;
+  }
+  chips.hidden = false;
+  chips.innerHTML = state.streetPicks.map(({ city, street }) => `
+    <span class="cm-chip">
+      <span dir="auto">${esc(street)} (${esc(city)})</span>
+      <button type="button" class="cm-chip-remove" data-key="${esc(`${city}::${street}`)}" aria-label="הסרה">✕</button>
+    </span>`).join('');
+  chips.querySelectorAll('.cm-chip-remove').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const i = btn.dataset.key.indexOf('::');
+      removeStreetPick(btn.dataset.key.slice(0, i), btn.dataset.key.slice(i + 2));
+    });
+  });
+}
+
+function renderStreetLevelDeals() {
+  const dealsSection = el('recDealsSection');
+  globalDealsGen.bump(); // street level never uses the global-table slot - invalidate+clear any leftover from city level
+  el('recGlobalDealsBlock').innerHTML = '';
+  if (!state.streetPicks.length) {
+    dealsSection.hidden = true;
+    dealsGen.bump(); // invalidate any in-flight combined-table fetch too
+    el('recDealsSections').innerHTML = '';
+    return;
+  }
+  dealsSection.hidden = false;
+  const entries = state.streetPicks.map(({ city, street }) => ({ level: 'street', city, street, label: streetPickLabel(city, street), areaTag: city }));
+  renderCombinedDealsInto('recDealsSections', entries, `${num(entries.length)} רחובות שנבחרו - טבלה משולבת`, dealsGen);
 }
 
 /* ---------- national leaderboard - every entity at the current level,
@@ -734,6 +877,23 @@ function renderAll() {
   for (const btn of el('recLevelPick').querySelectorAll('.tc-level-btn')) {
     btn.classList.toggle('active', btn.dataset.level === state.level);
   }
+
+  const isStreet = state.level === 'street';
+  el('recPickSection').hidden = isStreet;
+  el('recStreetPickSection').hidden = !isStreet;
+  el('recCompareSection').hidden = isStreet || el('recCompareSection').hidden; // real value recomputed by renderCompare() below when not street
+  el('recBoardSection').hidden = isStreet;
+
+  if (isStreet) {
+    el('recCityFilterRow').hidden = true;
+    el('recStreetCityPick').value = '';
+    el('recStreetPick').value = '';
+    updateStreetRoster('');
+    renderStreetPickUI();
+    renderStreetLevelDeals();
+    return;
+  }
+
   const lvl = LEVELS[state.level];
   if (pickInputs.length !== lvl.maxPicks) wirePickInputs();
   el('recPickHint').textContent = `אפשר להשוות עד ${lvl.maxPicks} בבת אחת - השדה הראשון נדרש, השאר אופציונליים.`;
@@ -757,7 +917,7 @@ el('recLevelPick').querySelectorAll('.tc-level-btn').forEach((btn) => {
   btn.addEventListener('click', () => {
     if (state.level === btn.dataset.level) return;
     state.level = btn.dataset.level;
-    state.picks = new Array(LEVELS[state.level].maxPicks).fill(null);
+    state.picks = new Array(LEVELS[state.level]?.maxPicks || 0).fill(null);
     state.cityFilter = null;
     syncUrl();
     renderAll();
@@ -771,6 +931,22 @@ el('recCityFilter').addEventListener('change', () => {
   syncUrl();
   renderAll();
 });
+
+function updateStreetCityRoster(query) {
+  const q = query.trim().toLowerCase();
+  const names = levelEntries('city').map((e) => e.name);
+  const hits = q ? names.filter((n) => n.toLowerCase().includes(q)) : names;
+  el('recStreetCityRoster').innerHTML = hits.slice(0, 40).map((n) => `<option value="${esc(n)}">`).join('');
+}
+updateStreetCityRoster('');
+
+el('recStreetCityPick').addEventListener('input', debounce((ev) => {
+  updateStreetCityRoster(ev.target.value);
+  updateStreetRoster('');
+}, 120));
+el('recStreetPick').addEventListener('input', debounce((ev) => updateStreetRoster(ev.target.value), 120));
+el('recStreetPick').addEventListener('change', commitStreetPick);
+el('recStreetPick').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); commitStreetPick(); } });
 
 el('recBoardOrderPick').querySelectorAll('.tc-level-btn').forEach((btn) => {
   btn.addEventListener('click', () => {
