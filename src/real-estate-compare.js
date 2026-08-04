@@ -15,7 +15,7 @@
 
 import { el, esc, num, debounce, buildCsv, saveCsv } from './ui.js';
 import { initThemePicker } from './theme.js';
-import { renderHBarChart, citySwatchCell } from './charts.js';
+import { renderHBarChart, renderBarChart, citySwatchCell } from './charts.js';
 import { CITY_REAL_ESTATE } from './real-estate-cities.js';
 import { NEIGHBORHOOD_REAL_ESTATE } from './real-estate-neighborhoods.js';
 import { renderAppContext, loadAppsData } from './apps.js';
@@ -260,12 +260,161 @@ function renderCompare() {
   if (missing.length) warn.textContent = `לא נמצא/ו: ${missing.join(', ')} ב${lvl.labelPlural}.`;
 
   const section = el('recCompareSection');
-  if (!entries.length) { section.hidden = true; return; }
+  const dealsSection = el('recDealsSection');
+  if (!entries.length) {
+    section.hidden = true;
+    dealsSection.hidden = true;
+    return;
+  }
   section.hidden = false;
+  dealsSection.hidden = false;
 
   renderCompareCharts(entries);
   renderCompareTable(entries);
   renderRanks(entries);
+  renderDealsSections(entries);
+}
+
+/* ---------- individual deals - lazily fetched per city (one plain JSON
+   array per city under assets/deals/<city>.json, written by
+   tools/real_estate_build.py - same lazy-per-city-asset idiom canopy-
+   map.html's own heat/canopy blob PNGs already use), filtered to just the
+   picked neighborhood client-side when that's the level in play. Shows the
+   deal as actually reported (nominal ₪), not CPI-adjusted - the median
+   above is the number to compare across years, this list is "what actually
+   sold, real numbers." ---------- */
+
+const cityDealsCache = new Map(); // cityName -> Promise<record[]>
+function fetchCityDeals(cityName) {
+  if (!cityDealsCache.has(cityName)) {
+    cityDealsCache.set(cityName, fetch(`./assets/deals/${cityName}.json`)
+      .then((r) => (r.ok ? r.json() : []))
+      .catch(() => []));
+  }
+  return cityDealsCache.get(cityName);
+}
+
+function dealsForEntry(entry, cityDeals) {
+  return entry.level === 'neighborhood' ? cityDeals.filter((d) => d.nb === entry.name) : cityDeals;
+}
+
+function dealYearCounts(deals) {
+  const counts = {};
+  for (const d of deals) {
+    const y = d.dt.slice(0, 4);
+    counts[y] = (counts[y] || 0) + 1;
+  }
+  return Object.keys(counts).sort().map((year) => ({ label: year, value: counts[year] }));
+}
+
+const DEALS_ROW_CAP = 300;
+// Per-entity sort choice, keyed by entity key so switching between picks
+// (or re-rendering after a level/order change elsewhere) doesn't reset a
+// sort the visitor already set up - metric: 'price' (נומינלי מלא) or
+// 'perSqm' (מחיר למ״ר, the page's own overall theme, so it's the default).
+const dealsSortState = {};
+function sortStateFor(key) {
+  if (!dealsSortState[key]) dealsSortState[key] = { metric: 'perSqm', dir: 'desc' };
+  return dealsSortState[key];
+}
+
+function dealValue(d, metric) {
+  if (metric === 'price') return d.amt;
+  return d.area ? d.amt / d.area : 0;
+}
+
+async function renderDealsBlock(entry, index) {
+  const blockId = `recDealsBlock${index}`;
+  const block = el(blockId);
+  if (!block) return;
+  block.innerHTML = '<p class="acc-hint" dir="auto">טוען עסקאות…</p>';
+
+  const cityName = entry.level === 'city' ? entry.name : entry.city;
+  const cityDeals = await fetchCityDeals(cityName);
+  if (!el(blockId)) return; // re-rendered away (picks changed) while the fetch was in flight
+
+  const deals = dealsForEntry(entry, cityDeals);
+  const sortState = sortStateFor(entry.key);
+  const yearFigId = `${blockId}Year`;
+  const tableId = `${blockId}Table`;
+
+  block.innerHTML = `
+    <h3 dir="auto">${esc(entry.label)}</h3>
+    <div class="cm-filters" id="${blockId}MetricPick" role="group" aria-label="מיון לפי">
+      <button type="button" data-metric="perSqm" class="tc-level-btn">מחיר למ״ר</button>
+      <button type="button" data-metric="price" class="tc-level-btn">מחיר מלא</button>
+    </div>
+    <div class="cm-filters" id="${blockId}DirPick" role="group" aria-label="כיוון מיון">
+      <button type="button" data-dir="desc" class="tc-level-btn">מהגבוה לנמוך</button>
+      <button type="button" data-dir="asc" class="tc-level-btn">מהנמוך לגבוה</button>
+    </div>
+    <figure id="${yearFigId}" class="acc-chart" role="img"></figure>
+    <div id="${tableId}"></div>`;
+
+  const rerender = () => {
+    el(`${blockId}MetricPick`).querySelectorAll('.tc-level-btn').forEach((btn) => {
+      btn.classList.toggle('active', btn.dataset.metric === sortState.metric);
+    });
+    el(`${blockId}DirPick`).querySelectorAll('.tc-level-btn').forEach((btn) => {
+      btn.classList.toggle('active', btn.dataset.dir === sortState.dir);
+    });
+    renderDealsTableSorted(tableId, deals, sortState);
+  };
+
+  el(`${blockId}MetricPick`).querySelectorAll('.tc-level-btn').forEach((btn) => {
+    btn.addEventListener('click', () => { sortState.metric = btn.dataset.metric; rerender(); });
+  });
+  el(`${blockId}DirPick`).querySelectorAll('.tc-level-btn').forEach((btn) => {
+    btn.addEventListener('click', () => { sortState.dir = btn.dataset.dir; rerender(); });
+  });
+
+  renderBarChart(yearFigId, 'עסקאות לפי שנה', dealYearCounts(deals));
+  rerender();
+}
+
+function renderDealsTableSorted(containerId, deals, sortState) {
+  const sorted = [...deals].sort((a, b) => dealValue(a, sortState.metric) - dealValue(b, sortState.metric));
+  if (sortState.dir === 'desc') sorted.reverse();
+  const shown = sorted.slice(0, DEALS_ROW_CAP);
+  const rows = shown.map((d) => {
+    const perSqm = d.area ? Math.round(d.amt / d.area) : null;
+    const addr = [d.st, d.hn].filter((v) => v != null && v !== '').join(' ');
+    return `
+    <tr>
+      <td dir="ltr">${esc(d.dt)}</td>
+      <td dir="auto">${esc(addr || '—')}</td>
+      <td>${d.area != null ? num(d.area) : '—'}</td>
+      <td>${num(d.amt)} ₪</td>
+      <td>${perSqm != null ? `${num(perSqm)} ₪` : '—'}</td>
+    </tr>`;
+  }).join('');
+  const capNote = deals.length > DEALS_ROW_CAP ? ` (מוצגות ${num(DEALS_ROW_CAP)} מתוך ${num(deals.length)})` : '';
+  el(containerId).innerHTML = `
+    <div class="matrix-wrap">
+      <table class="matrix preview">
+        <thead><tr>
+          <th scope="col">תאריך</th>
+          <th scope="col">כתובת</th>
+          <th scope="col">שטח (מ״ר)</th>
+          <th scope="col">מחיר</th>
+          <th scope="col">מחיר למ״ר</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+    <p class="acc-hint" dir="auto">${num(deals.length)} עסקאות${capNote}</p>`;
+}
+
+let dealsRenderGen = 0;
+function renderDealsSections(entries) {
+  const myGen = (dealsRenderGen += 1);
+  const container = el('recDealsSections');
+  container.innerHTML = entries.map((_, i) => `<div id="recDealsBlock${i}" class="rec-deals-block"></div>`).join('');
+  entries.forEach((entry, i) => {
+    renderDealsBlock(entry, i).then(() => {
+      if (myGen !== dealsRenderGen) return; // superseded by a newer pick change - nothing to reconcile, the container itself was already replaced
+    });
+  });
 }
 
 /* ---------- national leaderboard - every entity at the current level,

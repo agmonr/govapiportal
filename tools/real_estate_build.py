@@ -31,6 +31,7 @@ from canopy_build import load_muni_geoms, city_index, find_city, neighborhood_ge
 ROOT = Path(__file__).resolve().parent.parent
 ZIP = ROOT / "zip"
 SRC = ROOT / "src"
+DEALS_OUT_DIR = ROOT / "assets" / "deals"
 
 DEALS_FILE = ZIP / "real_estate_deals_raw.jsonl"
 CPI_FILE = ZIP / "cpi_table.json"
@@ -70,9 +71,15 @@ def polygon_centroid_3857(shape):
 
 
 def load_deals():
-    """Yields (x_3857, y_3857, adj_price_per_sqm) for every deal that passes
-    the same filters build_heatmap.py (the earlier national-heatmap pass)
-    used, so the two views stay numerically consistent."""
+    """Yields (x_3857, y_3857, adj_price_per_sqm, raw) for every deal that
+    passes the same filters build_heatmap.py (the earlier national-heatmap
+    pass) used, so the two views stay numerically consistent. `raw` carries
+    the handful of fields the per-city deal-list files (see write_deal_files
+    below) actually display - deliberately NOT the CPI-adjusted price: the
+    deal list shows what was actually reported (as-of-sale ₪), the same way
+    a real listing would, while the city/neighborhood median above it is the
+    CPI-adjusted one - the two numbers answer different questions and
+    shouldn't be silently mixed."""
     cpi = json.loads(CPI_FILE.read_text())
     cpi_latest = cpi[LATEST_CPI_MONTH]
     n_total = 0
@@ -104,7 +111,14 @@ def load_deals():
             if not cen:
                 continue
             n_kept += 1
-            yield cen[0], cen[1], adj
+            raw = {
+                "dt": date[:10],
+                "amt": round(amount),
+                "area": area,
+                "st": d.get("streetNameHeb"),
+                "hn": d.get("houseNum"),
+            }
+            yield cen[0], cen[1], adj, raw
     log(f"deals: total={n_total} kept={n_kept}")
 
 
@@ -134,11 +148,12 @@ def build():
     nb_tree = STRtree(nb_shapes)
 
     log("loading + reprojecting deals...")
-    xs, ys, prices = [], [], []
-    for x, y, price in load_deals():
+    xs, ys, prices, raws = [], [], [], []
+    for x, y, price, raw in load_deals():
         xs.append(x)
         ys.append(y)
         prices.append(price)
+        raws.append(raw)
     xs = np.array(xs)
     ys = np.array(ys)
     prices = np.array(prices)
@@ -150,6 +165,7 @@ def build():
     log("assigning each deal to a city + neighborhood...")
     by_city = {}
     by_nb = {}
+    deals_by_city = {}  # city -> [raw dict, tagged with its own "nb" name]
     t0 = time.time()
     for i in range(len(prices)):
         pt = Point(itm_x[i], itm_y[i])
@@ -158,14 +174,22 @@ def build():
             continue
         by_city.setdefault(city, []).append(prices[i])
 
+        nb_name = None
         for j in nb_tree.query(pt):
             g = nb_shapes[j]
             if g.contains(pt):
-                nb_city, nb_name, _g, _approx = nb_list[j]
+                nb_city, nb_name_candidate, _g, _approx = nb_list[j]
                 if nb_city == city:
+                    nb_name = nb_name_candidate
                     key = f"{city}::{nb_name}"
                     by_nb.setdefault(key, []).append(prices[i])
                 break
+
+        rec = dict(raws[i])
+        if nb_name:
+            rec["nb"] = nb_name
+        deals_by_city.setdefault(city, []).append(rec)
+
         if (i + 1) % 50000 == 0:
             elapsed = time.time() - t0
             log(f"  {i+1}/{len(prices)} deals assigned, {elapsed:.0f}s elapsed")
@@ -192,7 +216,31 @@ def build():
         }
 
     log(f"{len(city_out)} cities, {len(nb_out)} neighborhoods with >= min samples")
+    write_deal_files(deals_by_city, city_out)
     return city_out, nb_out
+
+
+def write_deal_files(deals_by_city, city_out):
+    """One plain (non-JS-module) JSON array per city under assets/deals/ -
+    fetched lazily client-side only for a city the visitor actually picks to
+    compare, the same lazy-per-city-asset pattern canopy-map.html's own
+    heat/canopy blob PNGs already use (assets/blobs/{heat,canopy}/<city>.png),
+    rather than shipping every city's individual deals in the JS bundle up
+    front. Only written for cities that made it into city_out (>= min
+    samples) - no page ever links to a deal file for a city that isn't shown
+    on the map/board in the first place."""
+    DEALS_OUT_DIR.mkdir(parents=True, exist_ok=True)
+    n_written = 0
+    total_kb = 0.0
+    for city, records in deals_by_city.items():
+        if city not in city_out:
+            continue
+        records.sort(key=lambda r: r["dt"], reverse=True)
+        out_path = DEALS_OUT_DIR / f"{city}.json"
+        out_path.write_text(json.dumps(records, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+        total_kb += out_path.stat().st_size / 1024
+        n_written += 1
+    log(f"wrote {n_written} per-city deal files under assets/deals/ ({total_kb:.0f} KB total)")
 
 
 def main():
