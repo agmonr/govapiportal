@@ -1179,6 +1179,66 @@ el('cmFullReset').addEventListener('click', () => {
   renderAll();
 });
 
+/* ---------- mobile fullscreen takeover - a tap on the map on a narrow
+   viewport expands #cmSvg's own container to fill the screen instead of
+   navigating anywhere or replacing any element, so the already-attached
+   zoom/pan listeners and current view just get a bigger box to work with
+   (the ResizeObserver above already re-measures/re-labels on any size
+   change to that same element, fullscreen included - nothing extra needed
+   here for that part). A back-icon button (shown only while fullscreen)
+   or Escape exits back to the normal embedded size. ---------- */
+
+const MOBILE_MAP_BREAKPOINT = '(max-width: 640px)'; // matches this file's/style.css's own mobile breakpoint elsewhere
+const mapWrap = document.querySelector('.cm-map-wrap');
+
+function isMapFullscreen() {
+  return mapWrap.classList.contains('cm-map-fullscreen');
+}
+
+function enterMapFullscreen() {
+  mapWrap.classList.add('cm-map-fullscreen');
+  el('cmMapExitFullscreen').hidden = false;
+  document.body.style.overflow = 'hidden'; // the map now covers the viewport - nothing behind it should scroll
+}
+
+function exitMapFullscreen() {
+  mapWrap.classList.remove('cm-map-fullscreen');
+  el('cmMapExitFullscreen').hidden = true;
+  document.body.style.overflow = '';
+}
+
+el('cmMapExitFullscreen').addEventListener('click', exitMapFullscreen);
+document.addEventListener('keydown', (ev) => {
+  if (ev.key === 'Escape' && isMapFullscreen()) exitMapFullscreen();
+});
+
+// Explicit toggle button (⛶, alongside the zoom controls) - the only way
+// IN on desktop, where a plain click on the map already does something
+// else (select a city/neighborhood) and shouldn't also jump to fullscreen
+// unprompted. Doubles as an exit on both desktop and mobile, alongside the
+// dedicated back-icon button/Escape.
+el('cmMapFullscreenToggle').addEventListener('click', () => {
+  if (isMapFullscreen()) exitMapFullscreen(); else enterMapFullscreen();
+});
+
+// A single wrap-level listener (not one per path/shape) - city/neighborhood
+// clicks and the zoom/pan gestures underneath keep working exactly as
+// before, this only ADDS the fullscreen-entry side effect on top of
+// whatever a mobile tap already does. Excludes the zoom controls (which
+// includes the toggle button above - it has its own handling; bubbling
+// into this too would immediately re-toggle whatever it just did) and
+// end-of-drag/pinch taps (isDragging() - a pan that happens to end wasn't
+// a tap on someplace to look closer at). Desktop only gets the explicit
+// button above, not this auto-trigger - a plain click there already means
+// "select this shape," not "give me more room."
+mapWrap.addEventListener('click', (ev) => {
+  if (isMapFullscreen()) return;
+  if (ev.target.closest('.cm-zoom-controls, .cm-map-exit-fullscreen')) return;
+  if (!window.matchMedia(MOBILE_MAP_BREAKPOINT).matches) return; // desktop uses the explicit toggle button instead
+  if (currentZoomPan?.isDragging()) return;
+  enterMapFullscreen();
+});
+
 readStateFromUrl();
 resolveSelectedFromUrl();
 renderAll();

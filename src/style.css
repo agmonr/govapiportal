@@ -1887,6 +1887,29 @@ body.accidents-page header.site h1 { inline-size: 100%; }
 }
 .cm-zoom-controls button:hover { border-color: var(--accent); }
 
+/* Mobile fullscreen takeover (canopy-map.js's enterMapFullscreen/
+   exitMapFullscreen) - a tap on the map on a narrow viewport adds
+   .cm-map-fullscreen here instead of navigating anywhere or replacing any
+   element, so the SAME #cmSvg (and its already-attached zoom/pan
+   listeners) just gets a bigger box - the small embedded map (max 65vh,
+   further squeezed by the page's other sections) is cramped for anything
+   past a glance on a phone; fullscreen gives pan/zoom/tap-to-select actual
+   room to work with. inset:0 + a high z-index lifts it above the whole
+   page (including the site header) rather than just its own section. */
+.cm-map-wrap.cm-map-fullscreen {
+  position: fixed; inset: 0; z-index: 1000; max-inline-size: none; margin: 0;
+  border: none; border-radius: 0; background: var(--bg);
+}
+.cm-map-wrap.cm-map-fullscreen .cm-svg { aspect-ratio: auto; max-block-size: none; inline-size: 100%; block-size: 100%; }
+.cm-map-exit-fullscreen {
+  position: absolute; inset-block-start: .6rem; inset-inline-start: .6rem; z-index: 1001;
+  inline-size: 2.6rem; block-size: 2.6rem; border-radius: 50%; border: 1px solid var(--border);
+  background: var(--card); color: var(--fg); font-size: 1.3rem; line-height: 1; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, .25);
+}
+.cm-map-exit-fullscreen:hover { border-color: var(--accent); }
+
 .cm-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem; margin-block-start: .8rem; font-size: .85rem; }
 .cm-legend-scale { display: inline-flex; align-items: center; gap: .4rem; }
 .cm-legend-bar { inline-size: 8rem; block-size: .7rem; border-radius: 3px; border: 1px solid var(--border); }
