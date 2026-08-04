@@ -68,6 +68,19 @@
       "category_he": "הבית והשכונה שלי"
     },
     {
+      "id": "canopy-heat-compare",
+      "name": "Tree Canopy & Heat — Regional Info",
+      "name_he": "מידע איזורי על עצים וחום",
+      "kind": "אפליקציה",
+      "about": "השוואה של עד 4 ערים/שכונות/רחובות זה לצד זה, לפי כיסוי חופות עצים ודלתת חום גם יחד - לא מקור נתונים חדש, רק חיבור של הטבלאות שכבר מחושבות באינדקס הירוק לרחוב שלי ובכמה חם כאן לתצוגה אחת.",
+      "href": "./canopy-heat-compare.html",
+      "external": false,
+      "home": "https://data.gov.il/dataset/nationalcanopytrees",
+      "computed_at": "2026-08-04T09:48+03:00",
+      "category": "home",
+      "category_he": "הבית והשכונה שלי"
+    },
+    {
       "id": "blue-lines",
       "name": "Blue Lines — Address to Plans & Metro Levy Check",
       "name_he": "המטרו והבית שלי",

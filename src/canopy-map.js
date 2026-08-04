@@ -862,13 +862,30 @@ async function renderMap() {
     // city - it shows the name + detail bars without leaving the current
     // view. Picking a city to view its neighborhoods is manual only (level
     // tab + the "בחירת עיר" text input) - the map itself no longer drills
-    // in on a double-click or on scrolling/pinching in far enough, so a
-    // click here can never accidentally jump the view out from under you.
+    // in on scrolling/pinching in far enough, so a click here can never
+    // accidentally jump the view out from under you. A double-click DOES
+    // navigate now (see below) - not a drill, a deep link off this page
+    // entirely, so it can't collide with the same "no surprise jumps"
+    // reasoning a same-page drill-in would.
     path.addEventListener('click', () => {
       if (zoomPan.isDragging()) return;
       pickSolo(entity);
     });
     path.addEventListener('keydown', (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); pickSolo(entity); } });
+    // Deep-links into canopy-heat-compare.html's own up-to-4 compare page,
+    // pre-loaded with this one entity - same level/p1/city query shape
+    // fullPageLink() above already builds for the metric-specific pages,
+    // just for a single double-clicked shape rather than the current
+    // multi-select. entity.level here is always 'city' or 'neighborhood'
+    // (street has no map shapes at all - see currentEntities()), matching
+    // exactly what that page's own readStateFromUrl() expects.
+    path.addEventListener('dblclick', () => {
+      const p = new URLSearchParams();
+      p.set('level', entity.level);
+      p.set('p1', entity.label);
+      if (entity.level === 'neighborhood' && state.cityFilter) p.set('city', state.cityFilter);
+      location.href = `./canopy-heat-compare.html?${p}`;
+    });
   });
 
   // The choropleth scale would describe a fill that isn't drawn any more

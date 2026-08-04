@@ -173,6 +173,20 @@ TARGETS = [
         "data": True,
     },
     {
+        "html": "canopy-heat-compare.html",
+        "out": "dist/canopy-heat-compare.html",
+        "entry": "src/canopy-heat-compare.js",
+        # No new data at all - reuses tree-canopy.html's and heat-
+        # islands.html's own city/neighborhood/street tables verbatim,
+        # merged by key in src/canopy-heat-compare.js itself. apis.json is
+        # only for apps.js's under-header category strip.
+        "sources": ["src/ui.js", "src/theme.js", "src/charts.js",
+                    "src/tree-canopy-cities.js", "src/tree-canopy-neighborhoods.js", "src/tree-canopy-streets.js",
+                    "src/heat-cities.js", "src/heat-neighborhoods.js", "src/heat-streets.js",
+                    "src/apps.js", "src/canopy-heat-compare.js"],
+        "data": True,
+    },
+    {
         "html": "canopy-split.html",
         "out": "dist/canopy-split.html",
         "entry": "src/canopy-split.js",
