@@ -108,8 +108,11 @@
             אריחי ה-<code dir="ltr">tile/{level}/{row}/{col}</code> הגולמיים שלה נגישים בלי הרשאה, מקודדים
             <a href="https://github.com/Esri/lerc" target="_blank" rel="noopener">LERC</a> - כ-850 מהם, פוענחו
             מקומית פעם אחת (<code dir="ltr">tools/heat_build.py</code>) והורכבו לתמונה אחת ארצית. הכתם שמוצג
-            כאן הוא חיתוך מקומי מאותה תמונה סביב כל עיר, צבוע לפי הסטייה מהחציון של האזור המוצג בלבד (לא סולם
-            קבוע ארצי) - כדי שאזור חם יבלוט גם אם הוא חוצה כמה שכונות.
+            כאן הוא חיתוך מקומי מאותה תמונה סביב כל עיר, צבוע לפי הסטייה מהחציון של האזור המוצג - כדי שאזור חם
+            יבלוט גם אם הוא חוצה כמה שכונות - אבל לא רק: הסטייה המקומית הזו גם מוכפלת במשקל לפי מיקומה של
+            העיר עצמה בדירוג הארצי (<code dir="ltr">tools/heat_blobs.py</code>, לפי <code dir="ltr">meanC</code>
+            הממוצע של כל עיר), כך שאותה חריגה מקומית "שורפת" יותר בעיר שחמה בממוצע ארצית ופחות בעיר קרה
+            ממנה - איי חום לא שווים בכל עיר.
           </li>
           <li>
             <strong>חופות עצים ברזולוציה גבוהה</strong> - מקורו באותו shapefile של כ-2.89 מיליון צמרות עצים
@@ -156,6 +159,19 @@
         </p>
       </section>
 
+      <section class="acc-section" id="cmCityAddRow" aria-labelledby="cityAddH" hidden>
+        <h2 id="cityAddH">הוספת עיר להשוואה</h2>
+        <p class="acc-hint" dir="auto">
+          לחיצה על עיר במפה מציגה אותה לבד; כדי להשוות כמה ערים יחד (עד 4) - הוסיפו אותן כאן.
+        </p>
+        <div class="acc-year-pick">
+          <label for="cmCityAddPick">עיר:</label>
+          <input id="cmCityAddPick" type="text" list="cmCityAddRoster" autocomplete="off" spellcheck="false"
+                 placeholder="התחילו להקליד…">
+        </div>
+        <datalist id="cmCityAddRoster"></datalist>
+      </section>
+
       <section class="acc-section" id="cmCityPickRow" aria-labelledby="cityPickH" hidden>
         <h2 id="cityPickH">בחירת עיר</h2>
         <div class="acc-year-pick">
@@ -168,9 +184,7 @@
 
       <section class="acc-section" id="cmNbPickRow" aria-labelledby="nbPickH" hidden>
         <h2 id="nbPickH">הוספת שכונה להשוואה</h2>
-        <p class="acc-hint" dir="auto">
-          לחיצה על שכונה במפה מציגה אותה לבד; כדי להשוות כמה שכונות מהעיר הזו יחד (עד 4) - הוסיפו אותן כאן.
-        </p>
+        <p class="acc-hint" dir="auto">אפשר לבחור עד 4 שכונות, מכל עיר - להשוואה בין שכונות בערים שונות.</p>
         <div class="acc-year-pick">
           <label for="cmNbPick">שכונה:</label>
           <input id="cmNbPick" type="text" list="cmNbRoster" autocomplete="off" spellcheck="false"
@@ -219,12 +233,14 @@
           <h2 id="blobH">כתם חום</h2>
           <label class="cm-osm-toggle">
             <input type="checkbox" id="cmBlobToggle">
-            הצג כתמי חום (יחסית לעיר הזו - לא להשוואה בין ערים)
+            הצג כתמי חום
           </label>
           <p class="acc-hint" dir="auto">
             צביעה רציפה לפי התמונה הגולמית (~37 מ׳ לפיקסל), לא לפי שכונה - כדי להראות אזורי חום שיכולים
-            להתפשט על פני כמה שכונות, לא רק "כמה חם בשכונה X בממוצע". הצבע יחסי לחציון האזור המוצג כרגע
-            בלבד, ולכן לא ניתן להשוואה מול עיר אחרת.
+            להתפשט על פני כמה שכונות, לא רק "כמה חם בשכונה X בממוצע". הצבע יחסי לחציון האזור המוצג, אבל
+            מוכפל גם במשקל הארצי של העיר עצמה (כמה היא חמה בממוצע ביחס לשאר הערים) - אותה חריגה מקומית
+            תיראה עזה יותר בעיר חמה ארצית ועמומה יותר בעיר קרה ממנה, ולכן יש כאן השוואה חלקית בין ערים,
+            לא רק תמונה מבודדת של כל עיר בפני עצמה.
           </p>
         </section>
 

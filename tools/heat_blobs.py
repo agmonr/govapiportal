@@ -18,11 +18,23 @@ instead of re-deriving it through osgeo.
 
 Everything else is unchanged from heat_build.py's own build_heat_blobs():
 same source raster (zip/uhi_itm.tif, already fetched+reprojected by `python3
-tools/heat_build.py fetch`), same per-crop-median-relative diverging
-colorize(), same crop-too-small skip. The only real difference is coverage:
-every city in MAP_CITIES gets a blob now (falling back to its own full
-municipal boundary when it has no OSM-mapped neighborhoods), not just the
-~96 with neighborhood coverage - see blob_geo.city_crop_window.
+tools/heat_build.py fetch`), same per-crop-too-small skip. The only real
+difference in coverage: every city in MAP_CITIES gets a blob now (falling
+back to its own full municipal boundary when it has no OSM-mapped
+neighborhoods), not just the ~96 with neighborhood coverage - see
+blob_geo.city_crop_window.
+
+colorize() is no longer PURELY per-crop-median-relative, though: a pixel's
+deviation from its own crop's median still decides WHERE the hot spots are
+drawn within a city (a per-city-normalized scale can't be a fixed national
+one - each crop's own min/max differ too much for that to read as anything
+but noise), but that deviation is then scaled by blob_geo.
+load_city_heat_weights() before colorizing - a heat island inside a city
+that runs hot nationally (a high percentile of CITY_HEAT's own meanC) reads
+more intensely than the identical local anomaly in a naturally cool city, so
+the picture isn't purely "hot relative to THIS city's own surroundings"
+anymore, it also reflects how hot the city itself is in the national
+picture.
 
 Needs rasterio, Pillow, numpy - same geo venv as heat_build.py itself
 (./tools/setup.sh --geo), but NOT osgeo/rasterstats. Run with:
@@ -80,11 +92,19 @@ def colorize(t):
     return np.clip(rgba, 0, 255).astype(np.uint8)
 
 
-def render_city_heat(src, x0, y0, x1, y1):
+def render_city_heat(src, x0, y0, x1, y1, city_weight=1.0):
     """(png_bytes, x, y, w, h) in the same Y-negated ITM convention as
     canopy_blobs.py's own render_city_canopy - None if the crop has too few
     valid (non-nodata) pixels to mean anything (same threshold
-    heat_build.py's build_heat_blobs used: <16)."""
+    heat_build.py's build_heat_blobs used: <16).
+
+    city_weight (see blob_geo.load_city_heat_weights) scales the per-crop-
+    relative deviation before colorizing: a pixel that's, say, 80% of the
+    way to this crop's own hottest point reads as more intense - a bigger
+    slice of the color ramp, saturating at a smaller local anomaly - in a
+    city that runs hot nationally than the identical 80%-of-local-span pixel
+    in a naturally cool city. Local pattern still drives WHERE the hot spots
+    are drawn inside a crop; this only rescales how strongly they read."""
     window = rasterio.windows.from_bounds(x0, y0, x1, y1, transform=src.transform)
     arr = src.read(1, window=window, boundless=True, fill_value=np.nan)
     if arr.size == 0:
@@ -95,7 +115,7 @@ def render_city_heat(src, x0, y0, x1, y1):
     median = float(np.median(valid))
     lo, hi = float(valid.min()), float(valid.max())
     span = max(hi - median, median - lo, 0.3)  # avoid a near-zero divisor on a near-flat crop
-    rgba = colorize((arr - median) / span)
+    rgba = colorize((arr - median) / span * city_weight)
 
     from PIL import Image
     buf = io.BytesIO()
@@ -112,6 +132,7 @@ def build_all():
     log("loading city/neighborhood boundaries...")
     city_boxes = blob_geo.load_city_boxes()
     nb_boxes_by_city = blob_geo.load_neighborhood_boxes_by_city()
+    city_weights = blob_geo.load_city_heat_weights()
     cities = sorted(city_boxes.keys())
     log(f"{len(cities)} cities total ({len(nb_boxes_by_city)} with OSM-mapped neighborhoods, "
         f"{len(cities) - len(nb_boxes_by_city)} falling back to their own municipal boundary) - building a heat blob for each")
@@ -126,7 +147,7 @@ def build_all():
             if window is None:
                 skipped_span += 1
                 continue
-            result = render_city_heat(src, *window)
+            result = render_city_heat(src, *window, city_weight=city_weights.get(city, 1.0))
             if result is None:
                 skipped_empty += 1
                 continue
@@ -141,16 +162,41 @@ def build_all():
 
 
 def write_js(data):
+    # PNGs go to assets/blobs/heat/<city>.png as real files, fetched by the
+    # browser lazily (only for whichever city is actually on screen) via a
+    # plain <image href> URL - NOT inlined as base64 here, which used to
+    # force every page load to download all ~186 cities' worth of image
+    # data (~17MB) regardless of whether any of it was ever looked at.
+    # dist/canopy-map.html (the offline, single-file copy - see bundle.py)
+    # re-inlines these same PNGs as data URIs at bundle time so it still
+    # works standalone from file:// with no sibling assets folder needed.
+    out_dir = ROOT / "assets" / "blobs" / "heat"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    meta = {}
+    for city, d in data.items():
+        b64 = d["src"].split(",", 1)[1]
+        png_bytes = base64.b64decode(b64)
+        # Literal city name, not percent-encoded: a plain static file server
+        # decodes the URL back to raw Unicode before looking the file up on
+        # disk, so the file itself has to exist under that literal name (same
+        # convention as this file's own /tmp/heat-blob-<city>.png debug path
+        # above) - an encoded filename on disk 404s once the browser fetches it.
+        fname = f"{city}.png"
+        (out_dir / fname).write_bytes(png_bytes)
+        meta[city] = {"src": f"./assets/blobs/heat/{fname}", "x": d["x"], "y": d["y"], "w": d["w"], "h": d["h"]}
+
     stamp = time.strftime("%Y-%m-%dT%H:%M%z") or time.strftime("%Y-%m-%dT%H:%M")
     out_path = SRC / "heat-blobs.js"
     out_path.write_text(
-        f"// Per-city heat-island raster overlay (relative to each crop's own median), computed {stamp}\n"
+        f"// Per-city heat-island raster overlay metadata (relative to each crop's own median, weighted by how hot that city runs nationally - see blob_geo.load_city_heat_weights), computed {stamp} - "
+        f"the actual PNGs live under assets/blobs/heat/, fetched lazily by the browser only for the city on screen, not bundled here.\n"
         f"// Generated by tools/heat_blobs.py - do not edit by hand.\n"
-        f"export const HEAT_BLOBS = {json.dumps(data, ensure_ascii=False, separators=(',', ':'))};\n",
+        f"export const HEAT_BLOBS = {json.dumps(meta, ensure_ascii=False, separators=(',', ':'))};\n",
         encoding="utf-8",
     )
     kb = out_path.stat().st_size / 1024
-    log(f"wrote {out_path.relative_to(ROOT)} ({kb:.1f} KB)")
+    png_mb = sum(f.stat().st_size for f in out_dir.glob("*.png")) / 1024 / 1024
+    log(f"wrote {out_path.relative_to(ROOT)} ({kb:.1f} KB) + {len(meta)} PNGs under {out_dir.relative_to(ROOT)} ({png_mb:.1f} MB total)")
 
 
 def main():
@@ -163,8 +209,9 @@ def main():
         window = blob_geo.city_crop_window(city, nb_boxes_by_city, city_boxes)
         if window is None:
             sys.exit(f"{city}'s own span exceeds {blob_geo.MAX_SPAN_M}m - skipped in the real build too")
+        city_weight = blob_geo.load_city_heat_weights().get(city, 1.0)
         with rasterio.open(ITM_TIF) as src:
-            result = render_city_heat(src, *window)
+            result = render_city_heat(src, *window, city_weight=city_weight)
         if result is None:
             sys.exit(f"too few valid pixels in {city}'s crop")
         png_bytes, x, y, w, h = result

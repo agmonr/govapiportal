@@ -129,6 +129,29 @@ function streetLabelMap() {
   return streetLabelMapCache;
 }
 
+/* ---------- neighborhood roster (built once, lazily - ~1.3k rows, small
+   enough to search across every city at once, the same way streetEntries()
+   does - not just the currently-filtered one). ---------- */
+
+let nbEntriesCache = null;
+function nbEntries() {
+  if (!nbEntriesCache) {
+    nbEntriesCache = Object.entries(MAP_NEIGHBORHOODS).map(([key, v]) => {
+      const [city, name] = key.split('::');
+      return { key, label: neighborhoodLabel(city, name), city, name, level: 'neighborhood', rings: v.rings };
+    });
+  }
+  return nbEntriesCache;
+}
+
+let nbLabelMapCache = null;
+function nbLabelMap() {
+  if (!nbLabelMapCache) {
+    nbLabelMapCache = new Map(nbEntries().map((e) => [e.label, e]));
+  }
+  return nbLabelMapCache;
+}
+
 /* ---------- state + URL ---------- */
 
 const MAX_SELECT = 4;
@@ -766,17 +789,19 @@ async function renderMap() {
   // (see blobReplacesFill above) - showing it would just be wrong, not
   // merely redundant, since each raster's own coloring follows a different
   // convention entirely (see cmBlobRow's/cmCanopyBlobRow's own hints): heat
-  // is a per-crop, median-relative scale; canopy is a plain "is there a
-  // tree crown here, yes/no" mask, not a value scale at all.
+  // is a per-crop, median-relative scale further weighted by how hot each
+  // city runs nationally (see tools/heat_blobs.py's own render_city_heat);
+  // canopy is a plain "is there a tree crown here, yes/no" mask, not a
+  // value scale at all.
   if (state.hiRes) {
     const parts = [];
-    if (heatBlob) parts.push('כתם החום יחסי לחציון האזור המוצג');
+    if (heatBlob) parts.push('כתם החום יחסי לחציון האזור, משוקלל לפי חום העיר ארצית');
     if (canopyBlobPick) parts.push('כל נקודה ירוקה = צמרת עץ בודדת מהמיפוי המקורי');
     el('cmLegend').innerHTML = parts.length
       ? `<span class="cm-legend-nodata">גבולות בלבד, בלי צביעת ממוצע - ${esc(parts.join(' · '))}</span>`
       : '<span class="cm-legend-nodata">גבולות בלבד, בלי צביעת ממוצע - בחרו עיר והתקרבו לשכונות כדי לראות את הכתמים</span>';
   } else if (blobReplacesFill && blob.metric === 'heat') {
-    el('cmLegend').innerHTML = '<span class="cm-legend-nodata">כתם החום מוצג לפי חציון האזור - אין סרגל צבע קבוע להשוואה</span>';
+    el('cmLegend').innerHTML = '<span class="cm-legend-nodata">כתם החום מוצג לפי חציון האזור, משוקלל לפי חום העיר ארצית - אין סרגל צבע קבוע להשוואה</span>';
   } else if (blobReplacesFill && blob.metric === 'canopy') {
     el('cmLegend').innerHTML = '<span class="cm-legend-nodata">כל נקודה ירוקה היא צמרת עץ בודדת מהמיפוי המקורי - לא אחוז כיסוי משוכלל</span>';
   } else {
@@ -857,22 +882,44 @@ function updateCityRoster(query) {
   el('cmCityRoster').innerHTML = names.map((n) => `<option value="${esc(n)}">`).join('');
 }
 
-/* ---------- neighborhood picker (neighborhood level, current city only) -
-   a map click always REPLACES the pick (see pickSolo); this is the
-   manual-add path (like the street search) for building a same-city
-   multi-neighborhood compare list, up to MAX_SELECT. ---------- */
+/* ---------- city picker (city level) - a map click always REPLACES the
+   pick (see pickSolo); this is the manual-add path (like the street/
+   neighborhood search) for building a multi-city compare list, up to
+   MAX_SELECT, without having to click each one on the map. ---------- */
+
+function updateCityAddRoster(query) {
+  const q = query.trim().toLowerCase();
+  if (!q) { el('cmCityAddRoster').innerHTML = ''; return; }
+  const names = Object.keys(MAP_CITIES).filter((n) => n.toLowerCase().includes(q)).slice(0, 40);
+  el('cmCityAddRoster').innerHTML = names.map((n) => `<option value="${esc(n)}">`).join('');
+}
+
+function commitCityAddPick() {
+  const input = el('cmCityAddPick');
+  const name = input.value.trim();
+  if (!MAP_CITIES[name]) return;
+  input.value = '';
+  el('cmCityAddRoster').innerHTML = '';
+  toggleSelect({ key: name, label: name, city: name, level: 'city', rings: MAP_CITIES[name].rings });
+}
+
+/* ---------- neighborhood picker (neighborhood level) - a map click always
+   REPLACES the pick (see pickSolo); this is the manual-add path (like the
+   street search) for building a multi-neighborhood compare list, up to
+   MAX_SELECT - searches every city's neighborhoods, not just whichever one
+   is currently filtered into view (or even before any city is filtered at
+   all), the same way the street search always has. ---------- */
 
 function updateNbRoster(query) {
   const q = query.trim().toLowerCase();
   if (!q) { el('cmNbRoster').innerHTML = ''; return; }
-  const hits = currentEntities().filter((e) => e.label.toLowerCase().includes(q)).slice(0, 40);
+  const hits = nbEntries().filter((e) => e.label.toLowerCase().includes(q)).slice(0, 40);
   el('cmNbRoster').innerHTML = hits.map((e) => `<option value="${esc(e.label)}">`).join('');
 }
 
 function commitNbPick() {
   const input = el('cmNbPick');
-  const label = input.value.trim();
-  const entity = currentEntities().find((e) => e.label === label);
+  const entity = nbLabelMap().get(input.value.trim());
   if (!entity) return;
   input.value = '';
   el('cmNbRoster').innerHTML = '';
@@ -895,8 +942,9 @@ function renderControls() {
     btn.classList.toggle('active', active);
   });
   el('cmLayerSection').hidden = state.level === 'street';
+  el('cmCityAddRow').hidden = state.level !== 'city';
   el('cmCityPickRow').hidden = state.level !== 'neighborhood';
-  el('cmNbPickRow').hidden = state.level !== 'neighborhood' || !state.cityFilter;
+  el('cmNbPickRow').hidden = state.level !== 'neighborhood';
   el('cmStreetPickRow').hidden = state.level !== 'street';
   el('cmCityPick').value = state.cityFilter || '';
   updateCityRoster('');
@@ -953,6 +1001,10 @@ document.querySelectorAll('.cm-layer-btn').forEach((btn) => {
     renderMap();
   });
 });
+
+el('cmCityAddPick').addEventListener('input', debounce((ev) => updateCityAddRoster(ev.target.value), 120));
+el('cmCityAddPick').addEventListener('change', commitCityAddPick);
+el('cmCityAddPick').addEventListener('keydown', (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); commitCityAddPick(); } });
 
 el('cmCityPick').addEventListener('input', debounce((ev) => updateCityRoster(ev.target.value), 120));
 const commitCity = () => {

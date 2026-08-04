@@ -40,6 +40,30 @@ def _bbox_of_rings(rings):
     return min(xs), min(ys), max(xs), max(ys)
 
 
+def load_city_heat_weights():
+    """city -> a multiplier in [0.5, 1.5], from CITY_HEAT's own meanC (each
+    city's mean heat-island delta vs. its own surrounding open land, already
+    computed by heat_build.py) ranked against every other city nationally.
+
+    Used by heat_blobs.py to make its per-pixel colorize() reflect national
+    context, not just each crop's own local pattern: a pixel that stands out
+    from ITS OWN city's median (the existing per-crop-relative math) is
+    additionally scaled up if that whole city runs hot nationally (a high
+    percentile rank of meanC among all cities) or down if the city runs cool
+    - the same local anomaly should read as a bigger deal in an
+    already-hot city than in a naturally cool one. 0.5 (coldest city
+    nationally) to 1.5 (hottest), 1.0 for a city missing from CITY_HEAT
+    entirely (neutral - neither boosted nor dampened)."""
+    city_heat = _load_js_export(SRC / "heat-cities.js", "CITY_HEAT")
+    means = sorted((v["meanC"], name) for name, v in city_heat.items())
+    n = len(means)
+    weights = {}
+    for i, (_mean, name) in enumerate(means):
+        percentile = i / (n - 1) if n > 1 else 0.5
+        weights[name] = 0.5 + percentile
+    return weights
+
+
 def load_city_boxes():
     """city name -> (xmin, ymin, xmax, ymax), from MAP_CITIES - every city
     the map draws at city level at all, regardless of OSM neighborhood

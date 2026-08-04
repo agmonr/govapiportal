@@ -1,5 +1,5 @@
 /**
- * Entry point for heat-islands.html - איי חום עירוניים.
+ * Entry point for heat-islands.html - כמה חם כאן.
  *
  * Same idea as tree-canopy.js (its own docstring explains the underlying
  * pattern in full - three levels, one shared UI): the source (the Ministry
@@ -365,7 +365,7 @@ el('hiShare').addEventListener('click', () => {
   const map = labelMap(state.level);
   const entries = state.picks.map((label) => (label ? map.get(label) : null)).filter(Boolean);
   const lines = entries.map((e) => `${e.label}: ${e.maxC > 0 ? '+' : ''}${e.maxC.toFixed(1)}°C`);
-  const text = `איי חום עירוניים 🌡️\n${lines.join('\n')}\n${location.href}`;
+  const text = `כמה חם כאן 🌡️\n${lines.join('\n')}\n${location.href}`;
   window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank', 'noopener');
 });
 
