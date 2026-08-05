@@ -75,7 +75,7 @@ MAX_DIM_PX = 2400  # longer side of the output raster, in pixels - tested agains
 MIN_RES_M = 1.0  # never go finer than 1m/pixel even for a tiny crop - a single tree crown is a few m^2 already
 
 CANOPY_RGB = (46, 125, 70)  # site's --accent (light theme), src/style.css
-ALPHA = 190
+ALPHA = 230  # 90% of 255 - user asked for red (heat) and green (canopy) both at 90% strong
 
 
 def log(msg):

@@ -98,7 +98,17 @@ def colorize(t_color, t_alpha=None):
     rgb = (neutral[None, None, :] * frac_mid[..., None]
            + cool[None, None, :] * frac_cool[..., None]
            + hot[None, None, :] * frac_hot[..., None])
-    alpha = (np.clip(np.abs(ta), 0, 1) ** 1.2) * 210
+    # Exponent < 1 makes this curve CONCAVE (boosts low/mid |ta| towards full
+    # alpha rather than suppressing them) - was 1.2 (convex, suppresses
+    # low/mid values) with a 210 ceiling, which read as "much too weak"
+    # against a real basemap/page background (live user report, confirmed
+    # visually: even a city's genuine hot spots stayed pale pink, barely
+    # distinguishable from the page background). 0 deviation still fades to
+    # fully transparent either way - only the falloff shape and the ceiling
+    # changed. Ceiling is 230 (90% of 255) - user asked for red (heat) and
+    # green (canopy, canopy_blobs.py's own ALPHA) both at 90% strong, so the
+    # two layers read as equally strong rather than one capped higher.
+    alpha = (np.clip(np.abs(ta), 0, 1) ** 0.55) * 230
     alpha = np.where(nan_mask, 0, alpha)
     rgba = np.concatenate([rgb, alpha[..., None]], axis=-1)
     return np.clip(rgba, 0, 255).astype(np.uint8)

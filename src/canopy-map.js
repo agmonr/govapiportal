@@ -201,8 +201,15 @@ const PICK_COLORS = [
 // original design. `cityLayers` (1-3, toggled independently) is city-level
 // only, but the multi-bar glyph that used to distinguish 2-3 active metrics
 // is DEFERRED (see this file's own top docstring) - for now, only the
-// FIRST active cityLayers entry actually colors the choropleth fill, same
-// as a single-metric pick, until the glyph returns.
+// LAST-toggled-on cityLayers entry actually colors the choropleth fill (and
+// picks which hi-res blob type shows), same as a single-metric pick, until
+// the glyph returns. Was FIRST originally, which meant clicking a second
+// metric button (e.g. canopy, with heat already on) visibly did nothing -
+// heat stayed primary since it was still index 0 - confirmed live as the
+// cause of a "canopy layer doesn't show at all" report. "Last" also matches
+// the existing state.layer<->state.cityLayers sync elsewhere in this file
+// (see drillOutToCity/level-switch below), which already treated the last
+// entry as "the current one".
 // Jerusalem, zoomed in - the page's own starting view (and what "איפוס למפה
 // המקורית" below returns to), rather than the auto-fit full-country view.
 const DEFAULT_VIEW = { lat: 31.78, lng: 35.22, zoom: 13 };
@@ -697,9 +704,10 @@ function renderMap() {
   const entities = currentEntities();
   // cityLayers (1-3) only ever applies at city level - neighborhood/street
   // always use the single `layer` radio-style pick, unchanged from before
-  // this feature existed. Only the first is actually used for the fill
-  // right now - see styleForFeature's own comment (glyph deferred).
-  const activeMetricIds = state.level === 'city' ? state.cityLayers.slice(0, 1) : [state.layer];
+  // this feature existed. Only the LAST-toggled-on entry is actually used
+  // for the fill right now - see the state block's own comment (glyph
+  // deferred, and why this is last rather than first).
+  const activeMetricIds = state.level === 'city' ? state.cityLayers.slice(-1) : [state.layer];
   const domains = computeDomains(entities, activeMetricIds);
 
   el('cmTopoQuickToggle').classList.toggle('active', state.osm && state.basemapKind === 'topo');
