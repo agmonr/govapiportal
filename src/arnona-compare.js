@@ -362,6 +362,21 @@ function lighten(color) {
   return `color-mix(in srgb, ${color} 45%, var(--bg) 55%)`;
 }
 
+/** One bar, not two: its length reflects the +25% figure, but only the
+ * base-value portion (1/BRUTO_BRUTO_MARKUP of the bar's own length) is
+ * painted solid - the rest fades to `lighten(color)`. `renderHBarChart`
+ * takes any CSS value for an entry's `color` and drops it straight into
+ * that bar's `background`, so a gradient string works here with no change
+ * to charts.js itself. "to left" starts the gradient at the bar's anchor
+ * edge (RTL: physical right, where the value/label sit) and fades toward
+ * the far/growing edge - solid near the anchor, light at the tip, matching
+ * "the bar reaches further, lighter, past its solid base." */
+function bruttoBruttoFill(color) {
+  const basePct = (100 / BRUTO_BRUTO_MARKUP).toFixed(1); // ~80%
+  const light = lighten(color);
+  return `linear-gradient(to left, ${color} 0%, ${color} ${basePct}%, ${light} ${basePct}%, ${light} 100%)`;
+}
+
 function renderCompare() {
   const rows = [];
   const details = [];
@@ -382,21 +397,14 @@ function renderCompare() {
   });
   rows.sort((a, b) => b.value - a.value);
 
-  // Each bruto_bruto city's own bar is immediately followed by its lighter
-  // +25% reference bar - grouped by city, not re-sorted into the ranking on
-  // its own value, so the pair reads as "this city, and its likely real
-  // range" rather than as an unrelated extra row elsewhere in the list.
-  const entries = rows.flatMap((row) => {
-    const pair = [row];
-    if (RATES[row.id]?.area_method === 'bruto_bruto') {
-      pair.push({
-        label: `${row.label} - אם השטח שהזנתם הוא נטו (+כ-25%)`,
-        value: Math.round(row.value * BRUTO_BRUTO_MARKUP),
-        color: lighten(row.color),
-      });
-    }
-    return pair;
-  });
+  // A bruto_bruto city's bar extends to the +25% figure, solid up to its
+  // own base value and light for the extra stretch (bruttoBruttoFill) -
+  // same bar, not a second row, so the ranking stays one row per city.
+  // `displayValue` keeps the printed ₪ number as the real computed total;
+  // only `value` (bar length/peak scaling) reaches to the stretched figure.
+  const entries = rows.map((row) => (RATES[row.id]?.area_method === 'bruto_bruto'
+    ? { ...row, displayValue: row.value, value: Math.round(row.value * BRUTO_BRUTO_MARKUP), color: bruttoBruttoFill(row.color) }
+    : row));
 
   renderHBarChart('arCompareChart', `ארנונה שנתית משוערת - ${num(state.size)} מ"ר, כל הערים`, entries, '₪/שנה');
   el('arCompareDetails').innerHTML = details.join('');

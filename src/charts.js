@@ -86,11 +86,18 @@ export function renderHBarChart(figId, caption, entries, unit) {
     const label = e.href
       ? `<a class="acc-hbar-y" dir="auto" href="${esc(e.href)}">${esc(e.label)}</a>`
       : `<span class="acc-hbar-y" dir="auto">${esc(e.label)}</span>`;
+    // `displayValue` (optional) lets a caller stretch the bar's length/peak
+    // scaling past its "real" number - arnona-compare.js's bruto_bruto
+    // reference bars are the first user: `value` reaches to a +25% estimate
+    // so the bar visually extends, but the printed number stays the actual
+    // computed total, not the stretched one. Every existing caller leaves
+    // this unset, so `?? e.value` reproduces prior behavior exactly.
+    const shown = e.displayValue ?? e.value;
     return `
-    <div class="acc-hbar${e.compare ? ' acc-hbar-compare' : ''}" title="${esc(e.label)}: ${num(e.value)} ${esc(unit)}">
+    <div class="acc-hbar${e.compare ? ' acc-hbar-compare' : ''}" title="${esc(e.label)}: ${num(shown)} ${esc(unit)}">
       ${label}
       <div class="acc-hbar-track"><div class="acc-hbar-fill" style="inline-size:${peak ? (e.value / peak) * 100 : 0}%${e.color ? `;background:${e.color}` : ''}"></div></div>
-      <span class="acc-hbar-v">${num(e.value)}</span>
+      <span class="acc-hbar-v">${num(shown)}</span>
     </div>`;
   }).join('');
   fig.innerHTML = `<figcaption>${esc(caption)}</figcaption><div class="acc-hbars">${rows}</div>`;
