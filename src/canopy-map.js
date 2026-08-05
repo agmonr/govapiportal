@@ -215,7 +215,7 @@ const PICK_COLORS = [
 const DEFAULT_VIEW = { lat: 31.78, lng: 35.22, zoom: 13 };
 
 const state = {
-  level: 'city', layer: 'heat', cityLayers: ['heat'], cityFilter: null, osm: false, basemapKind: 'street',
+  level: 'city', layer: 'heat', cityLayers: ['heat', 'canopy'], cityFilter: null, osm: false, basemapKind: 'street',
   // hiRes defaults ON (this page's own default view) - heatBlob/canopyBlob
   // are the two per-type manual toggles, only meaningful once hiRes is off
   // (see cmBlobRow/cmCanopyBlobRow's own hidden logic in renderMap()).
@@ -755,17 +755,20 @@ function renderMap() {
   // which would misleadingly imply they're what's controlling the view.
   el('cmBlobRow').hidden = !heatBlobCities.length || state.hiRes;
   el('cmCanopyBlobRow').hidden = !canopyBlobCities.length || state.hiRes;
-  // Hi-res mode shows only the raster matching the CURRENTLY ACTIVE metric,
-  // not both heat and canopy at once - showing both together (the two
-  // rasters being independent images with their own opaque-ish pixels)
-  // reads as two overlapping/double-vision layers on the same city rather
-  // than "the hi-res version of what you're already looking at". The two
-  // manual per-type toggles (state.heatBlob/state.canopyBlob, only reachable
-  // once hi-res is off) are unaffected and can still show both together on
-  // purpose.
-  const activeMetricType = activeMetricIds[0] === 'heat' ? 'heat' : 'canopy';
-  const heatCitiesShown = (state.hiRes ? activeMetricType === 'heat' : state.heatBlob) ? heatBlobCities : [];
-  const canopyCitiesShown = (state.hiRes ? activeMetricType === 'canopy' : state.canopyBlob) ? canopyBlobCities : [];
+  // Hi-res mode shows every ACTIVE metric's raster, not just the primary
+  // one activeMetricIds picks for the choropleth fill color - at city
+  // level that's every toggled-on button in state.cityLayers (up to 3),
+  // not just the last one, so turning on both heat and canopy actually
+  // shows both together (explicit user request - "add the trees layer"
+  // meant alongside heat, not swapped in for it). Previously this only
+  // ever showed ONE raster type at a time even with multiple layer
+  // buttons marked active, which read as the canopy button "replacing"
+  // heat instead of adding to it. Neighborhood/street level still has no
+  // multi-select (state.layer is a single radio-style pick there), so
+  // falls back to that alone.
+  const activeMetricsForBlobs = state.level === 'city' ? new Set(state.cityLayers) : new Set([state.layer]);
+  const heatCitiesShown = (state.hiRes ? activeMetricsForBlobs.has('heat') : state.heatBlob) ? heatBlobCities : [];
+  const canopyCitiesShown = (state.hiRes ? activeMetricsForBlobs.has('canopy') : state.canopyBlob) ? canopyBlobCities : [];
   // Which TYPE (not which city) backs blobReplacesFill below - heat wins if
   // somehow both are showing (nothing enforces them mutually exclusive,
   // same as the old renderer).
@@ -1151,7 +1154,7 @@ el('cmCanopyBlobToggle').addEventListener('change', (ev) => {
 el('cmFullReset').addEventListener('click', () => {
   state.level = 'city';
   state.layer = 'heat';
-  state.cityLayers = ['heat'];
+  state.cityLayers = ['heat', 'canopy'];
   state.cityFilter = null;
   state.osm = false;
   state.basemapKind = 'street';
