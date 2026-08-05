@@ -55,7 +55,7 @@ import { el, esc, num, debounce } from './ui.js';
 import { initThemePicker } from './theme.js';
 import { renderAppContext, loadAppsData } from './apps.js';
 import { renderHBarChart } from './charts.js';
-import { TILE_URL_TEMPLATES, TILE_KIND_ATTRIBUTION, projectPoints, ITM_WKID, WGS84_WKID } from './geo-utils.js';
+import { TILE_URL_TEMPLATES, TILE_KIND_ATTRIBUTION, CANOPY_STREET_TILE_ATTRIBUTION, projectPoints, ITM_WKID, WGS84_WKID } from './geo-utils.js';
 
 import { MAP_CITIES_WGS84 } from './map-boundaries-cities-wgs84.js';
 import { MAP_NEIGHBORHOODS_WGS84 } from './map-boundaries-neighborhoods-wgs84.js';
@@ -212,7 +212,15 @@ const PICK_COLORS = [
 // entry as "the current one".
 // Jerusalem, zoomed in - the page's own starting view (and what "איפוס למפה
 // המקורית" below returns to), rather than the auto-fit full-country view.
-const DEFAULT_VIEW = { lat: 31.78, lng: 35.22, zoom: 13 };
+// User-requested default landing view (was a national Jerusalem-area view,
+// zoom 13, nothing selected) - zoomed into Rishon LeZion specifically.
+const DEFAULT_VIEW = { lat: 32.185, lng: 34.903, zoom: 14 };
+// Same placeholder shape readStateFromUrl() builds from a `sel=` query
+// param ({key, label, city:null, level}) - resolveSelectedFromUrl() (called
+// unconditionally at module init regardless of where state.selected came
+// from) resolves this into the real entity from the roster, same as if it
+// had arrived via the URL.
+const DEFAULT_SELECTED = [{ key: 'ראשון לציון', label: 'ראשון לציון', city: null, level: 'city' }];
 
 const state = {
   level: 'city', layer: 'heat', cityLayers: ['heat', 'canopy'], cityFilter: null, osm: false, basemapKind: 'street',
@@ -220,7 +228,7 @@ const state = {
   // are the two per-type manual toggles, only meaningful once hiRes is off
   // (see cmBlobRow/cmCanopyBlobRow's own hidden logic in renderMap()).
   hiRes: true, heatBlob: false, canopyBlob: false,
-  selected: [], view: { ...DEFAULT_VIEW },
+  selected: [...DEFAULT_SELECTED], view: { ...DEFAULT_VIEW },
 };
 let leafletMap = null; // the one Leaflet map instance, created once in initMap() and reused across every renderMap() call
 
@@ -696,8 +704,13 @@ function updateTileLayer() {
   if (tileLayer) { leafletMap.removeLayer(tileLayer); tileLayer = null; }
   if (!state.osm) return;
   tileLayer = L.tileLayer(TILE_URL_TEMPLATES[state.basemapKind], {
-    attribution: TILE_KIND_ATTRIBUTION[state.basemapKind],
+    // street's own attribution differs from geo-utils.js's shared
+    // TILE_KIND_ATTRIBUTION (CARTO Voyager _nolabels here, not plain OSM -
+    // see TILE_URL_TEMPLATES.street's own comment for why) - the other two
+    // kinds still use the shared table as before.
+    attribution: state.basemapKind === 'street' ? CANOPY_STREET_TILE_ATTRIBUTION : TILE_KIND_ATTRIBUTION[state.basemapKind],
     className: state.basemapKind === 'topo' ? 'cm-tile-topo' : '',
+    subdomains: 'abcd', // only meaningful for street's {s} placeholder - ignored by the Esri kinds, which don't use one
     maxZoom: 19,
   }).addTo(leafletMap);
   // Leaflet's own panes already keep tiles (tilePane) below vector layers
@@ -1188,7 +1201,11 @@ el('cmFullReset').addEventListener('click', () => {
   state.hiRes = true;
   state.heatBlob = false;
   state.canopyBlob = false;
-  state.selected = [];
+  // Placeholder shape (no `rings`/geometry yet) - resolveSelectedFromUrl()
+  // below fills it in from the (now city-level) roster, same resolution
+  // step module init already relies on for a URL-provided `sel=`.
+  state.selected = [...DEFAULT_SELECTED];
+  resolveSelectedFromUrl();
   state.view = { ...DEFAULT_VIEW };
   document.querySelectorAll('.cm-basemap-btn').forEach((b) => b.classList.remove('active'));
   el('cmHiResToggle').checked = true;

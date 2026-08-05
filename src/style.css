@@ -682,6 +682,13 @@ a.acc-hbar-y { color: var(--forest); text-decoration: underline; }
 a.acc-hbar-y:hover { opacity: .8; }
 .acc-hbar-track { flex: 1; block-size: 1.1rem; background: var(--surface); border-radius: 4px; overflow: hidden; }
 .acc-hbar-fill { block-size: 100%; border-radius: 4px; background: var(--accent); }
+/* canopy-map.html's own three detail charts (cmDetailCanopy/cmDetailStreet/
+   cmDetailHeat, see renderDetail() in canopy-map.js) only - NOT a global
+   change to .acc-hbar-track, which renderHBarChart's other callers
+   (tree-canopy.html, canopy-heat-compare.html, local-finance.html, etc.)
+   also use and didn't ask for a shorter bar. 1.1rem -> .77rem, 30% less
+   (user request). */
+#cmDetailCanopy .acc-hbar-track, #cmDetailStreet .acc-hbar-track, #cmDetailHeat .acc-hbar-track { block-size: .77rem; }
 .acc-hbar-v { flex: 0 0 auto; font-size: .82rem; font-weight: 600; font-variant-numeric: tabular-nums; min-inline-size: 4.5rem; }
 /* A compare authority's own row in the same leaderboard (see
    renderHBarChart's `compare` entry flag) - the same pale tint used for a
@@ -2000,7 +2007,10 @@ body.accidents-page header.site h1 { inline-size: 100%; }
    (heat/canopy), each still full-width within its own half. */
 .cm-opacity-control { text-align: center; max-inline-size: 20rem; margin-inline: auto; }
 .cm-opacity-control label { font-weight: 600; }
-.cm-opacity-control input[type="range"] { width: 100%; margin-block: .4rem; }
+/* margin-block .4rem -> .28rem (30% less, user request) - shrinks the
+   section's own vertical footprint, the only real "height" a native
+   range input's own spacing controls. */
+.cm-opacity-control input[type="range"] { width: 100%; margin-block: .28rem; }
 /* Side-by-side half-width pair before the map itself (עוצמת השכבות /
    רקע מפה) - flex-wrap so the two stack full-width on a narrow screen
    instead of squeezing to unusable width, matching this page's general

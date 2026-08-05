@@ -20,6 +20,14 @@ const AERIAL_TILE = (z, x, y) => `https://server.arcgisonline.com/ArcGIS/rest/se
 // shading rather than street or satellite - canopy-map.html's own "show the
 // topography under this heat/canopy view" toggle.
 const TOPO_TILE = (z, x, y) => `https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/${z}/${y}/${x}`;
+// street here is genuine OSM tiles (OSM_TILE below) - stitchBasemap()'s own
+// attribution draw uses this, for blue-lines.js/area-cleanup.html/
+// trip-report.html's address-lookup maps. NOT shared with canopy-map.js's
+// live tile layer, which uses a different street source (CARTO Voyager
+// _nolabels, see TILE_URL_TEMPLATES.street's own comment) with its own
+// attribution string (CANOPY_STREET_TILE_ATTRIBUTION below) - the two
+// diverged, so this text can't stay shared without misattributing one of
+// them.
 const TILE_ATTRIBUTION = {
   street: '© OpenStreetMap contributors',
   aerial: 'Imagery © Esri, Maxar, Earthstar Geographics',
@@ -37,11 +45,24 @@ export const TILE_KIND_ATTRIBUTION = TILE_ATTRIBUTION;
 // written that way here too - Leaflet substitutes each placeholder
 // wherever it appears in the string, so this is just the URL each service
 // actually expects, not a departure from the function form above.
+//
+// street is DELIBERATELY not plain OSM tiles here (unlike OSM_TILE above) -
+// standard OSM tiles bake city/town names directly into the raster image
+// itself (confirmed live: real place names like "נן חיים"/"צופית" showing
+// through underneath the heat/canopy overlays, not something CSS can hide
+// since it's not a separate text layer). CARTO's free, no-API-key "Voyager"
+// style has a _nolabels variant that's visually close to standard OSM
+// (colorful roads/water/land, not the much paler all-gray "Positron" style
+// CARTO also offers) but with no text baked in - confirmed live (curl, a
+// real 200 PNG response) before using it. Needs `subdomains: 'abcd'` passed
+// to L.tileLayer (canopy-map.js's own initMap()/updateTileLayer()), unlike
+// the Esri sources which don't use the {s} placeholder at all.
 export const TILE_URL_TEMPLATES = {
-  street: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+  street: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}.png',
   aerial: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
   topo: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',
 };
+export const CANOPY_STREET_TILE_ATTRIBUTION = '© OpenStreetMap contributors © CARTO';
 
 export const ITM_WKID = 2039;
 export const WGS84_WKID = 4326;

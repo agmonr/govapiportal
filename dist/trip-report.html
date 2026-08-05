@@ -714,6 +714,13 @@ a.acc-hbar-y { color: var(--forest); text-decoration: underline; }
 a.acc-hbar-y:hover { opacity: .8; }
 .acc-hbar-track { flex: 1; block-size: 1.1rem; background: var(--surface); border-radius: 4px; overflow: hidden; }
 .acc-hbar-fill { block-size: 100%; border-radius: 4px; background: var(--accent); }
+/* canopy-map.html's own three detail charts (cmDetailCanopy/cmDetailStreet/
+   cmDetailHeat, see renderDetail() in canopy-map.js) only - NOT a global
+   change to .acc-hbar-track, which renderHBarChart's other callers
+   (tree-canopy.html, canopy-heat-compare.html, local-finance.html, etc.)
+   also use and didn't ask for a shorter bar. 1.1rem -> .77rem, 30% less
+   (user request). */
+#cmDetailCanopy .acc-hbar-track, #cmDetailStreet .acc-hbar-track, #cmDetailHeat .acc-hbar-track { block-size: .77rem; }
 .acc-hbar-v { flex: 0 0 auto; font-size: .82rem; font-weight: 600; font-variant-numeric: tabular-nums; min-inline-size: 4.5rem; }
 /* A compare authority's own row in the same leaderboard (see
    renderHBarChart's `compare` entry flag) - the same pale tint used for a
@@ -2032,7 +2039,10 @@ body.accidents-page header.site h1 { inline-size: 100%; }
    (heat/canopy), each still full-width within its own half. */
 .cm-opacity-control { text-align: center; max-inline-size: 20rem; margin-inline: auto; }
 .cm-opacity-control label { font-weight: 600; }
-.cm-opacity-control input[type="range"] { width: 100%; margin-block: .4rem; }
+/* margin-block .4rem -> .28rem (30% less, user request) - shrinks the
+   section's own vertical footprint, the only real "height" a native
+   range input's own spacing controls. */
+.cm-opacity-control input[type="range"] { width: 100%; margin-block: .28rem; }
 /* Side-by-side half-width pair before the map itself (עוצמת השכבות /
    רקע מפה) - flex-wrap so the two stack full-width on a narrow screen
    instead of squeezing to unusable width, matching this page's general
@@ -2894,6 +2904,14 @@ const AERIAL_TILE = (z, x, y) => `https://server.arcgisonline.com/ArcGIS/rest/se
 // shading rather than street or satellite - canopy-map.html's own "show the
 // topography under this heat/canopy view" toggle.
 const TOPO_TILE = (z, x, y) => `https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/${z}/${y}/${x}`;
+// street here is genuine OSM tiles (OSM_TILE below) - stitchBasemap()'s own
+// attribution draw uses this, for blue-lines.js/area-cleanup.html/
+// trip-report.html's address-lookup maps. NOT shared with canopy-map.js's
+// live tile layer, which uses a different street source (CARTO Voyager
+// _nolabels, see TILE_URL_TEMPLATES.street's own comment) with its own
+// attribution string (CANOPY_STREET_TILE_ATTRIBUTION below) - the two
+// diverged, so this text can't stay shared without misattributing one of
+// them.
 const TILE_ATTRIBUTION = {
   street: '© OpenStreetMap contributors',
   aerial: 'Imagery © Esri, Maxar, Earthstar Geographics',
@@ -2911,11 +2929,24 @@ const TILE_KIND_ATTRIBUTION = TILE_ATTRIBUTION;
 // written that way here too - Leaflet substitutes each placeholder
 // wherever it appears in the string, so this is just the URL each service
 // actually expects, not a departure from the function form above.
+//
+// street is DELIBERATELY not plain OSM tiles here (unlike OSM_TILE above) -
+// standard OSM tiles bake city/town names directly into the raster image
+// itself (confirmed live: real place names like "נן חיים"/"צופית" showing
+// through underneath the heat/canopy overlays, not something CSS can hide
+// since it's not a separate text layer). CARTO's free, no-API-key "Voyager"
+// style has a _nolabels variant that's visually close to standard OSM
+// (colorful roads/water/land, not the much paler all-gray "Positron" style
+// CARTO also offers) but with no text baked in - confirmed live (curl, a
+// real 200 PNG response) before using it. Needs `subdomains: 'abcd'` passed
+// to L.tileLayer (canopy-map.js's own initMap()/updateTileLayer()), unlike
+// the Esri sources which don't use the {s} placeholder at all.
 const TILE_URL_TEMPLATES = {
-  street: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+  street: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}.png',
   aerial: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
   topo: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',
 };
+const CANOPY_STREET_TILE_ATTRIBUTION = '© OpenStreetMap contributors © CARTO';
 
 const ITM_WKID = 2039;
 const WGS84_WKID = 4326;

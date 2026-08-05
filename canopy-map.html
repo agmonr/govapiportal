@@ -176,6 +176,19 @@
         </p>
       </section>
 
+      <section class="acc-section" id="cmCityAddRow" aria-labelledby="cityAddH" hidden>
+        <h2 id="cityAddH">התמקד בעיר</h2>
+        <p class="acc-hint" dir="auto">
+          לחיצה על עיר במפה מציגה אותה לבד; כדי להשוות כמה ערים יחד (עד 4) - הוסיפו אותן כאן.
+        </p>
+        <div class="acc-year-pick">
+          <label for="cmCityAddPick">עיר:</label>
+          <input id="cmCityAddPick" type="text" list="cmCityAddRoster" autocomplete="off" spellcheck="false"
+                 placeholder="התחילו להקליד…">
+        </div>
+        <datalist id="cmCityAddRoster"></datalist>
+      </section>
+
       <div class="cm-half-row">
         <section class="acc-section" id="cmOpacityRow" aria-labelledby="opacityH">
           <h2 id="opacityH">עוצמת השכבות</h2>
@@ -199,19 +212,6 @@
           </div>
         </section>
       </div>
-
-      <section class="acc-section" id="cmCityAddRow" aria-labelledby="cityAddH" hidden>
-        <h2 id="cityAddH">הוספת עיר להשוואה</h2>
-        <p class="acc-hint" dir="auto">
-          לחיצה על עיר במפה מציגה אותה לבד; כדי להשוות כמה ערים יחד (עד 4) - הוסיפו אותן כאן.
-        </p>
-        <div class="acc-year-pick">
-          <label for="cmCityAddPick">עיר:</label>
-          <input id="cmCityAddPick" type="text" list="cmCityAddRoster" autocomplete="off" spellcheck="false"
-                 placeholder="התחילו להקליד…">
-        </div>
-        <datalist id="cmCityAddRoster"></datalist>
-      </section>
 
       <section class="acc-section" id="cmCityPickRow" aria-labelledby="cityPickH" hidden>
         <h2 id="cityPickH">בחירת עיר</h2>
