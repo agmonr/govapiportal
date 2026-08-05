@@ -1926,6 +1926,16 @@ body.accidents-page header.site h1 { inline-size: 100%; }
    drag cursor and gesture handling internally. */
 .cm-leaflet-map { display: block; inline-size: 100%; aspect-ratio: 1 / 1; max-block-size: 65vh; }
 .cm-map-wrap.cm-map-fullscreen .cm-leaflet-map { aspect-ratio: auto; max-block-size: none; inline-size: 100%; block-size: 100%; }
+/* Desktop has the screen real estate to spare - x1.5 both the width cap
+   (.cm-map-wrap's own max-inline-size) and the height cap together, so the
+   1:1 aspect ratio can actually grow into the extra width rather than
+   staying clipped at the old 65vh ceiling. Mobile keeps the smaller size -
+   this page's own embedded (non-fullscreen) map is already a tight fit
+   next to the rest of the controls on a narrow screen. */
+@media (min-width: 641px) {
+  .cm-map-wrap:not(.cm-map-fullscreen) { max-inline-size: 67.5rem; }
+  .cm-map-wrap:not(.cm-map-fullscreen) .cm-leaflet-map { max-block-size: 97.5vh; }
+}
 /* Per-feature style className (see the GeoJSON layer's own `style` callback
    in canopy-map.js) - Leaflet already adds its own leaflet-interactive
    class to every clickable vector layer; this is just the hook for OUR
@@ -1938,6 +1948,15 @@ body.accidents-page header.site h1 { inline-size: 100%; }
    used by blue-lines.js/area-cleanup.html/trip-report.html) address-lookup
    basemap stitcher - this is the live-tile-layer equivalent of that fix. */
 .cm-tile-topo { filter: contrast(1.35) saturate(1.15); }
+/* Once a real basemap (street/aerial/topo tiles) is showing underneath, the
+   heat/canopy blob rasters compete with the tile imagery's own colors and
+   read as washed out - boosted the same way .cm-tile-topo boosts topo tiles
+   against low contrast. Scoped by the .cm-osm-active class updateTileLayer()
+   toggles on the map container (see canopy-map.js) rather than baked into
+   the overlay images at creation time, since those images are cached/reused
+   across a basemap toggle - a pure-CSS ancestor class picks up every
+   already-added overlay too, not just ones created after the toggle. */
+.cm-osm-active .leaflet-cmBlobPane-pane img { filter: contrast(1.4) saturate(1.35); }
 
 .cm-zoom-controls { position: absolute; inset-block-start: .5rem; inset-inline-end: .5rem; display: flex; flex-direction: column; gap: .25rem; }
 .cm-zoom-controls button {

@@ -398,14 +398,15 @@ function entityToFeature(e) {
 // it belongs to, the per-neighborhood choropleth fill is redundant - it's
 // the same value at coarser granularity, sitting right on top of the
 // pixel-accurate data - suppressed (fillOpacity 0) instead of just made
-// translucent, so only the raster and the shape outlines are visible.
-// var(--bg) for the border is deliberate the REST of the time - it reads
-// as a thin gap between two differently-colored fills, not a border meant
-// to be seen on its own - but once the fill itself is gone too, that same
-// var(--bg) border made the whole shape invisible against the page's own
-// background ("the map is empty" wasn't the raster failing to load, it was
-// every border blending into the page) - var(--fg) restores a visible
-// outline once there's no fill for it to sit beside.
+// translucent. The outline is suppressed right along with it (weight 0)
+// for un-picked shapes: the choropleth layer covers all 186 cities
+// regardless of which ones actually have a blob loaded (see this file's
+// own citiesInView), so a visible border would trace every city on the
+// map, not just the ones the raster is showing - picked/compared shapes
+// keep their PICK_COLORS outline, since that's a selection highlight, not
+// a boundary line. var(--bg) for the border is deliberate the REST of the
+// time (hiRes off) - it reads as a thin gap between two differently-
+// colored fills, not a border meant to be seen on its own.
 function styleForFeature(feature, entitiesByKey, activeMetricIds, domains, blobReplacesFill) {
   const e = entitiesByKey.get(feature.properties.key);
   const metricId = activeMetricIds[0];
@@ -415,8 +416,8 @@ function styleForFeature(feature, entitiesByKey, activeMetricIds, domains, blobR
     className: 'cm-leaflet-shape',
     fillColor: fill,
     fillOpacity: blobReplacesFill ? 0 : (state.osm ? 0.72 : 1),
-    color: i !== -1 ? PICK_COLORS[i] : (blobReplacesFill ? 'var(--fg)' : 'var(--bg)'),
-    weight: i !== -1 ? 3 : 1.2,
+    color: i !== -1 ? PICK_COLORS[i] : 'var(--bg)',
+    weight: i !== -1 ? 3 : (blobReplacesFill ? 0 : 1.2),
   };
 }
 
@@ -540,8 +541,11 @@ async function ensureBlobBounds(cities) {
 
 // blobOverlayLayer holds the actual L.imageOverlay instances, keyed
 // "type:city" (e.g. "heat:הרצליה") so heat and canopy overlays for the same
-// city coexist independently (hi-res-only mode shows both at once). A
-// generation token guards against a slow/stale ensureBlobBounds() call
+// city coexist independently (the two manual per-type toggles, only
+// reachable once hi-res is off, can still show both together on purpose -
+// hi-res mode itself only ever asks for one type at a time, see renderMap()'s
+// own activeMetricType). A generation token guards against a slow/stale
+// ensureBlobBounds() call
 // (real network round trips) clobbering a newer render's own set - the same
 // idiom canopy-map.js's own osmToken used to use for the old basemap fetch.
 let blobOverlayGroup = null;
@@ -603,6 +607,20 @@ let shapesLayer = null;
 function initMap() {
   leafletMap = L.map('cmMap', { zoomControl: false, attributionControl: true })
     .setView([state.view.lat, state.view.lng], state.view.zoom);
+  // The zoom/topo/fullscreen buttons and the exit-fullscreen button sit
+  // absolutely-positioned ON TOP of the map, not inside Leaflet's own
+  // container tree - Leaflet still owns pointer/touch handling for its
+  // whole map area underneath them (drag-to-pan, tap-to-select a shape),
+  // and a touch that starts (or a click Leaflet's own handler otherwise
+  // sees) anywhere over the map can occasionally be claimed by the map
+  // instead of the control it visually landed on, especially right at a
+  // button's edge (reported live: a control press sometimes selected the
+  // city under it instead of firing). disableClickPropagation is Leaflet's
+  // own documented fix for exactly this "custom UI overlapping the map"
+  // case - stops click/dblclick/mousedown/touchstart on these elements from
+  // ever reaching the map's own handlers.
+  L.DomEvent.disableClickPropagation(el('cmZoomControls'));
+  L.DomEvent.disableClickPropagation(el('cmMapExitFullscreen'));
   // Panes' own fixed z-index ordering (tilePane < overlayPane) already
   // keeps tileLayer below shapesLayer regardless of add order - blobs need
   // to sit BETWEEN those two (over the tiles, under the shape outlines,
@@ -650,6 +668,12 @@ function initMap() {
 }
 
 function updateTileLayer() {
+  // Drives .cm-osm-active's own blob-contrast-boost rule in style.css - a
+  // container class rather than per-overlay styling so it also applies to
+  // blob images that were already added before the basemap was toggled on
+  // (see updateBlobOverlays' own caching - it doesn't recreate an overlay
+  // just because the basemap underneath it changed).
+  leafletMap.getContainer().classList.toggle('cm-osm-active', state.osm);
   if (tileLayer) { leafletMap.removeLayer(tileLayer); tileLayer = null; }
   if (!state.osm) return;
   tileLayer = L.tileLayer(TILE_URL_TEMPLATES[state.basemapKind], {
@@ -676,7 +700,6 @@ function renderMap() {
   const activeMetricIds = state.level === 'city' ? state.cityLayers.slice(0, 1) : [state.layer];
   const domains = computeDomains(entities, activeMetricIds);
 
-  el('cmBasemapKindRow').hidden = !state.osm;
   el('cmTopoQuickToggle').classList.toggle('active', state.osm && state.basemapKind === 'topo');
   updateTileLayer();
 
@@ -717,13 +740,22 @@ function renderMap() {
   lastBlobCitiesKey = [...blobCandidates].sort().join(' ');
   const heatBlobCities = blobCandidates.filter((c) => HEAT_BLOBS[c]);
   const canopyBlobCities = blobCandidates.filter((c) => CANOPY_BLOBS[c]);
-  // The per-metric toggles are redundant once hi-res-only mode forces both
-  // rasters on together - hidden rather than left sitting there unchecked,
+  // The per-metric toggles are redundant once hi-res-only mode forces the
+  // matching raster on - hidden rather than left sitting there unchecked,
   // which would misleadingly imply they're what's controlling the view.
   el('cmBlobRow').hidden = !heatBlobCities.length || state.hiRes;
   el('cmCanopyBlobRow').hidden = !canopyBlobCities.length || state.hiRes;
-  const heatCitiesShown = (state.hiRes || state.heatBlob) ? heatBlobCities : [];
-  const canopyCitiesShown = (state.hiRes || state.canopyBlob) ? canopyBlobCities : [];
+  // Hi-res mode shows only the raster matching the CURRENTLY ACTIVE metric,
+  // not both heat and canopy at once - showing both together (the two
+  // rasters being independent images with their own opaque-ish pixels)
+  // reads as two overlapping/double-vision layers on the same city rather
+  // than "the hi-res version of what you're already looking at". The two
+  // manual per-type toggles (state.heatBlob/state.canopyBlob, only reachable
+  // once hi-res is off) are unaffected and can still show both together on
+  // purpose.
+  const activeMetricType = activeMetricIds[0] === 'heat' ? 'heat' : 'canopy';
+  const heatCitiesShown = (state.hiRes ? activeMetricType === 'heat' : state.heatBlob) ? heatBlobCities : [];
+  const canopyCitiesShown = (state.hiRes ? activeMetricType === 'canopy' : state.canopyBlob) ? canopyBlobCities : [];
   // Which TYPE (not which city) backs blobReplacesFill below - heat wins if
   // somehow both are showing (nothing enforces them mutually exclusive,
   // same as the old renderer).
@@ -1039,21 +1071,22 @@ el('cmStreetPick').addEventListener('input', debounce((ev) => updateStreetRoster
 el('cmStreetPick').addEventListener('change', commitStreetPick);
 el('cmStreetPick').addEventListener('keydown', (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); commitStreetPick(); } });
 
-el('cmOsmToggle').addEventListener('change', (ev) => {
-  state.osm = ev.target.checked;
-  renderMap();
-});
-
 // Street/aerial/topo tile source for the real-map background above - all
 // three share the same slippy-tile grid, so switching needs nothing beyond
-// swapping the tile layer's own URL template (see updateTileLayer()).
+// swapping the tile layer's own URL template (see updateTileLayer()). Each
+// button is its own on/off toggle rather than a plain radio group: clicking
+// the currently-active one turns the real-map background off entirely
+// (state.osm false), clicking a different one switches state.basemapKind
+// and leaves exactly that one active - "just one background" at a time,
+// but with an explicit off state too, not a fixed always-on default.
 document.querySelectorAll('.cm-basemap-btn').forEach((btn) => {
   btn.addEventListener('click', () => {
     const kind = btn.dataset.basemap;
-    if (state.basemapKind === kind) return;
+    const alreadyActive = state.osm && state.basemapKind === kind;
+    state.osm = !alreadyActive;
     state.basemapKind = kind;
     document.querySelectorAll('.cm-basemap-btn').forEach((b) => {
-      b.classList.toggle('active', b.dataset.basemap === kind);
+      b.classList.toggle('active', state.osm && b.dataset.basemap === kind);
     });
     renderMap();
   });
@@ -1061,17 +1094,16 @@ document.querySelectorAll('.cm-basemap-btn').forEach((btn) => {
 
 // One-click "show the topography under this view" shortcut right next to
 // the fullscreen toggle, driving the exact same state.osm/state.basemapKind
-// as the "רקע מפה" section's own checkbox + button-row above, rather than
-// making a visitor find that section and turn OSM on by hand first. A true
-// toggle: pressing it again while topo is already showing turns the real-
-// map background off entirely, same as unchecking cmOsmToggle would.
+// as the "רקע מפה" section's own button row above, rather than making a
+// visitor find that section and turn topo on by hand first. A true toggle:
+// pressing it again while topo is already showing turns the real-map
+// background off entirely, same as pressing the topo button there would.
 el('cmTopoQuickToggle').addEventListener('click', () => {
   const alreadyTopo = state.osm && state.basemapKind === 'topo';
   state.osm = !alreadyTopo;
   state.basemapKind = 'topo';
-  el('cmOsmToggle').checked = state.osm;
   document.querySelectorAll('.cm-basemap-btn').forEach((b) => {
-    b.classList.toggle('active', b.dataset.basemap === 'topo');
+    b.classList.toggle('active', state.osm && b.dataset.basemap === 'topo');
   });
   renderMap();
 });
@@ -1118,10 +1150,7 @@ el('cmFullReset').addEventListener('click', () => {
   state.canopyBlob = false;
   state.selected = [];
   state.view = { ...DEFAULT_VIEW };
-  el('cmOsmToggle').checked = false;
-  document.querySelectorAll('.cm-basemap-btn').forEach((b) => {
-    b.classList.toggle('active', b.dataset.basemap === 'street');
-  });
+  document.querySelectorAll('.cm-basemap-btn').forEach((b) => b.classList.remove('active'));
   el('cmHiResToggle').checked = true;
   el('cmBlobToggle').checked = false;
   el('cmCanopyBlobToggle').checked = false;

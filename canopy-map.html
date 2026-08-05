@@ -234,7 +234,7 @@
         -->
         <div class="cm-map-wrap">
           <div id="cmMap" class="cm-leaflet-map" role="img" aria-label="מפת ערים ושכונות צבועה לפי שכבת הנתונים הנבחרת"></div>
-          <div class="cm-zoom-controls">
+          <div class="cm-zoom-controls" id="cmZoomControls">
             <button type="button" id="cmZoomIn" aria-label="התקרבות">+</button>
             <button type="button" id="cmZoomOut" aria-label="התרחקות">−</button>
             <button type="button" id="cmZoomReset" aria-label="איפוס תצוגה">⟲</button>
@@ -258,12 +258,9 @@
 
         <section class="acc-section" id="cmOsmRow" aria-labelledby="osmH">
           <h2 id="osmH">רקע מפה</h2>
-          <label class="cm-osm-toggle">
-            <input type="checkbox" id="cmOsmToggle">
-            הצג רקע מפה אמיתי (איטי יותר, דורש חיבור רשת)
-          </label>
-          <div class="cm-filters cm-basemap-kind-row" id="cmBasemapKindRow" role="group" aria-label="סוג רקע המפה" hidden>
-            <button type="button" data-basemap="street" class="tc-level-btn cm-basemap-btn active">מפת רחובות</button>
+          <p class="acc-hint" dir="auto">לחיצה על שכבה בוחרת אותה כרקע; לחיצה נוספת על אותה שכבה מבטלת אותה - רקע אחד בכל פעם.</p>
+          <div class="cm-filters cm-basemap-kind-row" id="cmBasemapKindRow" role="group" aria-label="סוג רקע המפה">
+            <button type="button" data-basemap="street" class="tc-level-btn cm-basemap-btn">מפת רחובות</button>
             <button type="button" data-basemap="aerial" class="tc-level-btn cm-basemap-btn">תצלום אוויר</button>
             <button type="button" data-basemap="topo" class="tc-level-btn cm-basemap-btn">מפה טופוגרפית</button>
           </div>
