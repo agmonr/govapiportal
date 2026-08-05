@@ -1947,6 +1947,20 @@ body.accidents-page header.site h1 { inline-size: 100%; }
    but no cursor/touch-action rules of its own - Leaflet manages its own
    drag cursor and gesture handling internally. */
 .cm-leaflet-map { display: block; inline-size: 100%; aspect-ratio: 1 / 1; max-block-size: 45.5vh; }
+/* Long-press on a touch device is this page's own "open compare page"
+   gesture (see wireFeature() in canopy-map.js) - without this, the SAME
+   touch-and-hold also triggers the phone's own native image/selection
+   callout (Leaflet's tiles are plain <img> elements, its shapes real SVG
+   <path>s) - a popup that lands whereever the OS puts it, over whichever
+   control happens to sit there, well before our own 550ms timer fires.
+   -webkit-touch-callout covers Safari's version; user-select covers the
+   Android text/shape "selection handles" flavor of the same problem. */
+.cm-leaflet-map, .cm-leaflet-map img, .cm-leaflet-map svg, .cm-leaflet-map path {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -webkit-user-drag: none;
+  user-select: none;
+}
 .cm-map-wrap.cm-map-fullscreen .cm-leaflet-map { aspect-ratio: auto; max-block-size: none; inline-size: 100%; block-size: 100%; }
 /* Desktop has the screen real estate to spare - x1.5 both the width cap
    (.cm-map-wrap's own max-inline-size) and the height cap together, so the

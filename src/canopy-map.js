@@ -499,6 +499,11 @@ function wireFeature(feature, layer, entitiesByKey, activeMetricIds) {
       pressTimer = setTimeout(() => { pressTimer = null; openCanopyHeatCompare(e); }, LONG_PRESS_MS);
     });
     layer.on('mouseup mouseout', cancelPress);
+    // Some Android browsers still fire a real 'contextmenu' DOM event after
+    // the touch-and-hold, independent of the CSS touch-callout suppression
+    // above - swallow it so it can't pop the native menu mid-press, on top
+    // of our own mousedown timer already handling the navigation.
+    layer.on('contextmenu', (ev) => { L.DomEvent.preventDefault(ev); });
   } else {
     layer.on('contextmenu', (ev) => {
       L.DomEvent.preventDefault(ev); // suppress the real browser context menu
