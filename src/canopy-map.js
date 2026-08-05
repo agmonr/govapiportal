@@ -614,7 +614,14 @@ let shapesLayer = null;
 
 /* global L */
 function initMap() {
-  leafletMap = L.map('cmMap', { zoomControl: false, attributionControl: true })
+  leafletMap = L.map('cmMap', {
+    zoomControl: false,
+    attributionControl: true,
+    // Leaflet's default (60) zoomed multiple levels per normal scroll
+    // tick - felt too strong/jumpy (user report). Bigger number = more
+    // wheel travel needed per zoom level, i.e. weaker/gentler zoom.
+    wheelPxPerZoomLevel: 180,
+  })
     .setView([state.view.lat, state.view.lng], state.view.zoom);
   // The zoom/topo/fullscreen buttons and the exit-fullscreen button sit
   // absolutely-positioned ON TOP of the map, not inside Leaflet's own
