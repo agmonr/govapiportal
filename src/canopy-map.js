@@ -81,6 +81,17 @@ const METRICS = {
     valueForCity: (name) => CITY_CANOPY_SPLIT[name]?.publicPct,
     valueForNb: (key) => NEIGHBORHOOD_CANOPY_SPLIT[key]?.publicPct,
   },
+  // No valueForStreet here either - same reasoning as "street" above (no
+  // meaningful "private yard" concept for a street buffer). Not offered as
+  // its own map layer (cmLayerPick has no button for it - "street"/"canopy"
+  // already cover the map-layer use case), used only by the combined
+  // detail chart below (renderDetailStreetPrivate) - see canopy-heat-
+  // compare.js's own identical METRICS.private for the same field.
+  private: {
+    label: 'עצים פרטיים', unit: '%', colorVar: 'var(--accent)',
+    valueForCity: (name) => CITY_CANOPY_SPLIT[name]?.privatePct,
+    valueForNb: (key) => NEIGHBORHOOD_CANOPY_SPLIT[key]?.privatePct,
+  },
   heat: {
     label: 'דלתת חום מרבית', unit: '°C', colorVar: 'var(--danger)',
     valueForCity: (name) => CITY_HEAT[name]?.maxC,
@@ -965,8 +976,10 @@ function renderChips() {
   });
 }
 
-/* ---------- combined detail: all 3 metrics, one chart each, colored by
-   which selected entity (not by metric) ---------- */
+/* ---------- combined detail: total canopy + heat, one chart each, colored
+   by which selected entity (not by metric) - see renderDetailStreetPrivate
+   right below for the one exception (public/private trees, one COMBINED
+   chart, colored by series instead). ---------- */
 
 function renderDetailMetric(metricId, figId) {
   const m = METRICS[metricId];
@@ -977,12 +990,61 @@ function renderDetailMetric(metricId, figId) {
   renderHBarChart(figId, m.label, entries, m.unit);
 }
 
+// Fixed (not per-entity) - same reasoning as canopy-heat-compare.js's own
+// identical constants: this chart tells entities apart by row label
+// already, and needs its two colors to mean the same thing (public vs.
+// private) in every row instead of doubling as an entity-color code.
+const STACKED_COLOR_STREET = 'var(--accent)';
+const STACKED_COLOR_PRIVATE = 'color-mix(in srgb, var(--accent) 45%, var(--bg) 55%)';
+
+// Public+private trees shown as ONE two-segment bar per selected entity
+// (ported from canopy-heat-compare.js's own renderStackedBarChart, same
+// markup/reasoning - see that file's own comment on why the segments
+// themselves are square) instead of two separate full-width charts side by
+// side - answers "how green, and how much of that is street trees vs.
+// private yards" in one thinner block rather than two disconnected ones.
+function renderDetailStreetPrivate(figId) {
+  const rows = state.selected
+    .map((e) => ({
+      label: e.label,
+      streetVal: valueForLevel(METRICS.street, e.level, e.key),
+      privateVal: valueForLevel(METRICS.private, e.level, e.key),
+    }))
+    .filter((r) => r.streetVal != null || r.privateVal != null);
+  const fig = el(figId);
+  const caption = 'עצי רחוב (ציבורי) + עצים פרטיים';
+  if (!rows.length) { fig.innerHTML = `<figcaption>${esc(caption)}</figcaption><p class="acc-hint">אין נתונים להצגה.</p>`; return; }
+  const totals = rows.map((r) => (r.streetVal ?? 0) + (r.privateVal ?? 0));
+  const peak = Math.max(...totals);
+  const body = rows.map((r, i) => {
+    const total = totals[i];
+    const streetPct = peak ? ((r.streetVal ?? 0) / peak) * 100 : 0;
+    const privatePct = peak ? ((r.privateVal ?? 0) / peak) * 100 : 0;
+    const title = `${r.label}: ${esc(METRICS.street.label)} ${r.streetVal != null ? r.streetVal.toFixed(1) : '—'}%, `
+      + `${esc(METRICS.private.label)} ${r.privateVal != null ? r.privateVal.toFixed(1) : '—'}%`;
+    return `
+    <div class="acc-hbar" title="${esc(title)}">
+      <span class="acc-hbar-y" dir="auto">${esc(r.label)}</span>
+      <div class="acc-hbar-track acc-hbar-track-stacked">
+        <div class="acc-hbar-fill" style="inline-size:${streetPct}%;background:${STACKED_COLOR_STREET}"></div>
+        <div class="acc-hbar-fill" style="inline-size:${privatePct}%;background:${STACKED_COLOR_PRIVATE}"></div>
+      </div>
+      <span class="acc-hbar-v">${num(Number(total.toFixed(1)))}%</span>
+    </div>`;
+  }).join('');
+  fig.innerHTML = `<figcaption>${esc(caption)}</figcaption><div class="acc-hbars">${body}</div>
+    <p class="acc-hint" dir="auto">
+      <span class="acc-legend-swatch" style="background:${STACKED_COLOR_STREET}"></span> ${esc(METRICS.street.label)}
+      · <span class="acc-legend-swatch" style="background:${STACKED_COLOR_PRIVATE}"></span> ${esc(METRICS.private.label)}
+    </p>`;
+}
+
 function renderDetail() {
   const section = el('cmDetailSection');
   if (!state.selected.length) { section.hidden = true; return; }
   section.hidden = false;
   renderDetailMetric('canopy', 'cmDetailCanopy');
-  renderDetailMetric('street', 'cmDetailStreet');
+  renderDetailStreetPrivate('cmDetailStreet');
   renderDetailMetric('heat', 'cmDetailHeat');
 }
 
