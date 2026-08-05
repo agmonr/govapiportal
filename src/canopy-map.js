@@ -648,8 +648,15 @@ async function renderOsmBasemap(entities) {
     canvasEl.hidden = false;
     statusEl.textContent = '';
     return {
-      width: MAX_DIM,
-      height: MAX_DIM,
+      // The canvas's OWN pixel dimensions, not the fixed MAX_DIM square this
+      // used to hardcode - geo-utils.js's stitchBasemap() now returns a
+      // canvas sized to the bbox's real aspect ratio (see its own comment:
+      // forcing a square canvas regardless of the source bbox's shape is
+      // what made a non-square bbox, e.g. the whole country, look visibly
+      // distorted/"3D"). This viewBox has to track whatever the canvas
+      // actually is, square or not.
+      width: canvas.width,
+      height: canvas.height,
       // Same 2-arg (x, y) shape ringsToPathD already calls for the flat
       // projector - here x/y are lon/lat (see ringsFor below, which swaps in
       // the WGS84 rings for this mode), not ITM meters.
