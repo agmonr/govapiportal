@@ -22,22 +22,6 @@
     } catch (e) {}
   </script>
   <link rel="stylesheet" href="./src/style.css">
-  <!--
-    First (and only) external dependency in this codebase - every other page
-    hand-rolls its own rendering (see map-shapes.js's own SVG pan/zoom, this
-    page's former custom basemap stitcher in geo-utils.js). A real map with
-    tiles that load live at ANY zoom - a single neighborhood up to the whole
-    country - genuinely needs a real tile-loading engine, not a bigger
-    version of the old one-shot canvas stitch; Leaflet is the small
-    (~40KB), no-build-step standard for exactly this, and the actual map
-    tiles already require live network access regardless, so this doesn't
-    add a new category of "needs the internet" the way it would on an
-    otherwise fully offline page.
-  -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-          integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 </head>
 <body class="accidents-page tree-canopy-page">
   <header class="site">
@@ -96,15 +80,10 @@
           בהגדרה השטח הציבורי - רחוב נבחר תורם רק 2 מתוך 3 המדדים (כיסוי כולל, חום), לא את כולם.
         </p>
         <p>
-          <strong>ברירת המחדל היא ללא רקע מפה אמיתי:</strong> הצורות עצמן מציירות את המפה - כמו כל מפה
-          נושאית (תוצאות בחירות, מפקד אוכלוסין) שלא מציגה פרטי רחובות מתחת לצביעה. אפשר להפעיל רקע מפה אמיתי
-          (מפת רחובות/תצלום אוויר/מפה טופוגרפית) בכל רמה ובכל מרחק זום - כולל תצוגה ארצית שלמה - הוא נטען
-          באריחים חיים תוך כדי תזוזה במפה, לא נתפס מראש כתמונה קבועה אחת.
-        </p>
-        <p class="acc-hint" dir="auto">
-          <strong>זמנית לא זמינים כאן:</strong> העמודות הקטנות שהיו מציגות כמה מדדים בו-זמנית ברמת עיר,
-          תפריט המידע בלחיצה ארוכה על עיר/שכונה, ומעבר אוטומטי לשכונות בהתקרבות זום לעיר - בעיצומו של מעבר
-          למנוע מפה חדש (Leaflet), יחזרו בהמשך.
+          <strong>ברירת המחדל היא ללא רקע OSM אמיתי:</strong> הצורות עצמן מציירות את המפה - כמו כל מפה
+          נושאית (תוצאות בחירות, מפקד אוכלוסין) שלא מציגה פרטי רחובות מתחת לצביעה. אפשר להפעיל רקע OSM אמיתי
+          (ברמת שכונה בלבד, אחרי בחירת עיר) - אבל תצוגה ארצית שלמה דורשת הרבה יותר אריחי מפה ממה שהאתר הזה
+          שולף בכל מקום אחר, ולכן לא זמינה ברמת עיר.
         </p>
         <p>
           <strong>ברמת שכונה יש לבחור עיר קודם</strong> - כמו בכל דף אחר באתר: רוב השכונות בגודל של רחוב או
@@ -224,17 +203,10 @@
       <section class="acc-section" id="cmMapSection" aria-labelledby="mapH">
         <h2 id="mapH">המפה</h2>
         <p id="cmHint" class="acc-hint" dir="auto"></p>
-        <!--
-          Leaflet mounts itself into this div (see initMap() in
-          canopy-map.js) - no more hand-rolled SVG viewBox pan/zoom or a
-          separate static basemap div underneath it; the tile layer and the
-          city/neighborhood choropleth are both real Leaflet layers on the
-          SAME map now, so they never drift out of sync on pan/zoom the way
-          the old static-stitched background used to.
-        -->
         <div class="cm-map-wrap">
-          <div id="cmMap" class="cm-leaflet-map" role="img" aria-label="מפת ערים ושכונות צבועה לפי שכבת הנתונים הנבחרת"></div>
-          <div class="cm-zoom-controls" id="cmZoomControls">
+          <div id="cmBasemap" class="cm-basemap" hidden></div>
+          <svg id="cmSvg" class="cm-svg" role="img" preserveAspectRatio="xMidYMid meet" aria-label="מפת ערים ושכונות צבועה לפי שכבת הנתונים הנבחרת"></svg>
+          <div class="cm-zoom-controls">
             <button type="button" id="cmZoomIn" aria-label="התקרבות">+</button>
             <button type="button" id="cmZoomOut" aria-label="התרחקות">−</button>
             <button type="button" id="cmZoomReset" aria-label="איפוס תצוגה">⟲</button>
@@ -244,26 +216,37 @@
               view, without first opening "רקע מפה" below and toggling OSM
               on by hand - same underlying state (state.osm/basemapKind) as
               that section's own controls, see cmTopoQuickToggle's own
-              handler in canopy-map.js. Available at every level/zoom now
-              (a real Leaflet tile layer, not the old one-shot canvas stitch
-              that only worked for a single bounded neighborhood).
+              handler in canopy-map.js. Only meaningful (and only shown) at
+              neighborhood level with a city picked - same scoping #cmOsmRow
+              itself already has, since the tile fetch needs a small bounded
+              area.
             -->
-            <button type="button" id="cmTopoQuickToggle" aria-label="הצגת רקע טופוגרפי">🏔</button>
+            <button type="button" id="cmTopoQuickToggle" aria-label="הצגת רקע טופוגרפי" hidden>🏔</button>
           </div>
           <button type="button" id="cmMapExitFullscreen" class="cm-map-exit-fullscreen" aria-label="חזרה" hidden>→</button>
         </div>
+        <!-- Outside .cm-map-wrap on purpose: that container has its own
+             overflow:hidden (for the SVG/basemap it normally holds), which
+             can still clip a position:fixed descendant positioned beyond
+             its own visible box, even though fixed positioning computes
+             its offset against the viewport, not that ancestor. -->
+        <ul id="cmContextMenu" class="cm-context-menu" role="menu" hidden></ul>
         <p class="acc-hint" dir="auto">גלגלת עכבר או צביטה בשתי אצבעות להתקרבות/התרחקות, גרירה להזזה.</p>
         <button type="button" id="cmFullReset" class="cm-full-reset">איפוס למפה המקורית</button>
         <div id="cmLegend" class="cm-legend"></div>
 
-        <section class="acc-section" id="cmOsmRow" aria-labelledby="osmH">
+        <section class="acc-section" id="cmOsmRow" aria-labelledby="osmH" hidden>
           <h2 id="osmH">רקע מפה</h2>
-          <p class="acc-hint" dir="auto">לחיצה על שכבה בוחרת אותה כרקע; לחיצה נוספת על אותה שכבה מבטלת אותה - רקע אחד בכל פעם.</p>
-          <div class="cm-filters cm-basemap-kind-row" id="cmBasemapKindRow" role="group" aria-label="סוג רקע המפה">
-            <button type="button" data-basemap="street" class="tc-level-btn cm-basemap-btn">מפת רחובות</button>
+          <label class="cm-osm-toggle">
+            <input type="checkbox" id="cmOsmToggle">
+            הצג רקע מפה אמיתי (איטי יותר, דורש חיבור רשת)
+          </label>
+          <div class="cm-filters cm-basemap-kind-row" id="cmBasemapKindRow" role="group" aria-label="סוג רקע המפה" hidden>
+            <button type="button" data-basemap="street" class="tc-level-btn cm-basemap-btn active">מפת רחובות</button>
             <button type="button" data-basemap="aerial" class="tc-level-btn cm-basemap-btn">תצלום אוויר</button>
             <button type="button" data-basemap="topo" class="tc-level-btn cm-basemap-btn">מפה טופוגרפית</button>
           </div>
+          <p id="cmOsmStatus" class="acc-hint" dir="auto"></p>
         </section>
 
         <section class="acc-section" id="cmBlobRow" aria-labelledby="blobH" hidden>

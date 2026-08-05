@@ -1949,57 +1949,50 @@ body.accidents-page header.site h1 { inline-size: 100%; }
   position: relative; max-inline-size: 45rem; margin-inline: auto;
   border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
 }
-/* Leaflet mounts itself into this div (see initMap() in canopy-map.js) -
-   same fixed-aspect-ratio + vh-cap box the old hand-rolled #cmSvg used
-   (Israel's own bbox is ~1:2.9 tall/narrow, a picked city's closer to 1:1 -
-   letting the box's own height track whatever's shown, e.g. block-size:
-   auto, previously ballooned to ~2900px tall on the national view alone),
-   but no cursor/touch-action rules of its own - Leaflet manages its own
-   drag cursor and gesture handling internally. */
-.cm-leaflet-map { display: block; inline-size: 100%; aspect-ratio: 1 / 1; max-block-size: 65vh; }
-.cm-map-wrap.cm-map-fullscreen .cm-leaflet-map { aspect-ratio: auto; max-block-size: none; inline-size: 100%; block-size: 100%; }
-/* Desktop has the screen real estate to spare - x1.5 both the width cap
-   (.cm-map-wrap's own max-inline-size) and the height cap together, so the
-   1:1 aspect ratio can actually grow into the extra width rather than
-   staying clipped at the old 65vh ceiling. Mobile keeps the smaller size -
-   this page's own embedded (non-fullscreen) map is already a tight fit
-   next to the rest of the controls on a narrow screen. */
-@media (min-width: 641px) {
-  .cm-map-wrap:not(.cm-map-fullscreen) { max-inline-size: 67.5rem; }
-  .cm-map-wrap:not(.cm-map-fullscreen) .cm-leaflet-map { max-block-size: 97.5vh; }
+.cm-basemap { position: absolute; inset-block-start: 0; inset-inline-start: 0; inline-size: 100%; block-size: 100%; }
+/* The div itself is just a positioning wrapper - fetchBasemapCanvasWGS84's
+   own <canvas> (with real width/height attributes already matching MAX_DIM)
+   is appended into it at render time, not styled directly here. */
+.cm-basemap canvas { display: block; inline-size: 100%; block-size: 100%; border-radius: 6px; }
+.cm-svg {
+  /* Fixed aspect-ratio + a vh cap, NOT block-size:auto - Israel's own
+     bbox is ~1:2.9 (tall/narrow) while a picked city's is closer to 1:1,
+     so letting the box's own height track the current viewBox's intrinsic
+     ratio (the old block-size:auto) made it balloon to ~2900px tall on
+     the national view alone (measured directly) - most of the map sat
+     below the fold, with the header/search controls above and the legend/
+     compare controls below both scrolled out of reach. A fixed box plus
+     the SVG's own default preserveAspectRatio="xMidYMid meet" just
+     letterboxes whatever's being viewed inside it instead - the box
+     itself never resizes based on what's shown.
+  */
+  display: block; inline-size: 100%; aspect-ratio: 1 / 1; max-block-size: 65vh;
+  position: relative;
+  cursor: grab;
+  /* Claims wheel/pinch/drag gestures entirely for attachZoomPan's own
+     pointer-event handling - without this, a mobile pinch would zoom the
+     whole page instead of just the map. */
+  touch-action: none;
 }
-/* Per-feature style className (see the GeoJSON layer's own `style` callback
-   in canopy-map.js) - Leaflet already adds its own leaflet-interactive
-   class to every clickable vector layer; this is just the hook for OUR
-   hover styling, same look the old hand-rolled #cmSvg path:hover had. */
-.cm-leaflet-shape:hover, .cm-leaflet-shape:focus-visible { stroke: var(--fg) !important; stroke-width: 1.2 !important; outline: none; }
-/* Leaflet's own L.tileLayer `className` option (see updateTileLayer() in
-   canopy-map.js) - Esri's World Topo Map ships noticeably paler/lower-
-   contrast than the street/aerial sources, same reasoning and same values
-   as geo-utils.js's own canvas-based contrast boost for the OLDER (still
-   used by blue-lines.js/area-cleanup.html/trip-report.html) address-lookup
-   basemap stitcher - this is the live-tile-layer equivalent of that fix. */
-.cm-tile-topo { filter: contrast(1.35) saturate(1.15); }
-/* Once a real basemap (street/aerial/topo tiles) is showing underneath, the
-   heat/canopy blob rasters compete with the tile imagery's own colors and
-   read as washed out. A contrast INCREASE (tried first, same idiom as
-   .cm-tile-topo above) made this worse, not better - confirmed live: most
-   of this palette's own pixels are already lighter than mid-gray, so
-   pushing contrast up pushes them further toward white instead of making
-   them pop. Contrast below 1 pulls every pixel back toward mid-gray
-   instead, which darkens (and so makes more visible) exactly those pale
-   pixels; saturate still boosts the actual hue once it's no longer so
-   close to white. Scoped by the .cm-osm-active class updateTileLayer()
-   toggles on the map container (see canopy-map.js) rather than baked into
-   the overlay images at creation time, since those images are cached/reused
-   across a basemap toggle - a pure-CSS ancestor class picks up every
-   already-added overlay too, not just ones created after the toggle. */
-/* 25% stronger color across the board - saturate(1.25) alone against the
-   plain page background (no basemap, the default view), stacked into the
-   .cm-osm-active contrast fix's own saturate below (1.5 * 1.25 = 1.875)
-   once a basemap is showing underneath. */
-.leaflet-cmBlob-pane img { filter: saturate(1.25); }
-.cm-osm-active .leaflet-cmBlob-pane img { filter: contrast(.7) saturate(1.875); }
+.cm-svg:active { cursor: grabbing; }
+.cm-svg path { cursor: pointer; }
+.cm-svg path:hover, .cm-svg path:focus-visible { stroke: var(--fg); stroke-width: 2.4; outline: none; }
+/* Name labels (city/neighborhood) - font-size is set per-element in JS
+   (see updateLabels() in canopy-map.js), in the same meter-based user
+   units the shapes themselves use, so it always renders at a constant
+   on-screen px size regardless of current zoom. The halo behind the text
+   uses vector-effect="non-scaling-stroke" for the same reason stroke-width
+   here can just be a plain px value - that attribute keeps it a constant
+   screen-space width even though everything else in this SVG is scaled by
+   an arbitrary meters-to-pixels factor. */
+.cm-label {
+  fill: var(--fg); font-weight: 600; paint-order: stroke; stroke: var(--bg); stroke-width: 3px; stroke-linejoin: round;
+  /* Plain SVG <text> is selectable by default - dragging to pan the map
+     (a mouse-down-and-move, exactly what text selection also looks like to
+     the browser) was highlighting whichever label the drag started or
+     passed over instead of just panning. */
+  user-select: none; -webkit-user-select: none;
+}
 
 .cm-zoom-controls { position: absolute; inset-block-start: .5rem; inset-inline-end: .5rem; display: flex; flex-direction: column; gap: .25rem; }
 .cm-zoom-controls button {
@@ -2017,18 +2010,17 @@ body.accidents-page header.site h1 { inline-size: 100%; }
 /* Mobile fullscreen takeover (canopy-map.js's enterMapFullscreen/
    exitMapFullscreen) - a tap on the map on a narrow viewport adds
    .cm-map-fullscreen here instead of navigating anywhere or replacing any
-   element, so the SAME Leaflet map instance (mapWrap's #cmMap, see
-   initMap()) just gets a bigger box - map.invalidateSize() is called right
-   after so Leaflet re-measures its own container - the small embedded map
-   (max 65vh, further squeezed by the page's other sections) is cramped for
-   anything past a glance on a phone; fullscreen gives pan/zoom/tap-to-
-   select actual room to work with. inset:0 + a high z-index lifts it above
-   the whole page (including the site header) rather than just its own
-   section. */
+   element, so the SAME #cmSvg (and its already-attached zoom/pan
+   listeners) just gets a bigger box - the small embedded map (max 65vh,
+   further squeezed by the page's other sections) is cramped for anything
+   past a glance on a phone; fullscreen gives pan/zoom/tap-to-select actual
+   room to work with. inset:0 + a high z-index lifts it above the whole
+   page (including the site header) rather than just its own section. */
 .cm-map-wrap.cm-map-fullscreen {
   position: fixed; inset: 0; z-index: 1000; max-inline-size: none; margin: 0;
   border: none; border-radius: 0; background: var(--bg);
 }
+.cm-map-wrap.cm-map-fullscreen .cm-svg { aspect-ratio: auto; max-block-size: none; inline-size: 100%; block-size: 100%; }
 .cm-map-exit-fullscreen {
   position: absolute; inset-block-start: .6rem; inset-inline-start: .6rem; z-index: 1001;
   inline-size: 2.6rem; block-size: 2.6rem; border-radius: 50%; border: 1px solid var(--border);
@@ -2037,12 +2029,6 @@ body.accidents-page header.site h1 { inline-size: 100%; }
   box-shadow: 0 2px 8px rgba(0, 0, 0, .25);
 }
 .cm-map-exit-fullscreen:hover { border-color: var(--accent); }
-/* Same fix as #trStopConfirm[hidden] elsewhere in this file - this class's
-   own `display: flex` ties the UA [hidden] rule's specificity, and author
-   CSS wins ties regardless of the hidden attribute being set, so without
-   this override the button stayed visible even while `hidden` (confirmed
-   live: it showed up in the map's top corner before this rule existed). */
-.cm-map-exit-fullscreen[hidden] { display: none; }
 
 /* Press-and-hold submenu on a city/neighborhood shape (canopy-map.js's own
    showContextMenu()) - a plain <ul> positioned at the cursor/touch point
