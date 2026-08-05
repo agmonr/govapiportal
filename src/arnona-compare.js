@@ -1,10 +1,13 @@
 /**
  * Entry point for arnona-compare.html - מחשבון ארנונה.
  *
- * Data source: ../tools/arnona_rates.json, hand-transcribed from each city's
- * צו ארנונה PDF (see tools/arnona_fetch.py / tools/arnona_rates.json's own
- * _meta block for how and with what caveats). Not a government API - there
- * is no live arnona-rate API, this is manually curated from PDF text.
+ * Data source: src/arnona-rates-data.js (generated from tools/arnona_rates.json
+ * - see that file's own header for how to regenerate), hand-transcribed from
+ * each city's צו ארנונה PDF (see tools/arnona_fetch.py / arnona_rates.json's
+ * own _meta block for how and with what caveats). Not a government API -
+ * there is no live arnona-rate API, this is manually curated from PDF text.
+ * Imported as a JS module rather than fetched at runtime so this page also
+ * works as a self-contained dist/ bundle opened from disk.
  *
  * Address input only resolves a CITY (via Nominatim, same pattern as
  * src/area-cleanup.js's geocode()) - it does NOT resolve which zone within
@@ -30,6 +33,7 @@ import { el, esc, num } from './ui.js';
 import { initThemePicker } from './theme.js';
 import { renderHBarChart } from './charts.js';
 import { renderAppContext, loadAppsData } from './apps.js';
+import { ARNONA_DATA } from './arnona-rates-data.js';
 
 initThemePicker(el('themePick'));
 loadAppsData().then((data) => renderAppContext(el('appContext'), data.apps, 'arnona-compare')).catch(() => {});
@@ -424,8 +428,7 @@ function setMode(mode) {
 }
 
 async function init() {
-  const data = await fetchJson('./tools/arnona_rates.json');
-  RATES = data.cities;
+  RATES = ARNONA_DATA.cities;
   CITY_IDS = Object.keys(RATES);
   el('arCityCount').textContent = String(usableCities().length);
 

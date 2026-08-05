@@ -1,0 +1,1949 @@
+/**
+ * Generated from tools/arnona_rates.json - do not hand-edit here, edit the
+ * JSON (the canonical, hand-curated source - see its own _meta block) and
+ * regenerate. A committed JS module rather than a runtime fetch() of the
+ * JSON, so arnona-compare.html works both live and as a self-contained
+ * dist/ bundle opened from disk (see tools/bundle.py) - the same pattern
+ * every other *-cities.js/*-neighborhoods.js data file in this repo
+ * follows, not a one-off for this page.
+ */
+export const ARNONA_DATA = {
+ "_meta": {
+  "description": "Hand-transcribed from each city's צו ארנונה PDF (tools/arnona_output/), stage 1 of a citizen-facing address-in/rate-out calculator (govapiportal). Manually derived by reading PDF text, not machine-parsed - spot-check against the source PDF before trusting a number for anything consequential.",
+  "currency": "ILS",
+  "unit": "₪ per m² per year (annual total, normally billed in 6 bi-monthly installments); multiply by apartment area per the rate_model to get the yearly bill",
+  "order_year_note": "each city's own most-recently-fetched order; years vary (2025/2026) because municipalities publish on different cycles - see order_year per city",
+  "rate_models": {
+   "marginal_by_zone": "zones[].brackets is an ordered ladder; area is split across brackets and each slice is charged at that bracket's own rate, summed (e.g. Hod Hasharon: first 70m² at bracket 1's rate, the next slice at bracket 2's rate, etc.)",
+   "flat_bracket_by_zone": "zones[].brackets - the apartment's TOTAL area picks exactly one bracket (the one it falls under), and that bracket's rate applies to the ENTIRE area, not just the marginal slice",
+   "marginal_no_zone": "same as marginal_by_zone but the city has a single citywide rate (no zone split) - see brackets directly on the city object",
+   "flat_bracket_no_zone": "same as flat_bracket_by_zone but no zone split - see brackets directly on the city object",
+   "flat_single_no_zone": "one flat rate, no zones, no size brackets at all",
+   "flat_by_zone_type": "rate depends on (zone, building_type) only, flat over the whole area, no size brackets - see zones[].types",
+   "flat_by_type_no_zone": "no geographic zones at all; rate depends only on building_type - see building_types[]",
+   "zone_type_size_villa_grid": "most complex case (Tel Aviv): rate depends on zone, building_type (~construction-year band), whether it's a villa, and a >140m²/≤140m² size split - see zones[].rates",
+   "unavailable": "no usable rate data - see notes for why"
+  },
+  "warning_holon": "Holon's brackets are NOT a simple cumulative ladder - each bracket restates its own two-part split (a 'first N m²' sub-rate that itself creeps up bracket-to-bracket, plus a marginal rate for the excess within that bracket). Encoded exactly as printed in the source table; do not try to normalize it into a single ladder."
+ },
+ "cities": {
+  "hod-hasharon": {
+   "name_he": "הוד השרון",
+   "population": 65020,
+   "source_pdf": "tools/arnona_output/hod-hasharon/tzav-arnona-2025.pdf",
+   "order_year": 2025,
+   "area_method": "bruto_bruto",
+   "area_method_basis": "§2.1: שטח דירת מגורים כולל כל השטח שבתוך הדירה (כולל קירות פנים וחוץ) + מרפסות מקורות; לשטח כל דירה בבית משותף יתווסף החלק היחסי בחדר המדרגות. Excludes parking and basements explicitly.",
+   "discounts_source": "thin overlay on national regulations (תקנות ההסדרים במשק המדינה) - only local deviations are stated: 140m² cap on work-incapacity/medical-disability/blind/nursing-care/single-parent-family discounts; 5% active reservist; 25% (up to 100m²) active reserve commander; NO new-building discount granted locally; vacant building (30+ consecutive days unused) gets 100% for up to 2 months, owner only, not tenant.",
+   "discounts": [
+    {
+     "id": "disability_75",
+     "label_he": "נכה 75%+ (אי כושר)",
+     "percent": "per national regulation",
+     "cap_m2": 140
+    },
+    {
+     "id": "disability_90",
+     "label_he": "נכה 90%+ (נכות רפואית)",
+     "percent": "per national regulation",
+     "cap_m2": 140
+    },
+    {
+     "id": "blind",
+     "label_he": "בעל תעודת עיוור",
+     "percent": "per national regulation",
+     "cap_m2": 140
+    },
+    {
+     "id": "nursing_care",
+     "label_he": "גמלת סיעוד",
+     "percent": "per national regulation",
+     "cap_m2": 140
+    },
+    {
+     "id": "single_parent",
+     "label_he": "משפחה עצמאית",
+     "percent": "per national regulation",
+     "cap_m2": 140
+    },
+    {
+     "id": "reservist_active",
+     "label_he": "חייל מילואים פעיל",
+     "percent": 5
+    },
+    {
+     "id": "reservist_commander",
+     "label_he": "מפקד מילואים פעיל",
+     "percent": 25,
+     "cap_m2": 100
+    },
+    {
+     "id": "new_building",
+     "label_he": "בניין חדש",
+     "percent": 0,
+     "notes": "explicitly NOT granted locally"
+    },
+    {
+     "id": "vacant_building",
+     "label_he": "בניין ריק (30+ יום)",
+     "percent": 100,
+     "cap_months": 2,
+     "notes": "owner only, not tenant/מחזיק"
+    }
+   ],
+   "rate_model": "marginal_by_zone",
+   "zones": [
+    {
+     "id": "1",
+     "label": "אזור 1 - כל שטח העיר למעט אזור 2",
+     "is_default": true,
+     "brackets": [
+      {
+       "up_to": 70,
+       "rate": 49.57
+      },
+      {
+       "up_to": 119,
+       "rate": 54.66
+      },
+      {
+       "up_to": 149,
+       "rate": 68.35
+      },
+      {
+       "up_to": null,
+       "rate": 84.09
+      }
+     ]
+    },
+    {
+     "id": "2",
+     "label": "אזור 2 - שכונות ספציפיות (גיל עמל, בלוקונים, הפועל המזרחי ב', נווה ...)",
+     "is_default": false,
+     "brackets": [
+      {
+       "up_to": 70,
+       "rate": 49.57
+      },
+      {
+       "up_to": 119,
+       "rate": 51.25
+      },
+      {
+       "up_to": 149,
+       "rate": 58.1
+      },
+      {
+       "up_to": null,
+       "rate": 70.06
+      }
+     ]
+    }
+   ]
+  },
+  "raanana": {
+   "name_he": "רעננה",
+   "population": 80155,
+   "source_pdf": "tools/arnona_output/raanana/tzav-arnona-2025.pdf",
+   "order_year": 2026,
+   "area_method": "bruto_bruto",
+   "area_method_basis": "§9.1: שטח כולל קירות חוץ ופנים + חדרי כניסה/מדרגות/פרוזדורים/מטבח/הול/אמבטיה/מקלחת/חדרי שרות/מרפסות מקורות/מוסכים לחנייה/מקלט; explicitly: 'יראו את הרכוש המשותף (חדר מדרגות, חדר אשפה, חדר הסקה, ומקלט) כחלק משטח כל דירה... מחולק למספר יחידות הדיור' - full common property added proportionally. Broadest bruto-bruto of the cities checked (includes parking+shelter in the base area too, which Hod Hasharon excludes).",
+   "discounts_source": "fully self-contained in the order: §1.1-1.16 (pensioners/senior 25-100% up to 100m², disability 40-80% up to 150m², immigrants up to 90%, income-support, single parent 20%/140m², Prisoner of Zion 100%/100m², active reservist 5%, reserve commander 25%/100m²), §2 military/national-service (100%/75%/66⅔%/50% tiers), §3 income-tested sliding scale, §4 1% discount for bank standing-order payment (NOT credit card), §5 discretionary small-business committee discount.",
+   "discounts": [
+    {
+     "id": "senior_citizen_pension",
+     "label_he": "מקבל קצבה (זקנה/שארים/תלויים/נכות עבודה)",
+     "percent": 25,
+     "cap_m2": 100
+    },
+    {
+     "id": "senior_citizen_income_support",
+     "label_he": "מקבל קצבה + הבטחת הכנסה",
+     "percent": 100,
+     "cap_m2": 100
+    },
+    {
+     "id": "senior_citizen",
+     "label_he": "אזרח ותיק (גיל פרישה)",
+     "percent": 30,
+     "cap_m2": 100
+    },
+    {
+     "id": "senior_citizen_income_support_full",
+     "label_he": "אזרח ותיק + הבטחת הכנסה/קצבת זקנה לנכה",
+     "percent": 100,
+     "cap_m2": 100
+    },
+    {
+     "id": "disability_75",
+     "label_he": "נכה 75%+",
+     "percent": 80,
+     "cap_m2": 150
+    },
+    {
+     "id": "disability_90",
+     "label_he": "נכה 90%+",
+     "percent": 40,
+     "cap_m2": 150
+    },
+    {
+     "id": "disabled_child",
+     "label_he": "ילד נכה",
+     "percent": 33,
+     "cap_m2": 100
+    },
+    {
+     "id": "prisoner_of_zion",
+     "label_he": "אסיר ציון / נפגעי רדיפות נאצים",
+     "percent": 66,
+     "cap_m2": "70 (≤4 נפשות) / 90 (5+)"
+    },
+    {
+     "id": "blind",
+     "label_he": "בעל תעודת עיוור",
+     "percent": 90
+    },
+    {
+     "id": "new_immigrant",
+     "label_he": "עולה",
+     "percent": 90,
+     "cap_m2": 100,
+     "cap_months": 12
+    },
+    {
+     "id": "new_immigrant_dependent",
+     "label_he": "עולה תלוי בעזרת הזולת",
+     "percent": 80
+    },
+    {
+     "id": "income_support",
+     "label_he": "הבטחת הכנסה / מזונות / סיעוד",
+     "percent": 70,
+     "cap_m2": 150
+    },
+    {
+     "id": "righteous_among_nations",
+     "label_he": "חסיד אומות העולם",
+     "percent": 66
+    },
+    {
+     "id": "single_parent",
+     "label_he": "הורה עצמאי",
+     "percent": 20,
+     "cap_m2": 140
+    },
+    {
+     "id": "prisoner_of_zion_full",
+     "label_he": "אסיר ציון (100%)",
+     "percent": 100,
+     "cap_m2": 100
+    },
+    {
+     "id": "returned_captive",
+     "label_he": "פדוי שבי",
+     "percent": 20
+    },
+    {
+     "id": "reservist_active",
+     "label_he": "חייל מילואים פעיל",
+     "percent": 5
+    },
+    {
+     "id": "reservist_commander",
+     "label_he": "מפקד מילואים פעיל",
+     "percent": 25,
+     "cap_m2": 100
+    },
+    {
+     "id": "income_test",
+     "label_he": "מבחן הכנסה (מדורג)",
+     "percent": "per sliding scale"
+    },
+    {
+     "id": "standing_order_payment",
+     "label_he": "תשלום בהוראת קבע בבנק",
+     "percent": 1,
+     "notes": "NOT credit card"
+    },
+    {
+     "id": "small_business_discretionary",
+     "label_he": "הנחות לעסקים זעירים (שיקול דעת הוועדה)",
+     "percent": "discretionary"
+    }
+   ],
+   "rate_model": "flat_bracket_by_zone",
+   "zones": [
+    {
+     "id": "1",
+     "label": "אזור 1 - כל תחום רעננה למעט אזור 2",
+     "is_default": true,
+     "brackets": [
+      {
+       "up_to": 85,
+       "rate": 48.42
+      },
+      {
+       "up_to": 120,
+       "rate": 54.62
+      },
+      {
+       "up_to": 140,
+       "rate": 62.25
+      },
+      {
+       "up_to": null,
+       "rate": 63.92
+      }
+     ]
+    },
+    {
+     "id": "2",
+     "label": "אזור 2 - שכונות ספציפיות (כמפורט בצו)",
+     "is_default": false,
+     "brackets": [
+      {
+       "up_to": 85,
+       "rate": 48.42
+      },
+      {
+       "up_to": 120,
+       "rate": 48.42
+      },
+      {
+       "up_to": 140,
+       "rate": 50.63
+      },
+      {
+       "up_to": null,
+       "rate": 51.97
+      }
+     ]
+    }
+   ]
+  },
+  "kfar-saba": {
+   "name_he": "כפר סבא",
+   "population": 100262,
+   "source_pdf": "tools/arnona_output/kfar-saba/tzav-arnona-2025.pdf",
+   "order_year": 2026,
+   "area_method": "bruto_bruto",
+   "area_method_basis": "§6a: שטח בניין המשמש למגורים כולל כל השטח שבתוך מבנה מגורים (כולל קירות פנים וחוץ)... כמקלט; 'לשטח כל דירה בבית משותף יתווסף השטח של כלל הרכוש המשותף כשהוא מחולק באופן שווה' - full common property added, split equally among units.",
+   "discounts_source": "thin overlay on national regulations, same pattern as Hod Hasharon: independent parent 20%/140m², disability 40%/140m², vacant-building rule references reg. 12 vs 13. Explicitly the OPPOSITE of Ra'anana on one point: 'לא תחול הנחה בתשלומי ארנונה כללית למחזיר שנתן הוראת קבע' - NO discount for bank standing-order payment.",
+   "discounts": [
+    {
+     "id": "single_parent",
+     "label_he": "הורה עצמאי",
+     "percent": 20,
+     "cap_m2": 140
+    },
+    {
+     "id": "disability_75",
+     "label_he": "נכה 75%+ (אי כושר)",
+     "percent": 80,
+     "cap_m2": 140
+    },
+    {
+     "id": "disability_90",
+     "label_he": "נכה 90%+ (נכות רפואית)",
+     "percent": 40,
+     "cap_m2": 140
+    },
+    {
+     "id": "disability_mobility_wheelchair",
+     "label_he": "נכה עם קצבת ניידות 80%+ / כיסא גלגלים",
+     "percent": null,
+     "cap_m2": 200,
+     "notes": "same percent as disability_75/90, but cap raised to 200m² instead of 140m²"
+    },
+    {
+     "id": "new_building",
+     "label_he": "בניין חדש (תקנה 12)",
+     "percent": 100,
+     "notes": "adopted without change"
+    },
+    {
+     "id": "vacant_building",
+     "label_he": "בניין ריק (תקנה 13)",
+     "percent": 100,
+     "cap_months": 6,
+     "notes": "then 50% for a further 6 months if non-residential; cannot combine with new_building discount for the same property"
+    },
+    {
+     "id": "standing_order_payment",
+     "label_he": "הוראת קבע",
+     "percent": 0,
+     "notes": "explicitly NOT granted - opposite of Ra'anana's +1%"
+    }
+   ],
+   "rate_model": "flat_bracket_by_zone",
+   "zones": [
+    {
+     "id": "1",
+     "label": "אזור 1 - כל תחום העיר למעט אזור 2/3, וכן בנייה חדשה מ-1998+ שבאזור 2/3",
+     "is_default": true,
+     "brackets": [
+      {
+       "up_to": 65,
+       "rate": 43.22
+      },
+      {
+       "up_to": 100,
+       "rate": 47.42
+      },
+      {
+       "up_to": 140,
+       "rate": 61.74
+      },
+      {
+       "up_to": null,
+       "rate": 50.9
+      }
+     ]
+    },
+    {
+     "id": "2",
+     "label": "אזור 2 - שיכונים: דגניה, תקומה, אלי כהן, מזרחי ה'/ו', גאולים, גבעת אשכול, יוספטל, קפלן, שבזי, עליה",
+     "is_default": false,
+     "brackets": [
+      {
+       "up_to": 65,
+       "rate": 42.86
+      },
+      {
+       "up_to": 100,
+       "rate": 42.86
+      },
+      {
+       "up_to": 140,
+       "rate": 50.52
+      },
+      {
+       "up_to": null,
+       "rate": 42.86
+      }
+     ]
+    },
+    {
+     "id": "3",
+     "label": "אזור 3 - שכונות: הדרים, גני השרון, ובנה ביתך",
+     "is_default": false,
+     "brackets": [
+      {
+       "up_to": 65,
+       "rate": 44.3
+      },
+      {
+       "up_to": 100,
+       "rate": 44.3
+      },
+      {
+       "up_to": 140,
+       "rate": 53.01
+      },
+      {
+       "up_to": null,
+       "rate": 44.3
+      }
+     ]
+    }
+   ],
+   "notes": [
+    "code 111 = type א (regular apartment, not villa 'אא'); rates transcribed for type א only.",
+    "bracket rate for '141+' being LOWER than the '101-140' bracket in zones 1/2 is as printed in the source table, not a transcription error - not re-verified against the raw PDF a second time, worth spot-checking."
+   ]
+  },
+  "ashdod": {
+   "name_he": "אשדוד",
+   "population": 227865,
+   "source_pdf": "tools/arnona_output/ashdod/tzav-arnona-2025.pdf",
+   "order_year": 2027,
+   "area_method": "bruto_bruto",
+   "area_method_basis": "§6b: שטח מיבנה נמדד עפ\"י מידות חוץ (exterior dimensions) כולל מעברים/הול/חדרי שירותים/מדרגות/מרפסות מקורות/מבני עזר/מתקנים/מחסנים/מרתפים/גלריות/מקלט/ממ\"ד/ממ\"ק; §6c(3): שטחים משותפים מתווספים באופן יחסי לכל מחזיק.",
+   "discounts_source": "חלק ה'/ז' of the order: thin overlay on national regulations (תקנות ההסדרים במשק המדינה) at maximum statutory rate, except the specific deviations listed below and in חלק ז' (vacant/new building).",
+   "rate_model": "marginal_no_zone",
+   "notes": [
+    "§5a: 'לצורך הארנונה הכללית למגורים מהווה העיר אשדוד אזור מס אחד' - explicitly one single tax zone citywide for residential (zones only apply to non-residential/business use)."
+   ],
+   "discounts": [
+    {
+     "id": "single_parent",
+     "label_he": "הורה עצמאי",
+     "percent": 20,
+     "cap_m2": 100
+    },
+    {
+     "id": "disability_75",
+     "label_he": "נכה 75%+ (קצבה מלאה)",
+     "percent": 80,
+     "cap_m2": 100
+    },
+    {
+     "id": "disability_90",
+     "label_he": "נכה 90%+ (נכות רפואית)",
+     "percent": 40,
+     "cap_m2": 100
+    },
+    {
+     "id": "income_support",
+     "label_he": "זכאי גמלאות (הבטחת הכנסה/מזונות/סיעוד)",
+     "percent": 70,
+     "cap_m2": 100
+    },
+    {
+     "id": "income_test",
+     "label_he": "מבחן הכנסה (מדורג לפי הכנסה ונפשות)",
+     "percent": "20-90 (sliding)",
+     "cap_m2": "100-150 (by household size)"
+    },
+    {
+     "id": "vacant_building",
+     "label_he": "בניין ריק ולא בשימוש",
+     "percent": 100,
+     "cap_months": 3,
+     "notes": "up to 15 months cumulative lifetime cap per ownership period"
+    },
+    {
+     "id": "vacant_new_building",
+     "label_he": "בניין חדש שאין משתמשים בו",
+     "percent": 100,
+     "cap_months": 3
+    }
+   ],
+   "brackets": [
+    {
+     "up_to": 75,
+     "rate": 44.95
+    },
+    {
+     "up_to": null,
+     "rate": 67.18
+    }
+   ]
+  },
+  "beer-sheva": {
+   "name_he": "באר שבע",
+   "population": 217577,
+   "source_pdf": "tools/arnona_output/beer-sheva/tzav-arnona-2025.pdf",
+   "order_year": 2025,
+   "area_method": "bruto_bruto",
+   "area_method_basis": "§1ט: לצרכי חישוב שטח הבניין יובאו בחשבון מידות החוץ של המבנה, דהיינו פרוזדורים/מטבח/הול/אמבטיה/מקלחת/מקלט/מחסן/פיר מעלית/חדר מדרגות/לובי/סככות/יציע - explicitly includes elevator shaft, stairwell, and lobby (shared building infrastructure) in the exterior-dimension measurement.",
+   "discounts_source": "same thin-overlay pattern as Ashdod: national regulations at maximum rate, except payment-method and vacant-building rules stated locally.",
+   "discounts": [
+    {
+     "id": "standing_order_payment",
+     "label_he": "תשלום בהוראת קבע/אשראי (עד 100,000 ₪ חיוב שנתי)",
+     "percent": 1
+    },
+    {
+     "id": "vacant_building",
+     "label_he": "בניין ריק (30+ יום)",
+     "percent": 100,
+     "cap_months": 3
+    },
+    {
+     "id": "vacant_new_building",
+     "label_he": "בניין חדש ריק",
+     "percent": 100,
+     "cap_months": 3
+    }
+   ],
+   "rate_model": "flat_bracket_by_zone",
+   "zones": [
+    {
+     "id": "א",
+     "label": "אזור א",
+     "is_default": true,
+     "brackets": [
+      {
+       "up_to": 57,
+       "rate": 51.11
+      },
+      {
+       "up_to": null,
+       "rate": 57.35
+      }
+     ]
+    },
+    {
+     "id": "ב",
+     "label": "אזור ב",
+     "is_default": false,
+     "brackets": [
+      {
+       "up_to": 57,
+       "rate": 47.02
+      },
+      {
+       "up_to": null,
+       "rate": 49.64
+      }
+     ]
+    },
+    {
+     "id": "ג",
+     "label": "אזור ג",
+     "is_default": false,
+     "brackets": [
+      {
+       "up_to": 57,
+       "rate": null
+      },
+      {
+       "up_to": null,
+       "rate": 47.86
+      }
+     ]
+    }
+   ],
+   "notes": [
+    "Zone ג's ≤57m² discount rate wasn't shown in the extracted table (only א/ב had a value in that row) - null, not zero.",
+    "Like Hod Hasharon, the order adopts national regulations at max rate WITHOUT restating their numeric percentages in the text (senior citizen/disability/new-immigrant/income-test categories presumably still apply at the national default, just not numerically confirmed in this document) - only the two locally-specific rules above (payment method, vacant building) were found stated with numbers."
+   ]
+  },
+  "bnei-brak": {
+   "name_he": "בני ברק",
+   "population": 216869,
+   "source_pdf": "tools/arnona_output/bnei-brak/tzav-arnona-2025.pdf",
+   "order_year": 2025,
+   "area_method": "neto",
+   "area_method_basis": "§1.5 'שטח נכס למגורים': כל שטח הרצפה... לא כולל שטח קירות חוץ ופנים אך כולל כל שטח מקורה... הצמוד לנכס (מרפסות/מחסנים/מרתפים/מקלטים/חדרי אוכל/מטבחים/חדרי שרות/גלריות/חניונים/סככות). Explicitly excludes wall thickness; no common-area addition found anywhere in the document. (Non-residential §1.4 uses the opposite rule - walls ARE included there.)",
+   "discounts_source": "fully self-contained numbered table (§ discounts, ~30 items) - unlike Ashdod/Hod Hasharon's thin overlay, Bnei Brak restates every category with its own percent/cap explicitly.",
+   "discounts": [
+    {
+     "id": "senior_citizen",
+     "label_he": "אזרח ותיק (חוק האזרחים הותיקים)",
+     "percent": 30,
+     "cap_m2": 100
+    },
+    {
+     "id": "senior_citizen_pension",
+     "label_he": "אזרח ותיק מקבל קצבה (זקנה/שארים/תלויים/נכות עבודה)",
+     "percent": 25,
+     "cap_m2": 100
+    },
+    {
+     "id": "senior_citizen_income_support",
+     "label_he": "אזרח ותיק מקבל קצבה + הבטחת הכנסה",
+     "percent": 100,
+     "cap_m2": 100
+    },
+    {
+     "id": "disability_75",
+     "label_he": "נכה 75%+ (קצבה מלאה/קצבת זקנה)",
+     "percent": 80
+    },
+    {
+     "id": "disability_90",
+     "label_he": "נכה 90%+ (נכות רפואית, בלי נכס נוסף)",
+     "percent": 40
+    },
+    {
+     "id": "prisoner_of_zion",
+     "label_he": "אסיר ציון / בן משפחה של הרוג מלכות",
+     "percent": 66.66,
+     "cap_m2": "70 (≤4 נפשות) / 90 (5+)"
+    },
+    {
+     "id": "nazi_victims",
+     "label_he": "נפגעי רדיפות נאצים (גרמניה/הולנד/אוסטריה/בלגיה)",
+     "percent": 66.66,
+     "cap_m2": "70 (≤4 נפשות) / 90 (5+)"
+    },
+    {
+     "id": "blind",
+     "label_he": "בעל תעודת עיוור",
+     "percent": 90
+    },
+    {
+     "id": "new_immigrant",
+     "label_he": "עולה חדש",
+     "percent": 90,
+     "cap_m2": 100,
+     "cap_months": 12
+    },
+    {
+     "id": "new_immigrant_dependent",
+     "label_he": "עולה התלוי בעזרת הזולת",
+     "percent": 80
+    },
+    {
+     "id": "tzahal_diaspora",
+     "label_he": "איש צד\"ל",
+     "percent": 90,
+     "cap_m2": 100,
+     "cap_months": "12 מתוך 36"
+    },
+    {
+     "id": "alimony",
+     "label_he": "מקבלי תשלום מזונות מביטוח לאומי",
+     "percent": 70
+    },
+    {
+     "id": "nursing_care",
+     "label_he": "מקבלי גימלת סיעוד",
+     "percent": 70
+    },
+    {
+     "id": "income_support",
+     "label_he": "מקבלי הבטחת הכנסה",
+     "percent": 70
+    },
+    {
+     "id": "income_test",
+     "label_he": "בעלי הכנסה נמוכה (עד/מעל 5 נפשות)",
+     "percent": "per table",
+     "cap_m2": 100
+    },
+    {
+     "id": "righteous_among_nations",
+     "label_he": "חסידי אומות העולם",
+     "percent": 66.66
+    },
+    {
+     "id": "single_parent",
+     "label_he": "הורה עצמאי",
+     "percent": 20,
+     "cap_m2": 100
+    },
+    {
+     "id": "disabled_child",
+     "label_he": "ילד נכה של המחזיק",
+     "percent": 33,
+     "cap_m2": 100
+    },
+    {
+     "id": "returned_captive",
+     "label_he": "פדוי שבי",
+     "percent": 20
+    },
+    {
+     "id": "needy_discretionary",
+     "label_he": "נזקק (לפי שיקול דעת ועדת ההנחות)",
+     "percent": "up to 70"
+    },
+    {
+     "id": "reservist_active",
+     "label_he": "חייל מילואים פעיל",
+     "percent": 5
+    },
+    {
+     "id": "new_building",
+     "label_he": "בניין חדש",
+     "percent": 100,
+     "cap_months": 12
+    },
+    {
+     "id": "vacant_building",
+     "label_he": "בניין ריק",
+     "percent": 100,
+     "cap_months": 6
+    },
+    {
+     "id": "small_business_discretionary",
+     "label_he": "הנחות לעסקים (שיקול דעת הוועדה)",
+     "percent": "discretionary"
+    }
+   ],
+   "rate_model": "flat_bracket_by_zone",
+   "zones": [
+    {
+     "id": "א",
+     "label": "אזור א",
+     "is_default": true,
+     "brackets": [
+      {
+       "up_to": 51,
+       "rate": 68.87
+      },
+      {
+       "up_to": 151,
+       "rate": 75.4
+      },
+      {
+       "up_to": null,
+       "rate": 106.09
+      }
+     ]
+    },
+    {
+     "id": "ב",
+     "label": "אזור ב",
+     "is_default": false,
+     "brackets": [
+      {
+       "up_to": 51,
+       "rate": 62.43
+      },
+      {
+       "up_to": 151,
+       "rate": 70.06
+      },
+      {
+       "up_to": null,
+       "rate": 103.34
+      }
+     ]
+    }
+   ],
+   "notes": [
+    "regular shared-building apartment only ('דירה בבית משותף שאינה דירת גג'); penthouse ('דירת גג/פנטהאוז', codes 115/116/125/126) and villa/attached-house rates exist in the source but weren't transcribed here."
+   ]
+  },
+  "givatayim": {
+   "name_he": "גבעתיים",
+   "population": 58052,
+   "source_pdf": "tools/arnona_output/givatayim/tzav-arnona-2025.pdf",
+   "order_year": 2025,
+   "area_method": "bruto",
+   "area_method_basis": "§3 'שטח בנין למגורים': שטח מתחת לקירות חוץ/פנים + מחסן/חדרי עזר/מרפסות (בתוספת 25-40% משטחי מרפסות גג/גן) - includes walls. But explicitly: 'רכוש משותף בבית משותף למגורים לא יהווה חלק משטח בנין למגורים' - common property is explicitly EXCLUDED from residential area.",
+   "discounts_source": "fully self-contained numbered list (§6.1-6.16), very similar detail level to Bnei Brak/Ra'anana.",
+   "discounts": [
+    {
+     "id": "senior_citizen_pension",
+     "label_he": "אזרח ותיק מקבל קצבה (זקנה/שארים/תלויים)",
+     "percent": 25,
+     "cap_m2": 100
+    },
+    {
+     "id": "senior_citizen_income_support",
+     "label_he": "אזרח ותיק מקבל קצבה + הבטחת הכנסה",
+     "percent": 100,
+     "cap_m2": 100
+    },
+    {
+     "id": "senior_citizen",
+     "label_he": "אזרח ותיק (זכאי קצבה, הכנסה עד שכר ממוצע)",
+     "percent": 30
+    },
+    {
+     "id": "senior_citizen_income_support_full",
+     "label_he": "אזרח ותיק + הבטחת הכנסה/קצבת זקנה לנכה",
+     "percent": 100,
+     "cap_m2": 100
+    },
+    {
+     "id": "income_support",
+     "label_he": "מקבלי הבטחת הכנסה/מזונות/סיעוד",
+     "percent": 70,
+     "cap_m2": 100
+    },
+    {
+     "id": "prisoner_of_zion",
+     "label_he": "אסירי ציון / נפגעי רדיפות נאצים",
+     "percent": 66,
+     "cap_m2": "70 (≤4 נפשות) / 90 (5+)"
+    },
+    {
+     "id": "prisoner_of_zion_full",
+     "label_he": "אסירי ציון (הנחה חלופית לפי §6.5)",
+     "percent": 100,
+     "cap_m2": 100
+    },
+    {
+     "id": "disability_75",
+     "label_he": "נכה 75%+",
+     "percent": 80,
+     "cap_m2": 100
+    },
+    {
+     "id": "disability_90",
+     "label_he": "נכה 90%+",
+     "percent": 40,
+     "cap_m2": 100
+    },
+    {
+     "id": "blind",
+     "label_he": "בעל תעודת עיוור",
+     "percent": 90,
+     "cap_m2": 100
+    },
+    {
+     "id": "righteous_among_nations",
+     "label_he": "חסידי אומות עולם",
+     "percent": 66,
+     "cap_m2": 70
+    },
+    {
+     "id": "new_immigrant",
+     "label_he": "עולה חדש",
+     "percent": 90,
+     "cap_m2": 100,
+     "cap_months": 12
+    },
+    {
+     "id": "new_immigrant_dependent",
+     "label_he": "עולה תלוי בעזרת הזולת",
+     "percent": 80
+    },
+    {
+     "id": "single_parent",
+     "label_he": "הורה יחיד",
+     "percent": 20,
+     "cap_m2": 100
+    },
+    {
+     "id": "disabled_child",
+     "label_he": "בן/בת נכה של המחזיק",
+     "percent": 33,
+     "cap_m2": 100
+    },
+    {
+     "id": "income_test",
+     "label_he": "הכנסה נמוכה (מדורג לפי הכנסה ונפשות)",
+     "percent": "per table"
+    },
+    {
+     "id": "tzahal_diaspora",
+     "label_he": "איש צד\"ל",
+     "percent": 90,
+     "cap_m2": 100,
+     "cap_months": "12 מתוך 36"
+    },
+    {
+     "id": "returned_captive",
+     "label_he": "פדוי שבי",
+     "percent": 20
+    },
+    {
+     "id": "reservist_active",
+     "label_he": "חייל מילואים פעיל",
+     "percent": 5
+    },
+    {
+     "id": "reservist_commander",
+     "label_he": "מפקד מילואים פעיל",
+     "percent": 25,
+     "cap_m2": 100
+    }
+   ],
+   "rate_model": "flat_by_type_no_zone",
+   "notes": [
+    "No geographic zone system at all for residential - classification is purely by building type/size, defined in §4."
+   ],
+   "building_types": [
+    {
+     "id": "אא",
+     "label": "בנין שאין בו יותר מדירת מגורים אחת (single-unit building)",
+     "rate": 114.18
+    },
+    {
+     "id": "א",
+     "label": "בית 1 קומה עד 2 דירות; בית 2-3 קומות עד 4 דירות; דירת גג/פנטהאוז בכל מבנה",
+     "rate": 92.14
+    },
+    {
+     "id": "ב",
+     "label": "בית 1 קומה מעל 2 דירות; בית 2 קומות מעל 4 דירות; בית 3+ קומות (מעל 5 דירות) - most common apartment-building case",
+     "rate": 72.77
+    },
+    {
+     "id": "ג",
+     "label": "צריף בלתי מטויח",
+     "rate": 46.5
+    }
+   ]
+  },
+  "holon": {
+   "name_he": "חולון",
+   "population": 192655,
+   "source_pdf": "tools/arnona_output/holon/tzav-arnona-2025.pdf",
+   "order_year": 2025,
+   "area_method": "neto",
+   "area_method_basis": "item 2: 'בשטח היחידה נכללים השטחים שבתוך היחידה... למעט קירות חיצוניים וקירות פנימיים' - explicitly excludes wall thickness. item 6: 'שטח משותף... (מדרגות, מקלטים, חדרי כביסה, חדר הסקה וכו') לא יכללו בשטח היחידה' - explicitly excludes common areas too. Cleanest neto definition of the cities checked.",
+   "discounts_source": "fully self-contained numbered list (§13-27), same detail level as Bnei Brak/Givatayim/Ra'anana.",
+   "discounts": [
+    {
+     "id": "senior_citizen_pension",
+     "label_he": "אזרח ותיק מקבל קצבה",
+     "percent": 25,
+     "cap_m2": 100
+    },
+    {
+     "id": "senior_citizen_income_support",
+     "label_he": "אזרח ותיק + הבטחת הכנסה",
+     "percent": 100,
+     "cap_m2": 100
+    },
+    {
+     "id": "senior_citizen_disability_pension",
+     "label_he": "אזרח ותיק מקבל קצבת זקנה לנכה (251)",
+     "percent": 100,
+     "cap_m2": 100
+    },
+    {
+     "id": "disability_75",
+     "label_he": "נכה 75%+",
+     "percent": 80
+    },
+    {
+     "id": "disability_90",
+     "label_he": "נכה 90%+",
+     "percent": 40
+    },
+    {
+     "id": "prisoner_of_zion",
+     "label_he": "אסיר ציון / בן משפחה של הרוג מלכות",
+     "percent": 66,
+     "cap_m2": "70 (≤4 נפשות) / 90 (5+)"
+    },
+    {
+     "id": "prisoner_of_zion_income",
+     "label_he": "אסיר ציון (תגמול לפי הכנסה)",
+     "percent": 100,
+     "cap_m2": 100
+    },
+    {
+     "id": "nazi_victims",
+     "label_he": "נפגעי רדיפות נאצים / ניצולי שואה",
+     "percent": 66,
+     "cap_m2": "70 (≤4 נפשות) / 90 (5+)"
+    },
+    {
+     "id": "blind",
+     "label_he": "בעל תעודת עיוור",
+     "percent": 90
+    },
+    {
+     "id": "new_immigrant",
+     "label_he": "עולה",
+     "percent": 90,
+     "cap_m2": 100,
+     "cap_months": 12
+    },
+    {
+     "id": "new_immigrant_dependent",
+     "label_he": "עולה תלוי בעזרת הזולת",
+     "percent": 80
+    },
+    {
+     "id": "income_support",
+     "label_he": "הבטחת הכנסה / מזונות / סיעוד",
+     "percent": 70
+    },
+    {
+     "id": "income_test",
+     "label_he": "הנחה למגורים לפי הכנסה ומספר נפשות",
+     "percent": "per table"
+    },
+    {
+     "id": "righteous_among_nations",
+     "label_he": "חסיד אומות העולם",
+     "percent": 66
+    },
+    {
+     "id": "single_parent",
+     "label_he": "משפחה שבראשה הורה עצמאי",
+     "percent": null,
+     "notes": "percent not captured in extraction, section 22 continues past what was read"
+    },
+    {
+     "id": "reservist_active",
+     "label_he": "חייל מילואים פעיל",
+     "percent": 5
+    },
+    {
+     "id": "reservist_commander",
+     "label_he": "מפקד מילואים פעיל",
+     "percent": 25,
+     "cap_m2": 100
+    },
+    {
+     "id": "new_building",
+     "label_he": "בניין חדש ריק",
+     "percent": 100,
+     "cap_months": 12
+    },
+    {
+     "id": "vacant_building",
+     "label_he": "בניין ריק",
+     "percent": 100,
+     "cap_months": 6
+    }
+   ],
+   "rate_model": "marginal_by_zone",
+   "notes": [
+    "NOT a simple cumulative ladder - see _meta.warning_holon. Each bracket below is its own two-part split: 'first N m²' at base_rate (which itself creeps up bracket to bracket), then the excess within that bracket at marginal_rate. Basement discounted to 75% of the normal rate for its zone (not encoded here)."
+   ],
+   "zones": [
+    {
+     "id": "א",
+     "label": "אזור א - כל הנכסים בעיר חולון פרט לאזור ב'/ג'",
+     "is_default": true,
+     "size_brackets": [
+      {
+       "range": [
+        0,
+        30
+       ],
+       "flat_rate": 55.37
+      },
+      {
+       "range": [
+        30,
+        50
+       ],
+       "flat_rate": 67.02
+      },
+      {
+       "range": [
+        50,
+        60
+       ],
+       "base_up_to": 50,
+       "base_rate": 67.02,
+       "marginal_rate": 71.62
+      },
+      {
+       "range": [
+        60,
+        70
+       ],
+       "base_up_to": 60,
+       "base_rate": 67.79,
+       "marginal_rate": 85.24
+      },
+      {
+       "range": [
+        70,
+        90
+       ],
+       "base_up_to": 70,
+       "base_rate": 70.28,
+       "marginal_rate": 93.36
+      },
+      {
+       "range": [
+        90,
+        120
+       ],
+       "base_up_to": 90,
+       "base_rate": 75.41,
+       "marginal_rate": 102.68
+      },
+      {
+       "range": [
+        120,
+        null
+       ],
+       "base_up_to": 120,
+       "base_rate": 82.22,
+       "marginal_rate": 117.96
+      }
+     ]
+    },
+    {
+     "id": "ב",
+     "label": "אזור ב",
+     "is_default": false,
+     "size_brackets": [
+      {
+       "range": [
+        0,
+        30
+       ],
+       "flat_rate": 46.88
+      },
+      {
+       "range": [
+        30,
+        50
+       ],
+       "flat_rate": 46.88
+      },
+      {
+       "range": [
+        50,
+        60
+       ],
+       "base_up_to": 50,
+       "base_rate": 46.88,
+       "marginal_rate": 48.04
+      },
+      {
+       "range": [
+        60,
+        70
+       ],
+       "base_up_to": 60,
+       "base_rate": 47.05,
+       "marginal_rate": 54.21
+      },
+      {
+       "range": [
+        70,
+        90
+       ],
+       "base_up_to": 70,
+       "base_rate": 50.46,
+       "marginal_rate": 64.75
+      },
+      {
+       "range": [
+        90,
+        120
+       ],
+       "base_up_to": 90,
+       "base_rate": 53.65,
+       "marginal_rate": 64.75
+      },
+      {
+       "range": [
+        120,
+        null
+       ],
+       "base_up_to": 120,
+       "base_rate": 56.42,
+       "marginal_rate": 64.75
+      }
+     ]
+    },
+    {
+     "id": "ג",
+     "label": "אזור ג - כולל שכונת מולדת, בתים באזור התעשייה; דירות שנבנו אחרי 1.1.91 מסווגות כאזור א (חוץ מגוש 7178 חלקות 42/43/47/50)",
+     "is_default": false,
+     "size_brackets": [
+      {
+       "range": [
+        0,
+        null
+       ],
+       "flat_rate": 43.35
+      }
+     ]
+    }
+   ]
+  },
+  "ramat-hasharon": {
+   "name_he": "רמת השרון",
+   "population": null,
+   "source_pdf": "tools/arnona_output/ramat-hasharon/tzav-arnona-2025.pdf",
+   "order_year": 2026,
+   "area_method": "bruto_bruto",
+   "area_method_basis": "'שטח נכס' (א): שטח מקורה כולל של רצפות המפלסים לרבות שטחים משותפים, קירות חיצוניים, קירות פנימיים, שטחי מעבר, מטבחים, שירותים, כביסה, חנייה, אחסון, מקלטים, תחזוקה, מרפסות, סככות, מרתפים, מדרגות, פירים - שטחים משותפים listed first, explicitly included.",
+   "discounts_source": "fully self-contained numbered list (§ב 1-15+), same detail level as Bnei Brak/Givatayim/Holon/Ra'anana.",
+   "discounts": [
+    {
+     "id": "senior_citizen_pension",
+     "label_he": "אזרח ותיק מקבל קצבה (זקנה/שארים/תלויים)",
+     "percent": 25,
+     "cap_m2": 100
+    },
+    {
+     "id": "senior_citizen",
+     "label_he": "אזרח ותיק (חוק האזרחים הוותיקים, מתגורר לבד)",
+     "percent": 30,
+     "cap_m2": 100
+    },
+    {
+     "id": "senior_citizen_disability_pension",
+     "label_he": "אזרח ותיק מקבל קצבת זקנה לנכה (251)",
+     "percent": 100,
+     "cap_m2": 100
+    },
+    {
+     "id": "senior_citizen_income_support",
+     "label_he": "אזרח ותיק + הבטחת הכנסה",
+     "percent": 100,
+     "cap_m2": 100
+    },
+    {
+     "id": "disability_75",
+     "label_he": "נכה 75%+ (טרם קצבת זקנה) / קצבה מלאה",
+     "percent": 80,
+     "cap_m2": 140
+    },
+    {
+     "id": "disability_90",
+     "label_he": "נכה 90%+",
+     "percent": 40,
+     "cap_m2": 140
+    },
+    {
+     "id": "new_immigrant",
+     "label_he": "עולה",
+     "percent": 90,
+     "cap_m2": 100,
+     "cap_months": 12
+    },
+    {
+     "id": "new_immigrant_dependent",
+     "label_he": "עולה תלוי בעזרת הזולת",
+     "percent": 80
+    },
+    {
+     "id": "single_parent",
+     "label_he": "הורה יחיד/משפחה חד-הורית",
+     "percent": 20,
+     "cap_m2": 140
+    },
+    {
+     "id": "disabled_child",
+     "label_he": "בן/בת נכה של המחזיק",
+     "percent": 33,
+     "cap_m2": 100
+    },
+    {
+     "id": "prisoner_of_zion",
+     "label_he": "אסיר ציון / נפגעי רדיפות נאצים",
+     "percent": 66,
+     "cap_m2": "70 (≤4 נפשות) / 90 (5+)"
+    },
+    {
+     "id": "prisoner_of_zion_full",
+     "label_he": "אסיר ציון (הנחה חלופית, 100%)",
+     "percent": 100,
+     "cap_m2": 100
+    },
+    {
+     "id": "blind",
+     "label_he": "בעל תעודת עיוור",
+     "percent": 90,
+     "cap_m2": 140
+    },
+    {
+     "id": "income_support",
+     "label_he": "הבטחת הכנסה / מזונות / סיעוד",
+     "percent": 70,
+     "cap_m2": 140
+    },
+    {
+     "id": "righteous_among_nations",
+     "label_he": "חסיד אומות העולם",
+     "percent": 66,
+     "cap_m2": 140
+    },
+    {
+     "id": "reservist_active",
+     "label_he": "משרת מילואים פעיל",
+     "percent": 5,
+     "cap_m2": 140
+    },
+    {
+     "id": "income_test",
+     "label_he": "מבחן הכנסה (מדורג לפי נפשות)",
+     "percent": "20-90 (sliding)"
+    },
+    {
+     "id": "tzahal_diaspora",
+     "label_he": "איש צד\"ל",
+     "percent": 90,
+     "cap_m2": 100,
+     "cap_months": "12 מתוך 36"
+    }
+   ],
+   "rate_model": "flat_bracket_no_zone",
+   "notes": [
+    "No geographic zone split found for residential - single citywide schedule.",
+    "IMPORTANT: this table only extracts correctly with plain `pdftotext` (no -layout flag) - `-layout` mode silently drops this specific table. Below population (~48k, under the 50k project threshold) - carried over from an earlier test batch, not part of the >50k target list."
+   ],
+   "brackets": [
+    {
+     "up_to": 75,
+     "rate": 46.84
+    },
+    {
+     "up_to": 90,
+     "rate": 62.35
+    },
+    {
+     "up_to": 105,
+     "rate": 63.53
+    },
+    {
+     "up_to": 125,
+     "rate": 65.9
+    },
+    {
+     "up_to": 150,
+     "rate": 79.1
+    },
+    {
+     "up_to": null,
+     "rate": 80.59
+    }
+   ]
+  },
+  "rishon-lezion": {
+   "name_he": "ראשון לציון",
+   "population": 252413,
+   "source_pdf": "tools/arnona_output/rishon-lezion/tzav-arnona-2025.pdf",
+   "order_year": 2025,
+   "area_method": "bruto",
+   "area_method_basis": "§1.3: שטח בניין - מגורים - שטח בניין מגורים \"ברוטו\" - לרבות השטח שמתחת לקירות פנימיים וחיצוניים, למעט: ... §1.3.3 'בבתים משותפים - שטחים משותפים' (defined in §1.7 as electric/elevator/stairwell/gas rooms, shelters) - uses the literal word ברוטו but explicitly excludes common areas.",
+   "discounts_source": "fully self-contained numbered list (§4.1-4.18), same detail level as Bnei Brak/Givatayim/Holon/Ramat Hasharon/Ra'anana.",
+   "discounts": [
+    {
+     "id": "senior_citizen_income_support",
+     "label_he": "אזרח ותיק + הבטחת הכנסה",
+     "percent": 100,
+     "cap_m2": 100
+    },
+    {
+     "id": "senior_citizen_disability_pension",
+     "label_he": "אזרח ותיק מקבל קצבת אזרח ותיק לנכה (200)",
+     "percent": 100,
+     "cap_m2": 100
+    },
+    {
+     "id": "senior_citizen",
+     "label_he": "אזרח ותיק (גיל פרישה)",
+     "percent": 30
+    },
+    {
+     "id": "senior_citizen_pension",
+     "label_he": "אזרח ותיק (25%, תנאים נוספים)",
+     "percent": 25
+    },
+    {
+     "id": "income_support",
+     "label_he": "הבטחת הכנסה / מזונות / סיעוד",
+     "percent": 70
+    },
+    {
+     "id": "nazi_victims",
+     "label_he": "נפגעי רדיפות נאצים",
+     "percent": 66,
+     "cap_m2": "70 (≤4 נפשות) / 90 (5+)"
+    },
+    {
+     "id": "prisoner_of_zion_full",
+     "label_he": "אסיר ציון (100%)",
+     "percent": 100,
+     "cap_m2": 100
+    },
+    {
+     "id": "prisoner_of_zion",
+     "label_he": "אסיר ציון (66%)",
+     "percent": 66,
+     "cap_m2": "70 (≤4 נפשות) / 90 (5+)"
+    },
+    {
+     "id": "idf_disabled_bereaved",
+     "label_he": "נכי צה\"ל / הורים שכולים / אלמנות ויתומי צה\"ל / נפגעי איבה",
+     "percent": 66.66,
+     "cap_m2": "70 (≤4 נפשות) / 90 (5+)"
+    },
+    {
+     "id": "mandatory_service_soldier",
+     "label_he": "חייל בשירות חובה / מתנדבת שירות לאומי",
+     "percent": null,
+     "notes": "percent not captured; parent of such soldier gets same discount at proportional cap"
+    },
+    {
+     "id": "reservist_active",
+     "label_he": "חייל מילואים פעיל",
+     "percent": 5
+    },
+    {
+     "id": "reservist_commander",
+     "label_he": "מפקד מילואים פעיל",
+     "percent": 25,
+     "cap_m2": 100
+    },
+    {
+     "id": "disability_75",
+     "label_he": "נכה 75%+",
+     "percent": 80
+    },
+    {
+     "id": "disability_90",
+     "label_he": "נכה 90%+",
+     "percent": 40
+    },
+    {
+     "id": "disabled_child",
+     "label_he": "ילד נכה",
+     "percent": 33
+    },
+    {
+     "id": "blind",
+     "label_he": "בעל תעודת עיוור",
+     "percent": 90
+    },
+    {
+     "id": "new_immigrant",
+     "label_he": "עולה חדש",
+     "percent": 90
+    },
+    {
+     "id": "new_immigrant_dependent",
+     "label_he": "עולה תלוי בעזרת הזולת",
+     "percent": 80
+    },
+    {
+     "id": "single_parent",
+     "label_he": "משפחה שבראשה הורה עצמאי",
+     "percent": 20
+    },
+    {
+     "id": "righteous_among_nations",
+     "label_he": "חסיד אומות העולם",
+     "percent": 66
+    },
+    {
+     "id": "returned_captive",
+     "label_he": "פדוי שבי",
+     "percent": null,
+     "notes": "percent cut off in extraction"
+    },
+    {
+     "id": "income_test",
+     "label_he": "הכנסה נמוכה (מדורג לפי נפשות)",
+     "percent": "per table"
+    },
+    {
+     "id": "mental_health_resident",
+     "label_he": "מתמודד נפש (דיור מוגן)",
+     "percent": "per household test"
+    },
+    {
+     "id": "civil_service_yeshiva",
+     "label_he": "שירות אזרחי (בני ישיבות)",
+     "percent": "50-100 (by track)"
+    }
+   ],
+   "rate_model": "flat_by_zone_type",
+   "notes": [
+    "Real domain guess failed initially (hyphenated 'rishon-lezion.muni.il'); actual is 'rishonlezion.muni.il' (no hyphen) - added to tools/arnona_overrides.json.",
+    "type 'אא' = detached house (בית צמוד קרקע) >110m², not a regular apartment - included for completeness but a typical 100m² apartment should use type א."
+   ],
+   "building_types": {
+    "אא": "בניין מגורים סוג אא - יחידת דיור צמודת קרקע ששטחה עולה על 110 מ\"ר",
+    "א": "בניין מגורים סוג א - יחידת דיור בטון/אבן/לבנים/בלוקים וכו' (רגילה, standard - most common)",
+    "ב": "בניין מגורים סוג ב (כולל דיור סטודנטים ייעודי)",
+    "ג": "בניין מגורים סוג ג"
+   },
+   "zones": [
+    {
+     "id": "א",
+     "label": "אזור א - כל תחום העיר למעט אזורים ב/ג/ד",
+     "is_default": true,
+     "types": {
+      "אא": 73.3,
+      "א": 66.26,
+      "ב": 45.56,
+      "ג": 40.41
+     }
+    },
+    {
+     "id": "ב",
+     "label": "אזור ב - כולל שכונת רמת אליהו (חלקית)",
+     "is_default": false,
+     "types": {
+      "אא": 68.12,
+      "א": 49.99,
+      "ב": 40.41,
+      "ג": 40.41
+     }
+    },
+    {
+     "id": "ג",
+     "label": "אזור ג",
+     "is_default": false,
+     "types": {
+      "אא": 73.3,
+      "א": 66.26,
+      "ב": 45.56,
+      "ג": 40.41
+     }
+    },
+    {
+     "id": "ד",
+     "label": "אזור ד",
+     "is_default": false,
+     "types": {
+      "אא": 73.3,
+      "א": 66.26,
+      "ב": 45.56,
+      "ג": 40.41
+     }
+    }
+   ]
+  },
+  "tel-aviv": {
+   "name_he": "תל אביב-יפו",
+   "population": 492872,
+   "source_pdf": "tools/arnona_output/tel-aviv/tzav-arnona-2025.pdf",
+   "order_year": 2025,
+   "area_method": "neto",
+   "area_method_basis": "§1.3.1(ג): 'בשטח הבנין לא נכללים קירות חוץ וקירות פנים' - walls explicitly excluded. §1.3.1(ו): common area in a mostly-residential building with 2+ holders is not charged at all ('לא יחויב'), except pools/game rooms.",
+   "discounts_source": "fully self-contained numbered list, notably LOWER than most other cities on two categories that are usually near-universal at higher percentages: senior_citizen_pension is 12.5% here (vs 25-30% in Bnei Brak/Givatayim/Holon/Ramat Hasharon/Rishon LeZion), new_immigrant is 50% here (vs 90% in every other city checked), single_parent is 10% here (vs 20% elsewhere) - exactly the kind of real cross-city gap this tool exists to surface, not a transcription error (checked twice against the source).",
+   "discounts": [
+    {
+     "id": "senior_citizen_pension",
+     "label_he": "אזרח ותיק מקבל קצבה",
+     "percent": 12.5,
+     "cap_m2": 100,
+     "notes": "notably lower than other cities' ~25-30%"
+    },
+    {
+     "id": "senior_citizen_income_support",
+     "label_he": "אזרח ותיק + הבטחת הכנסה",
+     "percent": 100,
+     "cap_m2": 100
+    },
+    {
+     "id": "senior_citizen_advance_payment",
+     "label_he": "אזרח ותיק 75+ המשלם מראש בינואר",
+     "percent": 2
+    },
+    {
+     "id": "disability_75",
+     "label_he": "נכה 75%+",
+     "percent": 80
+    },
+    {
+     "id": "disability_90",
+     "label_he": "נכה 90%+",
+     "percent": 40
+    },
+    {
+     "id": "prisoner_of_zion",
+     "label_he": "אסיר ציון / נפגעי רדיפות נאצים",
+     "percent": 66,
+     "cap_m2": "70 (≤4 נפשות) / 90 (5+)"
+    },
+    {
+     "id": "blind",
+     "label_he": "בעל תעודת עיוור",
+     "percent": 90
+    },
+    {
+     "id": "new_immigrant",
+     "label_he": "עולה",
+     "percent": 50,
+     "cap_m2": 100,
+     "cap_months": 12,
+     "notes": "notably lower than other cities' 90%"
+    },
+    {
+     "id": "new_immigrant_dependent",
+     "label_he": "עולה תלוי בעזרת הזולת",
+     "percent": 80
+    },
+    {
+     "id": "tzahal_diaspora",
+     "label_he": "איש צד\"ל",
+     "percent": 90,
+     "cap_m2": 100,
+     "cap_months": "12 מתוך 36"
+    },
+    {
+     "id": "income_test",
+     "label_he": "מבחן הכנסה",
+     "percent": "per table"
+    },
+    {
+     "id": "righteous_among_nations",
+     "label_he": "חסיד אומות העולם",
+     "percent": 66
+    },
+    {
+     "id": "single_parent",
+     "label_he": "הורה יחיד",
+     "percent": 10,
+     "notes": "notably lower than other cities' 20%"
+    },
+    {
+     "id": "disabled_child",
+     "label_he": "ילד נכה",
+     "percent": 33,
+     "cap_m2": 100
+    },
+    {
+     "id": "returned_captive",
+     "label_he": "פדוי שבי",
+     "percent": 20
+    },
+    {
+     "id": "reservist_active",
+     "label_he": "חייל מילואים פעיל",
+     "percent": 5
+    },
+    {
+     "id": "reservist_commander",
+     "label_he": "מפקד מילואים פעיל",
+     "percent": 25,
+     "cap_m2": 100
+    },
+    {
+     "id": "new_building",
+     "label_he": "בניין חדש ריק",
+     "percent": 100,
+     "cap_months": 12
+    },
+    {
+     "id": "vacant_building",
+     "label_he": "בניין ריק",
+     "percent": 100,
+     "cap_months": 6
+    }
+   ],
+   "rate_model": "zone_type_size_villa_grid",
+   "notes": [
+    "IMPORTANT: Zone 1 is the PRICIEST/most-central zone here, the reverse convention from every other city in this file (where zone 1/A is the broad default and higher numbers are pricier). Zones 4 and 5 are combined into one rate column in the source table.",
+    "Found via browser automation (site is JS-rendered, plain WebFetch couldn't see the download links) at https://www.tel-aviv.gov.il/Residents/Arnona/Pages/ArnonaOrder.aspx",
+    "building_type year bands below are taken from situation-row 2 (\"generic multi-unit building\") of §2.1's type table - villas and some edge cases (basement units, temporary structures) use slightly different year-to-type mappings not encoded here.",
+    "apt_le140/apt_gt140 = regular apartment; villa_gt140 = detached house over 140m² (zones 1-2 only split this out; zones 3/4-5 show one combined rate for all non-villa apartment sizes, encoded as apt_flat)."
+   ],
+   "building_types": [
+    {
+     "id": "אא",
+     "year_from": 2022,
+     "year_to": null
+    },
+    {
+     "id": "כא",
+     "year_from": 2010,
+     "year_to": 2021
+    },
+    {
+     "id": "ח(א+)",
+     "year_from": 1992,
+     "year_to": 2009
+    },
+    {
+     "id": "א",
+     "year_from": 1984,
+     "year_to": 1991
+    },
+    {
+     "id": "ב",
+     "year_from": 1975,
+     "year_to": 1983
+    },
+    {
+     "id": "ג",
+     "year_from": 1970,
+     "year_to": 1974
+    },
+    {
+     "id": "ד",
+     "year_from": 1940,
+     "year_to": 1969
+    },
+    {
+     "id": "ה",
+     "year_from": null,
+     "year_to": 1939
+    }
+   ],
+   "rate_table_note": "rate rows in the source combine ב+ג into one row and ה+ו into another; ו (temporary/basement-specific) isn't in the year table above",
+   "zones": [
+    {
+     "id": "1",
+     "label": "אזור 1 (highest rate zone - central/prime)",
+     "is_default": false,
+     "rates": {
+      "אא": {
+       "apt_le140": 111.18,
+       "villa_gt140": 137.37
+      },
+      "כא": {
+       "apt_le140": 110.69,
+       "villa_gt140": 136.75
+      },
+      "ח(א+)": {
+       "apt_le140": 105.41,
+       "villa_gt140": 130.23
+      },
+      "ב_ג": {
+       "apt_le140": 89.33,
+       "villa_gt140": 110.37
+      },
+      "ד": {
+       "apt_le140": 77.68,
+       "villa_gt140": 95.98
+      },
+      "ה_ו": {
+       "apt_le140": 67.54,
+       "villa_gt140": 83.45
+      }
+     }
+    },
+    {
+     "id": "2",
+     "label": "אזור 2",
+     "is_default": false,
+     "rates": {
+      "אא": {
+       "apt_le140": 89.26,
+       "villa_or_apt_gt140": 107.24
+      },
+      "כא": {
+       "apt_le140": 88.85,
+       "villa_or_apt_gt140": 106.75
+      },
+      "ח(א+)": {
+       "apt_le140": 84.63,
+       "villa_or_apt_gt140": 101.68
+      },
+      "ב_ג": {
+       "apt_le140": 71.72,
+       "villa_or_apt_gt140": 86.16
+      },
+      "ד": {
+       "apt_le140": 62.37,
+       "villa_or_apt_gt140": 74.92
+      },
+      "ה_ו": {
+       "apt_le140": 54.22,
+       "villa_or_apt_gt140": 65.15
+      }
+     }
+    },
+    {
+     "id": "3",
+     "label": "אזור 3",
+     "is_default": false,
+     "rates": {
+      "אא": {
+       "apt_flat": 77.14
+      },
+      "כא": {
+       "apt_flat": 76.81
+      },
+      "ח(א+)": {
+       "apt_flat": 73.15
+      },
+      "ב_ג": {
+       "apt_flat": 62.0
+      },
+      "ד": {
+       "apt_flat": 53.91
+      },
+      "ה_ו": {
+       "apt_flat": 46.89
+      }
+     }
+    },
+    {
+     "id": "4-5",
+     "label": "אזור 4 ו-5 (מאוחדים בטבלת המקור)",
+     "is_default": true,
+     "rates": {
+      "אא": {
+       "apt_flat": 63.39
+      },
+      "כא": {
+       "apt_flat": 63.1
+      },
+      "ח(א+)": {
+       "apt_flat": 60.11
+      },
+      "ב_ג": {
+       "apt_flat": 53.19
+      },
+      "ד": {
+       "apt_flat": 48.36
+      },
+      "ה_ו": {
+       "apt_flat": 45.89
+      }
+     }
+    }
+   ]
+  },
+  "yavne": {
+   "name_he": "יבנה",
+   "population": 54981,
+   "source_pdf": "tools/arnona_output/yavne/tzav-arnona-2025.pdf",
+   "order_year": 2025,
+   "area_method": "bruto_bruto",
+   "area_method_basis": "§2.4: 'נכלל כל השטח ברוטו כולל קירות פנימיים וקירות חיצוניים לפי מידות חוץ לרבות חדרי מדרגות'; §2.5 divides common area proportionally among all apartments in the building and adds it to each unit.",
+   "discounts_source": "not extracted.",
+   "rate_model": "marginal_no_zone",
+   "notes": [
+    "INCOMPLETE - dropped from further zone-mapping work per user decision. Yavne doesn't use simple zone letters; the city is split into 8 numbered 'רבעים' (districts, each with named streets/boundaries), and each רובע maps to one of several property-type codes (120/121/122/130/140/141/150/160/170/171/180/181), each with its own rate. Only type code 120 ('סוג א', the general/base classification) was resolved below - the רובע-to-type mapping for the other 7 codes was NOT extracted.",
+    "type 121/122 (א'(1)/א'(2)) and the ב'/ג'/ד'/ה'/ו' types exist in the source with their own rates but aren't encoded here."
+   ],
+   "brackets": [
+    {
+     "up_to": 140,
+     "rate": 62.12
+    },
+    {
+     "up_to": 200,
+     "rate": 54.95
+    },
+    {
+     "up_to": 270,
+     "rate": 51.35
+    },
+    {
+     "up_to": null,
+     "rate": 51.94
+    }
+   ]
+  },
+  "lod": {
+   "name_he": "לוד",
+   "population": 87430,
+   "source_pdf": "tools/arnona_output/lod/tzav-arnona-2025.pdf",
+   "order_year": 2019,
+   "area_method": "bruto",
+   "area_method_basis": "§1: כולל כל שטח שבתוך יחידת הבניין לרבות קירות פנימיים וחיצוניים, מרפסות מקורות, גלריות, חדרי בטחון ומחסנים, למעט שטחים משותפים.",
+   "discounts_source": "thin overlay on national regulations (like Ashdod/Hod Hasharon/Kfar Saba) - local deviations only cap disability/income-support/income-test/nursing-care discounts at 100m². Also: 2% discount for full-year advance payment by end of January 2019, 2% for standing-order payment. ALL FROM THE STALE 2019 DOCUMENT - do not trust the percentages without a current document, since national regulation defaults themselves may have changed since 2019.",
+   "discounts": [
+    {
+     "id": "disability_75",
+     "label_he": "נכה (2(א)(2))",
+     "percent": "per national regulation",
+     "cap_m2": 100
+    },
+    {
+     "id": "disability_90",
+     "label_he": "נכה (2(א)(3))",
+     "percent": "per national regulation",
+     "cap_m2": 100
+    },
+    {
+     "id": "income_support",
+     "label_he": "הבטחת הכנסה / מזונות",
+     "percent": "per national regulation",
+     "cap_m2": 100
+    },
+    {
+     "id": "income_test",
+     "label_he": "מבחן הכנסה",
+     "percent": "per national regulation",
+     "cap_m2": 100
+    },
+    {
+     "id": "nursing_care",
+     "label_he": "גמלת סיעוד",
+     "percent": "per national regulation",
+     "cap_m2": 100
+    },
+    {
+     "id": "advance_payment",
+     "label_he": "תשלום מראש עד ינואר",
+     "percent": 2
+    },
+    {
+     "id": "standing_order_payment",
+     "label_he": "הוראת קבע",
+     "percent": 2
+    }
+   ],
+   "rate_model": "unavailable",
+   "notes": [
+    "The only PDF the fetch script could find is dated 2019 - six years stale, do NOT use for a current-year comparison. Rate was ₪39.42/m² flat, 'בכל האזורים' (all zones combined, single citywide rate) as of 2019 only.",
+    "area_method classification (bruto, excludes common areas) is presumably still structurally valid even if the ₪ rate is outdated, since area-definition clauses change far less often than yearly rate updates - but not reconfirmed against a current document."
+   ]
+  },
+  "mitzpe-ramon": {
+   "name_he": "מצפה רמון",
+   "population": null,
+   "source_pdf": "tools/arnona_output/mitzpe-ramon/tzav-arnona-2025.pdf",
+   "order_year": null,
+   "area_method": "unknown",
+   "area_method_basis": null,
+   "discounts_source": null,
+   "rate_model": "unavailable",
+   "notes": [
+    "PDF is a scanned image - pdftotext extracts only 9 characters, no OCR available in this environment. Also below the 50k population threshold - carried over from the original test batch."
+   ]
+  }
+ }
+};

@@ -132,6 +132,12 @@
     </div>
   </main>
 
+  <!--
+    Same guard as index.html/real-estate-compare.html: opened from disk
+    nothing below can load, because ES module scripts are refused from
+    origin 'null'. Must be a classic inline script - a module would be the
+    first thing blocked.
+  -->
   <script>
     if (location.protocol === 'file:') {
       document.getElementById('fileproto').hidden = false;

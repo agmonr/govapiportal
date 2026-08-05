@@ -202,6 +202,23 @@ TARGETS = [
         "data": True,
     },
     {
+        "html": "arnona-compare.html",
+        "out": "dist/arnona-compare.html",
+        "entry": "src/arnona-compare.js",
+        # Rates/discounts data is src/arnona-rates-data.js (generated from
+        # tools/arnona_rates.json - see that file's own header), a plain JS
+        # module import like every other *-cities.js data file here, not a
+        # runtime fetch() - the address field's Nominatim geocoding still
+        # needs network access either way, so this page was never going to
+        # be usable fully offline, but the rates data itself loads the same
+        # from disk as it does live. apis.json is only for apps.js's
+        # under-header category strip.
+        "sources": ["src/ui.js", "src/theme.js", "src/charts.js",
+                    "src/arnona-rates-data.js",
+                    "src/apps.js", "src/arnona-compare.js"],
+        "data": True,
+    },
+    {
         "html": "welfare.html",
         "out": "dist/welfare.html",
         "entry": "src/welfare.js",
