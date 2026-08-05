@@ -149,6 +149,13 @@ async function stitchBasemap(cornersWgs84, size, kind = 'street') {
   // for the aerial source too, rather than a separate/looser limit - simplest
   // to stay polite by default even though Esri's own limit is more lenient.
   const queue = tiles.slice();
+  // Esri's World Topo Map ships noticeably paler/lower-contrast than the
+  // street or aerial sources (a deliberate style choice on their end for a
+  // reference basemap meant to sit under other data layers) - boosted here,
+  // scoped to the tile draws only (reset before the attribution label below
+  // so the label itself isn't affected), rather than a page-wide CSS filter
+  // that would also alter street/aerial, which nobody asked to change.
+  if (kind === 'topo') ctx.filter = 'contrast(1.35) saturate(1.15)';
   async function worker() {
     let next;
     // eslint-disable-next-line no-cond-assign
@@ -159,6 +166,7 @@ async function stitchBasemap(cornersWgs84, size, kind = 'street') {
     }
   }
   await Promise.all([worker(), worker()]);
+  ctx.filter = 'none';
 
   const out = document.createElement('canvas');
   out.width = size;

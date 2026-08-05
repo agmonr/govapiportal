@@ -469,6 +469,32 @@ button.stat { cursor: pointer; }
   overflow-x: auto;
 }
 
+/* local-finance.html: persistent page-wide status line for the sessionStorage-
+   backed fetch cache (see cachedCall() in local-finance.js) - shown while any
+   data.gov.il request is in flight, then a brief cache/network summary once
+   everything settles, auto-hiding itself after a few seconds. A dot instead
+   of a spinner graphic (no extra asset, no animation library) - just pulses
+   via the loading modifier below. */
+.fin-data-status {
+  display: flex; align-items: center; gap: .5rem;
+  font-size: .82rem; color: var(--muted);
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: .4rem .75rem; margin-block-end: 1rem;
+}
+.fin-data-status::before {
+  content: ''; flex: 0 0 auto; inline-size: .5rem; block-size: .5rem; border-radius: 50%;
+  background: var(--muted);
+}
+.fin-data-status.fin-status-loading { color: var(--fg); }
+.fin-data-status.fin-status-loading::before {
+  background: var(--accent);
+  animation: fin-status-pulse 1s ease-in-out infinite;
+}
+@keyframes fin-status-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: .4; transform: scale(.7); }
+}
+
 /* local-finance.html: one <details> per sheet (גיליון) in a statement, so a
    34-sheet report opens collapsed rather than as one very long scroll. */
 .fin-sheet { border: 1px solid var(--border); border-radius: var(--radius); margin-block-end: .6rem; padding: .5rem .75rem; }

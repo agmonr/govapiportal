@@ -469,6 +469,32 @@ button.stat { cursor: pointer; }
   overflow-x: auto;
 }
 
+/* local-finance.html: persistent page-wide status line for the sessionStorage-
+   backed fetch cache (see cachedCall() in local-finance.js) - shown while any
+   data.gov.il request is in flight, then a brief cache/network summary once
+   everything settles, auto-hiding itself after a few seconds. A dot instead
+   of a spinner graphic (no extra asset, no animation library) - just pulses
+   via the loading modifier below. */
+.fin-data-status {
+  display: flex; align-items: center; gap: .5rem;
+  font-size: .82rem; color: var(--muted);
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: .4rem .75rem; margin-block-end: 1rem;
+}
+.fin-data-status::before {
+  content: ''; flex: 0 0 auto; inline-size: .5rem; block-size: .5rem; border-radius: 50%;
+  background: var(--muted);
+}
+.fin-data-status.fin-status-loading { color: var(--fg); }
+.fin-data-status.fin-status-loading::before {
+  background: var(--accent);
+  animation: fin-status-pulse 1s ease-in-out infinite;
+}
+@keyframes fin-status-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: .4; transform: scale(.7); }
+}
+
 /* local-finance.html: one <details> per sheet (גיליון) in a statement, so a
    34-sheet report opens collapsed rather than as one very long scroll. */
 .fin-sheet { border: 1px solid var(--border); border-radius: var(--radius); margin-block-end: .6rem; padding: .5rem .75rem; }
@@ -2373,6 +2399,7 @@ body.accidents-page header.site h1 { inline-size: 100%; }
   <main class="wrap">
     <div id="app">
       <div id="appContext" class="app-context"></div>
+      <p id="finDataStatus" class="fin-data-status" dir="auto" hidden></p>
       <details class="notice info" dir="auto">
         <summary><strong>מה יש כאן, ומה עדיין לא</strong></summary>
         <p>
@@ -3743,6 +3770,117 @@ if (!Number.isNaN(created.getTime())) {
   el('created').title = created.toISOString();
 }
 
+/* ---------- sessionStorage-backed fetch cache + status bar ----------
+ * Every live data.gov.il call on this page (national summary, liabilities,
+ * per-authority bundles, CBS population, jurisdiction area, statement rows,
+ * roster, new-year discovery) is routed through cachedCall() below, keyed
+ * by exactly what's being asked for - a repeat visit/reload within the same
+ * TAB SESSION (sessionStorage, not localStorage - clears on tab close,
+ * unlike a permanent offline cache this data's own "כמה שגוי יכול המידע
+ * להיות" disclaimer would rather not imply) reuses the cached answer
+ * instead of re-fetching. `#finDataStatus` (see style.css's own
+ * .fin-data-status) surfaces this live: visible while anything is in
+ * flight, then a brief "X מהמטמון, Y מהרשת" summary once a burst of calls
+ * settles (debounced, so a Promise.all of several calls collapses into one
+ * final message instead of flickering per-call), auto-hiding itself after.
+ * A quota-exceeded/unavailable sessionStorage (private browsing, storage
+ * full) degrades to "no caching" silently - never blocks a real fetch. */
+
+let cacheInFlight = 0;
+let cacheBatchActive = false;
+let cacheBatchHits = 0;
+let cacheBatchMisses = 0;
+let statusHideTimer = null;
+
+function dataStatusEl() { return el('finDataStatus'); }
+
+function showLoadingStatus() {
+  const box = dataStatusEl();
+  if (!box) return;
+  clearTimeout(statusHideTimer);
+  box.hidden = false;
+  box.classList.add('fin-status-loading');
+  box.textContent = `טוען נתונים מ-data.gov.il… (${num(cacheBatchHits)} מהמטמון, ${num(cacheBatchMisses)} מהרשת${cacheInFlight ? `, ${num(cacheInFlight)} בקשות פעילות` : ''})`;
+}
+
+// Debounced, not immediate - a burst of calls (e.g. fetchAuthorityBundles'
+// own 9-years-at-once Promise.all) settles one at a time; without this the
+// message would flip to "done" after the FIRST of the nine finishes, then
+// flicker straight back to "loading" for the next eight. Re-checks
+// cacheInFlight when it actually runs (not when it was scheduled), so it
+// correctly bails and lets the next settle's own debounced call take over
+// if something new started in the meantime.
+const showDoneStatusDebounced = debounce(() => {
+  if (cacheInFlight > 0) return;
+  const box = dataStatusEl();
+  if (!box) return;
+  box.classList.remove('fin-status-loading');
+  box.textContent = `הנתונים נטענו — ${num(cacheBatchHits)} מהמטמון, ${num(cacheBatchMisses)} מהרשת.`;
+  cacheBatchActive = false;
+  clearTimeout(statusHideTimer);
+  statusHideTimer = setTimeout(() => { box.hidden = true; }, 4000);
+}, 200);
+
+const cacheKey = (...parts) => `lf:${parts.map((p) => (typeof p === 'string' ? p : JSON.stringify(p))).join(':')}`;
+
+/** `key` identifies WHAT is being asked for (see the named wrappers below -
+ *  cachedDsFilter/cachedPopulation/etc.), `fn` is only called on a cache
+ *  miss. A fresh batch's hit/miss counters reset the first time this is
+ *  called after being fully idle, so the eventual "done" summary reflects
+ *  the action that was JUST taken, not an ever-growing session total. */
+async function cachedCall(key, fn) {
+  if (!cacheBatchActive) { cacheBatchActive = true; cacheBatchHits = 0; cacheBatchMisses = 0; }
+  let cached;
+  try { cached = sessionStorage.getItem(key); } catch { cached = null; }
+  if (cached != null) {
+    cacheBatchHits += 1;
+    showLoadingStatus();
+    showDoneStatusDebounced();
+    return JSON.parse(cached);
+  }
+  cacheInFlight += 1;
+  showLoadingStatus();
+  try {
+    const result = await fn();
+    cacheBatchMisses += 1;
+    try { sessionStorage.setItem(key, JSON.stringify(result)); } catch { /* quota exceeded/unavailable - caching is best-effort, never blocks the real result */ }
+    return result;
+  } finally {
+    cacheInFlight -= 1;
+    showDoneStatusDebounced();
+  }
+}
+
+const dsQueryKey = (resourceId, params) => cacheKey('ds', resourceId, params);
+function dsFilterParams(filters, limit = 10000) {
+  const params = { limit: String(limit) };
+  if (filters) params.filters = JSON.stringify(filters);
+  return params;
+}
+/** Whether a dsFilter-shaped call is already cached, WITHOUT making it -
+ *  downloadAllYearsForAuthority() below uses this to skip its own politeness
+ *  pacing between years for a year already sitting in the cache: there's no
+ *  live request in flight to be polite to for those years. */
+function isDsFilterCached(resourceId, filters, limit = 10000) {
+  try { return sessionStorage.getItem(dsQueryKey(resourceId, dsFilterParams(filters, limit))) != null; } catch { return false; }
+}
+
+const cachedDsQuery = (resourceId, params) => cachedCall(dsQueryKey(resourceId, params), () => dsQuery(resourceId, params));
+/** Same shape as datastore.js's own dsFilter (JSON-stringifies `filters`
+ *  once here rather than at every call site), just cached. */
+function cachedDsFilter(resourceId, filters, limit = 10000) {
+  return cachedDsQuery(resourceId, dsFilterParams(filters, limit));
+}
+const cachedPopulation = (name) => cachedCall(cacheKey('pop', name), () => fetchPopulation(name));
+const cachedPopulations = () => cachedCall(cacheKey('pops'), () => fetchPopulations());
+// discoverNewYears' own package_show lookups - a plain fetch, not dsQuery-
+// shaped, so its own thin wrapper rather than forcing it through
+// cachedDsQuery's resource/params shape.
+const cachedPackageShow = (pkg) => cachedCall(cacheKey('pkg', pkg), async () => {
+  const res = await fetch(`https://data.gov.il/api/3/action/package_show?id=${pkg}`);
+  return res.ok ? res.json() : null;
+});
+
 /* ---------- state ---------- */
 
 // הוד השרון is the default landing authority (not because it's special
@@ -3835,7 +3973,7 @@ let rosterNames = [];
 async function loadRoster() {
   try {
     const cfg = YEAR_RESOURCES[ROSTER_YEAR];
-    const { records } = await dsFilter(cfg.resourceId, {
+    const { records } = await cachedDsFilter(cfg.resourceId, {
       [cfg.sheetField]: ROSTER_FILTERS.גליון, שורה: ROSTER_FILTERS.שורה, עמודה: ROSTER_FILTERS.עמודה,
     });
     rosterNames = [...new Set(records.map((r) => r['שם_רשות']))].sort((a, b) => a.localeCompare(b, 'he'));
@@ -3888,10 +4026,8 @@ async function discoverNewYears() {
   const found = [];
   for (const pkg of FINANCE_PACKAGES) {
     try {
-      const res = await fetch(`https://data.gov.il/api/3/action/package_show?id=${pkg}`);
-      if (!res.ok) continue;
-      const j = await res.json();
-      if (!j.success) continue;
+      const j = await cachedPackageShow(pkg);
+      if (!j?.success) continue;
       for (const r of j.result.resources) {
         if (!r.datastore_active || !r.name) continue;
         const named = r.name.match(/לשנת\s+(20\d{2})/);
@@ -3921,7 +4057,7 @@ async function fetchSummary(year) {
   const cfg = YEAR_RESOURCES[year];
   if (!cfg?.hasSummary) { state.summaryCache.set(year, 'unsupported'); return 'unsupported'; }
 
-  const { records } = await dsFilter(cfg.resourceId, {
+  const { records } = await cachedDsFilter(cfg.resourceId, {
     [cfg.sheetField]: SUMMARY_SHEET,
     שורה: Object.values(SUMMARY_ROWS),
     עמודה: SUMMARY_COLUMN,
@@ -3960,7 +4096,7 @@ async function fetchLiabilities(year) {
   if (!cfg?.hasSummary) { state.liabilitiesCache.set(year, 'unsupported'); return 'unsupported'; }
 
   const balRows = balanceRowsFor(year);
-  const { records } = await dsFilter(cfg.resourceId, {
+  const { records } = await cachedDsFilter(cfg.resourceId, {
     [cfg.sheetField]: 'טופס 1 פאסיב',
     שורה: [balRows.liabilities, balRows.currentLiabilities],
     עמודה: BALANCE_COLUMN,
@@ -4099,7 +4235,7 @@ async function renderCharts(summary) {
     // entirely tiny councils (a small budget makes even a modest ₪
     // liability a big ratio either way), crowding out mid-size and large
     // cities entirely.
-    const populations = await fetchPopulations();
+    const populations = await cachedPopulations();
     const byTier = { small: [], medium: [], large: [], veryLarge: [] };
     for (const r of liabRatioPoints) {
       const tier = tierOf(populations.get(r.name));
@@ -4228,7 +4364,7 @@ async function fetchAuthorityBundles(authorities) {
     };
     if (cfg.yearFilter) filters[cfg.yearFilter.field] = cfg.yearFilter.value;
     try {
-      const { records } = await dsFilter(cfg.resourceId, filters);
+      const { records } = await cachedDsFilter(cfg.resourceId, filters);
       if (!records.length) return null; // neither authority covered this year - a real gap, not an error
       const byAuthority = new Map();
       for (const name of authorities) {
@@ -4451,7 +4587,7 @@ async function renderAuthorityLiabRank() {
   if (!YEAR_RESOURCES[state.year]?.hasSummary) { note.hidden = true; return; }
 
   const [summary, liabilities, populations] = await Promise.all([
-    fetchSummary(state.year), fetchLiabilities(state.year), fetchPopulations(),
+    fetchSummary(state.year), fetchLiabilities(state.year), cachedPopulations(),
   ]);
   if (summary === 'unsupported' || liabilities === 'unsupported') { note.hidden = true; return; }
   // A newer authority/year change already started its own call - same
@@ -4514,8 +4650,8 @@ async function renderAuthorityCharts() {
     bundlesMap, population, comparePopulations, jurisdictionArea, compareJurisdictionAreas,
   ] = await Promise.all([
     fetchAuthorityBundles(authorities),
-    fetchPopulation(state.authority),
-    Promise.all(compareNames.map((name) => fetchPopulation(name))),
+    cachedPopulation(state.authority),
+    Promise.all(compareNames.map((name) => cachedPopulation(name))),
     fetchJurisdictionArea(state.authority),
     Promise.all(compareNames.map((name) => fetchJurisdictionArea(name))),
   ]);
@@ -4718,7 +4854,7 @@ async function renderAuthorityCharts() {
 async function fetchJurisdictionArea(authority) {
   const cfg = YEAR_RESOURCES[JURISDICTION_YEAR];
   try {
-    const { records } = await dsFilter(cfg.resourceId, { שם_רשות: authority, [cfg.sheetField]: JURISDICTION_SHEET, שורה: JURISDICTION_ROW });
+    const { records } = await cachedDsFilter(cfg.resourceId, { שם_רשות: authority, [cfg.sheetField]: JURISDICTION_SHEET, שורה: JURISDICTION_ROW });
     if (!records.length) return null;
     const n = Number(records[0]['ערך']);
     return Number.isFinite(n) ? n : null;
@@ -4879,7 +5015,7 @@ async function renderStatement() {
   try {
     const filters = { שם_רשות: state.authority };
     if (cfg.yearFilter) filters[cfg.yearFilter.field] = cfg.yearFilter.value;
-    const { records, total } = await dsFilter(cfg.resourceId, filters);
+    const { records, total } = await cachedDsFilter(cfg.resourceId, filters);
     // A newer authority/year change already started its own call while this
     // one was awaiting - the fetch above is scoped correctly to what THIS
     // call asked for, but writing it now would show stale data (or overwrite
@@ -4981,8 +5117,9 @@ async function downloadAllYearsForAuthority() {
       const cfg = YEAR_RESOURCES[year];
       const filters = { שם_רשות: state.authority };
       if (cfg.yearFilter) filters[cfg.yearFilter.field] = cfg.yearFilter.value;
+      const alreadyCached = isDsFilterCached(cfg.resourceId, filters);
       try {
-        const { records } = await dsFilter(cfg.resourceId, filters);
+        const { records } = await cachedDsFilter(cfg.resourceId, filters);
         if (records.length) {
           found += 1;
           records.forEach((r) => all.push({
@@ -4991,7 +5128,11 @@ async function downloadAllYearsForAuthority() {
           }));
         }
       } catch { /* one year failing shouldn't abort the rest */ }
-      await new Promise((r) => { setTimeout(r, 200); }); // politeness pacing, same spirit as elsewhere on this site
+      // Politeness pacing (same spirit as elsewhere on this site) only
+      // matters for a real outbound request - a year already sitting in the
+      // cache never left the browser, so pacing it too would just slow the
+      // download down for no reason.
+      if (!alreadyCached) await new Promise((r) => { setTimeout(r, 200); });
     }
     if (!all.length) {
       alert(`לא נמצאו נתונים עבור "${state.authority}" באף שנה זמינה.`);
