@@ -176,17 +176,29 @@
         </p>
       </section>
 
-      <section class="acc-section" id="cmOpacityRow" aria-labelledby="opacityH">
-        <h2 id="opacityH">עוצמת השכבות</h2>
-        <div class="cm-opacity-control">
-          <label for="cmHeatOpacity">חום: <span id="cmHeatOpacityValue">100%</span></label>
-          <input type="range" id="cmHeatOpacity" min="0" max="100" step="5" value="100">
-        </div>
-        <div class="cm-opacity-control">
-          <label for="cmCanopyOpacity">עצים: <span id="cmCanopyOpacityValue">100%</span></label>
-          <input type="range" id="cmCanopyOpacity" min="0" max="100" step="5" value="100">
-        </div>
-      </section>
+      <div class="cm-half-row">
+        <section class="acc-section" id="cmOpacityRow" aria-labelledby="opacityH">
+          <h2 id="opacityH">עוצמת השכבות</h2>
+          <div class="cm-opacity-control">
+            <label for="cmHeatOpacity">חום: <span id="cmHeatOpacityValue">100%</span></label>
+            <input type="range" id="cmHeatOpacity" min="0" max="100" step="5" value="100">
+          </div>
+          <div class="cm-opacity-control">
+            <label for="cmCanopyOpacity">עצים: <span id="cmCanopyOpacityValue">100%</span></label>
+            <input type="range" id="cmCanopyOpacity" min="0" max="100" step="5" value="100">
+          </div>
+        </section>
+
+        <section class="acc-section" id="cmOsmRow" aria-labelledby="osmH">
+          <h2 id="osmH">רקע מפה</h2>
+          <p class="acc-hint" dir="auto">לחיצה על שכבה בוחרת אותה כרקע; לחיצה נוספת על אותה שכבה מבטלת אותה - רקע אחד בכל פעם.</p>
+          <div class="cm-filters cm-basemap-kind-row" id="cmBasemapKindRow" role="group" aria-label="סוג רקע המפה">
+            <button type="button" data-basemap="street" class="tc-level-btn cm-basemap-btn">מפת רחובות</button>
+            <button type="button" data-basemap="aerial" class="tc-level-btn cm-basemap-btn">תצלום אוויר</button>
+            <button type="button" data-basemap="topo" class="tc-level-btn cm-basemap-btn">מפה טופוגרפית</button>
+          </div>
+        </section>
+      </div>
 
       <section class="acc-section" id="cmCityAddRow" aria-labelledby="cityAddH" hidden>
         <h2 id="cityAddH">הוספת עיר להשוואה</h2>
@@ -267,16 +279,6 @@
         <p class="acc-hint" dir="auto">גלגלת עכבר או צביטה בשתי אצבעות להתקרבות/התרחקות, גרירה להזזה.</p>
         <button type="button" id="cmFullReset" class="cm-full-reset">איפוס למפה המקורית</button>
         <div id="cmLegend" class="cm-legend"></div>
-
-        <section class="acc-section" id="cmOsmRow" aria-labelledby="osmH">
-          <h2 id="osmH">רקע מפה</h2>
-          <p class="acc-hint" dir="auto">לחיצה על שכבה בוחרת אותה כרקע; לחיצה נוספת על אותה שכבה מבטלת אותה - רקע אחד בכל פעם.</p>
-          <div class="cm-filters cm-basemap-kind-row" id="cmBasemapKindRow" role="group" aria-label="סוג רקע המפה">
-            <button type="button" data-basemap="street" class="tc-level-btn cm-basemap-btn">מפת רחובות</button>
-            <button type="button" data-basemap="aerial" class="tc-level-btn cm-basemap-btn">תצלום אוויר</button>
-            <button type="button" data-basemap="topo" class="tc-level-btn cm-basemap-btn">מפה טופוגרפית</button>
-          </div>
-        </section>
 
         <section class="acc-section" id="cmBlobRow" aria-labelledby="blobH" hidden>
           <h2 id="blobH">כתם חום</h2>
