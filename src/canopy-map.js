@@ -438,9 +438,34 @@ function styleForFeature(feature, entitiesByKey, activeMetricIds, domains, blobR
   };
 }
 
+// Long-press (mousedown/touchstart held LONG_PRESS_MS without release)
+// opens canopy-heat-compare.html with this entity pre-picked as p1 - same
+// level/p1/city URL shape canopy-heat-compare.js's own canopyMapUrl() uses
+// in the opposite direction (it builds a canopy-map.html link FROM a
+// picked entity; this is the reverse trip). Leaflet normalizes touch into
+// its own mousedown/mouseup/mouseout events for interactive Path layers,
+// so one listener set here covers both mouse and touch without separate
+// touch-event wiring.
+const LONG_PRESS_MS = 550;
+
+function openCanopyHeatCompare(e) {
+  const p = new URLSearchParams();
+  p.set('level', e.level);
+  p.set('p1', e.key);
+  if (e.city) p.set('city', e.city);
+  location.href = `./canopy-heat-compare.html?${p}`;
+}
+
 function wireFeature(feature, layer, entitiesByKey, activeMetricIds) {
   const e = entitiesByKey.get(feature.properties.key);
   layer.on('click', () => pickSolo(e));
+  let pressTimer = null;
+  const cancelPress = () => { if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; } };
+  layer.on('mousedown', () => {
+    cancelPress();
+    pressTimer = setTimeout(() => { pressTimer = null; openCanopyHeatCompare(e); }, LONG_PRESS_MS);
+  });
+  layer.on('mouseup mouseout', cancelPress);
   const title = `${e.label} - ${activeMetricIds
     .map((id) => `${METRICS[id].label}: ${valueFor(e, id) != null ? num(valueFor(e, id)) + METRICS[id].unit : 'אין נתונים'}`)
     .join(' · ')}`;

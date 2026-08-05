@@ -2134,6 +2134,59 @@ body.accidents-page header.site h1 { inline-size: 100%; }
    .tc-level-btn/.cm-level-btn, exclusive (radio-like) between the two. */
 .cm-basemap-kind-row { margin-block-start: .6rem; }
 
+/* Mobile-only layout simplification for canopy-map.html (user request) -
+   the embedded mobile view is much tighter on vertical space than desktop,
+   so several sections get thinner/reordered/hidden here that stay as-is
+   on desktop. */
+@media (max-width: 640px) {
+  /* חום/עצים sliders thinner and closer together - beyond the existing
+     30% reduction (.28rem, all breakpoints), tightened further just for
+     this narrow view. */
+  .cm-opacity-control input[type="range"] { margin-block: .15rem; }
+  .cm-opacity-control { margin-block-end: .3rem; }
+
+  /* "רקע מפה" heading + its explanation hidden - the three basemap
+     buttons themselves stay (just shorter labels now, see
+     canopy-map.html), freeing the row up for the buttons alone. */
+  #osmH, #cmOsmRow > .acc-hint { display: none; }
+  /* Shortened labels (רחובות/אוויר/טופוגרפית) should already fit one row,
+     but nowrap + tighter padding/font-size makes sure a narrow phone
+     doesn't still wrap them - three buttons stacked top-to-bottom would
+     be a much worse mobile result than one tight row. */
+  .cm-basemap-kind-row { flex-wrap: nowrap; gap: .4rem; margin-block-start: 0; }
+  .cm-basemap-kind-row .cm-basemap-btn { padding-inline: .5rem; font-size: .82rem; }
+
+  /* "המפה" heading removed; #cmMapSection's own children reordered via
+     flex so the map itself comes first, the reset button lands
+     immediately after it, and the "186 ערים..." hint (#cmHint) moves to
+     after the map instead of before it - all user-requested. A visual
+     reorder only, not a DOM move, so canopy-map.js's plain
+     getElementById lookups are unaffected regardless of source order. */
+  #mapH { display: none; }
+  #cmMapSection { display: flex; flex-direction: column; }
+  /* Same [hidden] override this file already needed twice elsewhere
+     (.cm-map-exit-fullscreen[hidden]/.acc-year-pick[hidden]) - an
+     author `display` value on the same element as the `hidden`
+     attribute beats the UA stylesheet's own un-!important'd
+     `[hidden]{display:none}` rule by specificity, so without this,
+     street level's `mapSection.hidden = true` (renderMap() in
+     canopy-map.js) would stop actually hiding the section on mobile. */
+  #cmMapSection[hidden] { display: none; }
+  #cmMapSection > .cm-map-wrap { order: 1; }
+  #cmMapSection > #cmFullReset { order: 2; }
+  #cmMapSection > #cmHint { order: 3; }
+  #cmMapSection > .acc-hint { order: 4; }
+  #cmMapSection > #cmLegend { order: 5; }
+  #cmMapSection > #cmBlobRow { order: 6; }
+  #cmMapSection > #cmCanopyBlobRow { order: 7; }
+
+  /* Comparison-only sections (need 2+ cities picked to say anything
+     meaningful) hidden on mobile - keeps the mobile view focused on the
+     single-city map instead of sparse/empty comparison UI that's more
+     awkward to use on a small screen anyway. */
+  #cmChipsSection, #cmDetailSection { display: none; }
+}
+
 /* canopy-map.html's "back to the original map" button - same pill shape as
    .tc-level-btn, but never filled/active (it's an action, not a toggle
    with a current-state reading). */
@@ -2995,11 +3048,18 @@ function renderHBarChart(figId, caption, entries, unit) {
     const label = e.href
       ? `<a class="acc-hbar-y" dir="auto" href="${esc(e.href)}">${esc(e.label)}</a>`
       : `<span class="acc-hbar-y" dir="auto">${esc(e.label)}</span>`;
+    // `displayValue` (optional) lets a caller stretch the bar's length/peak
+    // scaling past its "real" number - arnona-compare.js's bruto_bruto
+    // reference bars are the first user: `value` reaches to a +25% estimate
+    // so the bar visually extends, but the printed number stays the actual
+    // computed total, not the stretched one. Every existing caller leaves
+    // this unset, so `?? e.value` reproduces prior behavior exactly.
+    const shown = e.displayValue ?? e.value;
     return `
-    <div class="acc-hbar${e.compare ? ' acc-hbar-compare' : ''}" title="${esc(e.label)}: ${num(e.value)} ${esc(unit)}">
+    <div class="acc-hbar${e.compare ? ' acc-hbar-compare' : ''}" title="${esc(e.label)}: ${num(shown)} ${esc(unit)}">
       ${label}
       <div class="acc-hbar-track"><div class="acc-hbar-fill" style="inline-size:${peak ? (e.value / peak) * 100 : 0}%${e.color ? `;background:${e.color}` : ''}"></div></div>
-      <span class="acc-hbar-v">${num(e.value)}</span>
+      <span class="acc-hbar-v">${num(shown)}</span>
     </div>`;
   }).join('');
   fig.innerHTML = `<figcaption>${esc(caption)}</figcaption><div class="acc-hbars">${rows}</div>`;
