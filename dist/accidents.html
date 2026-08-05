@@ -2010,6 +2010,24 @@ body.accidents-page header.site h1 { inline-size: 100%; }
    once a basemap is showing underneath. */
 .leaflet-cmBlob-pane img { filter: saturate(1.25); }
 .cm-osm-active .leaflet-cmBlob-pane img { filter: contrast(.7) saturate(1.875); }
+/* Interactive strength sliders (cmHeatOpacity/cmCanopyOpacity in canopy-map.js)
+   - a plain opacity multiplier on top of the baked-in PNG alpha, independent
+   of the filter rules above (different CSS property, no conflict). className
+   set per-layer at creation time (updateBlobOverlays() in canopy-map.js), not
+   a data attribute or inline style - Leaflet's own imageOverlay sets no
+   opacity of its own, so this is a clean, uncontested hook. Custom properties
+   default to 1 (full strength, today's look) so the sliders are opt-in fades,
+   never a silent behavior change for anyone not touching them. */
+.cm-blob-heat { opacity: var(--cm-heat-opacity, 1); }
+.cm-blob-canopy { opacity: var(--cm-canopy-opacity, 1); }
+/* Same shape as trip-report.html's .tr-sensitivity-row (label + %-value
+   span + range input, centered) - a new cm-prefixed class rather than
+   reusing .tr-sensitivity-row directly, matching this page's own naming
+   for everything else (cm-*), not trip-report's. Two side by side here
+   (heat/canopy), each still full-width within its own half. */
+.cm-opacity-control { text-align: center; max-inline-size: 20rem; margin-inline: auto; }
+.cm-opacity-control label { font-weight: 600; }
+.cm-opacity-control input[type="range"] { width: 100%; margin-block: .4rem; }
 
 .cm-zoom-controls { position: absolute; inset-block-start: .5rem; inset-inline-end: .5rem; display: flex; flex-direction: column; gap: .25rem; }
 .cm-zoom-controls button {

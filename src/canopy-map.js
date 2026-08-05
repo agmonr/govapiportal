@@ -597,7 +597,10 @@ async function updateBlobOverlays(heatCities, canopyCities) {
     const bounds = blobBoundsCache.get(w.city);
     if (!(bounds instanceof L.LatLngBounds)) continue; // that city's own projection failed - skip it, not the whole batch
     if (blobOverlayLayers.has(key)) continue; // a concurrent call already added this one
-    const layer = L.imageOverlay(w.data.src, bounds, { interactive: false, pane: 'cmBlobPane' });
+    // className gives each image a CSS hook (cm-blob-heat/cm-blob-canopy,
+    // see style.css) for the interactive strength sliders - w.type is
+    // already 'heat'/'canopy' from the caller, nothing new to track here.
+    const layer = L.imageOverlay(w.data.src, bounds, { interactive: false, pane: 'cmBlobPane', className: `cm-blob-${w.type}` });
     layer.addTo(blobOverlayGroup);
     blobOverlayLayers.set(key, layer);
   }
@@ -1149,6 +1152,23 @@ el('cmCanopyBlobToggle').addEventListener('change', (ev) => {
   renderMap();
 });
 
+// Pure CSS opacity multiplier (cm-blob-heat/cm-blob-canopy in style.css) on
+// top of whatever strength is baked into the PNGs themselves - no `state`
+// field and no renderMap() call needed, since setting a custom property on
+// documentElement applies live via the CSS cascade to every current AND
+// future blob <img> (a city panned into view later inherits the same
+// property automatically, it isn't set per-image). Not URL/localStorage-
+// persisted, matching cmHiResToggle/cmBlobToggle/cmCanopyBlobToggle above -
+// this is a view preference, not identity of what's being viewed.
+el('cmHeatOpacity').addEventListener('input', (ev) => {
+  document.documentElement.style.setProperty('--cm-heat-opacity', ev.target.value / 100);
+  el('cmHeatOpacityValue').textContent = `${ev.target.value}%`;
+});
+el('cmCanopyOpacity').addEventListener('input', (ev) => {
+  document.documentElement.style.setProperty('--cm-canopy-opacity', ev.target.value / 100);
+  el('cmCanopyOpacityValue').textContent = `${ev.target.value}%`;
+});
+
 // Back to the page's own initial state - level/layer/city pick/selection/
 // pan-zoom/every toggle (OSM basemap, hi-res + both blob overlays) all
 // reset together, since none of those are reachable any other way once
@@ -1174,6 +1194,12 @@ el('cmFullReset').addEventListener('click', () => {
   el('cmHiResToggle').checked = true;
   el('cmBlobToggle').checked = false;
   el('cmCanopyBlobToggle').checked = false;
+  document.documentElement.style.setProperty('--cm-heat-opacity', 1);
+  document.documentElement.style.setProperty('--cm-canopy-opacity', 1);
+  el('cmHeatOpacity').value = 100;
+  el('cmCanopyOpacity').value = 100;
+  el('cmHeatOpacityValue').textContent = '100%';
+  el('cmCanopyOpacityValue').textContent = '100%';
   syncUrl();
   renderAll();
 });
