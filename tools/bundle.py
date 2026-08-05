@@ -134,9 +134,13 @@ TARGETS = [
         # boundary shapes (tools/map_geo_build.py), the shared shape/zoom-
         # pan helpers (map-shapes.js), charts.js (the detail bars reuse
         # renderHBarChart as-is) and geo-utils.js (only for the optional
-        # OSM-basemap toggle's tile fetch).
+        # OSM-basemap toggle's tile fetch). map-boundaries-cities-wgs84.js
+        # backs that same OSM-basemap toggle at CITY level (previously
+        # neighborhood-only) - same WGS84-reprojected-shapes role
+        # map-boundaries-neighborhoods-wgs84.js already plays there.
         "sources": ["src/ui.js", "src/theme.js", "src/charts.js", "src/geo-utils.js", "src/map-shapes.js",
-                    "src/map-boundaries-cities.js", "src/map-boundaries-neighborhoods.js",
+                    "src/map-boundaries-cities.js", "src/map-boundaries-cities-wgs84.js",
+                    "src/map-boundaries-neighborhoods.js",
                     "src/map-boundaries-neighborhoods-wgs84.js",
                     "src/tree-canopy-cities.js", "src/tree-canopy-neighborhoods.js", "src/tree-canopy-streets.js",
                     "src/canopy-split-cities.js", "src/canopy-split-neighborhoods.js",

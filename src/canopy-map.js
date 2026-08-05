@@ -42,6 +42,7 @@ import { renderHBarChart } from './charts.js';
 import { bboxOfRingsList, itmViewBox, projectItm, ringsToPathD, attachZoomPan } from './map-shapes.js';
 
 import { MAP_CITIES } from './map-boundaries-cities.js';
+import { MAP_CITIES_WGS84 } from './map-boundaries-cities-wgs84.js';
 import { MAP_NEIGHBORHOODS } from './map-boundaries-neighborhoods.js';
 import { MAP_NEIGHBORHOODS_WGS84 } from './map-boundaries-neighborhoods-wgs84.js';
 
@@ -620,15 +621,24 @@ function renderLegend(metricIds, domains) {
   `;
 }
 
-/* ---------- OSM basemap overlay (neighborhood level only, default off) ---------- */
+/* ---------- OSM basemap overlay (neighborhood or city/country level, default off) ---------- */
 
 let osmToken = 0; // guards a slow fetch from clobbering a newer render
+
+// Which pre-reprojected WGS84 ring source an entity's basemap alignment
+// comes from - keyed by the same e.level currentEntities() already tags
+// every entity with, so renderOsmBasemap doesn't need a separate level
+// param. MAP_CITIES_WGS84 was generated (tools/map_geo_build.py) for
+// exactly this - it sat unused by this file until the country-level
+// basemap was added, since only the neighborhood view had this feature
+// before.
+const WGS84_RINGS_BY_LEVEL = { city: MAP_CITIES_WGS84, neighborhood: MAP_NEIGHBORHOODS_WGS84 };
 
 async function renderOsmBasemap(entities) {
   const myToken = (osmToken += 1);
   const canvasEl = el('cmBasemap');
   const statusEl = el('cmOsmStatus');
-  const wgsRingsList = entities.map((e) => MAP_NEIGHBORHOODS_WGS84[e.key]?.rings || []);
+  const wgsRingsList = entities.map((e) => WGS84_RINGS_BY_LEVEL[e.level]?.[e.key]?.rings || []);
   const bbox = bboxOfRingsList(wgsRingsList);
   statusEl.textContent = 'טוען מפת רקע…';
   try {
@@ -677,7 +687,14 @@ async function renderMap() {
   const domains = computeDomains(entities, activeMetricIds);
   const isMultiMetric = activeMetricIds.length > 1;
 
-  const osmAvailable = state.level === 'neighborhood' && !!state.cityFilter;
+  // City level's own basemap is always the WHOLE country (currentEntities()
+  // returns all 186 cities regardless of pan/zoom/filter at this level, see
+  // that function) - a single static snapshot sized to Israel's own bbox,
+  // not a live pan/zoom-tracking basemap. Same "static, not live" limitation
+  // neighborhood level already had (the very reason this page was later
+  // rewritten on Leaflet) - now just reachable one level higher too, at the
+  // user's request, rather than a new capability being claimed here.
+  const osmAvailable = (state.level === 'neighborhood' && !!state.cityFilter) || state.level === 'city';
   el('cmOsmRow').hidden = !osmAvailable;
   el('cmBasemapKindRow').hidden = !state.osm;
   el('cmBasemap').hidden = true;
@@ -693,7 +710,7 @@ async function renderMap() {
   // be a real bug) - isItmSpace tells the onChange handler below whether
   // it's safe to compare the live view against cityBBoxes() at all.
   let viewBox; let project; let ringsFor = (e) => e.rings; let isItmSpace = true;
-  if (state.osm && state.level === 'neighborhood' && state.cityFilter && entities.length) {
+  if (state.osm && osmAvailable && entities.length) {
     const osm = await renderOsmBasemap(entities);
     if (osm) {
       viewBox = { x: 0, y: 0, w: osm.width, h: osm.height };
