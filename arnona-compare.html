@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>מחשבון ארנונה — כמה אני משלם, ומה זה היה בעיר אחרת</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧾</text></svg>">
+  <meta name="description" content="הזינו כתובת או את שיעור הארנונה שלכם, השוו לערים אחרות, וסמנו הנחות כדי לראות איפה הן קיימות ואיפה לא.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://agmonr.github.io/govapiportal/arnona-compare.html">
+  <meta property="og:title" content="מחשבון ארנונה — כמה אני משלם, ומה זה היה בעיר אחרת">
+  <meta property="og:description" content="הזינו כתובת או את שיעור הארנונה שלכם, השוו לערים אחרות, וסמנו הנחות כדי לראות איפה הן קיימות ואיפה לא.">
+  <meta property="og:image" content="https://agmonr.github.io/govapiportal/assets/og/arnona-compare.png">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="מחשבון ארנונה — כמה אני משלם, ומה זה היה בעיר אחרת">
+  <meta name="twitter:description" content="הזינו כתובת או את שיעור הארנונה שלכם, השוו לערים אחרות, וסמנו הנחות כדי לראות איפה הן קיימות ואיפה לא.">
+  <meta name="twitter:image" content="https://agmonr.github.io/govapiportal/assets/og/arnona-compare.png">
+  <script>
+    try {
+      var t = localStorage.getItem('theme');
+      if (t) document.documentElement.setAttribute('data-theme', t);
+    } catch (e) {}
+  </script>
+  <link rel="stylesheet" href="./src/style.css">
+</head>
+<body class="accidents-page tree-canopy-page">
+  <header class="site">
+    <div class="wrap">
+      <h1>מחשבון ארנונה</h1>
+      <span class="site-by">פרויקט של רם אגמון, מבוסס על רעיון ד"ר אלון גלבוע, עו"ד, חבר מועצת העיר הוד השרון<span class="site-disclaimer">המידע באתר עלול להיות שגוי - זהו כלי עזר ראשוני, לא ייעוץ משפטי או תחליף לבדיקה מול הרשות המקומית</span><a href="https://hod-hasharon.org/" target="_blank" rel="noopener">הירוקים הוד השרון</a></span>
+      <div class="theme-pick" id="themePick" role="group" aria-label="ערכת נושא">
+        <button type="button" data-theme="clouds">☀️<span class="theme-btn-label"> יום</span></button>
+        <button type="button" data-theme="fashion">🌙<span class="theme-btn-label"> לילה</span></button>
+        <button type="button" data-theme="zebra">🦓<span class="theme-btn-label"> זברה</span></button>
+      </div>
+      <span class="meta" id="created"></span>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <div id="fileproto" class="notice error" dir="auto" hidden>
+      <strong>הדף נפתח כקובץ מקומי (<code dir="ltr">file://</code>) ולכן אינו יכול לטעון את הנתונים.</strong>
+      <p>
+        הדפדפן חוסם מודולי ES ממקור <code dir="ltr">null</code> — זו הגבלת אבטחה של הדפדפן, לא תקלה באתר.
+        הפעל שרת מקומי מתיקיית הפרויקט:
+      </p>
+      <pre dir="ltr"><code>python3 -m http.server 8000</code></pre>
+      <p>ולאחר מכן פתח <a href="http://localhost:8000/arnona-compare.html" dir="ltr">http://localhost:8000/arnona-compare.html</a>.</p>
+    </div>
+
+    <div id="app">
+      <div id="appContext" class="app-context"></div>
+      <details class="notice info" dir="auto" open>
+        <summary><strong>מה יש כאן, ומה המקור</strong></summary>
+        <p>
+          שיעורי ארנונה, שיטת מדידת שטח (ברוטו-ברוטו / ברוטו / נטו) והנחות - מתוך צווי הארנונה הרשמיים
+          של <strong id="arCityCount">12</strong> ערים בישראל, שנקראו ידנית מכל צו. זהו שלב ראשון: כרגע רק
+          הערים ברשימה כלולות, ובחירת אזור/סוג בניין נעשית ידנית - אין עדיין זיהוי אוטומטי של האזור
+          המדויק בעיר לפי כתובת, כי גבולות האזורים מצוירים כמפה בתוך כל צו ולא קיימים כנתון גיאוגרפי.
+        </p>
+        <p>
+          <strong>שימו לב:</strong> הכתובת משמשת רק לזיהוי העיר (באמצעות OpenStreetMap Nominatim) - לא
+          נשמרת ולא נשלחת לשום מקום מלבד לשירות הגאוקידינג הציבורי.
+        </p>
+      </details>
+
+      <section class="acc-section" aria-labelledby="myRateH">
+        <h2 id="myRateH">הנתונים שלי</h2>
+        <div class="acc-year-pick">
+          <label for="arSize">שטח הדירה (מ"ר):</label>
+          <input id="arSize" type="number" min="1" step="1" value="100" style="max-width:8em">
+        </div>
+
+        <div class="cm-filters" id="arModePick" role="group" aria-label="איך למלא">
+          <button type="button" data-mode="address" class="tc-level-btn">כתובת</button>
+          <button type="button" data-mode="known" class="tc-level-btn">אני כבר יודע/ת את השיעור שלי</button>
+        </div>
+
+        <div id="arAddressRow" class="acc-year-pick">
+          <label for="arAddress">כתובת:</label>
+          <input id="arAddress" type="text" autocomplete="off" spellcheck="false" placeholder="רחוב, עיר">
+          <button type="button" id="arGeocode" class="drill-dl">איתור עיר</button>
+          <span id="arGeocodeStatus" class="acc-hint" role="status" aria-live="polite"></span>
+        </div>
+
+        <div id="arCityRow" class="acc-year-pick">
+          <label for="arCityPick">עיר:</label>
+          <select id="arCityPick"><option value="">— בחרו עיר —</option></select>
+        </div>
+        <div id="arZoneRow" class="acc-year-pick" hidden>
+          <label for="arZonePick" id="arZoneLabel">אזור:</label>
+          <select id="arZonePick"></select>
+        </div>
+        <div id="arTypeRow" class="acc-year-pick" hidden>
+          <label for="arTypePick" id="arTypeLabel">סוג בניין:</label>
+          <select id="arTypePick"></select>
+        </div>
+
+        <div id="arKnownRow" class="acc-year-pick" hidden>
+          <label for="arKnownRate">שיעור ידוע (₪ למ"ר לשנה):</label>
+          <input id="arKnownRate" type="number" min="0" step="0.01" style="max-width:10em">
+        </div>
+
+        <p id="arMyResult" class="acc-hint" dir="auto"></p>
+      </section>
+
+      <section class="acc-section" id="arComparePickSection" aria-labelledby="pickH">
+        <h2 id="pickH">השוואה לערים נוספות</h2>
+        <p class="acc-hint" dir="auto">עד 4 ערים נוספות, לצד השטח שהוזן למעלה.</p>
+        <div class="acc-year-pick">
+          <label for="arPick">עיר:</label>
+          <input id="arPick" type="text" list="arRoster" autocomplete="off" spellcheck="false" placeholder="התחילו להקליד…">
+        </div>
+        <datalist id="arRoster"></datalist>
+        <div id="arPickChips" class="cm-chips" hidden></div>
+      </section>
+
+      <section class="acc-section" id="arCompareSection" aria-labelledby="compareH">
+        <h2 id="compareH">השוואה</h2>
+        <div id="arCompareChart"></div>
+        <div id="arCompareDetails"></div>
+      </section>
+
+      <section class="acc-section" aria-labelledby="discountsH">
+        <h2 id="discountsH">הנחות</h2>
+        <p class="acc-hint" dir="auto">
+          סמנו הנחה כדי לראות איך היא משפיעה על כל עיר שנבחרה למעלה. אם ההנחה אינה מוגדרת עבור עיר
+          מסוימת (לפי הצו שלה, כפי שנקרא), הדבר יצוין במפורש ליד אותה עיר.
+        </p>
+        <div id="arDiscountChecks"></div>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    if (location.protocol === 'file:') {
+      document.getElementById('fileproto').hidden = false;
+      document.getElementById('app').hidden = true;
+    }
+  </script>
+  <script type="module" src="./src/arnona-compare.js"></script>
+</body>
+</html>

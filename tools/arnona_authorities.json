@@ -1,0 +1,1556 @@
+[
+ {
+  "name_he": "אבו גוש",
+  "slug_guess": "abu-ghosh",
+  "domain_guess": "abu-ghosh.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "אבו סנאן",
+  "slug_guess": "abu-snan",
+  "domain_guess": "abu-snan.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "אבן יהודה",
+  "slug_guess": "even-yehuda",
+  "domain_guess": "even-yehuda.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "אום אל-פחם",
+  "slug_guess": "umm-al-fahm",
+  "domain_guess": "umm-al-fahm.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "אופקים",
+  "slug_guess": "vpkym",
+  "domain_guess": "vpkym.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "אור יהודה",
+  "slug_guess": "or-yehuda",
+  "domain_guess": "or-yehuda.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "אור עקיבא",
+  "slug_guess": "or-akiva",
+  "domain_guess": "or-akiva.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "אורנית",
+  "slug_guess": "vrnyt",
+  "domain_guess": "vrnyt.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "אזור",
+  "slug_guess": "zvr",
+  "domain_guess": "zvr.muni.il",
+  "website_override": "azor.muni.il"
+ },
+ {
+  "name_he": "אילת",
+  "slug_guess": "eilat",
+  "domain_guess": "eilat.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "אכסאל",
+  "slug_guess": "ksl",
+  "domain_guess": "ksl.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "אל קסום",
+  "slug_guess": "l-ksvm",
+  "domain_guess": "l-ksvm.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "אל-בטוף",
+  "slug_guess": "l",
+  "domain_guess": "l.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "אלונה",
+  "slug_guess": "alona",
+  "domain_guess": "alona.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "אליכין",
+  "slug_guess": "eliakhin",
+  "domain_guess": "eliakhin.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "אלעד",
+  "slug_guess": "elad",
+  "domain_guess": "elad.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "אלפי מנשה",
+  "slug_guess": "alfei-menashe",
+  "domain_guess": "alfei-menashe.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "אלקנה",
+  "slug_guess": "elkana",
+  "domain_guess": "elkana.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "אעבלין",
+  "slug_guess": "blyn",
+  "domain_guess": "blyn.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "אפרתה",
+  "slug_guess": "efrat",
+  "domain_guess": "efrat.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "אריאל",
+  "slug_guess": "ariel",
+  "domain_guess": "ariel.muni.il",
+  "website_override": "ariel.muni.il"
+ },
+ {
+  "name_he": "אשדוד",
+  "slug_guess": "ashdod",
+  "domain_guess": "ashdod.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "אשכול",
+  "slug_guess": "eshkol",
+  "domain_guess": "eshkol.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "אשקלון",
+  "slug_guess": "ashkelon",
+  "domain_guess": "ashkelon.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "באקה אל-גרבייה",
+  "slug_guess": "baqa-al-gharbiyye",
+  "domain_guess": "baqa-al-gharbiyye.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "באר טוביה",
+  "slug_guess": "beer-tuvia",
+  "domain_guess": "beer-tuvia.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "באר יעקב",
+  "slug_guess": "beer-yaakov",
+  "domain_guess": "beer-yaakov.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "באר שבע",
+  "slug_guess": "beer-sheva",
+  "domain_guess": "beer-sheva.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "בוסתאן אל-מרג'",
+  "slug_guess": "bustan-al-marj",
+  "domain_guess": "bustan-al-marj.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "בועיינה-נוג'ידאת",
+  "slug_guess": "bvyynh",
+  "domain_guess": "bvyynh.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "בוקעאתא",
+  "slug_guess": "bvkt",
+  "domain_guess": "bvkt.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "ביר אל-מכסור",
+  "slug_guess": "byr-l",
+  "domain_guess": "byr-l.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "בית אל",
+  "slug_guess": "beit-l",
+  "domain_guess": "beit-l.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "בית אריה",
+  "slug_guess": "beit-arye",
+  "domain_guess": "beit-arye.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "בית ג'ן",
+  "slug_guess": "beit-gn",
+  "domain_guess": "beit-gn.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "בית דגן",
+  "slug_guess": "beit-dagan",
+  "domain_guess": "beit-dagan.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "בית שאן",
+  "slug_guess": "beit-shean",
+  "domain_guess": "beit-shean.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "בית שמש",
+  "slug_guess": "beit-shemesh",
+  "domain_guess": "beit-shemesh.muni.il",
+  "website_override": "bs.org.il"
+ },
+ {
+  "name_he": "ביתר עילית",
+  "slug_guess": "beitar-illit",
+  "domain_guess": "beitar-illit.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "בני ברק",
+  "slug_guess": "bnei-brak",
+  "domain_guess": "bnei-brak.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "בני עי\"ש",
+  "slug_guess": "bnei-ysh",
+  "domain_guess": "bnei-ysh.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "בני שמעון",
+  "slug_guess": "bnei-shimon",
+  "domain_guess": "bnei-shimon.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "בנימינה-גבעת עדה",
+  "slug_guess": "binyamina-givat-ada",
+  "domain_guess": "binyamina-givat-ada.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "בסמ\"ה",
+  "slug_guess": "bsmh",
+  "domain_guess": "bsmh.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "בסמת טבעון",
+  "slug_guess": "bsmt-tbvn",
+  "domain_guess": "bsmt-tbvn.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "בענה",
+  "slug_guess": "bnh",
+  "domain_guess": "bnh.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "ברנר",
+  "slug_guess": "brenner",
+  "domain_guess": "brenner.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "בת ים",
+  "slug_guess": "bat-yam",
+  "domain_guess": "bat-yam.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "ג'דיידה-מכר",
+  "slug_guess": "gdyydh",
+  "domain_guess": "gdyydh.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "ג'וליס",
+  "slug_guess": "gvlys",
+  "domain_guess": "gvlys.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "ג'לג'וליה",
+  "slug_guess": "jaljulia",
+  "domain_guess": "jaljulia.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "ג'סר א-זרקא",
+  "slug_guess": "jisr-az-zarqa",
+  "domain_guess": "jisr-az-zarqa.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "ג'ש (גוש חלב)",
+  "slug_guess": "gsh-gvsh-hlb",
+  "domain_guess": "gsh-gvsh-hlb.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "ג'ת",
+  "slug_guess": "gt",
+  "domain_guess": "gt.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "גבעת זאב",
+  "slug_guess": "givat-zeev",
+  "domain_guess": "givat-zeev.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "גבעת שמואל",
+  "slug_guess": "givat-shmuel",
+  "domain_guess": "givat-shmuel.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "גבעתיים",
+  "slug_guess": "givatayim",
+  "domain_guess": "givatayim.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "גדרה",
+  "slug_guess": "gedera",
+  "domain_guess": "gedera.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "גדרות",
+  "slug_guess": "gderot",
+  "domain_guess": "gderot.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "גולן",
+  "slug_guess": "golan",
+  "domain_guess": "golan.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "גוש עציון",
+  "slug_guess": "gush-etzion",
+  "domain_guess": "gush-etzion.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "גזר",
+  "slug_guess": "gezer",
+  "domain_guess": "gezer.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "גן יבנה",
+  "slug_guess": "gan-yavne",
+  "domain_guess": "gan-yavne.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "גן רווה",
+  "slug_guess": "gan-rvvh",
+  "domain_guess": "gan-rvvh.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "גני תקווה",
+  "slug_guess": "ganei-tikva",
+  "domain_guess": "ganei-tikva.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "דאלית אל-כרמל",
+  "slug_guess": "daliyat-al-karmel",
+  "domain_guess": "daliyat-al-karmel.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "דבוריה",
+  "slug_guess": "dbvryh",
+  "domain_guess": "dbvryh.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "דימונה",
+  "slug_guess": "dimona",
+  "domain_guess": "dimona.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "דיר אל-אסד",
+  "slug_guess": "dyr-l",
+  "domain_guess": "dyr-l.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "דיר חנא",
+  "slug_guess": "dyr-hn",
+  "domain_guess": "dyr-hn.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "דרום השרון",
+  "slug_guess": "drom-hasharon",
+  "domain_guess": "drom-hasharon.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "הגלבוע",
+  "slug_guess": "hagilboa",
+  "domain_guess": "hagilboa.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "הגליל העליון",
+  "slug_guess": "hagalil-haelyon",
+  "domain_guess": "hagalil-haelyon.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "הגליל התחתון",
+  "slug_guess": "hagalil-hatahton",
+  "domain_guess": "hagalil-hatahton.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "הוד השרון",
+  "slug_guess": "hod-hasharon",
+  "domain_guess": "hod-hasharon.muni.il",
+  "website_override": "hod-hasharon.muni.il"
+ },
+ {
+  "name_he": "הערבה התיכונה",
+  "slug_guess": "arava-tichona",
+  "domain_guess": "arava-tichona.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "הר אדר",
+  "slug_guess": "har-adar",
+  "domain_guess": "har-adar.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "הר חברון",
+  "slug_guess": "har-hbrvn",
+  "domain_guess": "har-hbrvn.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "הרצליה",
+  "slug_guess": "herzliya",
+  "domain_guess": "herzliya.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "זבולון",
+  "slug_guess": "zbvlvn",
+  "domain_guess": "zbvlvn.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "זכרון יעקב",
+  "slug_guess": "zichron-yaakov",
+  "domain_guess": "zichron-yaakov.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "זמר",
+  "slug_guess": "zemer",
+  "domain_guess": "zemer.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "זרזיר",
+  "slug_guess": "zrzyr",
+  "domain_guess": "zrzyr.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "חבל אילות",
+  "slug_guess": "hevel-eilot",
+  "domain_guess": "hevel-eilot.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "חבל יבנה",
+  "slug_guess": "hevel-yavne",
+  "domain_guess": "hevel-yavne.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "חבל מודיעין",
+  "slug_guess": "hevel-modiin",
+  "domain_guess": "hevel-modiin.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "חברון וע. מוניציפלית",
+  "slug_guess": "hbrvn-v.-mvnytzyplyt",
+  "domain_guess": "hbrvn-v.-mvnytzyplyt.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "חדרה",
+  "slug_guess": "hadera",
+  "domain_guess": "hadera.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "חולון",
+  "slug_guess": "holon",
+  "domain_guess": "holon.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "חוף אשקלון",
+  "slug_guess": "hof-ashkelon",
+  "domain_guess": "hof-ashkelon.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "חוף הכרמל",
+  "slug_guess": "hof-hacarmel",
+  "domain_guess": "hof-hacarmel.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "חוף השרון",
+  "slug_guess": "hof-hasharon",
+  "domain_guess": "hof-hasharon.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "חורה",
+  "slug_guess": "hura",
+  "domain_guess": "hura.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "חורפיש",
+  "slug_guess": "hvrpysh",
+  "domain_guess": "hvrpysh.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "חיפה",
+  "slug_guess": "haifa",
+  "domain_guess": "haifa.muni.il",
+  "website_override": "haifa.muni.il"
+ },
+ {
+  "name_he": "חצור הגלילית",
+  "slug_guess": "hazor-haglilit",
+  "domain_guess": "hazor-haglilit.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "חריש",
+  "slug_guess": "harish",
+  "domain_guess": "harish.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "טבריה",
+  "slug_guess": "tiberias",
+  "domain_guess": "tiberias.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "טובא-זנגריה",
+  "slug_guess": "tvb",
+  "domain_guess": "tvb.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "טורעאן",
+  "slug_guess": "tvrn",
+  "domain_guess": "tvrn.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "טייבה",
+  "slug_guess": "tayibe",
+  "domain_guess": "tayibe.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "טירה",
+  "slug_guess": "tira",
+  "domain_guess": "tira.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "טירת כרמל",
+  "slug_guess": "tirat-carmel",
+  "domain_guess": "tirat-carmel.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "טמרה",
+  "slug_guess": "tamra",
+  "domain_guess": "tamra.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "יאנוח-ג'ת",
+  "slug_guess": "ynvh",
+  "domain_guess": "ynvh.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "יבנאל",
+  "slug_guess": "yavniel",
+  "domain_guess": "yavniel.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "יבנה",
+  "slug_guess": "yavne",
+  "domain_guess": "yavne.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "יהוד-מונוסון",
+  "slug_guess": "yehud-monosson",
+  "domain_guess": "yehud-monosson.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "יואב",
+  "slug_guess": "yoav",
+  "domain_guess": "yoav.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "יסוד המעלה",
+  "slug_guess": "yesod-hamaala",
+  "domain_guess": "yesod-hamaala.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "יפיע",
+  "slug_guess": "ypy",
+  "domain_guess": "ypy.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "יקנעם עילית",
+  "slug_guess": "yokneam",
+  "domain_guess": "yokneam.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "ירוחם",
+  "slug_guess": "yeruham",
+  "domain_guess": "yeruham.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "ירושלים",
+  "slug_guess": "jerusalem",
+  "domain_guess": "jerusalem.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "ירכא",
+  "slug_guess": "yrk",
+  "domain_guess": "yrk.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "כאבול",
+  "slug_guess": "kbvl",
+  "domain_guess": "kbvl.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "כאוכב אבו אל-היג'א",
+  "slug_guess": "kvkb-bv-l",
+  "domain_guess": "kvkb-bv-l.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "כוכב יאיר צור יגאל",
+  "slug_guess": "kochav-yair",
+  "domain_guess": "kochav-yair.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "כסיפה",
+  "slug_guess": "kseife",
+  "domain_guess": "kseife.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "כסרא-סמיע",
+  "slug_guess": "ksr",
+  "domain_guess": "ksr.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "כעביה-טבאש-חג'אג'רה",
+  "slug_guess": "kbyh",
+  "domain_guess": "kbyh.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "כפר ברא",
+  "slug_guess": "kafr-bara",
+  "domain_guess": "kafr-bara.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "כפר ורדים",
+  "slug_guess": "kfar-vradim",
+  "domain_guess": "kfar-vradim.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "כפר יאסיף",
+  "slug_guess": "kafr-yasif",
+  "domain_guess": "kafr-yasif.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "כפר יונה",
+  "slug_guess": "kfar-yona",
+  "domain_guess": "kfar-yona.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "כפר כמא",
+  "slug_guess": "kfar-km",
+  "domain_guess": "kfar-km.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "כפר כנא",
+  "slug_guess": "kafr-kanna",
+  "domain_guess": "kafr-kanna.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "כפר מנדא",
+  "slug_guess": "kafr-manda",
+  "domain_guess": "kafr-manda.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "כפר סבא",
+  "slug_guess": "kfar-saba",
+  "domain_guess": "kfar-saba.muni.il",
+  "website_override": "kfar-saba.muni.il"
+ },
+ {
+  "name_he": "כפר קאסם",
+  "slug_guess": "kafr-qasim",
+  "domain_guess": "kafr-qasim.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "כפר קרע",
+  "slug_guess": "kafr-qara",
+  "domain_guess": "kafr-qara.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "כפר שמריהו",
+  "slug_guess": "kfar-shmaryahu",
+  "domain_guess": "kfar-shmaryahu.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "כפר תבור",
+  "slug_guess": "kfar-tavor",
+  "domain_guess": "kfar-tavor.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "כרמיאל",
+  "slug_guess": "karmiel",
+  "domain_guess": "karmiel.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "לב השרון",
+  "slug_guess": "lev-hasharon",
+  "domain_guess": "lev-hasharon.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "להבים",
+  "slug_guess": "lehavim",
+  "domain_guess": "lehavim.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "לוד",
+  "slug_guess": "lod",
+  "domain_guess": "lod.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "לכיש",
+  "slug_guess": "lachish",
+  "domain_guess": "lachish.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "לקיה",
+  "slug_guess": "laqiya",
+  "domain_guess": "laqiya.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "מבואות החרמון",
+  "slug_guess": "mevoot-hermon",
+  "domain_guess": "mevoot-hermon.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "מבשרת ציון",
+  "slug_guess": "mevaseret-zion",
+  "domain_guess": "mevaseret-zion.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "מג'ד אל-כרום",
+  "slug_guess": "mgd-l",
+  "domain_guess": "mgd-l.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "מג'דל שמס",
+  "slug_guess": "mgdl-shms",
+  "domain_guess": "mgdl-shms.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "מגאר",
+  "slug_guess": "maghar",
+  "domain_guess": "maghar.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "מגדל",
+  "slug_guess": "migdal",
+  "domain_guess": "migdal.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "מגדל העמק",
+  "slug_guess": "migdal-haemek",
+  "domain_guess": "migdal-haemek.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "מגדל תפן",
+  "slug_guess": "migdal-tefen",
+  "domain_guess": "migdal-tefen.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "מגידו",
+  "slug_guess": "megiddo",
+  "domain_guess": "megiddo.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "מגילות ים המלח",
+  "slug_guess": "megilot",
+  "domain_guess": "megilot.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "מודיעין עילית",
+  "slug_guess": "modiin-illit",
+  "domain_guess": "modiin-illit.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "מודיעין-מכבים-רעות",
+  "slug_guess": "modiin-maccabim-reut",
+  "domain_guess": "modiin-maccabim-reut.muni.il",
+  "website_override": "modiin.muni.il"
+ },
+ {
+  "name_he": "מזכרת בתיה",
+  "slug_guess": "mazkeret-batya",
+  "domain_guess": "mazkeret-batya.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "מזרעה",
+  "slug_guess": "mzrh",
+  "domain_guess": "mzrh.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "מטה אשר",
+  "slug_guess": "mateh-asher",
+  "domain_guess": "mateh-asher.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "מטה בנימין",
+  "slug_guess": "mateh-binyamin",
+  "domain_guess": "mateh-binyamin.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "מטה יהודה",
+  "slug_guess": "mateh-yehuda",
+  "domain_guess": "mateh-yehuda.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "מטולה",
+  "slug_guess": "metula",
+  "domain_guess": "metula.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "מיתר",
+  "slug_guess": "meitar",
+  "domain_guess": "meitar.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "מנשה",
+  "slug_guess": "menashe",
+  "domain_guess": "menashe.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "מסעדה",
+  "slug_guess": "msdh",
+  "domain_guess": "msdh.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "מעיליא",
+  "slug_guess": "myly",
+  "domain_guess": "myly.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "מעלה אדומים",
+  "slug_guess": "maale-adumim",
+  "domain_guess": "maale-adumim.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "מעלה אפרים",
+  "slug_guess": "maale-efraim",
+  "domain_guess": "maale-efraim.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "מעלה יוסף",
+  "slug_guess": "maale-yosef",
+  "domain_guess": "maale-yosef.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "מעלה עירון",
+  "slug_guess": "maale-iron",
+  "domain_guess": "maale-iron.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "מעלות-תרשיחא",
+  "slug_guess": "maalot-tarshiha",
+  "domain_guess": "maalot-tarshiha.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "מצפה רמון",
+  "slug_guess": "mitzpe-ramon",
+  "domain_guess": "mitzpe-ramon.muni.il",
+  "website_override": "mitzpe-ramon.muni.il"
+ },
+ {
+  "name_he": "מרום הגליל",
+  "slug_guess": "merom-hagalil",
+  "domain_guess": "merom-hagalil.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "מרחבים",
+  "slug_guess": "merhavim",
+  "domain_guess": "merhavim.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "משגב",
+  "slug_guess": "misgav",
+  "domain_guess": "misgav.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "משהד",
+  "slug_guess": "mshhd",
+  "domain_guess": "mshhd.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "נאות חובב",
+  "slug_guess": "neot-hovav",
+  "domain_guess": "neot-hovav.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "נהריה",
+  "slug_guess": "nahariya",
+  "domain_guess": "nahariya.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "נווה מדבר",
+  "slug_guess": "neve-midbar",
+  "domain_guess": "neve-midbar.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "נוף הגליל",
+  "slug_guess": "nof-hagalil",
+  "domain_guess": "nof-hagalil.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "נחל שורק",
+  "slug_guess": "nahal-sorek",
+  "domain_guess": "nahal-sorek.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "נחף",
+  "slug_guess": "nhf",
+  "domain_guess": "nhf.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "נס ציונה",
+  "slug_guess": "ness-ziona",
+  "domain_guess": "ness-ziona.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "נצרת",
+  "slug_guess": "nazareth",
+  "domain_guess": "nazareth.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "נשר",
+  "slug_guess": "nesher",
+  "domain_guess": "nesher.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "נתיבות",
+  "slug_guess": "netivot",
+  "domain_guess": "netivot.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "נתניה",
+  "slug_guess": "netanya",
+  "domain_guess": "netanya.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "סאג'ור",
+  "slug_guess": "sgvr",
+  "domain_guess": "sgvr.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "סביון",
+  "slug_guess": "savyon",
+  "domain_guess": "savyon.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "סח'נין",
+  "slug_guess": "shnyn",
+  "domain_guess": "shnyn.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "ע'ג'ר",
+  "slug_guess": "gr",
+  "domain_guess": "gr.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "עומר",
+  "slug_guess": "omer",
+  "domain_guess": "omer.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "עיילבון",
+  "slug_guess": "yylbvn",
+  "domain_guess": "yylbvn.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "עילוט",
+  "slug_guess": "ylvt",
+  "domain_guess": "ylvt.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "עין מאהל",
+  "slug_guess": "ein-mahel",
+  "domain_guess": "ein-mahel.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "עין קנייא",
+  "slug_guess": "ein-knyy",
+  "domain_guess": "ein-knyy.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "עכו",
+  "slug_guess": "akko",
+  "domain_guess": "akko.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "עמנואל",
+  "slug_guess": "emanuel",
+  "domain_guess": "emanuel.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "עמק הירדן",
+  "slug_guess": "emek-hayarden",
+  "domain_guess": "emek-hayarden.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "עמק המעיינות",
+  "slug_guess": "emek-hamaayanot",
+  "domain_guess": "emek-hamaayanot.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "עמק חפר",
+  "slug_guess": "emek-hefer",
+  "domain_guess": "emek-hefer.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "עמק יזרעאל",
+  "slug_guess": "emek-yizreel",
+  "domain_guess": "emek-yizreel.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "עספיא",
+  "slug_guess": "ussefiya",
+  "domain_guess": "ussefiya.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "עפולה",
+  "slug_guess": "afula",
+  "domain_guess": "afula.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "עראבה",
+  "slug_guess": "rbh",
+  "domain_guess": "rbh.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "ערבות הירדן",
+  "slug_guess": "arvot-hayarden",
+  "domain_guess": "arvot-hayarden.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "ערד",
+  "slug_guess": "arad",
+  "domain_guess": "arad.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "ערערה",
+  "slug_guess": "arara",
+  "domain_guess": "arara.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "ערערה-בנגב",
+  "slug_guess": "arara-banegev",
+  "domain_guess": "arara-banegev.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "פוריידיס",
+  "slug_guess": "pvryydys",
+  "domain_guess": "pvryydys.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "פסוטה",
+  "slug_guess": "psvth",
+  "domain_guess": "psvth.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "פקיעין (בוקייעה)",
+  "slug_guess": "pkyyn-bvkyyh",
+  "domain_guess": "pkyyn-bvkyyh.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "פרדס חנה-כרכור",
+  "slug_guess": "pardes-hana-karkur",
+  "domain_guess": "pardes-hana-karkur.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "פרדסיה",
+  "slug_guess": "pardesiya",
+  "domain_guess": "pardesiya.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "פתח תקווה",
+  "slug_guess": "petah-tikva",
+  "domain_guess": "petah-tikva.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "צור הדסה",
+  "slug_guess": "tzur-hadassah",
+  "domain_guess": "tzur-hadassah.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "צפת",
+  "slug_guess": "zefat",
+  "domain_guess": "zefat.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "קדומים",
+  "slug_guess": "kedumim",
+  "domain_guess": "kedumim.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "קדימה-צורן",
+  "slug_guess": "kadima-zoran",
+  "domain_guess": "kadima-zoran.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "קלנסווה",
+  "slug_guess": "klnsvvh",
+  "domain_guess": "klnsvvh.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "קצרין",
+  "slug_guess": "ktzryn",
+  "domain_guess": "ktzryn.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "קרית אונו",
+  "slug_guess": "kiryat-ono",
+  "domain_guess": "kiryat-ono.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "קרית ארבע",
+  "slug_guess": "kiryat-arba",
+  "domain_guess": "kiryat-arba.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "קרית אתא",
+  "slug_guess": "kiryat-ata",
+  "domain_guess": "kiryat-ata.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "קרית ביאליק",
+  "slug_guess": "kiryat-bialik",
+  "domain_guess": "kiryat-bialik.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "קרית גת",
+  "slug_guess": "kiryat-gat",
+  "domain_guess": "kiryat-gat.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "קרית טבעון",
+  "slug_guess": "kiryat-tivon",
+  "domain_guess": "kiryat-tivon.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "קרית ים",
+  "slug_guess": "kiryat-yam",
+  "domain_guess": "kiryat-yam.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "קרית יערים",
+  "slug_guess": "kiryat-yearim",
+  "domain_guess": "kiryat-yearim.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "קרית מוצקין",
+  "slug_guess": "kiryat-motzkin",
+  "domain_guess": "kiryat-motzkin.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "קרית מלאכי",
+  "slug_guess": "kiryat-malachi",
+  "domain_guess": "kiryat-malachi.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "קרית עקרון",
+  "slug_guess": "kiryat-ekron",
+  "domain_guess": "kiryat-ekron.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "קרית שמונה",
+  "slug_guess": "kiryat-shmona",
+  "domain_guess": "kiryat-shmona.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "קרני שומרון",
+  "slug_guess": "karnei-shomron",
+  "domain_guess": "karnei-shomron.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "ראמה",
+  "slug_guess": "rmh",
+  "domain_guess": "rmh.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "ראש העין",
+  "slug_guess": "rosh-haayin",
+  "domain_guess": "rosh-haayin.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "ראש פינה",
+  "slug_guess": "rosh-pina",
+  "domain_guess": "rosh-pina.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "ראשון לציון",
+  "slug_guess": "rishon-lezion",
+  "domain_guess": "rishon-lezion.muni.il",
+  "website_override": "rishonlezion.muni.il"
+ },
+ {
+  "name_he": "רהט",
+  "slug_guess": "rahat",
+  "domain_guess": "rahat.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "רחובות",
+  "slug_guess": "rhvbvt",
+  "domain_guess": "rhvbvt.muni.il",
+  "website_override": "rehovot.muni.il"
+ },
+ {
+  "name_he": "ריינה",
+  "slug_guess": "ryynh",
+  "domain_guess": "ryynh.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "רכסים",
+  "slug_guess": "rechasim",
+  "domain_guess": "rechasim.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "רמלה",
+  "slug_guess": "ramla",
+  "domain_guess": "ramla.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "רמת גן",
+  "slug_guess": "ramat-gan",
+  "domain_guess": "ramat-gan.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "רמת השרון",
+  "slug_guess": "ramat-hasharon",
+  "domain_guess": "ramat-hasharon.muni.il",
+  "website_override": "ramat-hasharon.muni.il"
+ },
+ {
+  "name_he": "רמת ישי",
+  "slug_guess": "ramat-yishay",
+  "domain_guess": "ramat-yishay.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "רמת נגב",
+  "slug_guess": "ramat-negev",
+  "domain_guess": "ramat-negev.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "רעננה",
+  "slug_guess": "raanana",
+  "domain_guess": "raanana.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "שבלי-אום אל ג'נם",
+  "slug_guess": "shbly",
+  "domain_guess": "shbly.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "שגב-שלום",
+  "slug_guess": "segev-shalom",
+  "domain_guess": "segev-shalom.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "שדות דן",
+  "slug_guess": "sdot-dan",
+  "domain_guess": "sdot-dan.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "שדרות",
+  "slug_guess": "sderot",
+  "domain_guess": "sderot.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "שוהם",
+  "slug_guess": "shoham",
+  "domain_guess": "shoham.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "שומרון",
+  "slug_guess": "shomron",
+  "domain_guess": "shomron.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "שלומי",
+  "slug_guess": "shlomi",
+  "domain_guess": "shlomi.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "שעב",
+  "slug_guess": "shb",
+  "domain_guess": "shb.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "שער הנגב",
+  "slug_guess": "shaar-hanegev",
+  "domain_guess": "shaar-hanegev.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "שער שומרון",
+  "slug_guess": "shaar-shomron",
+  "domain_guess": "shaar-shomron.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "שפיר",
+  "slug_guess": "shpyr",
+  "domain_guess": "shpyr.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "שפרעם",
+  "slug_guess": "shefaram",
+  "domain_guess": "shefaram.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "תל אביב-יפו",
+  "slug_guess": "tel-aviv",
+  "domain_guess": "tel-aviv.muni.il",
+  "website_override": "tel-aviv.gov.il"
+ },
+ {
+  "name_he": "תל מונד",
+  "slug_guess": "tel-mond",
+  "domain_guess": "tel-mond.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "תל שבע",
+  "slug_guess": "tel-sheva",
+  "domain_guess": "tel-sheva.muni.il",
+  "website_override": null
+ },
+ {
+  "name_he": "תמר",
+  "slug_guess": "tamar",
+  "domain_guess": "tamar.muni.il",
+  "website_override": null
+ }
+]

@@ -7,4 +7,5 @@ _site/
 node_modules/
 tools/*.png
 tools/*.pdf
+tools/arnona_output/
 .claude/

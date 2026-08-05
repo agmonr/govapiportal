@@ -68,6 +68,18 @@
       "category_he": "הבית והשכונה שלי"
     },
     {
+      "id": "arnona-compare",
+      "name": "Arnona Calculator — Rate & Discount Comparison",
+      "name_he": "מחשבון ארנונה",
+      "kind": "אפליקציה",
+      "about": "כתובת או שיעור ידוע -> חישוב ארנונה שנתית משוערת, עם השוואה לעד 4 ערים נוספות והנחות זמינות. לא ממשק API ממשלתי - נתוני שיעורים, שיטת מדידת שטח (ברוטו-ברוטו/ברוטו/נטו) והנחות נקראו ידנית מתוך צווי ארנונה רשמיים של 12 ערים. שלב ראשון: אזור/סוג בניין בעיר נבחרים ידנית מרשימה, לא מזוהים אוטומטית מהכתובת - גבולות האזורים קיימים רק כמפה בתוך כל צו, לא כנתון גיאוגרפי.",
+      "href": "./arnona-compare.html",
+      "external": false,
+      "home": "https://www.gov.il/he/departments/topics/local_taxes",
+      "category": "home",
+      "category_he": "הבית והשכונה שלי"
+    },
+    {
       "id": "blue-lines",
       "name": "Blue Lines — Address to Plans & Metro Levy Check",
       "name_he": "המטרו והבית שלי",
