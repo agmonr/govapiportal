@@ -2169,7 +2169,15 @@ body.accidents-page header.site h1 { inline-size: 100%; }
      street level's `mapSection.hidden = true` (renderMap() in
      canopy-map.js) would stop actually hiding the section on mobile. */
   #cmMapSection[hidden] { display: none; }
-  #cmMapSection > .cm-map-wrap { order: 1; }
+  /* inline-size:100% explicit, not left to the flex-item default `auto` -
+     .cm-map-wrap's own child (#cmMap) is width:100% of ITS parent, and an
+     auto-sized flex item with a percentage-sized child is a well-known
+     circular-dependency trap several browsers resolve by collapsing both
+     to zero width (confirmed live: the map went fully invisible on mobile
+     once #cmMapSection became a flex container - real regression this
+     introduced, not a pre-existing bug). An explicit 100% here gives the
+     flex item a definite size to resolve against instead of an auto one. */
+  #cmMapSection > .cm-map-wrap { order: 1; inline-size: 100%; }
   #cmMapSection > #cmFullReset { order: 2; }
   #cmMapSection > #cmHint { order: 3; }
   #cmMapSection > .acc-hint { order: 4; }

@@ -221,9 +221,20 @@ const DEFAULT_VIEW = { lat: 32.185, lng: 34.903, zoom: 14 };
 // from) resolves this into the real entity from the roster, same as if it
 // had arrived via the URL.
 const DEFAULT_SELECTED = [{ key: 'ראשון לציון', label: 'ראשון לציון', city: null, level: 'city' }];
+// User-requested defaults for the basemap + the two blob-strength sliders -
+// aerial photo on by default (osm:true, not the usual off), heat at half
+// strength, canopy at full. Named constants (not just literals in `state`
+// below) since cmFullReset's own handler restores the same values, exactly
+// like DEFAULT_VIEW/DEFAULT_SELECTED above.
+const DEFAULT_OSM = true;
+const DEFAULT_BASEMAP_KIND = 'aerial';
+const DEFAULT_HEAT_OPACITY = 50;
+const DEFAULT_CANOPY_OPACITY = 100;
 
 const state = {
-  level: 'city', layer: 'heat', cityLayers: ['heat', 'canopy'], cityFilter: null, osm: false, basemapKind: 'street',
+  level: 'city', layer: 'heat', cityLayers: ['heat', 'canopy'], cityFilter: null,
+  osm: DEFAULT_OSM, basemapKind: DEFAULT_BASEMAP_KIND,
+  heatOpacity: DEFAULT_HEAT_OPACITY, canopyOpacity: DEFAULT_CANOPY_OPACITY,
   // hiRes defaults ON (this page's own default view) - heatBlob/canopyBlob
   // are the two per-type manual toggles, only meaningful once hiRes is off
   // (see cmBlobRow/cmCanopyBlobRow's own hidden logic in renderMap()).
@@ -251,6 +262,15 @@ function readStateFromUrl() {
       state.view = { lat, lng, zoom };
     }
   }
+  if (p.get('basemap') === 'street' || p.get('basemap') === 'aerial' || p.get('basemap') === 'topo') {
+    state.basemapKind = p.get('basemap');
+  }
+  if (p.get('osm') === '0') state.osm = false;
+  else if (p.get('osm') === '1') state.osm = true;
+  const heatOpacity = Number(p.get('heatOpacity'));
+  if (Number.isFinite(heatOpacity) && p.has('heatOpacity')) state.heatOpacity = Math.max(0, Math.min(100, heatOpacity));
+  const canopyOpacity = Number(p.get('canopyOpacity'));
+  if (Number.isFinite(canopyOpacity) && p.has('canopyOpacity')) state.canopyOpacity = Math.max(0, Math.min(100, canopyOpacity));
 }
 
 // Selection labels can't be fully resolved until the level's own roster is
@@ -274,6 +294,10 @@ function syncUrl() {
     const { lat, lng, zoom } = state.view;
     p.set('v', [lat, lng, zoom].map((n) => Math.round(n * 1000) / 1000).join(','));
   }
+  p.set('basemap', state.basemapKind);
+  p.set('osm', state.osm ? '1' : '0');
+  p.set('heatOpacity', state.heatOpacity);
+  p.set('canopyOpacity', state.canopyOpacity);
   history.replaceState(null, '', `?${p}`);
 }
 const syncUrlDebounced = debounce(syncUrl, 300); // pan/zoom fire many updates per gesture - one URL write per pause, not per event
@@ -438,14 +462,22 @@ function styleForFeature(feature, entitiesByKey, activeMetricIds, domains, blobR
   };
 }
 
-// Long-press (mousedown/touchstart held LONG_PRESS_MS without release)
-// opens canopy-heat-compare.html with this entity pre-picked as p1 - same
-// level/p1/city URL shape canopy-heat-compare.js's own canopyMapUrl() uses
-// in the opposite direction (it builds a canopy-map.html link FROM a
-// picked entity; this is the reverse trip). Leaflet normalizes touch into
-// its own mousedown/mouseup/mouseout events for interactive Path layers,
-// so one listener set here covers both mouse and touch without separate
-// touch-event wiring.
+// Long-press (touch, held LONG_PRESS_MS without release) or right-click
+// (desktop mouse) opens canopy-heat-compare.html with this entity
+// pre-picked as p1 - same level/p1/city URL shape canopy-heat-compare.js's
+// own canopyMapUrl() uses in the opposite direction (it builds a
+// canopy-map.html link FROM a picked entity; this is the reverse trip).
+// Deliberately NOT relying on browsers' own long-press-fires-contextmenu
+// behavior to unify these into one 'contextmenu' listener - Leaflet's touch
+// handling calls preventDefault() on touch events for its own pan/drag,
+// which can suppress that native translation, and a mousedown+timer on
+// desktop would also fire from an ordinary click-and-hold, not just an
+// intentional right-click (confirmed as an actual complaint - "replace
+// the long press with right click" on desktop specifically). Checked once
+// at load, not per-event: a hybrid device with both touch and mouse is
+// still treated as "mobile" here, matching how most touch-capability
+// feature detection works in practice.
+const IS_TOUCH_DEVICE = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 const LONG_PRESS_MS = 550;
 
 function openCanopyHeatCompare(e) {
@@ -459,13 +491,20 @@ function openCanopyHeatCompare(e) {
 function wireFeature(feature, layer, entitiesByKey, activeMetricIds) {
   const e = entitiesByKey.get(feature.properties.key);
   layer.on('click', () => pickSolo(e));
-  let pressTimer = null;
-  const cancelPress = () => { if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; } };
-  layer.on('mousedown', () => {
-    cancelPress();
-    pressTimer = setTimeout(() => { pressTimer = null; openCanopyHeatCompare(e); }, LONG_PRESS_MS);
-  });
-  layer.on('mouseup mouseout', cancelPress);
+  if (IS_TOUCH_DEVICE) {
+    let pressTimer = null;
+    const cancelPress = () => { if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; } };
+    layer.on('mousedown', () => {
+      cancelPress();
+      pressTimer = setTimeout(() => { pressTimer = null; openCanopyHeatCompare(e); }, LONG_PRESS_MS);
+    });
+    layer.on('mouseup mouseout', cancelPress);
+  } else {
+    layer.on('contextmenu', (ev) => {
+      L.DomEvent.preventDefault(ev); // suppress the real browser context menu
+      openCanopyHeatCompare(e);
+    });
+  }
   const title = `${e.label} - ${activeMetricIds
     .map((id) => `${METRICS[id].label}: ${valueFor(e, id) != null ? num(valueFor(e, id)) + METRICS[id].unit : 'אין נתונים'}`)
     .join(' · ')}`;
@@ -1140,15 +1179,26 @@ el('cmStreetPick').addEventListener('keydown', (ev) => { if (ev.key === 'Enter')
 // (state.osm false), clicking a different one switches state.basemapKind
 // and leaves exactly that one active - "just one background" at a time,
 // but with an explicit off state too, not a fixed always-on default.
+// Reflects state.osm/state.basemapKind onto the .cm-basemap-btn row's own
+// `.active` class - shared by the click handlers below AND by module init
+// (applyLinkedControlsUI()), since the basemap is now a linkable/URL-synced
+// param (user request) and needs the SAME "which button lights up" logic
+// whether it came from a click or from a `basemap=`/`osm=` query param on
+// page load.
+function updateBasemapButtonsUI() {
+  document.querySelectorAll('.cm-basemap-btn').forEach((b) => {
+    b.classList.toggle('active', state.osm && b.dataset.basemap === state.basemapKind);
+  });
+}
+
 document.querySelectorAll('.cm-basemap-btn').forEach((btn) => {
   btn.addEventListener('click', () => {
     const kind = btn.dataset.basemap;
     const alreadyActive = state.osm && state.basemapKind === kind;
     state.osm = !alreadyActive;
     state.basemapKind = kind;
-    document.querySelectorAll('.cm-basemap-btn').forEach((b) => {
-      b.classList.toggle('active', state.osm && b.dataset.basemap === kind);
-    });
+    updateBasemapButtonsUI();
+    syncUrl();
     renderMap();
   });
 });
@@ -1163,9 +1213,8 @@ el('cmTopoQuickToggle').addEventListener('click', () => {
   const alreadyTopo = state.osm && state.basemapKind === 'topo';
   state.osm = !alreadyTopo;
   state.basemapKind = 'topo';
-  document.querySelectorAll('.cm-basemap-btn').forEach((b) => {
-    b.classList.toggle('active', state.osm && b.dataset.basemap === 'topo');
-  });
+  updateBasemapButtonsUI();
+  syncUrl();
   renderMap();
 });
 
@@ -1191,20 +1240,25 @@ el('cmCanopyBlobToggle').addEventListener('change', (ev) => {
 });
 
 // Pure CSS opacity multiplier (cm-blob-heat/cm-blob-canopy in style.css) on
-// top of whatever strength is baked into the PNGs themselves - no `state`
-// field and no renderMap() call needed, since setting a custom property on
-// documentElement applies live via the CSS cascade to every current AND
-// future blob <img> (a city panned into view later inherits the same
-// property automatically, it isn't set per-image). Not URL/localStorage-
-// persisted, matching cmHiResToggle/cmBlobToggle/cmCanopyBlobToggle above -
-// this is a view preference, not identity of what's being viewed.
+// top of whatever strength is baked into the PNGs themselves - no
+// renderMap() call needed for the visual effect itself, since setting a
+// custom property on documentElement applies live via the CSS cascade to
+// every current AND future blob <img> (a city panned into view later
+// inherits the same property automatically, it isn't set per-image).
+// state.heatOpacity/canopyOpacity + the debounced URL sync ARE needed
+// though (user request: make these linkable) - syncUrlDebounced so a
+// dragged slider doesn't rewrite the URL on every single 'input' tick.
 el('cmHeatOpacity').addEventListener('input', (ev) => {
+  state.heatOpacity = Number(ev.target.value);
   document.documentElement.style.setProperty('--cm-heat-opacity', ev.target.value / 100);
   el('cmHeatOpacityValue').textContent = `${ev.target.value}%`;
+  syncUrlDebounced();
 });
 el('cmCanopyOpacity').addEventListener('input', (ev) => {
+  state.canopyOpacity = Number(ev.target.value);
   document.documentElement.style.setProperty('--cm-canopy-opacity', ev.target.value / 100);
   el('cmCanopyOpacityValue').textContent = `${ev.target.value}%`;
+  syncUrlDebounced();
 });
 
 // Back to the page's own initial state - level/layer/city pick/selection/
@@ -1221,8 +1275,10 @@ el('cmFullReset').addEventListener('click', () => {
   state.layer = 'heat';
   state.cityLayers = ['heat', 'canopy'];
   state.cityFilter = null;
-  state.osm = false;
-  state.basemapKind = 'street';
+  state.osm = DEFAULT_OSM;
+  state.basemapKind = DEFAULT_BASEMAP_KIND;
+  state.heatOpacity = DEFAULT_HEAT_OPACITY;
+  state.canopyOpacity = DEFAULT_CANOPY_OPACITY;
   state.hiRes = true;
   state.heatBlob = false;
   state.canopyBlob = false;
@@ -1232,16 +1288,10 @@ el('cmFullReset').addEventListener('click', () => {
   state.selected = [...DEFAULT_SELECTED];
   resolveSelectedFromUrl();
   state.view = { ...DEFAULT_VIEW };
-  document.querySelectorAll('.cm-basemap-btn').forEach((b) => b.classList.remove('active'));
   el('cmHiResToggle').checked = true;
   el('cmBlobToggle').checked = false;
   el('cmCanopyBlobToggle').checked = false;
-  document.documentElement.style.setProperty('--cm-heat-opacity', 1);
-  document.documentElement.style.setProperty('--cm-canopy-opacity', 1);
-  el('cmHeatOpacity').value = 100;
-  el('cmCanopyOpacity').value = 100;
-  el('cmHeatOpacityValue').textContent = '100%';
-  el('cmCanopyOpacityValue').textContent = '100%';
+  applyLinkedControlsUI();
   syncUrl();
   renderAll();
 });
@@ -1289,6 +1339,23 @@ el('cmMapFullscreenToggle').addEventListener('click', () => {
   if (isMapFullscreen()) exitMapFullscreen(); else enterMapFullscreen();
 });
 
+// Applies state.heatOpacity/canopyOpacity/osm/basemapKind onto the actual
+// DOM controls - needed once at init (readStateFromUrl() may have set
+// these from a `heatOpacity=`/`canopyOpacity=`/`osm=`/`basemap=` query
+// param, which otherwise has no effect on the sliders/buttons themselves,
+// only on `state`) and again from cmFullReset's own handler, so both share
+// this instead of duplicating the same four lines.
+function applyLinkedControlsUI() {
+  el('cmHeatOpacity').value = state.heatOpacity;
+  el('cmCanopyOpacity').value = state.canopyOpacity;
+  el('cmHeatOpacityValue').textContent = `${state.heatOpacity}%`;
+  el('cmCanopyOpacityValue').textContent = `${state.canopyOpacity}%`;
+  document.documentElement.style.setProperty('--cm-heat-opacity', state.heatOpacity / 100);
+  document.documentElement.style.setProperty('--cm-canopy-opacity', state.canopyOpacity / 100);
+  updateBasemapButtonsUI();
+}
+
 readStateFromUrl();
 resolveSelectedFromUrl();
+applyLinkedControlsUI();
 renderAll();
