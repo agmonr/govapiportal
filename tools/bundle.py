@@ -131,17 +131,24 @@ TARGETS = [
         # No new attribute data at all - every metric's value already ships
         # via tree-canopy/canopy-split/heat-islands' own city/neighborhood/
         # street files, reused here as-is. The only new sources are the
-        # boundary shapes (tools/map_geo_build.py), the shared shape/zoom-
-        # pan helpers (map-shapes.js), charts.js (the detail bars reuse
-        # renderHBarChart as-is) and geo-utils.js (only for the optional
-        # OSM-basemap toggle's tile fetch).
-        "sources": ["src/ui.js", "src/theme.js", "src/charts.js", "src/geo-utils.js", "src/map-shapes.js",
-                    "src/map-boundaries-cities.js", "src/map-boundaries-neighborhoods.js",
-                    "src/map-boundaries-neighborhoods-wgs84.js",
+        # boundary shapes (tools/map_geo_build.py, WGS84 rings - Leaflet is
+        # lat/lng-native, the ITM-meter map-boundaries-cities.js/map-shapes.js
+        # this page used before its Leaflet rewrite are no longer imported at
+        # all) and charts.js (the detail bars reuse renderHBarChart as-is).
+        # geo-utils.js is for its TILE_URL_TEMPLATES/TILE_KIND_ATTRIBUTION
+        # constants (the real-map background's tile layer), not its own
+        # canvas-stitching functions, which this page no longer calls either.
+        # heat-blobs.js/canopy-blobs.js (large base64 image data) are DEFERRED
+        # along with the hi-res blob overlay feature itself - see canopy-
+        # map.js's own top docstring - and deliberately left out of this list
+        # entirely rather than shipped unused, since bundle.py inlines every
+        # listed source unconditionally regardless of whether the entry
+        # actually imports it.
+        "sources": ["src/ui.js", "src/theme.js", "src/charts.js", "src/geo-utils.js",
+                    "src/map-boundaries-cities-wgs84.js", "src/map-boundaries-neighborhoods-wgs84.js",
                     "src/tree-canopy-cities.js", "src/tree-canopy-neighborhoods.js", "src/tree-canopy-streets.js",
                     "src/canopy-split-cities.js", "src/canopy-split-neighborhoods.js",
-                    "src/heat-cities.js", "src/heat-neighborhoods.js", "src/heat-streets.js", "src/heat-blobs.js",
-                    "src/canopy-blobs.js",
+                    "src/heat-cities.js", "src/heat-neighborhoods.js", "src/heat-streets.js",
                     "src/apps.js", "src/canopy-map.js"],
         "data": True,
     },

@@ -25,6 +25,23 @@ const TILE_ATTRIBUTION = {
   aerial: 'Imagery © Esri, Maxar, Earthstar Geographics',
   topo: 'Esri, HERE, Garmin, FAO, NOAA, USGS',
 };
+export const TILE_KIND_ATTRIBUTION = TILE_ATTRIBUTION;
+
+// Same three sources as OSM_TILE/AERIAL_TILE/TOPO_TILE above, as plain {z}/
+// {x}/{y} URL TEMPLATE strings (Leaflet's own L.tileLayer expects a
+// template, not a per-tile function) rather than a second, separately-
+// maintained set of URLs - canopy-map.js's own live Leaflet tile layer
+// reads these; the function form above stays as-is for the canvas-
+// stitching stitchBasemap() still uses (blue-lines.js/area-cleanup.html/
+// trip-report.html's own address-lookup maps). Esri's {y}/{x} order is
+// written that way here too - Leaflet substitutes each placeholder
+// wherever it appears in the string, so this is just the URL each service
+// actually expects, not a departure from the function form above.
+export const TILE_URL_TEMPLATES = {
+  street: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+  aerial: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+  topo: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',
+};
 
 export const ITM_WKID = 2039;
 export const WGS84_WKID = 4326;
