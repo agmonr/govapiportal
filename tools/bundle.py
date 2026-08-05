@@ -131,21 +131,23 @@ TARGETS = [
         # No new attribute data at all - every metric's value already ships
         # via tree-canopy/canopy-split/heat-islands' own city/neighborhood/
         # street files, reused here as-is. The only new sources are the
-        # boundary shapes (tools/map_geo_build.py), the shared shape/zoom-
-        # pan helpers (map-shapes.js), charts.js (the detail bars reuse
-        # renderHBarChart as-is) and geo-utils.js (only for the optional
-        # OSM-basemap toggle's tile fetch). map-boundaries-cities-wgs84.js
-        # backs that same OSM-basemap toggle at CITY level (previously
-        # neighborhood-only) - same WGS84-reprojected-shapes role
-        # map-boundaries-neighborhoods-wgs84.js already plays there.
-        "sources": ["src/ui.js", "src/theme.js", "src/charts.js", "src/geo-utils.js", "src/map-shapes.js",
-                    "src/map-boundaries-cities.js", "src/map-boundaries-cities-wgs84.js",
-                    "src/map-boundaries-neighborhoods.js",
-                    "src/map-boundaries-neighborhoods-wgs84.js",
+        # boundary shapes (tools/map_geo_build.py, WGS84 rings - Leaflet is
+        # lat/lng-native, the ITM-meter map-boundaries-cities.js/map-shapes.js
+        # this page used before its Leaflet rewrite are no longer imported at
+        # all) and charts.js (the detail bars reuse renderHBarChart as-is).
+        # geo-utils.js is for its TILE_URL_TEMPLATES/TILE_KIND_ATTRIBUTION
+        # constants (the real-map background's tile layer), not its own
+        # canvas-stitching functions, which this page no longer calls either.
+        # heat-blobs.js/canopy-blobs.js (large base64 image data) back the
+        # hi-res blob overlay feature (canopy-map.js reprojects their ITM
+        # bboxes to WGS84 via geo-utils.js's projectPoints and renders them
+        # with L.imageOverlay).
+        "sources": ["src/ui.js", "src/theme.js", "src/charts.js", "src/geo-utils.js",
+                    "src/map-boundaries-cities-wgs84.js", "src/map-boundaries-neighborhoods-wgs84.js",
                     "src/tree-canopy-cities.js", "src/tree-canopy-neighborhoods.js", "src/tree-canopy-streets.js",
                     "src/canopy-split-cities.js", "src/canopy-split-neighborhoods.js",
-                    "src/heat-cities.js", "src/heat-neighborhoods.js", "src/heat-streets.js", "src/heat-blobs.js",
-                    "src/canopy-blobs.js",
+                    "src/heat-cities.js", "src/heat-neighborhoods.js", "src/heat-streets.js",
+                    "src/heat-blobs.js", "src/canopy-blobs.js",
                     "src/apps.js", "src/canopy-map.js"],
         "data": True,
     },
