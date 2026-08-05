@@ -2110,7 +2110,14 @@ body.accidents-page header.site h1 { inline-size: 100%; }
   /* חום/עצים sliders thinner and closer together - beyond the existing
      30% reduction (.28rem, all breakpoints), tightened further just for
      this narrow view. */
-  .cm-opacity-control input[type="range"] { margin-block: .15rem; }
+  /* block-size 16px -> 8px (50% thinner, user request) - plain unstyled
+     range inputs do respect an explicit height cross-browser, no
+     -webkit-appearance reset/custom track needed. label font-size matched
+     to the basemap buttons' own mobile size (.82rem, see
+     .cm-basemap-kind-row .cm-basemap-btn below) instead of the larger
+     default. */
+  .cm-opacity-control input[type="range"] { margin-block: .15rem; block-size: 8px; }
+  .cm-opacity-control label { font-size: .82rem; }
   .cm-opacity-control { margin-block-end: .3rem; }
 
   /* "רקע מפה" heading + its explanation hidden - the three basemap

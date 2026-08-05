@@ -153,34 +153,7 @@
         </div>
       </section>
 
-      <section class="acc-section" id="cmLayerSection" aria-labelledby="layerH">
-        <h2 id="layerH">שכבת צביעת המפה</h2>
-        <p class="acc-hint" dir="auto">קובעת רק את צבע המפה עצמה - הבחירה שלכם (למטה) תמיד תציג את כל המדדים יחד. ברמת עיר אפשר לבחור יותר ממדד אחד בו-זמנית: כל עיר תוצג אז עם עמודות קטנות, מדד לצד מדד, במקום צבע אחיד.</p>
-        <div class="cm-filters" role="group" aria-label="שכבת צביעת המפה">
-          <button type="button" data-layer="canopy" class="tc-level-btn cm-layer-btn">כיסוי חופות כולל</button>
-          <button type="button" data-layer="street" class="tc-level-btn cm-layer-btn">עצי רחוב</button>
-          <button type="button" data-layer="heat" class="tc-level-btn cm-layer-btn">איי חום</button>
-        </div>
-      </section>
-
-      <section class="acc-section" id="cmHiResRow" aria-labelledby="hiResH">
-        <h2 id="hiResH">תצוגת רזולוציה גבוהה בלבד</h2>
-        <label class="cm-osm-toggle">
-          <input type="checkbox" id="cmHiResToggle" checked>
-          הצג רק גבולות (עיר/שכונה) + שני הכתמים ברזולוציה גבוהה (חום ועצים) יחד, בלי צביעת שכבה לפי ממוצע
-        </label>
-        <p class="acc-hint" dir="auto">
-          מסתיר את הצביעה הרגילה (הממוצע לפי שכונה) ומציג את שני הכתמים הגולמיים - חום ועצים - זה על גבי
-          זה, כשגבולות העיר והשכונות נשארים מסומנים בלבד. זמין ברמת עיר (רק קווי מתאר, לפני בחירת עיר) וברמת
-          שכונה עם עיר נבחרת (הכתמים עצמם, כולל האזור שמסביב לשכונות שנמצאות במפה).
-        </p>
-      </section>
-
-      <section class="acc-section" id="cmCityAddRow" aria-labelledby="cityAddH" hidden>
-        <h2 id="cityAddH">התמקד בעיר</h2>
-        <p class="acc-hint" dir="auto">
-          לחיצה על עיר במפה מציגה אותה לבד; כדי להשוות כמה ערים יחד (עד 4) - הוסיפו אותן כאן.
-        </p>
+      <section class="acc-section" id="cmCityAddRow" hidden>
         <div class="acc-year-pick">
           <label for="cmCityAddPick">עיר:</label>
           <input id="cmCityAddPick" type="text" list="cmCityAddRoster" autocomplete="off" spellcheck="false"
@@ -307,6 +280,21 @@
             ולא רק "כמה ירוקה השכונה בממוצע".
           </p>
         </section>
+      </section>
+
+      <section class="acc-section" id="cmLayerSection">
+        <div class="cm-filters" role="group" aria-label="שכבת צביעת המפה">
+          <button type="button" data-layer="canopy" class="tc-level-btn cm-layer-btn">כיסוי חופות כולל</button>
+          <button type="button" data-layer="street" class="tc-level-btn cm-layer-btn">עצי רחוב</button>
+          <button type="button" data-layer="heat" class="tc-level-btn cm-layer-btn">איי חום</button>
+        </div>
+      </section>
+
+      <section class="acc-section" id="cmHiResRow">
+        <label class="cm-osm-toggle">
+          <input type="checkbox" id="cmHiResToggle" checked>
+          HD
+        </label>
       </section>
 
       <section class="acc-section" id="cmChipsSection" aria-labelledby="chipsH">

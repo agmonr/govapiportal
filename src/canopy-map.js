@@ -1080,10 +1080,13 @@ function renderControls() {
   document.querySelectorAll('.cm-layer-btn').forEach((btn) => {
     // City level: 1-3 layers can be active at once (multi-metric bar
     // glyphs) - every one of state.cityLayers lights up. Other levels keep
-    // the original exclusive/radio behavior on state.layer alone.
-    const active = state.level === 'city'
+    // the original exclusive/radio behavior on state.layer alone. HD mode
+    // ignores the layer choice entirely (borders + both blobs together,
+    // see the hiRes branch in renderMap()), so none of these should read
+    // as selected while it's on.
+    const active = !state.hiRes && (state.level === 'city'
       ? state.cityLayers.includes(btn.dataset.layer)
-      : btn.dataset.layer === state.layer;
+      : btn.dataset.layer === state.layer);
     btn.classList.toggle('active', active);
   });
   el('cmLayerSection').hidden = state.level === 'street';
@@ -1228,6 +1231,7 @@ new ResizeObserver(onMapResize).observe(el('cmMap'));
 
 el('cmHiResToggle').addEventListener('change', (ev) => {
   state.hiRes = ev.target.checked;
+  renderControls();
   renderMap();
 });
 el('cmBlobToggle').addEventListener('change', (ev) => {
