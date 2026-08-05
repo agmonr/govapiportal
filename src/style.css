@@ -1940,7 +1940,7 @@ body.accidents-page header.site h1 { inline-size: 100%; }
    in canopy-map.js) - Leaflet already adds its own leaflet-interactive
    class to every clickable vector layer; this is just the hook for OUR
    hover styling, same look the old hand-rolled #cmSvg path:hover had. */
-.cm-leaflet-shape:hover, .cm-leaflet-shape:focus-visible { stroke: var(--fg) !important; stroke-width: 2.4 !important; outline: none; }
+.cm-leaflet-shape:hover, .cm-leaflet-shape:focus-visible { stroke: var(--fg) !important; stroke-width: 1.2 !important; outline: none; }
 /* Leaflet's own L.tileLayer `className` option (see updateTileLayer() in
    canopy-map.js) - Esri's World Topo Map ships noticeably paler/lower-
    contrast than the street/aerial sources, same reasoning and same values
@@ -1962,7 +1962,12 @@ body.accidents-page header.site h1 { inline-size: 100%; }
    the overlay images at creation time, since those images are cached/reused
    across a basemap toggle - a pure-CSS ancestor class picks up every
    already-added overlay too, not just ones created after the toggle. */
-.cm-osm-active .leaflet-cmBlob-pane img { filter: contrast(.7) saturate(1.5); }
+/* 25% stronger color across the board - saturate(1.25) alone against the
+   plain page background (no basemap, the default view), stacked into the
+   .cm-osm-active contrast fix's own saturate below (1.5 * 1.25 = 1.875)
+   once a basemap is showing underneath. */
+.leaflet-cmBlob-pane img { filter: saturate(1.25); }
+.cm-osm-active .leaflet-cmBlob-pane img { filter: contrast(.7) saturate(1.875); }
 
 .cm-zoom-controls { position: absolute; inset-block-start: .5rem; inset-inline-end: .5rem; display: flex; flex-direction: column; gap: .25rem; }
 .cm-zoom-controls button {

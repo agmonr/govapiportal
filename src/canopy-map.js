@@ -417,7 +417,9 @@ function styleForFeature(feature, entitiesByKey, activeMetricIds, domains, blobR
     fillColor: fill,
     fillOpacity: blobReplacesFill ? 0 : (state.osm ? 0.72 : 1),
     color: i !== -1 ? PICK_COLORS[i] : 'var(--bg)',
-    weight: i !== -1 ? 3 : (blobReplacesFill ? 0 : 1.2),
+    // Halved from their original 3/1.2 - a lighter touch on both the
+    // picked-shape highlight and the ordinary gap-between-fills border.
+    weight: i !== -1 ? 1.5 : (blobReplacesFill ? 0 : .6),
   };
 }
 
