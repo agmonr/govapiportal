@@ -32,18 +32,30 @@
  * background was a one-shot stitched-tile snapshot that couldn't follow
  * pan/zoom and only worked for a single bounded neighborhood - a real tile
  * layer needed a real map engine underneath it, not a bigger version of
- * that snapshot. Several features from that version are DEFERRED (not yet
- * ported to the new engine, see canopy-map.html's own visible note about
- * this): the two hi-res heat/canopy blob overlays and their view-based
- * prefetching, the multi-metric bar glyphs, long-press context menu,
- * label decluttering, and zoom-to-drill (auto level switching).
+ * that snapshot.
+ *
+ * The two hi-res heat/canopy blob overlays (HEAT_BLOBS/CANOPY_BLOBS - see
+ * their own header comments) are back too, as L.imageOverlay layers - their
+ * own x/y/w/h ship in ITM meters (the old flat SVG's native space, no
+ * conversion needed there), which Leaflet's lat/lng-native world does need
+ * converted. That conversion goes through iplan's own GeometryServer (see
+ * geo-utils.js's projectPoints(), the same one blue-lines.js/area-
+ * cleanup.html already use for point lookups) - a real network round trip,
+ * so every city's own two corners are batched into ONE request per newly-
+ * needed set of cities (not one request per city) and cached forever after
+ * (a blob's own geometry never changes) - see ensureBlobBounds() below.
+ *
+ * Still DEFERRED (not yet ported to the Leaflet engine, see canopy-map.html's
+ * own visible note about this): the multi-metric bar glyphs, long-press
+ * context menu, label decluttering, and zoom-to-drill (auto level
+ * switching).
  */
 
 import { el, esc, num, debounce } from './ui.js';
 import { initThemePicker } from './theme.js';
 import { renderAppContext, loadAppsData } from './apps.js';
 import { renderHBarChart } from './charts.js';
-import { TILE_URL_TEMPLATES, TILE_KIND_ATTRIBUTION } from './geo-utils.js';
+import { TILE_URL_TEMPLATES, TILE_KIND_ATTRIBUTION, projectPoints, ITM_WKID, WGS84_WKID } from './geo-utils.js';
 
 import { MAP_CITIES_WGS84 } from './map-boundaries-cities-wgs84.js';
 import { MAP_NEIGHBORHOODS_WGS84 } from './map-boundaries-neighborhoods-wgs84.js';
@@ -56,6 +68,8 @@ import { NEIGHBORHOOD_CANOPY_SPLIT } from './canopy-split-neighborhoods.js';
 import { CITY_HEAT } from './heat-cities.js';
 import { NEIGHBORHOOD_HEAT } from './heat-neighborhoods.js';
 import { STREET_HEAT } from './heat-streets.js';
+import { HEAT_BLOBS } from './heat-blobs.js';
+import { CANOPY_BLOBS } from './canopy-blobs.js';
 
 initThemePicker(el('themePick'));
 loadAppsData().then((data) => renderAppContext(el('appContext'), data.apps, 'canopy-map')).catch(() => {});
@@ -194,7 +208,12 @@ const PICK_COLORS = [
 const DEFAULT_VIEW = { lat: 31.78, lng: 35.22, zoom: 13 };
 
 const state = {
-  level: 'city', layer: 'heat', cityLayers: ['heat'], cityFilter: null, osm: false, basemapKind: 'street', selected: [], view: { ...DEFAULT_VIEW },
+  level: 'city', layer: 'heat', cityLayers: ['heat'], cityFilter: null, osm: false, basemapKind: 'street',
+  // hiRes defaults ON (this page's own default view) - heatBlob/canopyBlob
+  // are the two per-type manual toggles, only meaningful once hiRes is off
+  // (see cmBlobRow/cmCanopyBlobRow's own hidden logic in renderMap()).
+  hiRes: true, heatBlob: false, canopyBlob: false,
+  selected: [], view: { ...DEFAULT_VIEW },
 };
 let leafletMap = null; // the one Leaflet map instance, created once in initMap() and reused across every renderMap() call
 
@@ -373,7 +392,21 @@ function entityToFeature(e) {
 // colors the choropleth fill by the FIRST active one, same as a plain
 // single-metric pick, until the glyph returns to actually distinguish 2-3
 // active metrics visually.
-function styleForFeature(feature, entitiesByKey, activeMetricIds, domains) {
+//
+// `blobReplacesFill` (computed once per renderMap() call, see its own
+// comment there): once a high-res raster (blob) is showing for the metric
+// it belongs to, the per-neighborhood choropleth fill is redundant - it's
+// the same value at coarser granularity, sitting right on top of the
+// pixel-accurate data - suppressed (fillOpacity 0) instead of just made
+// translucent, so only the raster and the shape outlines are visible.
+// var(--bg) for the border is deliberate the REST of the time - it reads
+// as a thin gap between two differently-colored fills, not a border meant
+// to be seen on its own - but once the fill itself is gone too, that same
+// var(--bg) border made the whole shape invisible against the page's own
+// background ("the map is empty" wasn't the raster failing to load, it was
+// every border blending into the page) - var(--fg) restores a visible
+// outline once there's no fill for it to sit beside.
+function styleForFeature(feature, entitiesByKey, activeMetricIds, domains, blobReplacesFill) {
   const e = entitiesByKey.get(feature.properties.key);
   const metricId = activeMetricIds[0];
   const fill = colorFor(valueFor(e, metricId), ...domains[metricId], METRICS[metricId].colorVar);
@@ -381,11 +414,8 @@ function styleForFeature(feature, entitiesByKey, activeMetricIds, domains) {
   return {
     className: 'cm-leaflet-shape',
     fillColor: fill,
-    fillOpacity: state.osm ? 0.72 : 1,
-    // var(--bg) here is deliberate (matches the old renderer) - it reads as
-    // a thin gap between two differently-colored fills, not a border meant
-    // to be seen on its own.
-    color: i !== -1 ? PICK_COLORS[i] : 'var(--bg)',
+    fillOpacity: blobReplacesFill ? 0 : (state.osm ? 0.72 : 1),
+    color: i !== -1 ? PICK_COLORS[i] : (blobReplacesFill ? 'var(--fg)' : 'var(--bg)'),
     weight: i !== -1 ? 3 : 1.2,
   };
 }
@@ -397,6 +427,167 @@ function wireFeature(feature, layer, entitiesByKey, activeMetricIds) {
     .map((id) => `${METRICS[id].label}: ${valueFor(e, id) != null ? num(valueFor(e, id)) + METRICS[id].unit : 'אין נתונים'}`)
     .join(' · ')}`;
   layer.bindTooltip(title, { sticky: true });
+}
+
+/* ---------- hi-res heat/canopy blob overlays ----------
+ * Which cities are "in view" at city level (city-BY-CITY, unlike the
+ * choropleth which covers ALL 186 regardless of view) - used only to decide
+ * which cities' own hi-res raster to fetch/show, exactly like the old flat-
+ * SVG renderer's own citiesInView() did with ITM meters; this is the same
+ * idea against Leaflet's own lat/lng bounds instead. Widened to every city
+ * clearing a low overlap-fraction floor (not just the single most-dominant
+ * one), capped at CITY_VIEW_MAX_COUNT by PROMINENCE (fraction of the view
+ * each city's own bbox covers) so a fully zoomed-out national view still
+ * shows a bounded number of blobs, not all 186 at once (see HEAT_BLOBS'/
+ * CANOPY_BLOBS' own header comments on why these are lazily fetched at all). */
+
+let cityLatLngBoundsCache = null;
+function cityLatLngBounds() {
+  if (!cityLatLngBoundsCache) {
+    cityLatLngBoundsCache = {};
+    for (const [name, data] of Object.entries(MAP_CITIES_WGS84)) {
+      const b = L.latLngBounds([]);
+      for (const ring of data.rings) for (const [lon, lat] of ring) b.extend([lat, lon]);
+      cityLatLngBoundsCache[name] = b;
+    }
+  }
+  return cityLatLngBoundsCache;
+}
+
+function overlapFraction(viewBounds, cityBounds) {
+  const ox = Math.max(0, Math.min(viewBounds.getEast(), cityBounds.getEast()) - Math.max(viewBounds.getWest(), cityBounds.getWest()));
+  const oy = Math.max(0, Math.min(viewBounds.getNorth(), cityBounds.getNorth()) - Math.max(viewBounds.getSouth(), cityBounds.getSouth()));
+  const viewArea = (viewBounds.getEast() - viewBounds.getWest()) * (viewBounds.getNorth() - viewBounds.getSouth());
+  return viewArea ? (ox * oy) / viewArea : 0;
+}
+
+const CITY_VIEW_MIN_FRACTION = 0.0002;
+const CITY_VIEW_MAX_COUNT = 15;
+function citiesInView(viewBounds) {
+  const hits = [];
+  for (const [name, bounds] of Object.entries(cityLatLngBounds())) {
+    const frac = overlapFraction(viewBounds, bounds);
+    if (frac >= CITY_VIEW_MIN_FRACTION) hits.push([name, frac]);
+  }
+  hits.sort((a, b) => b[1] - a[1]);
+  return hits.slice(0, CITY_VIEW_MAX_COUNT).map(([name]) => name);
+}
+
+// Background warm-up for cities just outside citiesInView()'s own rendered
+// top-CITY_VIEW_MAX_COUNT set - see that function's own comment for why the
+// set is capped at all. Same reasoning as the old flat-SVG version's own
+// prefetchNearbyBlobs(): without this, panning/zooming to reveal a city for
+// the first time shows a visible pop-in while its (fresh, uncached) tile
+// image is still in flight. `pad()` is Leaflet's own native bounds padding,
+// simpler than the old version's manual x/y/w/h math.
+const PREFETCH_PAD = 0.5;
+const PREFETCH_MAX = 45;
+const warmedBlobCities = new Set();
+function warmBlobImage(src) {
+  const img = new Image();
+  if ('fetchPriority' in img) img.fetchPriority = 'low';
+  img.src = src;
+}
+function prefetchNearbyBlobs(viewBounds, renderedCities) {
+  const padded = viewBounds.pad(PREFETCH_PAD);
+  const rendered = new Set(renderedCities);
+  const candidates = [];
+  for (const [name, bounds] of Object.entries(cityLatLngBounds())) {
+    if (rendered.has(name) || warmedBlobCities.has(name)) continue;
+    if (!HEAT_BLOBS[name] && !CANOPY_BLOBS[name]) continue;
+    const frac = overlapFraction(padded, bounds);
+    if (frac >= CITY_VIEW_MIN_FRACTION) candidates.push([name, frac]);
+  }
+  candidates.sort((a, b) => b[1] - a[1]);
+  for (const [name] of candidates.slice(0, PREFETCH_MAX)) {
+    if (HEAT_BLOBS[name]) warmBlobImage(HEAT_BLOBS[name].src);
+    if (CANOPY_BLOBS[name]) warmBlobImage(CANOPY_BLOBS[name].src);
+    warmedBlobCities.add(name);
+  }
+}
+
+// A blob's own x/y/w/h ship in ITM meters, Y-flipped (the old flat SVG's
+// native space: SVG y = -ITM northing, so the image's own top-left corner
+// is its NORTH-west corner, not south-west) - reprojected to WGS84 via
+// iplan's own GeometryServer (projectPoints(), see this file's own top
+// docstring for why), cached forever per city (a blob's geometry never
+// changes) once resolved. Every city newly needed in one renderMap() pass
+// is batched into a SINGLE projectPoints() call (both corners of every
+// city, one request) rather than one request per city - heat_blobs.py's/
+// canopy_blobs.py's own bboxes agree to sub-meter precision for the same
+// city (checked directly), so either source's own bbox is used
+// interchangeably here, whichever exists.
+const blobBoundsCache = new Map(); // city -> L.LatLngBounds | Promise<L.LatLngBounds>
+async function ensureBlobBounds(cities) {
+  const need = cities.filter((c) => !blobBoundsCache.has(c));
+  if (!need.length) return;
+  const corners = [];
+  for (const c of need) {
+    const data = HEAT_BLOBS[c] || CANOPY_BLOBS[c];
+    corners.push([data.x, -data.y - data.h], [data.x + data.w, -data.y]);
+  }
+  const promise = projectPoints(corners, ITM_WKID, WGS84_WKID).then((wgsPoints) => {
+    need.forEach((c, i) => {
+      const [[lonMin, latMin], [lonMax, latMax]] = [wgsPoints[i * 2], wgsPoints[i * 2 + 1]];
+      blobBoundsCache.set(c, L.latLngBounds([latMin, lonMin], [latMax, lonMax]));
+    });
+  }).catch(() => {
+    need.forEach((c) => blobBoundsCache.delete(c)); // failed - allow a retry next time rather than caching a permanent failure
+  });
+  need.forEach((c) => blobBoundsCache.set(c, promise)); // placeholder so a concurrent call for the same city doesn't double-request
+  await promise;
+}
+
+// blobOverlayLayer holds the actual L.imageOverlay instances, keyed
+// "type:city" (e.g. "heat:הרצליה") so heat and canopy overlays for the same
+// city coexist independently (hi-res-only mode shows both at once). A
+// generation token guards against a slow/stale ensureBlobBounds() call
+// (real network round trips) clobbering a newer render's own set - the same
+// idiom canopy-map.js's own osmToken used to use for the old basemap fetch.
+let blobOverlayGroup = null;
+const blobOverlayLayers = new Map();
+let blobRenderGeneration = 0;
+
+// citiesInView() (an O(186) scan+sort) and the renderMap() it can trigger
+// are too expensive to run on every single wheel-tick/pointermove sample of
+// an active gesture - debounced so it runs once ~180ms after a gesture
+// pauses (including at release, since nothing keeps resetting the timer
+// once ticks stop), same idiom/reasoning as the old flat-SVG renderer's own
+// checkBlobCitiesDebounced. Only meaningful (and only wired to fire) at
+// city level - neighborhood/street's own blob city (if any) comes from
+// state.cityFilter, not the view.
+let lastBlobCitiesKey = ''; // set inside renderMap() itself - the SAME candidate set that call just rendered with
+const checkBlobCitiesDebounced = debounce(() => {
+  if (state.level !== 'city' || !leafletMap) return;
+  const viewBounds = leafletMap.getBounds();
+  const inView = citiesInView(viewBounds);
+  if ([...inView].sort().join(' ') !== lastBlobCitiesKey) renderMap();
+  prefetchNearbyBlobs(viewBounds, inView); // independent of whether the rendered set itself changed - see its own comment
+}, 180);
+
+async function updateBlobOverlays(heatCities, canopyCities) {
+  const myGeneration = (blobRenderGeneration += 1);
+  const wanted = new Map(); // "type:city" -> { city, type, data }
+  for (const c of heatCities) wanted.set(`heat:${c}`, { city: c, type: 'heat', data: HEAT_BLOBS[c] });
+  for (const c of canopyCities) wanted.set(`canopy:${c}`, { city: c, type: 'canopy', data: CANOPY_BLOBS[c] });
+
+  for (const [key, layer] of blobOverlayLayers) {
+    if (!wanted.has(key)) { blobOverlayGroup.removeLayer(layer); blobOverlayLayers.delete(key); }
+  }
+
+  const toAdd = [...wanted.entries()].filter(([key]) => !blobOverlayLayers.has(key));
+  if (!toAdd.length) return;
+  await ensureBlobBounds([...new Set(toAdd.map(([, w]) => w.city))]);
+  if (myGeneration !== blobRenderGeneration) return; // a newer render superseded this one while the projection was in flight
+
+  for (const [key, w] of toAdd) {
+    const bounds = blobBoundsCache.get(w.city);
+    if (!(bounds instanceof L.LatLngBounds)) continue; // that city's own projection failed - skip it, not the whole batch
+    if (blobOverlayLayers.has(key)) continue; // a concurrent call already added this one
+    const layer = L.imageOverlay(w.data.src, bounds, { interactive: false, pane: 'cmBlobPane' });
+    layer.addTo(blobOverlayGroup);
+    blobOverlayLayers.set(key, layer);
+  }
 }
 
 // Created once, reused across every renderMap() call (clearLayers()+
@@ -412,6 +603,14 @@ let shapesLayer = null;
 function initMap() {
   leafletMap = L.map('cmMap', { zoomControl: false, attributionControl: true })
     .setView([state.view.lat, state.view.lng], state.view.zoom);
+  // Panes' own fixed z-index ordering (tilePane < overlayPane) already
+  // keeps tileLayer below shapesLayer regardless of add order - blobs need
+  // to sit BETWEEN those two (over the tiles, under the shape outlines,
+  // same stacking the old flat-SVG renderer drew blobImage+paths in), so
+  // this gets its own pane at a z-index placed accordingly.
+  leafletMap.createPane('cmBlobPane');
+  leafletMap.getPane('cmBlobPane').style.zIndex = 350;
+  blobOverlayGroup = L.layerGroup().addTo(leafletMap);
   shapesLayer = L.geoJSON(null).addTo(leafletMap);
   // The only place state.view is written FROM the map itself (as opposed to
   // TO it) - every pan/zoom, whether a live gesture or one of renderMap()'s
@@ -422,6 +621,7 @@ function initMap() {
     const c = leafletMap.getCenter();
     state.view = { lat: c.lat, lng: c.lng, zoom: leafletMap.getZoom() };
     syncUrlDebounced();
+    checkBlobCitiesDebounced();
   });
   // Mobile fullscreen entry on a plain tap (desktop uses the explicit ⛶
   // button instead, see cmMapFullscreenToggle below - a plain click there
@@ -505,13 +705,65 @@ function renderMap() {
     leafletMap.fitBounds(bounds, { padding: [20, 20] });
   }
 
+  // Which cities' hi-res raster (if any) is relevant right now: neighborhood
+  // level with a city picked always means exactly that one city; city level
+  // means whichever cities are meaningfully on screen (citiesInView), even
+  // with nothing picked/selected - one city zoomed in close, or several
+  // zoomed out far enough to see as a cluster. Computed AFTER the view is
+  // already set above - citiesInView() reads the map's CURRENT bounds.
+  const blobCandidates = state.level === 'neighborhood'
+    ? (state.cityFilter ? [state.cityFilter] : [])
+    : citiesInView(leafletMap.getBounds());
+  lastBlobCitiesKey = [...blobCandidates].sort().join(' ');
+  const heatBlobCities = blobCandidates.filter((c) => HEAT_BLOBS[c]);
+  const canopyBlobCities = blobCandidates.filter((c) => CANOPY_BLOBS[c]);
+  // The per-metric toggles are redundant once hi-res-only mode forces both
+  // rasters on together - hidden rather than left sitting there unchecked,
+  // which would misleadingly imply they're what's controlling the view.
+  el('cmBlobRow').hidden = !heatBlobCities.length || state.hiRes;
+  el('cmCanopyBlobRow').hidden = !canopyBlobCities.length || state.hiRes;
+  const heatCitiesShown = (state.hiRes || state.heatBlob) ? heatBlobCities : [];
+  const canopyCitiesShown = (state.hiRes || state.canopyBlob) ? canopyBlobCities : [];
+  // Which TYPE (not which city) backs blobReplacesFill below - heat wins if
+  // somehow both are showing (nothing enforces them mutually exclusive,
+  // same as the old renderer).
+  const activeBlobType = heatCitiesShown.length ? 'heat' : (canopyCitiesShown.length ? 'canopy' : null);
+  // Once a high-res raster is showing for the metric it belongs to, the
+  // per-neighborhood choropleth fill is redundant (see styleForFeature's
+  // own comment) - hi-res-only mode suppresses it unconditionally, even
+  // before a raster is actually available yet (e.g. city level, or
+  // neighborhood level before a city is picked) - "borders only" is the
+  // point of that mode, not just a side effect of a raster being present.
+  const blobReplacesFill = state.hiRes || (activeBlobType != null && activeMetricIds[0] === activeBlobType);
+  updateBlobOverlays(heatCitiesShown, canopyCitiesShown); // async (real projection round trips) - fire-and-forget, see its own generation guard
+
   const entitiesByKey = new Map(entities.map((e) => [e.key, e]));
-  shapesLayer.options.style = (feature) => styleForFeature(feature, entitiesByKey, activeMetricIds, domains);
+  shapesLayer.options.style = (feature) => styleForFeature(feature, entitiesByKey, activeMetricIds, domains, blobReplacesFill);
   shapesLayer.options.onEachFeature = (feature, layer) => wireFeature(feature, layer, entitiesByKey, activeMetricIds);
   shapesLayer.clearLayers();
   shapesLayer.addData(entities.map(entityToFeature));
 
-  renderLegend(activeMetricIds, domains);
+  // The choropleth scale would describe a fill that isn't drawn any more
+  // (see blobReplacesFill above) - showing it would just be wrong, not
+  // merely redundant, since each raster's own coloring follows a different
+  // convention entirely (see cmBlobRow's/cmCanopyBlobRow's own hints): heat
+  // is a per-crop, median-relative scale further weighted by how hot each
+  // city runs nationally; canopy is a plain "is there a tree crown here,
+  // yes/no" mask, not a value scale at all.
+  if (state.hiRes) {
+    const parts = [];
+    if (heatCitiesShown.length) parts.push('כתם החום יחסי לחציון האזור, משוקלל לפי חום העיר ארצית');
+    if (canopyCitiesShown.length) parts.push('כל נקודה ירוקה = צמרת עץ בודדת מהמיפוי המקורי');
+    el('cmLegend').innerHTML = parts.length
+      ? `<span class="cm-legend-nodata">גבולות בלבד, בלי צביעת ממוצע - ${esc(parts.join(' · '))}</span>`
+      : '<span class="cm-legend-nodata">גבולות בלבד, בלי צביעת ממוצע - בחרו עיר והתקרבו לשכונות כדי לראות את הכתמים</span>';
+  } else if (blobReplacesFill && activeBlobType === 'heat') {
+    el('cmLegend').innerHTML = '<span class="cm-legend-nodata">כתם החום מוצג לפי חציון האזור, משוקלל לפי חום העיר ארצית - אין סרגל צבע קבוע להשוואה</span>';
+  } else if (blobReplacesFill && activeBlobType === 'canopy') {
+    el('cmLegend').innerHTML = '<span class="cm-legend-nodata">כל נקודה ירוקה היא צמרת עץ בודדת מהמיפוי המקורי - לא אחוז כיסוי משוכלל</span>';
+  } else {
+    renderLegend(activeMetricIds, domains);
+  }
   el('cmHint').textContent = state.level === 'city'
     ? `${num(entities.length)} ערים - לחיצה מציגה פרטי עיר; למעבר לשכונות שלה, עברו לרמת "שכונות" והקלידו את שמה`
     : (state.cityFilter ? `${num(entities.length)} שכונות ב${state.cityFilter} - לחיצה בוחרת שכונה אחת לצפייה בפרטים` : 'הקלידו שם עיר למעלה כדי לראות את השכונות שלה');
@@ -832,14 +1084,28 @@ el('cmTopoQuickToggle').addEventListener('click', () => {
 const onMapResize = debounce(() => { leafletMap?.invalidateSize(); }, 150);
 new ResizeObserver(onMapResize).observe(el('cmMap'));
 
+el('cmHiResToggle').addEventListener('change', (ev) => {
+  state.hiRes = ev.target.checked;
+  renderMap();
+});
+el('cmBlobToggle').addEventListener('change', (ev) => {
+  state.heatBlob = ev.target.checked;
+  renderMap();
+});
+el('cmCanopyBlobToggle').addEventListener('change', (ev) => {
+  state.canopyBlob = ev.target.checked;
+  renderMap();
+});
+
 // Back to the page's own initial state - level/layer/city pick/selection/
-// pan-zoom/every toggle (OSM basemap) all reset together, since none of
-// those are reachable any other way once several are combined (e.g. a
-// drilled-in city + a zoomed-in view) - a single button beats hunting down
-// which control to switch back. cmOsmToggle is DOM state, not derived from
-// `state` by renderControls() the way the level/layer buttons' own
-// `.active` class is - it needs unchecking here explicitly, or a stale
-// checked box would say one thing while the map itself shows another.
+// pan-zoom/every toggle (OSM basemap, hi-res + both blob overlays) all
+// reset together, since none of those are reachable any other way once
+// several are combined (e.g. hi-res-only + a drilled-in city + a zoomed-in
+// view) - a single button beats hunting down which control to switch back.
+// Checkboxes are DOM state, not derived from `state` by renderControls()
+// the way the level/layer buttons' own `.active` class is - each one needs
+// unchecking here explicitly, or a stale checked box would say one thing
+// while the map itself shows another.
 el('cmFullReset').addEventListener('click', () => {
   state.level = 'city';
   state.layer = 'heat';
@@ -847,12 +1113,18 @@ el('cmFullReset').addEventListener('click', () => {
   state.cityFilter = null;
   state.osm = false;
   state.basemapKind = 'street';
+  state.hiRes = true;
+  state.heatBlob = false;
+  state.canopyBlob = false;
   state.selected = [];
   state.view = { ...DEFAULT_VIEW };
   el('cmOsmToggle').checked = false;
   document.querySelectorAll('.cm-basemap-btn').forEach((b) => {
     b.classList.toggle('active', b.dataset.basemap === 'street');
   });
+  el('cmHiResToggle').checked = true;
+  el('cmBlobToggle').checked = false;
+  el('cmCanopyBlobToggle').checked = false;
   syncUrl();
   renderAll();
 });

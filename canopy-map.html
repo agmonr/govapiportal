@@ -102,9 +102,9 @@
           באריחים חיים תוך כדי תזוזה במפה, לא נתפס מראש כתמונה קבועה אחת.
         </p>
         <p class="acc-hint" dir="auto">
-          <strong>זמנית לא זמינים כאן:</strong> שני "הכתמים" ברזולוציה גבוהה (חום ועצים) ותצוגת הרזולוציה
-          הגבוהה, וכן תפריט המידע בלחיצה ארוכה על עיר/שכונה - בעיצומו של מעבר למנוע מפה חדש (Leaflet),
-          יחזרו בהמשך.
+          <strong>זמנית לא זמינים כאן:</strong> העמודות הקטנות שהיו מציגות כמה מדדים בו-זמנית ברמת עיר,
+          תפריט המידע בלחיצה ארוכה על עיר/שכונה, ומעבר אוטומטי לשכונות בהתקרבות זום לעיר - בעיצומו של מעבר
+          למנוע מפה חדש (Leaflet), יחזרו בהמשך.
         </p>
         <p>
           <strong>ברמת שכונה יש לבחור עיר קודם</strong> - כמו בכל דף אחר באתר: רוב השכונות בגודל של רחוב או
@@ -161,6 +161,19 @@
           <button type="button" data-layer="street" class="tc-level-btn cm-layer-btn">עצי רחוב</button>
           <button type="button" data-layer="heat" class="tc-level-btn cm-layer-btn">איי חום</button>
         </div>
+      </section>
+
+      <section class="acc-section" id="cmHiResRow" aria-labelledby="hiResH">
+        <h2 id="hiResH">תצוגת רזולוציה גבוהה בלבד</h2>
+        <label class="cm-osm-toggle">
+          <input type="checkbox" id="cmHiResToggle" checked>
+          הצג רק גבולות (עיר/שכונה) + שני הכתמים ברזולוציה גבוהה (חום ועצים) יחד, בלי צביעת שכבה לפי ממוצע
+        </label>
+        <p class="acc-hint" dir="auto">
+          מסתיר את הצביעה הרגילה (הממוצע לפי שכונה) ומציג את שני הכתמים הגולמיים - חום ועצים - זה על גבי
+          זה, כשגבולות העיר והשכונות נשארים מסומנים בלבד. זמין ברמת עיר (רק קווי מתאר, לפני בחירת עיר) וברמת
+          שכונה עם עיר נבחרת (הכתמים עצמם, כולל האזור שמסביב לשכונות שנמצאות במפה).
+        </p>
       </section>
 
       <section class="acc-section" id="cmCityAddRow" aria-labelledby="cityAddH" hidden>
@@ -254,6 +267,34 @@
             <button type="button" data-basemap="aerial" class="tc-level-btn cm-basemap-btn">תצלום אוויר</button>
             <button type="button" data-basemap="topo" class="tc-level-btn cm-basemap-btn">מפה טופוגרפית</button>
           </div>
+        </section>
+
+        <section class="acc-section" id="cmBlobRow" aria-labelledby="blobH" hidden>
+          <h2 id="blobH">כתם חום</h2>
+          <label class="cm-osm-toggle">
+            <input type="checkbox" id="cmBlobToggle">
+            הצג כתמי חום
+          </label>
+          <p class="acc-hint" dir="auto">
+            צביעה רציפה לפי התמונה הגולמית (~37 מ׳ לפיקסל), לא לפי שכונה - כדי להראות אזורי חום שיכולים
+            להתפשט על פני כמה שכונות, לא רק "כמה חם בשכונה X בממוצע". הצבע יחסי לחציון האזור המוצג, אבל
+            מוכפל גם במשקל הארצי של העיר עצמה (כמה היא חמה בממוצע ביחס לשאר הערים) - אותה חריגה מקומית
+            תיראה עזה יותר בעיר חמה ארצית ועמומה יותר בעיר קרה ממנה, ולכן יש כאן השוואה חלקית בין ערים,
+            לא רק תמונה מבודדת של כל עיר בפני עצמה.
+          </p>
+        </section>
+
+        <section class="acc-section" id="cmCanopyBlobRow" aria-labelledby="canopyBlobH" hidden>
+          <h2 id="canopyBlobH">חופות עצים ברזולוציה גבוהה</h2>
+          <label class="cm-osm-toggle">
+            <input type="checkbox" id="cmCanopyBlobToggle">
+            הצג כל עץ בנפרד (מהמיפוי המקורי, לא אחוז כיסוי לפי שכונה)
+          </label>
+          <p class="acc-hint" dir="auto">
+            כל נקודה ירוקה היא צמרת עץ בודדת מהשכבה הארצית המקורית (כ-2.89 מיליון צמרות) - לא ממוצע/אחוז
+            לפי שכונה, אלא המיקום והצורה האמיתיים של כל עץ, כדי להראות אילו רחובות/מגרשים ירוקים בפועל
+            ולא רק "כמה ירוקה השכונה בממוצע".
+          </p>
         </section>
       </section>
 

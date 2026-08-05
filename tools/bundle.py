@@ -138,17 +138,16 @@ TARGETS = [
         # geo-utils.js is for its TILE_URL_TEMPLATES/TILE_KIND_ATTRIBUTION
         # constants (the real-map background's tile layer), not its own
         # canvas-stitching functions, which this page no longer calls either.
-        # heat-blobs.js/canopy-blobs.js (large base64 image data) are DEFERRED
-        # along with the hi-res blob overlay feature itself - see canopy-
-        # map.js's own top docstring - and deliberately left out of this list
-        # entirely rather than shipped unused, since bundle.py inlines every
-        # listed source unconditionally regardless of whether the entry
-        # actually imports it.
+        # heat-blobs.js/canopy-blobs.js (large base64 image data) back the
+        # hi-res blob overlay feature (canopy-map.js reprojects their ITM
+        # bboxes to WGS84 via geo-utils.js's projectPoints and renders them
+        # with L.imageOverlay).
         "sources": ["src/ui.js", "src/theme.js", "src/charts.js", "src/geo-utils.js",
                     "src/map-boundaries-cities-wgs84.js", "src/map-boundaries-neighborhoods-wgs84.js",
                     "src/tree-canopy-cities.js", "src/tree-canopy-neighborhoods.js", "src/tree-canopy-streets.js",
                     "src/canopy-split-cities.js", "src/canopy-split-neighborhoods.js",
                     "src/heat-cities.js", "src/heat-neighborhoods.js", "src/heat-streets.js",
+                    "src/heat-blobs.js", "src/canopy-blobs.js",
                     "src/apps.js", "src/canopy-map.js"],
         "data": True,
     },
