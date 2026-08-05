@@ -308,6 +308,10 @@ function renderDiscountChecks() {
     cb.addEventListener('change', () => {
       if (cb.checked) state.checkedDiscounts.add(cb.dataset.discount);
       else state.checkedDiscounts.delete(cb.dataset.discount);
+      // Collapse the "how this works" explainer once the citizen has
+      // actually ticked something - it's done its job, and the checkbox
+      // list plus the per-city notes take up enough room on their own.
+      if (state.checkedDiscounts.size) el('arDiscountsInfo').open = false;
       renderCompare();
     });
   });
