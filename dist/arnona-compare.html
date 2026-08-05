@@ -5542,14 +5542,14 @@ function renderCompare() {
     const r = resultForCity(state.myCity, true);
     if (r) {
       entries.push({ label: `${labelForCity(state.myCity)} (אני)`, value: Math.round(r.total), color: 'var(--accent)' });
-      details.push(detailBlock(labelForCity(state.myCity), r));
+      if (r.notes.length) details.push(detailBlock(labelForCity(state.myCity), r));
     }
   }
   usableCities().filter((id) => id !== state.myCity).forEach((id) => {
     const r = resultForCity(id, false);
     if (r) {
       entries.push({ label: labelForCity(id), value: Math.round(r.total), color: 'var(--fin-compare, #999)' });
-      details.push(detailBlock(labelForCity(id), r));
+      if (r.notes.length) details.push(detailBlock(labelForCity(id), r));
     }
   });
   entries.sort((a, b) => b.value - a.value);
@@ -5559,12 +5559,16 @@ function renderCompare() {
   renderDiscountChecks();
 }
 
+// The chart itself already shows label+value per city (renderHBarChart) -
+// this block exists only to surface discount notes (e.g. "not defined for
+// this city"), so it's skipped entirely for cities with none, and doesn't
+// repeat the ₪ total the chart already carries.
 function detailBlock(label, r) {
-  const notesHtml = (r.notes || []).map((n) => `<li dir="auto">${esc(n)}</li>`).join('');
+  const notesHtml = r.notes.map((n) => `<li dir="auto">${esc(n)}</li>`).join('');
   return `
     <div class="notice info" dir="auto" style="margin-block-end:.75rem">
-      <strong>${esc(label)}:</strong> ${num(Math.round(r.total))} ₪ לשנה
-      ${notesHtml ? `<ul>${notesHtml}</ul>` : ''}
+      <strong>${esc(label)}:</strong>
+      <ul>${notesHtml}</ul>
     </div>`;
 }
 
