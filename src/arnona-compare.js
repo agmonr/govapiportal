@@ -349,25 +349,54 @@ function resultForCity(id, isMe) {
   return { ...result, notes };
 }
 
+// Rule-of-thumb net->gross-gross markup discussed earlier in this project:
+// a bruto_bruto city measures the SAME physical apartment as more square
+// meters than a neto/bruto city would (wall thickness + a proportional
+// common-area share on top), commonly landing ~20-30% above a net figure.
+// If the size the citizen entered is closer to their apartment's actual/net
+// size rather than that specific city's own official chargeable area, a
+// bruto_bruto city's true bill would land nearer this lighter bar than the
+// solid one - not a computed fact, just the same estimate given earlier.
+const BRUTO_BRUTO_MARKUP = 1.25;
+function lighten(color) {
+  return `color-mix(in srgb, ${color} 45%, var(--bg) 55%)`;
+}
+
 function renderCompare() {
-  const entries = [];
+  const rows = [];
   const details = [];
 
   if (state.myCity) {
     const r = resultForCity(state.myCity, true);
     if (r) {
-      entries.push({ label: `${labelForCity(state.myCity)} (אני)`, value: Math.round(r.total), color: 'var(--accent)' });
+      rows.push({ id: state.myCity, label: `${labelForCity(state.myCity)} (אני)`, value: Math.round(r.total), color: 'var(--accent)' });
       if (r.notes.length) details.push(detailBlock(labelForCity(state.myCity), r));
     }
   }
   usableCities().filter((id) => id !== state.myCity).forEach((id) => {
     const r = resultForCity(id, false);
     if (r) {
-      entries.push({ label: labelForCity(id), value: Math.round(r.total), color: 'var(--fin-compare, #999)' });
+      rows.push({ id, label: labelForCity(id), value: Math.round(r.total), color: 'var(--fin-compare, #999)' });
       if (r.notes.length) details.push(detailBlock(labelForCity(id), r));
     }
   });
-  entries.sort((a, b) => b.value - a.value);
+  rows.sort((a, b) => b.value - a.value);
+
+  // Each bruto_bruto city's own bar is immediately followed by its lighter
+  // +25% reference bar - grouped by city, not re-sorted into the ranking on
+  // its own value, so the pair reads as "this city, and its likely real
+  // range" rather than as an unrelated extra row elsewhere in the list.
+  const entries = rows.flatMap((row) => {
+    const pair = [row];
+    if (RATES[row.id]?.area_method === 'bruto_bruto') {
+      pair.push({
+        label: `${row.label} - אם השטח שהזנתם הוא נטו (+כ-25%)`,
+        value: Math.round(row.value * BRUTO_BRUTO_MARKUP),
+        color: lighten(row.color),
+      });
+    }
+    return pair;
+  });
 
   renderHBarChart('arCompareChart', `ארנונה שנתית משוערת - ${num(state.size)} מ"ר, כל הערים`, entries, '₪/שנה');
   el('arCompareDetails').innerHTML = details.join('');
