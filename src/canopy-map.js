@@ -666,9 +666,15 @@ async function renderMap() {
   const domains = computeDomains(entities, activeMetricIds);
   const isMultiMetric = activeMetricIds.length > 1;
 
-  el('cmOsmRow').hidden = state.level !== 'neighborhood' || !state.cityFilter;
+  const osmAvailable = state.level === 'neighborhood' && !!state.cityFilter;
+  el('cmOsmRow').hidden = !osmAvailable;
   el('cmBasemapKindRow').hidden = !state.osm;
   el('cmBasemap').hidden = true;
+  // Same availability as the "רקע מפה" section itself (osmAvailable) - the
+  // quick-toggle drives the identical state, so it can't do anything
+  // meaningful outside that scope either.
+  el('cmTopoQuickToggle').hidden = !osmAvailable;
+  el('cmTopoQuickToggle').classList.toggle('active', state.osm && state.basemapKind === 'topo');
 
   // `viewBox` is always {x,y,w,h} - ITM meters (Y-negated) in flat mode,
   // OSM's own fixed pixel space when that mode is active. The two are NOT
@@ -1177,6 +1183,24 @@ document.querySelectorAll('.cm-basemap-btn').forEach((btn) => {
     });
     renderMap();
   });
+});
+
+// One-click "show the topography under this view" shortcut right next to
+// the fullscreen toggle, driving the exact same state.osm/state.basemapKind
+// as the "רקע מפה" section's own checkbox + button-row above, rather than
+// making a visitor find that section and turn OSM on by hand first. A true
+// toggle: pressing it again while topo is already showing turns the real-
+// map background off entirely, same as unchecking cmOsmToggle would.
+el('cmTopoQuickToggle').addEventListener('click', () => {
+  const alreadyTopo = state.osm && state.basemapKind === 'topo';
+  state.osm = !alreadyTopo;
+  state.basemapKind = 'topo';
+  state.view = null; // OSM's pixel space and the flat ITM space aren't the same units - see cmOsmToggle's own handler above for the same reset
+  el('cmOsmToggle').checked = state.osm;
+  document.querySelectorAll('.cm-basemap-btn').forEach((b) => {
+    b.classList.toggle('active', b.dataset.basemap === 'topo');
+  });
+  renderMap();
 });
 
 el('cmBlobToggle').addEventListener('change', (ev) => {

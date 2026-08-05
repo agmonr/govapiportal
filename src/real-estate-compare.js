@@ -127,18 +127,14 @@ const MAX_STREET_PICKS = 10;
 const VALID_LEVELS = ['city', 'neighborhood', 'street'];
 
 const state = {
-  level: 'city', picks: new Array(LEVELS.city.maxPicks).fill(null), cityFilter: null, boardOrder: 'best', streetPicks: [],
+  level: 'city', picks: [], cityFilter: null, boardOrder: 'best', streetPicks: [],
 };
 
 function readStateFromUrl() {
   const p = new URLSearchParams(location.search);
   if (VALID_LEVELS.includes(p.get('level'))) state.level = p.get('level');
   const maxPicks = LEVELS[state.level]?.maxPicks || 0;
-  state.picks = new Array(maxPicks).fill(null);
-  for (let i = 0; i < maxPicks; i += 1) {
-    const v = p.get(`p${i + 1}`);
-    if (v) state.picks[i] = v;
-  }
+  state.picks = p.getAll('p').filter(Boolean).slice(0, maxPicks);
   if (p.get('city')) state.cityFilter = p.get('city');
   if (p.get('order') === 'worst') state.boardOrder = 'worst';
   state.streetPicks = p.getAll('st').map((s) => {
@@ -150,7 +146,7 @@ function readStateFromUrl() {
 function syncUrl() {
   const p = new URLSearchParams();
   p.set('level', state.level);
-  state.picks.forEach((v, i) => { if (v) p.set(`p${i + 1}`, v); });
+  state.picks.forEach((v) => { if (v) p.append('p', v); });
   if (state.cityFilter) p.set('city', state.cityFilter);
   if (state.boardOrder === 'worst') p.set('order', 'worst');
   state.streetPicks.forEach(({ city, street }) => p.append('st', `${city}::${street}`));
@@ -181,7 +177,7 @@ function updateCityRoster(query) {
 }
 
 function updateRosterOptions(query) {
-  const top = candidateEntries(query).slice(0, 40);
+  const top = candidateEntries(query).filter((e) => !state.picks.includes(e.label)).slice(0, 40);
   el('recRoster').innerHTML = top.map((e) => `<option value="${esc(e.label)}">`).join('');
 }
 
@@ -787,7 +783,7 @@ function renderMetricBoard(figId, metricId, entries, { labelPlural, capAll = fal
 }
 
 // When exactly one city is picked at city level (whether from a map deep
-// link's own p1 param or typed into the pick field by hand), that city's
+// link's own p param or typed into the pick field by hand), that city's
 // own neighborhoods are shown FIRST, ahead of the national city list - a
 // natural "what does this one city look like inside" drill-down, without
 // having to switch level and retype the city into the neighborhood filter.
@@ -874,47 +870,62 @@ el('recShare').addEventListener('click', () => {
 
 /* ---------- wiring ---------- */
 
-// Rebuilt (not just relabeled) whenever the level changes, since city/
-// neighborhood have different maxPicks - see wirePickInputs(). Listeners
-// are attached once per rebuild, not on every renderAll(), so typing into
-// a pick field mid-interaction never gets its own input element replaced
-// out from under it (renderAll() itself is never called from a pick's own
-// input handler - only on level/cityFilter/board-order changes).
-let pickInputs = [];
+// City/neighborhood picks: one persistent "add" input + roster datalist +
+// removable chips - same idiom as the street picker just above
+// (recStreetPick/recStreetChips/commitStreetPick) and as real-estate-map.js's
+// own remCityAddPick/remNbPick, chosen instead of the old fixed grid of
+// maxPicks (up to 10) always-visible text fields, most of which sat empty.
 
-function showPickConfirm(i, ok) {
-  const confirmEl = el(`recPickConfirm${i}`);
+function showPickConfirm(ok) {
+  const confirmEl = el('recPickConfirm');
   if (!confirmEl) return;
   clearTimeout(confirmEl._timer);
   confirmEl.classList.remove('tc-pick-confirm-show');
   if (!ok) return;
-  confirmEl.textContent = '✓ נטען';
+  confirmEl.textContent = '✓ נוסף';
   void confirmEl.offsetWidth;
   confirmEl.classList.add('tc-pick-confirm-show');
   confirmEl._timer = setTimeout(() => confirmEl.classList.remove('tc-pick-confirm-show'), 1500);
 }
 
-function wirePickInputs() {
-  const lvl = LEVELS[state.level];
-  const n = lvl.maxPicks;
-  el('recPicks').innerHTML = Array.from({ length: n }, (_, i) => `
-    <div class="acc-year-pick">
-      <label for="recPick${i}" id="recPickLabel${i}"></label>
-      <input id="recPick${i}" type="text" list="recRoster" autocomplete="off" spellcheck="false" placeholder="התחילו להקליד…">
-      <span class="tc-pick-confirm" id="recPickConfirm${i}" aria-live="polite"></span>
-    </div>`).join('');
-  pickInputs = Array.from({ length: n }, (_, i) => el(`recPick${i}`));
-  pickInputs.forEach((input, i) => {
-    input.addEventListener('input', debounce(() => updateRosterOptions(input.value), 120));
-    const commit = () => {
-      state.picks[i] = input.value.trim() || null;
-      syncUrl();
-      renderCompare();
-      showPickConfirm(i, Boolean(state.picks[i] && labelMap(state.level).has(state.picks[i])));
-    };
-    input.addEventListener('change', commit);
-    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); commit(); } });
+function renderPickChips() {
+  const chips = el('recPickChips');
+  if (!state.picks.length) { chips.hidden = true; chips.innerHTML = ''; return; }
+  chips.hidden = false;
+  chips.innerHTML = state.picks.map((label, i) => `
+    <span class="cm-chip" style="border-color:${pickColorFor(i)}">
+      <span class="acc-legend-swatch" style="background:${pickColorFor(i)}"></span>
+      <span dir="auto">${esc(label)}</span>
+      <button type="button" class="cm-chip-remove" data-idx="${i}" aria-label="הסרה">✕</button>
+    </span>`).join('');
+  chips.querySelectorAll('.cm-chip-remove').forEach((btn) => {
+    btn.addEventListener('click', () => removePick(Number(btn.dataset.idx)));
   });
+}
+
+function removePick(i) {
+  state.picks.splice(i, 1);
+  syncUrl();
+  renderPickChips();
+  updateRosterOptions(el('recPick').value);
+  renderCompare();
+}
+
+function commitPick() {
+  const input = el('recPick');
+  const lvl = LEVELS[state.level];
+  const label = input.value.trim();
+  const known = label && labelMap(state.level).has(label);
+  if (known && state.picks.length < lvl.maxPicks && !state.picks.includes(label)) {
+    state.picks.push(label);
+    syncUrl();
+    renderPickChips();
+    renderCompare();
+  }
+  input.value = '';
+  el('recRoster').innerHTML = '';
+  showPickConfirm(known);
+  updateRosterOptions('');
 }
 
 function renderAll() {
@@ -938,12 +949,11 @@ function renderAll() {
   }
 
   const lvl = LEVELS[state.level];
-  if (pickInputs.length !== lvl.maxPicks) wirePickInputs();
-  el('recPickHint').textContent = `אפשר להשוות עד ${lvl.maxPicks} בבת אחת - השדה הראשון נדרש, השאר אופציונליים.`;
-  pickInputs.forEach((input, i) => {
-    el(`recPickLabel${i}`).textContent = i === 0 ? lvl.pickLabel : `השוואה ${i + 1} (אופציונלי):`;
-    input.value = state.picks[i] || '';
-  });
+  el('recPickLabel').textContent = lvl.pickLabel;
+  el('recPickHint').textContent = `הקלידו ${lvl.label} והקישו Enter (או בחרו מהרשימה) כדי להוסיף להשוואה - עד ${lvl.maxPicks} בבת אחת.`;
+  el('recPick').value = '';
+  el('recRoster').innerHTML = '';
+  renderPickChips();
   el('recCityFilterRow').hidden = state.level === 'city';
   el('recCityFilter').value = state.cityFilter || '';
   updateCityRoster('');
@@ -960,7 +970,7 @@ el('recLevelPick').querySelectorAll('.tc-level-btn').forEach((btn) => {
   btn.addEventListener('click', () => {
     if (state.level === btn.dataset.level) return;
     state.level = btn.dataset.level;
-    state.picks = new Array(LEVELS[state.level]?.maxPicks || 0).fill(null);
+    state.picks = [];
     state.cityFilter = null;
     syncUrl();
     renderAll();
@@ -974,6 +984,10 @@ el('recCityFilter').addEventListener('change', () => {
   syncUrl();
   renderAll();
 });
+
+el('recPick').addEventListener('input', debounce((ev) => updateRosterOptions(ev.target.value), 120));
+el('recPick').addEventListener('change', commitPick);
+el('recPick').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); commitPick(); } });
 
 el('recStreetPick').addEventListener('input', debounce((ev) => updateStreetRoster(ev.target.value), 120));
 el('recStreetPick').addEventListener('change', commitStreetPick);

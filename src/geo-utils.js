@@ -14,9 +14,16 @@ const OSM_TILE = (z, x, y) => `https://tile.openstreetmap.org/${z}/${x}/${y}.png
 // convention, {z}/{y}/{x} - same order this codebase already deals with for
 // the heat ImageServer, see canopy-map.html's "כתם חום" explainer).
 const AERIAL_TILE = (z, x, y) => `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}`;
+// Esri's free World Topo Map - same service family/URL shape/no-API-key
+// access as AERIAL_TILE above (verified directly: both return real tiles
+// with no auth), just a different service name. Contour lines/terrain
+// shading rather than street or satellite - canopy-map.html's own "show the
+// topography under this heat/canopy view" toggle.
+const TOPO_TILE = (z, x, y) => `https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/${z}/${y}/${x}`;
 const TILE_ATTRIBUTION = {
   street: '© OpenStreetMap contributors',
   aerial: 'Imagery © Esri, Maxar, Earthstar Geographics',
+  topo: 'Esri, HERE, Garmin, FAO, NOAA, USGS',
 };
 
 export const ITM_WKID = 2039;
@@ -75,15 +82,17 @@ function mercatorToPixel(mx, my, zoom) {
   return [px, py];
 }
 
+const TILE_URL_BY_KIND = { aerial: AERIAL_TILE, topo: TOPO_TILE };
 async function fetchTileBitmap(z, x, y, kind) {
-  const tileUrl = kind === 'aerial' ? AERIAL_TILE : OSM_TILE;
+  const tileUrl = TILE_URL_BY_KIND[kind] || OSM_TILE;
   const res = await fetch(tileUrl(z, x, y));
   if (!res.ok) throw new Error(`tile ${z}/${x}/${y}: HTTP ${res.status}`);
   return createImageBitmap(await res.blob());
 }
 
-/** A basemap canvas (size x size), stitched from OSM (or, with
- * kind: 'aerial', Esri World Imagery) tiles and aligned to `bbox` (ITM). */
+/** A basemap canvas (size x size), stitched from OSM (or, with kind:
+ * 'aerial'/'topo', Esri World Imagery/World Topo Map) tiles and aligned to
+ * `bbox` (ITM). */
 export async function fetchBasemapCanvas(bbox, size, kind = 'street') {
   const [xmin, ymin, xmax, ymax] = bbox;
   const cornersItm = [[xmin, ymin], [xmax, ymin], [xmax, ymax], [xmin, ymax]];
@@ -97,9 +106,9 @@ export async function fetchBasemapCanvas(bbox, size, kind = 'street') {
  * returns `project`, a closure over this same fetch's zoom/tile origin, so a
  * caller can place further points (a live route, not just a static centre
  * pin) on the same canvas without re-deriving the transform. `kind` picks
- * the tile source: 'street' (default, OSM) or 'aerial' (Esri World
- * Imagery) - both share the same slippy-tile grid, so the projector math
- * below is identical either way. */
+ * the tile source: 'street' (default, OSM), 'aerial' (Esri World Imagery)
+ * or 'topo' (Esri World Topo Map) - all three share the same slippy-tile
+ * grid, so the projector math below is identical regardless. */
 export async function fetchBasemapCanvasWGS84([lonMin, latMin, lonMax, latMax], size, kind = 'street') {
   const cornersWgs84 = [[lonMin, latMin], [lonMax, latMin], [lonMax, latMax], [lonMin, latMax]];
   return stitchBasemap(cornersWgs84, size, kind);

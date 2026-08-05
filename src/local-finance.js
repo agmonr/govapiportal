@@ -20,7 +20,7 @@
 import { el, esc, num, debounce, buildCsv, saveCsv, showError, showLoading } from './ui.js';
 import { initThemePicker } from './theme.js';
 import { YEAR_RESOURCES, YEARS_DESC, ROSTER_YEAR, ROSTER_FILTERS, SUMMARY_SHEET, SUMMARY_ROWS, SUMMARY_COLUMN, form2RowsFor, BALANCE_COLUMN, balanceRowsFor, AREA_SHEET, AREA_CATEGORIES, areaColumnFor, JURISDICTION_SHEET, JURISDICTION_ROW, JURISDICTION_YEAR, ARNONA_COLLECTION_SHEET, ARNONA_COLLECTION_ROWS, ARNONA_COLLECTION_COLUMN } from './finance-data.js';
-import { renderBarChart, renderHBarChart, renderGroupedChart, CITY_COLOR_MAIN, CITY_COLOR_COMPARE, citySwatchCell } from './charts.js';
+import { renderBarChart, renderHBarChart, renderGroupedChart, CITY_COLOR_MAIN, cityCompareColor, citySwatchCell } from './charts.js';
 import { dsFilter } from './datastore.js';
 import { CBS_POPULATION_YEAR, fetchPopulation, fetchPopulations } from './population.js';
 import { STABLE_AUTHORITIES } from './stable-authorities.js';
@@ -47,9 +47,21 @@ const DEFAULT_AUTHORITY = 'הוד השרון';
 // empty compare field the visitor has to know to fill in themselves.
 const DEFAULT_COMPARE_AUTHORITY = 'רעננה';
 
+// Up to 3 compare authorities (finCompare/finCompare2/finCompare3), one
+// fixed input each rather than a dynamic chip-add list - the #1 slot works
+// everywhere (unchanged from before), #2/#3 are DESKTOP ONLY: their own
+// input boxes are hidden on mobile via CSS (.fin-compare-extra, see
+// style.css), and renderAuthorityCharts() below re-checks matchMedia on
+// every render and drops anything past the first slot on a narrow
+// viewport even if it's still sitting in state/the URL - a 4-way grouped
+// bar chart has no room on a phone screen, so a compare authority typed in
+// on desktop and revisited on a phone should fall back to the single-
+// compare view it always had, not silently try to cram 3 extra bar-groups
+// into 320px.
+const MAX_COMPARE_AUTHORITIES = 3;
 const state = {
   authority: DEFAULT_AUTHORITY,
-  compareAuthority: DEFAULT_COMPARE_AUTHORITY,
+  compareAuthorities: [DEFAULT_COMPARE_AUTHORITY, null, null],
   year: YEARS_DESC[0],
   summaryCache: new Map(), // year -> { totals, byAuthority[] } | 'unsupported'
   liabilitiesCache: new Map(), // year -> Map(name -> { liabilities, currentLiabilities }) | 'unsupported'
@@ -88,15 +100,21 @@ function readStateFromUrl() {
   // - distinct from the param being entirely ABSENT (a bare/fresh visit,
   // where DEFAULT_COMPARE_AUTHORITY, already in `state`, should stand).
   // Collapsing those two would make a shared "no compare" link silently
-  // grow the default comparison back on open.
-  if (p.has('compare')) state.compareAuthority = p.get('compare').trim() || null;
+  // grow the default comparison back on open. `compare2`/`compare3` (the
+  // desktop-only extra slots) have no such default to protect, so a plain
+  // absent-means-empty read is enough for them.
+  if (p.has('compare')) state.compareAuthorities[0] = p.get('compare').trim() || null;
+  if (p.has('compare2')) state.compareAuthorities[1] = p.get('compare2').trim() || null;
+  if (p.has('compare3')) state.compareAuthorities[2] = p.get('compare3').trim() || null;
   if (YEAR_RESOURCES[year]) state.year = year;
 }
 
 function syncUrl() {
   const p = new URLSearchParams();
   if (state.authority) p.set('authority', state.authority);
-  p.set('compare', state.compareAuthority || '');
+  p.set('compare', state.compareAuthorities[0] || '');
+  if (state.compareAuthorities[1]) p.set('compare2', state.compareAuthorities[1]);
+  if (state.compareAuthorities[2]) p.set('compare3', state.compareAuthorities[2]);
   p.set('year', String(state.year));
   history.replaceState(null, '', `?${p}`);
 }
@@ -550,16 +568,20 @@ async function fetchAuthorityBundles(authorities) {
 // renderGroupedChart, niceAxisStep, buildYearSlots, FIN_PLOT_PX,
 // CITY_COLOR_MAIN/COMPARE and citySwatchCell are shared - see charts.js.
 
-/** `population`/`comparePopulation` (optional): each authority's own
- *  resident count from CBS's 2022 census (see fetchPopulation) - one fixed
- *  number reused for every year's per-resident column, since no per-year
- *  population series exists. `compare` (optional): each year with a
- *  matching compare-authority point gets a second row directly beneath the
- *  main authority's row for that year (same year cell, via rowspan) rather
- *  than more columns beside it - a year with no compare data for the year
- *  keeps its single row, since that's a real gap, not a zero. */
-function renderAuthorityTable(points, compare = null, population = null, comparePopulation = null) {
-  const compareByYear = new Map((compare?.points || []).map((p) => [p.year, p]));
+/** `population` (optional): the main authority's own resident count from
+ *  CBS's 2022 census (see fetchPopulation) - one fixed number reused for
+ *  every year's per-resident column, since no per-year population series
+ *  exists. `compares` (optional): compact array of `{ name, points,
+ *  population }`, one entry per active compare authority that actually has
+ *  data (see projectCompareBundles() in renderAuthorityCharts) - each
+ *  year gets one extra row per compare entity that has a matching point
+ *  for that year, directly beneath the main authority's own row (same year
+ *  cell, via rowspan) rather than more columns beside it; a compare entity
+ *  with no point for a given year simply contributes no row that year,
+ *  since that's a real gap, not a zero. */
+function renderAuthorityTable(points, compares = [], population = null) {
+  const compareByYearList = compares.map((c) => new Map(c.points.map((p) => [p.year, p])));
+  const hasCompare = compares.length > 0;
   const rows = [...points].sort((a, b) => b.year - a.year).map((p) => {
     const surplus = p.revenue - p.expense;
     // A subtle text-color flag, not a full row/cell fill - visible on a
@@ -570,11 +592,11 @@ function renderAuthorityTable(points, compare = null, population = null, compare
     // divided by 1000 twice over.
     const perResRevenue = population ? Math.round((p.revenue * 1000) / population) : null;
     const perResExpense = population ? Math.round((p.expense * 1000) / population) : null;
-    const cmp = compareByYear.get(p.year);
+    const cmpRows = compares.map((c, i) => ({ c, i, pt: compareByYearList[i].get(p.year) })).filter((x) => x.pt);
     const mainRow = `
       <tr>
-        <th scope="row"${cmp ? ' rowspan="2"' : ''}>${p.year}</th>
-        ${compare ? citySwatchCell(state.authority, CITY_COLOR_MAIN) : ''}
+        <th scope="row"${cmpRows.length ? ` rowspan="${1 + cmpRows.length}"` : ''}>${p.year}</th>
+        ${hasCompare ? citySwatchCell(state.authority, CITY_COLOR_MAIN) : ''}
         <td>${num(p.revenue)}</td>
         <td>${num(p.expense)}</td>
         <td dir="ltr" style="color:${color}; font-weight:600">${surplus >= 0 ? '+' : ''}${num(surplus)}</td>
@@ -582,31 +604,32 @@ function renderAuthorityTable(points, compare = null, population = null, compare
           <td>${num(perResRevenue)}</td>
           <td>${num(perResExpense)}</td>` : ''}
       </tr>`;
-    if (!cmp) return mainRow;
-    const cmpSurplus = cmp.revenue - cmp.expense;
-    const cmpColor = cmpSurplus >= 0 ? 'var(--fin-ok)' : 'var(--fin-bad)';
-    const cmpPerResRevenue = comparePopulation ? Math.round((cmp.revenue * 1000) / comparePopulation) : null;
-    const cmpPerResExpense = comparePopulation ? Math.round((cmp.expense * 1000) / comparePopulation) : null;
-    const cmpRow = `
+    const cmpRowsHtml = cmpRows.map(({ c, i, pt }) => {
+      const cmpSurplus = pt.revenue - pt.expense;
+      const cmpColor = cmpSurplus >= 0 ? 'var(--fin-ok)' : 'var(--fin-bad)';
+      const cmpPerResRevenue = c.population ? Math.round((pt.revenue * 1000) / c.population) : null;
+      const cmpPerResExpense = c.population ? Math.round((pt.expense * 1000) / c.population) : null;
+      return `
       <tr class="fin-row-compare">
-        ${citySwatchCell(compare.name, CITY_COLOR_COMPARE)}
-        <td>${num(cmp.revenue)}</td>
-        <td>${num(cmp.expense)}</td>
+        ${citySwatchCell(c.name, cityCompareColor(i))}
+        <td>${num(pt.revenue)}</td>
+        <td>${num(pt.expense)}</td>
         <td dir="ltr" style="color:${cmpColor}; font-weight:600">${cmpSurplus >= 0 ? '+' : ''}${num(cmpSurplus)}</td>
         ${population ? `
           <td>${cmpPerResRevenue != null ? num(cmpPerResRevenue) : '—'}</td>
           <td>${cmpPerResExpense != null ? num(cmpPerResExpense) : '—'}</td>` : ''}
       </tr>`;
-    return mainRow + cmpRow;
+    }).join('');
+    return mainRow + cmpRowsHtml;
   }).join('');
   const popNote = el('finPopNote');
   const popNoteDetails = el('finPopNoteDetails');
   if (population) {
     popNoteDetails.hidden = false;
-    const compareNote = compare
-      ? (comparePopulation ? ` אוכלוסיית ${compare.name}: ${num(comparePopulation)} תושבים.` : ` הנתון אינו זמין עבור ${compare.name}.`)
-      : '';
-    popNote.textContent = `הכנסות/הוצאות לתושב מחושבות לפי אוכלוסיית ${state.authority} במפקד ${CBS_POPULATION_YEAR} של הלשכה המרכזית לסטטיסטיקה (${num(population)} תושבים) - אותו מספר תושבים משמש לכל השנים בטבלה, ולא אומדן שנתי מתעדכן.${compareNote}`;
+    const compareNotes = compares.map((c) => (c.population
+      ? ` אוכלוסיית ${c.name}: ${num(c.population)} תושבים.`
+      : ` הנתון אינו זמין עבור ${c.name}.`)).join('');
+    popNote.textContent = `הכנסות/הוצאות לתושב מחושבות לפי אוכלוסיית ${state.authority} במפקד ${CBS_POPULATION_YEAR} של הלשכה המרכזית לסטטיסטיקה (${num(population)} תושבים) - אותו מספר תושבים משמש לכל השנים בטבלה, ולא אומדן שנתי מתעדכן.${compareNotes}`;
   } else {
     popNoteDetails.hidden = true;
   }
@@ -616,7 +639,7 @@ function renderAuthorityTable(points, compare = null, population = null, compare
         <thead>
           <tr>
             <th scope="col">שנה</th>
-            ${compare ? '<th scope="col" class="fin-city-cell">רשות</th>' : ''}
+            ${hasCompare ? '<th scope="col" class="fin-city-cell">רשות</th>' : ''}
             <th scope="col">הכנסות (אלפי ש"ח)</th>
             <th scope="col">הוצאות (אלפי ש"ח)</th>
             <th scope="col">עודף (גרעון)</th>
@@ -632,30 +655,30 @@ function renderAuthorityTable(points, compare = null, population = null, compare
 
 // Same plain-values-underneath-the-chart pattern as renderAuthorityTable
 // above, for the liabilities combo chart - and the same city-per-row
-// stacking, rather than more columns beside the main authority's. `compare`
-// (optional) carries the compare authority's own balance points directly
-// ({year, liabilities, currentLiabilities}) - not the single flattened
-// backdrop value the chart itself uses, since a table has room to show both
-// real figures plainly.
-function renderLiabilityTable(points, compare = null) {
-  const compareByYear = new Map((compare?.points || []).map((p) => [p.year, p]));
+// stacking, rather than more columns beside the main authority's. `compares`
+// (compact array, see renderAuthorityTable above) carries each compare
+// authority's own balance points directly ({year, liabilities,
+// currentLiabilities}) - not the single flattened backdrop value the chart
+// itself uses, since a table has room to show every real figure plainly.
+function renderLiabilityTable(points, compares = []) {
+  const compareByYearList = compares.map((c) => new Map(c.points.map((p) => [p.year, p])));
+  const hasCompare = compares.length > 0;
   const rows = [...points].sort((a, b) => b.year - a.year).map((p) => {
-    const cmp = compareByYear.get(p.year);
+    const cmpRows = compares.map((c, i) => ({ c, i, pt: compareByYearList[i].get(p.year) })).filter((x) => x.pt);
     const mainRow = `
       <tr>
-        <th scope="row"${cmp ? ' rowspan="2"' : ''}>${p.year}</th>
-        ${compare ? citySwatchCell(state.authority, CITY_COLOR_MAIN) : ''}
+        <th scope="row"${cmpRows.length ? ` rowspan="${1 + cmpRows.length}"` : ''}>${p.year}</th>
+        ${hasCompare ? citySwatchCell(state.authority, CITY_COLOR_MAIN) : ''}
         <td>${num(p.liabilities)}</td>
         <td>${num(p.currentLiabilities)}</td>
       </tr>`;
-    if (!cmp) return mainRow;
-    const cmpRow = `
+    const cmpRowsHtml = cmpRows.map(({ c, i, pt }) => `
       <tr class="fin-row-compare">
-        ${citySwatchCell(compare.name, CITY_COLOR_COMPARE)}
-        <td>${num(cmp.liabilities)}</td>
-        <td>${num(cmp.currentLiabilities)}</td>
-      </tr>`;
-    return mainRow + cmpRow;
+        ${citySwatchCell(c.name, cityCompareColor(i))}
+        <td>${num(pt.liabilities)}</td>
+        <td>${num(pt.currentLiabilities)}</td>
+      </tr>`).join('');
+    return mainRow + cmpRowsHtml;
   }).join('');
   el('finLiabTable').innerHTML = `
     <div class="matrix-wrap">
@@ -663,7 +686,7 @@ function renderLiabilityTable(points, compare = null) {
         <thead>
           <tr>
             <th scope="col">שנה</th>
-            ${compare ? '<th scope="col" class="fin-city-cell">רשות</th>' : ''}
+            ${hasCompare ? '<th scope="col" class="fin-city-cell">רשות</th>' : ''}
             <th scope="col">סה"כ התחייבויות (אלפי ש"ח)</th>
             <th scope="col">התחייבויות שוטפות (אלפי ש"ח)</th>
           </tr>
@@ -677,7 +700,14 @@ function renderLiabilityTable(points, compare = null) {
 // national KPIs at the top of the page), right under the section heading -
 // the population figures feed the per-resident chart/columns further down,
 // but a reader shouldn't have to find those to learn the headcount itself.
-function renderPopulationStats(population, compareName, comparePopulation) {
+// `compareNames`/`comparePopulations`: parallel arrays (index i = the same
+// compare authority in both), NOT the compact "only entities with financial
+// data" arrays the tables/charts use below - a population lookup is
+// independent of whether that authority's financial bundle had any data, so
+// every active compare slot gets its own tile here regardless (an "unknown"
+// one when the population lookup itself came back empty), same as the
+// original single-compare version always did.
+function renderPopulationStats(population, compareNames, comparePopulations) {
   const box = el('finPopStats');
   const tiles = [];
   if (population != null) {
@@ -687,17 +717,18 @@ function renderPopulationStats(population, compareName, comparePopulation) {
         <span class="stat-l">תושבים — ${esc(state.authority)} (מפקד ${CBS_POPULATION_YEAR})</span>
       </div>`);
   }
-  if (compareName) {
-    tiles.push(comparePopulation != null ? `
-      <div class="stat" style="border-inline-start-color:${CITY_COLOR_COMPARE}">
-        <span class="stat-n">${num(comparePopulation)}</span>
-        <span class="stat-l">תושבים — ${esc(compareName)} (מפקד ${CBS_POPULATION_YEAR})</span>
+  compareNames.forEach((name, i) => {
+    const pop = comparePopulations[i];
+    tiles.push(pop != null ? `
+      <div class="stat" style="border-inline-start-color:${cityCompareColor(i)}">
+        <span class="stat-n">${num(pop)}</span>
+        <span class="stat-l">תושבים — ${esc(name)} (מפקד ${CBS_POPULATION_YEAR})</span>
       </div>` : `
       <div class="stat unknown">
         <span class="stat-n">—</span>
-        <span class="stat-l">תושבים — ${esc(compareName)}: הנתון לא נמצא</span>
+        <span class="stat-l">תושבים — ${esc(name)}: הנתון לא נמצא</span>
       </div>`);
-  }
+  });
   box.innerHTML = tiles.join('');
 }
 
@@ -755,46 +786,62 @@ async function renderAuthorityCharts() {
   el('finChartAuthLiabRatio').innerHTML = '<p class="acc-hint">טוען…</p>';
   renderAuthorityLiabRank(); // independent of the fetches below - its own cache, doesn't block this render
 
-  const hasCompare = !!state.compareAuthority;
-  const authorities = hasCompare ? [state.authority, state.compareAuthority] : [state.authority];
-  // 3 outer fetches now (1 fewer with no compare authority set, 3 fewer with
-  // one): the bundle (revenue+balance+areas, BOTH authorities in one request
-  // per year - see fetchAuthorityBundles), population and jurisdiction area,
-  // each x2 when comparing since those two aren't mergeable the same way
-  // (CBS population and the jurisdiction-area row are each already a single
-  // small per-authority request, not 9 - merging them would save 1 request
-  // instead of 9). Racing them still pins the wait to the slowest one
-  // instead of their sum, and a failure in any one can't take down the
+  // Desktop-only extra compare slots (#2/#3 - see MAX_COMPARE_AUTHORITIES
+  // above): matchMedia re-checked on every render, not just once at load,
+  // since actually dropping anything past the first slot is the point on a
+  // narrow viewport - not merely hiding its input box.
+  const isMobile = window.matchMedia('(max-width: 640px)').matches;
+  const compareNames = state.compareAuthorities.filter(Boolean).slice(0, isMobile ? 1 : MAX_COMPARE_AUTHORITIES);
+  const authorities = [state.authority, ...compareNames];
+  // 3 outer fetches now (fewer with 0 compare authorities, more with more):
+  // the bundle (revenue+balance+areas, EVERY authority in one request per
+  // year - see fetchAuthorityBundles), population and jurisdiction area,
+  // each once per compare authority since those two aren't mergeable the
+  // same way (CBS population and the jurisdiction-area row are each already
+  // a single small per-authority request, not 9 - merging them would save 1
+  // request instead of 9). Racing them still pins the wait to the slowest
+  // one instead of their sum, and a failure in any one can't take down the
   // others.
   const [
-    bundlesMap, population, comparePopulation, jurisdictionArea, compareJurisdictionArea,
+    bundlesMap, population, comparePopulations, jurisdictionArea, compareJurisdictionAreas,
   ] = await Promise.all([
     fetchAuthorityBundles(authorities),
     fetchPopulation(state.authority),
-    hasCompare ? fetchPopulation(state.compareAuthority) : Promise.resolve(null),
+    Promise.all(compareNames.map((name) => fetchPopulation(name))),
     fetchJurisdictionArea(state.authority),
-    hasCompare ? fetchJurisdictionArea(state.compareAuthority) : Promise.resolve(null),
+    Promise.all(compareNames.map((name) => fetchJurisdictionArea(name))),
   ]);
   const bundle = bundlesMap.get(state.authority) || [];
-  const compareBundle = hasCompare ? (bundlesMap.get(state.compareAuthority) || []) : null;
+  const compareBundles = compareNames.map((name) => bundlesMap.get(name) || []);
   // A newer authority/compare/year change already started its own call while
   // this one was awaiting - state.authority etc. have moved on, so anything
   // built from them below would mislabel the data this call actually fetched.
   // Bail silently; the newer call owns rendering from here.
   if (myGeneration !== authorityChartsGeneration) return;
 
-  renderPopulationStats(population, hasCompare ? state.compareAuthority : null, comparePopulation);
+  renderPopulationStats(population, compareNames, comparePopulations);
 
   // Every chart/table below still wants its own narrow shape - deriving
   // these as plain projections of the one bundled fetch (rather than
   // reshaping every downstream consumer) keeps this the only place that
-  // needs to know the fetch was merged.
+  // needs to know the fetch was merged. projectCompareBundles() builds the
+  // COMPACT array every render function below expects: one entry per
+  // compare authority that actually has bundle data (a name typed in that
+  // matched nothing simply contributes no entry - see missingCompares
+  // below), each entry's `points` reshaped by `mapFn` and its own
+  // population folded in directly rather than a second parallel array that
+  // could drift out of index-sync with it.
+  const projectCompareBundles = (mapFn) => compareNames.map((name, i) => {
+    const b = compareBundles[i];
+    return b.length ? { name, points: b.map(mapFn), population: comparePopulations[i] } : null;
+  }).filter(Boolean);
+
   const points = bundle.map(({ year, revenue, expense }) => ({ year, revenue, expense }));
-  const comparePoints = compareBundle?.map(({ year, revenue, expense }) => ({ year, revenue, expense })) ?? null;
+  const compareRevenue = projectCompareBundles(({ year, revenue, expense }) => ({ year, revenue, expense }));
   const balancePoints = bundle.map(({ year, assets, liabilities, currentLiabilities }) => ({ year, assets, liabilities, currentLiabilities }));
-  const compareBalancePoints = compareBundle?.map(({ year, assets, liabilities, currentLiabilities }) => ({ year, assets, liabilities, currentLiabilities })) ?? null;
+  const compareBalance = projectCompareBundles(({ year, assets, liabilities, currentLiabilities }) => ({ year, assets, liabilities, currentLiabilities }));
   const areaPoints = bundle.map(({ year, areas, arnona }) => ({ year, areas, arnona }));
-  const compareAreaPoints = compareBundle?.map(({ year, areas, arnona }) => ({ year, areas, arnona })) ?? null;
+  const compareAreas = projectCompareBundles(({ year, areas, arnona }) => ({ year, areas, arnona }));
 
   if (!points.length) {
     el('finChartAuthRevenue').innerHTML = `<p class="acc-hint">לא נמצאו נתוני הכנסות/הוצאות עבור "${esc(state.authority)}" באף שנה זמינה.</p>`;
@@ -802,18 +849,17 @@ async function renderAuthorityCharts() {
     el('finAuthTable').innerHTML = '';
     el('finPopNoteDetails').hidden = true;
   } else {
-    const compare = hasCompare && comparePoints?.length
-      ? { name: state.compareAuthority, points: comparePoints } : null;
     renderGroupedChart('finChartAuthRevenue', `הכנסות והוצאות לפי שנה — ${state.authority}`, points, 'אלפי ש"ח',
-      state.authority, undefined, compare);
-    renderAuthorityTable(points, compare, population, comparePopulation);
-    // A typed compare-authority that matched nothing needs to say so - silently
-    // leaving the chart without a backdrop bar and no explanation looks
+      state.authority, undefined, compareRevenue);
+    renderAuthorityTable(points, compareRevenue, population);
+    // A typed compare authority that matched nothing needs to say so -
+    // silently leaving it out of the chart/table with no explanation looks
     // identical to the feature simply not having run.
+    const missingCompares = compareNames.filter((name, i) => !compareBundles[i].length);
     const compareWarn = el('finCompareWarn');
-    compareWarn.hidden = !(hasCompare && !compare);
-    if (!compare && hasCompare) {
-      compareWarn.textContent = `לא נמצאו נתונים עבור "${state.compareAuthority}" לצורך השוואה.`;
+    compareWarn.hidden = !missingCompares.length;
+    if (missingCompares.length) {
+      compareWarn.textContent = `לא נמצאו נתונים עבור ${missingCompares.map((n) => `"${n}"`).join(', ')} לצורך השוואה.`;
     }
 
     // Same revenue/expense points as the chart above, divided by the CBS
@@ -825,13 +871,12 @@ async function renderAuthorityCharts() {
       const perCapitaPoints = points.map((p) => ({
         year: p.year, revenue: Math.round((p.revenue * 1000) / population), expense: Math.round((p.expense * 1000) / population),
       }));
-      const comparePerCapita = compare && comparePopulation
-        ? {
-          name: compare.name,
-          points: compare.points.map((p) => ({
-            year: p.year, revenue: Math.round((p.revenue * 1000) / comparePopulation), expense: Math.round((p.expense * 1000) / comparePopulation),
-          })),
-        } : null;
+      const comparePerCapita = compareRevenue.filter((c) => c.population).map((c) => ({
+        name: c.name,
+        points: c.points.map((p) => ({
+          year: p.year, revenue: Math.round((p.revenue * 1000) / c.population), expense: Math.round((p.expense * 1000) / c.population),
+        })),
+      }));
       renderGroupedChart('finChartAuthPerCapita', `הכנסות והוצאות לתושב, לפי שנה — ${state.authority}`, perCapitaPoints, 'ש"ח',
         state.authority, undefined, comparePerCapita);
     } else {
@@ -849,27 +894,30 @@ async function renderAuthorityCharts() {
     el('finChartAuthLiabRatio').innerHTML = `<p class="acc-hint">לא נמצאו נתוני מאזן עבור "${esc(state.authority)}" באף שנה זמינה.</p>`;
     el('finLiabTable').innerHTML = '';
   } else {
-    // The table's own compare columns use the compare authority's real
+    // The table's own compare columns use each compare authority's real
     // current-liabilities figure (not a flattened backdrop value) - a
-    // table has room for both numbers plainly.
-    const compareBalanceTable = hasCompare && compareBalancePoints?.length
-      ? { name: state.compareAuthority, points: compareBalancePoints } : null;
-    renderLiabilityTable(balancePoints, compareBalanceTable);
+    // table has room for every real number plainly.
+    renderLiabilityTable(balancePoints, compareBalance);
 
     // Each of total/current divided by that year's own annual budget
     // (bundle's own `expense`, "תקציב שנתי") - a ratio, so a small council
     // and a big city read on the same scale, same reasoning as the
-    // national top-20 ratio charts above.
+    // national top-20 ratio charts above. Built straight from the RAW
+    // bundles (not balancePoints/compareBalance's narrower shape), since it
+    // needs each year's own `expense` too, which those two don't carry.
     const ratioOf = (b) => (b.expense > 0
       ? { year: b.year, revenue: Math.round((b.currentLiabilities / b.expense) * 1000) / 10, expense: Math.round((b.liabilities / b.expense) * 1000) / 10 }
       : null);
     const ratioPoints = bundle.map(ratioOf).filter(Boolean);
-    const compareRatioPoints = compareBundle?.map(ratioOf).filter(Boolean) ?? null;
+    const compareRatio = compareNames.map((name, i) => {
+      const b = compareBundles[i];
+      if (!b.length) return null;
+      const pts = b.map(ratioOf).filter(Boolean);
+      return pts.length ? { name, points: pts } : null;
+    }).filter(Boolean);
     if (!ratioPoints.length) {
       el('finChartAuthLiabRatio').innerHTML = '';
     } else {
-      const compareRatio = hasCompare && compareRatioPoints?.length
-        ? { name: state.compareAuthority, points: compareRatioPoints } : null;
       renderGroupedChart('finChartAuthLiabRatio', `התחייבויות: סה"כ מול שוטפות, כאחוז מהתקציב השנתי — ${state.authority}`,
         ratioPoints, '%', state.authority, { front: 'שוטפות', back: 'סה"כ' }, compareRatio);
     }
@@ -883,59 +931,71 @@ async function renderAuthorityCharts() {
     areasWrap.hidden = true;
   } else {
     areasWrap.hidden = false;
-    const compareAreas = hasCompare && compareAreaPoints?.length
-      ? { name: state.compareAuthority, points: compareAreaPoints } : null;
     const latest = areaPoints[areaPoints.length - 1];
-    // The compare authority's own latest year can differ from the main
+    // Each compare authority's own latest year can differ from the main
     // authority's (different coverage gaps) - matched by year value, not
     // assumed to be the same array index.
-    const compareLatest = compareAreas?.points.find((p) => p.year === latest.year)
-      || compareAreas?.points[compareAreas.points.length - 1] || null;
+    const compareLatestFor = (c) => c.points.find((p) => p.year === latest.year) || c.points[c.points.length - 1] || null;
     // Section heading reflects whoever is actually selected, not a static
-    // "הרשות שנבחרה" placeholder - matters once a compare authority is set,
-    // same reasoning as the chart's own caption below.
-    el('areasH').textContent = `שטחים לפי ייעוד — ${state.authority}${compareAreas ? ` / ${compareAreas.name}` : ''}`;
+    // "הרשות שנבחרה" placeholder - matters once compare authorities are
+    // set, same reasoning as the charts' own captions below.
+    const namesSuffix = compareAreas.length ? ` / ${compareAreas.map((c) => c.name).join(' / ')}` : '';
+    el('areasH').textContent = `שטחים לפי ייעוד — ${state.authority}${namesSuffix}`;
+
+    // The inline "X% מ-Y" qualifier only makes sense against ONE compare
+    // entity - with 2-3 active it would only ever describe the first,
+    // misleadingly reading as if it applied to all of them, so it's
+    // dropped entirely once more than one compare authority is active
+    // (same call renderGroupedChart's own pct label makes).
+    const soloCompareArea = compareAreas.length === 1 ? compareAreas[0] : null;
+    const soloCompareLatest = soloCompareArea ? compareLatestFor(soloCompareArea) : null;
 
     // אחוז גביית ארנונה, למגורים מול לא-למגורים - shown right before the
     // land-use areas chart below since both characterize the same physical
-    // tax base and compare the same one-or-two authorities; see
+    // tax base and compare the same selected authorities; see
     // ARNONA_COLLECTION_ROWS in finance-data.js for why "לא למגורים" (not a
     // finer "עסקית") is as granular as the source data gets.
-    const arnonaEntries = ARNONA_COLLECTION_LABELS.filter((c) => latest.arnona?.[c.key] != null).flatMap((c) => {
-      const cmpValue = compareAreas && compareLatest?.arnona?.[c.key] != null ? compareLatest.arnona[c.key] : null;
-      return [
-        { label: `${state.authority} — ${c.label}`, value: latest.arnona[c.key] },
-        ...(cmpValue != null ? [{ label: `${compareAreas.name} — ${c.label}`, value: cmpValue, compare: true }] : []),
-      ];
-    });
+    const arnonaEntries = ARNONA_COLLECTION_LABELS.filter((c) => latest.arnona?.[c.key] != null).flatMap((c) => [
+      { label: `${state.authority} — ${c.label}`, value: latest.arnona[c.key] },
+      ...compareAreas.flatMap((ca, i) => {
+        const v = compareLatestFor(ca)?.arnona?.[c.key];
+        return v != null ? [{ label: `${ca.name} — ${c.label}`, value: v, compare: true, color: cityCompareColor(i) }] : [];
+      }),
+    ]);
     if (arnonaEntries.length) {
       renderHBarChart('finChartArnonaCollection',
-        `אחוז גביית ארנונה — למגורים / לא למגורים, ${latest.year} — ${state.authority}${compareAreas ? ` / ${compareAreas.name}` : ''}`,
+        `אחוז גביית ארנונה — למגורים / לא למגורים, ${latest.year} — ${state.authority}${namesSuffix}`,
         arnonaEntries, '%');
     } else {
       el('finChartArnonaCollection').innerHTML = '';
     }
 
     const areaEntries = AREA_CATEGORIES.filter((cat) => latest.areas[cat] != null).flatMap((cat) => {
-      const cmpValue = compareAreas && compareLatest?.areas[cat] != null ? compareLatest.areas[cat] : null;
       // Main-as-%-of-compare per category, appended right onto the main
       // entry's own label - the same "X% מ-Y" vocabulary the revenue/
       // expense grouped chart above already uses for the identical
       // comparison, just inline since renderHBarChart's entries are plain
-      // label/value pairs with no separate slot for it.
-      const pct = cmpValue ? ` (${Math.round((latest.areas[cat] / cmpValue) * 100)}% מ-${compareAreas.name})` : '';
+      // label/value pairs with no separate slot for it. Solo-compare only,
+      // same reasoning as soloCompareArea above.
+      const soloCmpValue = soloCompareLatest?.areas[cat];
+      const pct = soloCmpValue != null ? ` (${Math.round((latest.areas[cat] / soloCmpValue) * 100)}% מ-${soloCompareArea.name})` : '';
       return [
         { label: `${cat}${pct}`, value: latest.areas[cat] },
-        ...(cmpValue != null ? [{ label: `${cat} — ${compareAreas.name}`, value: cmpValue, compare: true }] : []),
+        ...compareAreas.flatMap((ca, i) => {
+          const v = compareLatestFor(ca)?.areas[cat];
+          return v != null ? [{ label: `${cat} — ${ca.name}`, value: v, compare: true, color: cityCompareColor(i) }] : [];
+        }),
       ];
     });
-    renderHBarChart('finChartAreas', `שטחים לפי ייעוד, ${latest.year} — ${state.authority}${compareAreas ? ` / ${compareAreas.name}` : ''}`,
+    renderHBarChart('finChartAreas', `שטחים לפי ייעוד, ${latest.year} — ${state.authority}${namesSuffix}`,
       areaEntries, 'אלפי מ"ר');
     renderAreasTable(areaPoints, compareAreas);
     const jurNote = el('finJurisdictionNote');
     const jurParts = [];
     if (jurisdictionArea != null) jurParts.push(`${state.authority}: ${num(jurisdictionArea)} דונם`);
-    if (hasCompare && compareJurisdictionArea != null) jurParts.push(`${state.compareAuthority}: ${num(compareJurisdictionArea)} דונם`);
+    compareNames.forEach((name, i) => {
+      if (compareJurisdictionAreas[i] != null) jurParts.push(`${name}: ${num(compareJurisdictionAreas[i])} דונם`);
+    });
     if (jurParts.length) {
       jurNote.hidden = false;
       jurNote.textContent = `שטח שיפוט - ${jurParts.join(', ')} (נתוני ${JURISDICTION_YEAR} - נתון חד-פעמי, אינו מפורסם בשנים אחרות).`;
@@ -960,24 +1020,24 @@ async function fetchJurisdictionArea(authority) {
 // Plain values-underneath-the-chart table, same pattern as the other
 // authority tables on this page - one column per land-use category, and the
 // same city-per-row stacking as renderAuthorityTable/renderLiabilityTable
-// when a compare authority is set, rather than doubling every column.
-function renderAreasTable(points, compare = null) {
-  const compareByYear = new Map((compare?.points || []).map((p) => [p.year, p]));
+// when compare authorities are set, rather than doubling every column.
+function renderAreasTable(points, compares = []) {
+  const compareByYearList = compares.map((c) => new Map(c.points.map((p) => [p.year, p])));
+  const hasCompare = compares.length > 0;
   const rows = [...points].sort((a, b) => b.year - a.year).map((p) => {
-    const cmp = compareByYear.get(p.year);
+    const cmpRows = compares.map((c, i) => ({ c, i, pt: compareByYearList[i].get(p.year) })).filter((x) => x.pt);
     const mainRow = `
       <tr>
-        <th scope="row"${cmp ? ' rowspan="2"' : ''}>${p.year}</th>
-        ${compare ? citySwatchCell(state.authority, CITY_COLOR_MAIN) : ''}
+        <th scope="row"${cmpRows.length ? ` rowspan="${1 + cmpRows.length}"` : ''}>${p.year}</th>
+        ${hasCompare ? citySwatchCell(state.authority, CITY_COLOR_MAIN) : ''}
         ${AREA_CATEGORIES.map((cat) => `<td>${p.areas[cat] != null ? num(p.areas[cat]) : '—'}</td>`).join('')}
       </tr>`;
-    if (!cmp) return mainRow;
-    const cmpRow = `
+    const cmpRowsHtml = cmpRows.map(({ c, i, pt }) => `
       <tr class="fin-row-compare">
-        ${citySwatchCell(compare.name, CITY_COLOR_COMPARE)}
-        ${AREA_CATEGORIES.map((cat) => `<td>${cmp.areas[cat] != null ? num(cmp.areas[cat]) : '—'}</td>`).join('')}
-      </tr>`;
-    return mainRow + cmpRow;
+        ${citySwatchCell(c.name, cityCompareColor(i))}
+        ${AREA_CATEGORIES.map((cat) => `<td>${pt.areas[cat] != null ? num(pt.areas[cat]) : '—'}</td>`).join('')}
+      </tr>`).join('');
+    return mainRow + cmpRowsHtml;
   }).join('');
   el('finAreasTable').innerHTML = `
     <div class="matrix-wrap">
@@ -985,7 +1045,7 @@ function renderAreasTable(points, compare = null) {
         <thead>
           <tr>
             <th scope="col">שנה</th>
-            ${compare ? '<th scope="col" class="fin-city-cell">רשות</th>' : ''}
+            ${hasCompare ? '<th scope="col" class="fin-city-cell">רשות</th>' : ''}
             ${AREA_CATEGORIES.map((cat) => `<th scope="col">${esc(cat)} (אלפי מ"ר)</th>`).join('')}
           </tr>
         </thead>
@@ -1255,14 +1315,23 @@ async function onAuthorityChange() {
 // fetchAuthorityBundle() naturally returns zero points for a name that
 // doesn't exist, and renderAuthorityCharts() below now says so explicitly
 // instead of just leaving the chart unchanged with no explanation.
-const compareInput = el('finCompare');
-async function onCompareChange() {
-  const name = compareInput.value.trim();
-  state.compareAuthority = name || null;
+//
+// 3 fixed inputs (#1 works everywhere, #2/#3 are desktop-only - their own
+// row is hidden on mobile via .fin-compare-extra in style.css, and
+// renderAuthorityCharts() itself re-checks matchMedia and ignores anything
+// past the first slot on a narrow viewport regardless of what's typed into
+// them), one shared handler wired to each by its own array index rather
+// than three near-identical copies of onCompareChange.
+const compareInputs = [el('finCompare'), el('finCompare2'), el('finCompare3')];
+function onCompareChange(i) {
+  const name = compareInputs[i].value.trim();
+  state.compareAuthorities[i] = name || null;
   syncUrl();
-  await renderAuthorityCharts();
+  renderAuthorityCharts();
 }
-compareInput.addEventListener('input', debounce(onCompareChange, 300));
+compareInputs.forEach((input, i) => {
+  input.addEventListener('input', debounce(() => onCompareChange(i), 300));
+});
 
 el('finYear').addEventListener('change', async (e) => {
   state.year = Number(e.target.value);
@@ -1282,7 +1351,7 @@ authorityInput.addEventListener('input', debounce(onAuthorityChange, 300));
 
   readStateFromUrl();
   authorityInput.value = state.authority || '';
-  compareInput.value = state.compareAuthority || '';
+  compareInputs.forEach((input, i) => { input.value = state.compareAuthorities[i] || ''; });
   el('finYear').value = String(state.year);
   syncUrl(); // normalizes a bare visit (no query string yet) into a real, copyable link immediately
   await loadRoster();

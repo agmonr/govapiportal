@@ -676,6 +676,16 @@ button.stat { cursor: pointer; }
    should read as green on every theme, not follow the chart's own colors. */
 .pc-chart-city-link { color: var(--forest); text-decoration: underline; }
 .pc-chart-city-link:hover { opacity: .8; }
+/* renderHBarChart's own optional `href` per entry (see charts.js) - an
+   `<a class="acc-hbar-y">` instead of the usual `<span>`, so it inherits
+   .acc-hbar-y's layout (width/ellipsis/alignment) as-is and only needs its
+   color/hover called out here; same green-link language as
+   .pc-chart-city-link above, for the same reason (theme-stable, not
+   dependent on --accent). Scoped to the `a` tag specifically so every
+   plain `<span class="acc-hbar-y">` chart elsewhere on the site (the vast
+   majority) is untouched. */
+a.acc-hbar-y { color: var(--forest); text-decoration: underline; }
+a.acc-hbar-y:hover { opacity: .8; }
 .acc-hbar-track { flex: 1; block-size: 1.1rem; background: var(--surface); border-radius: 4px; overflow: hidden; }
 .acc-hbar-fill { block-size: 100%; border-radius: 4px; background: var(--accent); }
 .acc-hbar-v { flex: 0 0 auto; font-size: .82rem; font-weight: 600; font-variant-numeric: tabular-nums; min-inline-size: 4.5rem; }
@@ -1363,6 +1373,15 @@ a:focus-visible, button:focus-visible {
   .fin-chart-bar { inline-size: 6px; }
   .fin-chart-bars { gap: 2px; }
   .fin-chart-bars-wrap { gap: .3rem; }
+
+  /* local-finance.html's compare slots #2/#3 (finCompare2/finCompare3) -
+     desktop only. Even with the narrower bars just above, a 4-way grouped
+     chart (main + 3 compares, 8 bars per year) has no real room on a phone
+     screen, so mobile keeps exactly the single #1 compare field it always
+     had - see renderAuthorityCharts()'s own matchMedia check in
+     local-finance.js, which drops anything past that first slot for the
+     same reason even if it's still sitting in the URL from a desktop visit. */
+  .fin-compare-extra { display: none; }
   .fin-chart-plot { gap: .8rem; }
 
   /* The per-year "64% מ-רעננה" header doesn't fit above a narrowed bar
@@ -1955,6 +1974,12 @@ body.accidents-page header.site h1 { inline-size: 100%; }
   background: var(--card); color: var(--fg); font-size: 1.1rem; line-height: 1; cursor: pointer;
 }
 .cm-zoom-controls button:hover { border-color: var(--accent); }
+/* #cmTopoQuickToggle only - the other zoom-control buttons are momentary
+   actions with no on/off state of their own, so this class is otherwise
+   unused; pressed reads the same way .tc-level-btn.active already does
+   elsewhere on this page (solid accent), for the same "this is currently
+   selected" meaning. */
+.cm-zoom-controls button.active { background: var(--accent); color: var(--bg); border-color: var(--accent); }
 
 /* Mobile fullscreen takeover (canopy-map.js's enterMapFullscreen/
    exitMapFullscreen) - a tap on the map on a narrow viewport adds

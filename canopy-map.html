@@ -211,6 +211,17 @@
             <button type="button" id="cmZoomOut" aria-label="התרחקות">−</button>
             <button type="button" id="cmZoomReset" aria-label="איפוס תצוגה">⟲</button>
             <button type="button" id="cmMapFullscreenToggle" aria-label="מסך מלא">⛶</button>
+            <!--
+              One click to see the terrain under the current heat/canopy
+              view, without first opening "רקע מפה" below and toggling OSM
+              on by hand - same underlying state (state.osm/basemapKind) as
+              that section's own controls, see cmTopoQuickToggle's own
+              handler in canopy-map.js. Only meaningful (and only shown) at
+              neighborhood level with a city picked - same scoping #cmOsmRow
+              itself already has, since the tile fetch needs a small bounded
+              area.
+            -->
+            <button type="button" id="cmTopoQuickToggle" aria-label="הצגת רקע טופוגרפי" hidden>🏔</button>
           </div>
           <button type="button" id="cmMapExitFullscreen" class="cm-map-exit-fullscreen" aria-label="חזרה" hidden>→</button>
         </div>
@@ -233,6 +244,7 @@
           <div class="cm-filters cm-basemap-kind-row" id="cmBasemapKindRow" role="group" aria-label="סוג רקע המפה" hidden>
             <button type="button" data-basemap="street" class="tc-level-btn cm-basemap-btn active">מפת רחובות</button>
             <button type="button" data-basemap="aerial" class="tc-level-btn cm-basemap-btn">תצלום אוויר</button>
+            <button type="button" data-basemap="topo" class="tc-level-btn cm-basemap-btn">מפה טופוגרפית</button>
           </div>
           <p id="cmOsmStatus" class="acc-hint" dir="auto"></p>
         </section>

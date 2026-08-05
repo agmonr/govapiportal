@@ -745,7 +745,7 @@ function contextMenuItems(entity, yearText) {
       onSelect: () => {
         const p = new URLSearchParams();
         p.set('level', entity.level);
-        p.set('p1', entity.label);
+        p.set('p', entity.label);
         if (entity.level === 'neighborhood' && state.cityFilter) p.set('city', state.cityFilter);
         location.href = `./real-estate-compare.html?${p}`;
       },

@@ -205,6 +205,23 @@ const STACKED_COLOR_PRIVATE = 'color-mix(in srgb, var(--accent) 45%, var(--bg) 5
 
 const MAX_PICKS = 4;
 
+// Links a city/neighborhood/street name (compare charts + national board)
+// out to its own detail view on canopy-map.html - level+key alone resolves
+// a city (canopy-map.js's own city-level key IS the plain name), but a
+// neighborhood/street key ("city::name") also needs `city` set so canopy-
+// map.js's own neighborhood roster (which is scoped to state.cityFilter,
+// see its currentEntities()) can resolve it at all; street doesn't need it
+// (streetEntries() there is a flat national list) but passing it along is
+// harmless. See canopy-map.js's own readStateFromUrl()/syncUrl() for the
+// level/sel/city param shapes this mirrors.
+function canopyMapUrl(entity) {
+  const p = new URLSearchParams();
+  p.set('level', entity.level);
+  p.set('sel', entity.key);
+  if (entity.city) p.set('city', entity.city);
+  return `./canopy-map.html?${p}`;
+}
+
 /* ---------- state + URL ---------- */
 
 const state = {
@@ -349,7 +366,7 @@ function renderCompareCharts(entries) {
     const figId = `chc-compare-${i}`;
     if (group.type === 'stacked') {
       const rows = entries.map((e) => ({
-        label: e.label, streetVal: valueFor(e, 'street'), privateVal: valueFor(e, 'private'),
+        label: e.label, streetVal: valueFor(e, 'street'), privateVal: valueFor(e, 'private'), href: canopyMapUrl(e),
       })).filter((r) => r.streetVal != null || r.privateVal != null);
       renderStackedBarChart(figId, `כיסוי חופות עצים: ציבורי + פרטי (%)${entries.length > 1 ? ' — השוואה' : ''}`, rows);
     } else {
@@ -358,7 +375,7 @@ function renderCompareCharts(entries) {
       const chartEntries = entries
         .map((e, idx) => ({ e, idx }))
         .filter(({ e }) => valueFor(e, group.metric) != null)
-        .map(({ e, idx }) => ({ label: e.label, value: Number(valueFor(e, group.metric).toFixed(2)), color: colors[idx] }));
+        .map(({ e, idx }) => ({ label: e.label, value: Number(valueFor(e, group.metric).toFixed(2)), color: colors[idx], href: canopyMapUrl(e) }));
       renderHBarChart(figId, `${m.label} (${m.unit})${entries.length > 1 ? ' — השוואה' : ''}`, chartEntries, m.unit);
     }
   });
@@ -446,9 +463,12 @@ function renderStackedBarChart(figId, caption, rows) {
     const privatePct = peak ? ((r.privateVal ?? 0) / peak) * 100 : 0;
     const title = `${r.label}: ${esc(METRICS.street.label)} ${r.streetVal != null ? r.streetVal.toFixed(1) : '—'}%, `
       + `${esc(METRICS.private.label)} ${r.privateVal != null ? r.privateVal.toFixed(1) : '—'}%`;
+    const label = r.href
+      ? `<a class="acc-hbar-y" dir="auto" href="${esc(r.href)}">${esc(r.label)}</a>`
+      : `<span class="acc-hbar-y" dir="auto">${esc(r.label)}</span>`;
     return `
     <div class="acc-hbar" title="${esc(title)}">
-      <span class="acc-hbar-y" dir="auto">${esc(r.label)}</span>
+      ${label}
       <div class="acc-hbar-track acc-hbar-track-stacked">
         <div class="acc-hbar-fill" style="inline-size:${streetPct}%;background:${STACKED_COLOR_STREET}"></div>
         <div class="acc-hbar-fill" style="inline-size:${privatePct}%;background:${STACKED_COLOR_PRIVATE}"></div>
@@ -524,7 +544,7 @@ function renderBoard() {
     const figId = `chc-board-${i}`;
     if (group.type === 'stacked') {
       const withVals = entries
-        .map((e) => ({ label: e.label, streetVal: valueFor(e, 'street'), privateVal: valueFor(e, 'private') }))
+        .map((e) => ({ label: e.label, streetVal: valueFor(e, 'street'), privateVal: valueFor(e, 'private'), href: canopyMapUrl(e) }))
         .filter((r) => r.streetVal != null || r.privateVal != null)
         .map((r) => ({ ...r, total: (r.streetVal ?? 0) + (r.privateVal ?? 0) }))
         .sort((a, b) => (wantDescending(true) ? b.total - a.total : a.total - b.total));
@@ -534,9 +554,10 @@ function renderBoard() {
       const rowsHtml = capped.map((r) => {
         const streetPct = peak ? ((r.streetVal ?? 0) / peak) * 100 : 0;
         const privatePct = peak ? ((r.privateVal ?? 0) / peak) * 100 : 0;
+        const label = `<a class="acc-hbar-y" dir="auto" href="${esc(r.href)}">${esc(r.label)}</a>`;
         return `
         <div class="acc-hbar" title="${esc(r.label)}: ${esc(METRICS.street.label)} ${r.streetVal != null ? r.streetVal.toFixed(1) : '—'}%, ${esc(METRICS.private.label)} ${r.privateVal != null ? r.privateVal.toFixed(1) : '—'}%">
-          <span class="acc-hbar-y" dir="auto">${esc(r.label)}</span>
+          ${label}
           <div class="acc-hbar-track acc-hbar-track-stacked">
             <div class="acc-hbar-fill" style="inline-size:${streetPct}%;background:${STACKED_COLOR_STREET}"></div>
             <div class="acc-hbar-fill" style="inline-size:${privatePct}%;background:${STACKED_COLOR_PRIVATE}"></div>
@@ -549,7 +570,7 @@ function renderBoard() {
       const m = METRICS[group.metric];
       const desc = wantDescending(HIGHER_IS_BETTER[group.metric]);
       const withVals = entries
-        .map((e) => ({ label: e.label, value: valueFor(e, group.metric) }))
+        .map((e) => ({ label: e.label, value: valueFor(e, group.metric), href: canopyMapUrl(e) }))
         .filter((r) => r.value != null)
         .sort((a, b) => (desc ? b.value - a.value : a.value - b.value));
       const capped = state.level === 'city' ? withVals : withVals.slice(0, BOARD_CAP);
@@ -557,7 +578,7 @@ function renderBoard() {
       const peak = Math.max(0, ...capped.map((r) => Math.abs(r.value)));
       const rowsHtml = capped.map((r) => `
         <div class="acc-hbar" title="${esc(r.label)}: ${num(r.value)} ${esc(m.unit)}">
-          <span class="acc-hbar-y" dir="auto">${esc(r.label)}</span>
+          <a class="acc-hbar-y" dir="auto" href="${esc(r.href)}">${esc(r.label)}</a>
           <div class="acc-hbar-track"><div class="acc-hbar-fill" style="inline-size:${peak ? (Math.abs(r.value) / peak) * 100 : 0}%;background:${group.metric === 'heat' ? 'var(--danger)' : 'var(--accent)'}"></div></div>
           <span class="acc-hbar-v">${num(Number(r.value.toFixed(1)))}</span>
         </div>`);

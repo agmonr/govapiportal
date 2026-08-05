@@ -676,6 +676,16 @@ button.stat { cursor: pointer; }
    should read as green on every theme, not follow the chart's own colors. */
 .pc-chart-city-link { color: var(--forest); text-decoration: underline; }
 .pc-chart-city-link:hover { opacity: .8; }
+/* renderHBarChart's own optional `href` per entry (see charts.js) - an
+   `<a class="acc-hbar-y">` instead of the usual `<span>`, so it inherits
+   .acc-hbar-y's layout (width/ellipsis/alignment) as-is and only needs its
+   color/hover called out here; same green-link language as
+   .pc-chart-city-link above, for the same reason (theme-stable, not
+   dependent on --accent). Scoped to the `a` tag specifically so every
+   plain `<span class="acc-hbar-y">` chart elsewhere on the site (the vast
+   majority) is untouched. */
+a.acc-hbar-y { color: var(--forest); text-decoration: underline; }
+a.acc-hbar-y:hover { opacity: .8; }
 .acc-hbar-track { flex: 1; block-size: 1.1rem; background: var(--surface); border-radius: 4px; overflow: hidden; }
 .acc-hbar-fill { block-size: 100%; border-radius: 4px; background: var(--accent); }
 .acc-hbar-v { flex: 0 0 auto; font-size: .82rem; font-weight: 600; font-variant-numeric: tabular-nums; min-inline-size: 4.5rem; }
@@ -1363,6 +1373,15 @@ a:focus-visible, button:focus-visible {
   .fin-chart-bar { inline-size: 6px; }
   .fin-chart-bars { gap: 2px; }
   .fin-chart-bars-wrap { gap: .3rem; }
+
+  /* local-finance.html's compare slots #2/#3 (finCompare2/finCompare3) -
+     desktop only. Even with the narrower bars just above, a 4-way grouped
+     chart (main + 3 compares, 8 bars per year) has no real room on a phone
+     screen, so mobile keeps exactly the single #1 compare field it always
+     had - see renderAuthorityCharts()'s own matchMedia check in
+     local-finance.js, which drops anything past that first slot for the
+     same reason even if it's still sitting in the URL from a desktop visit. */
+  .fin-compare-extra { display: none; }
   .fin-chart-plot { gap: .8rem; }
 
   /* The per-year "64% מ-רעננה" header doesn't fit above a narrowed bar
@@ -1955,6 +1974,12 @@ body.accidents-page header.site h1 { inline-size: 100%; }
   background: var(--card); color: var(--fg); font-size: 1.1rem; line-height: 1; cursor: pointer;
 }
 .cm-zoom-controls button:hover { border-color: var(--accent); }
+/* #cmTopoQuickToggle only - the other zoom-control buttons are momentary
+   actions with no on/off state of their own, so this class is otherwise
+   unused; pressed reads the same way .tc-level-btn.active already does
+   elsewhere on this page (solid accent), for the same "this is currently
+   selected" meaning. */
+.cm-zoom-controls button.active { background: var(--accent); color: var(--bg); border-color: var(--accent); }
 
 /* Mobile fullscreen takeover (canopy-map.js's enterMapFullscreen/
    exitMapFullscreen) - a tap on the map on a narrow viewport adds
@@ -2781,9 +2806,16 @@ const OSM_TILE = (z, x, y) => `https://tile.openstreetmap.org/${z}/${x}/${y}.png
 // convention, {z}/{y}/{x} - same order this codebase already deals with for
 // the heat ImageServer, see canopy-map.html's "כתם חום" explainer).
 const AERIAL_TILE = (z, x, y) => `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}`;
+// Esri's free World Topo Map - same service family/URL shape/no-API-key
+// access as AERIAL_TILE above (verified directly: both return real tiles
+// with no auth), just a different service name. Contour lines/terrain
+// shading rather than street or satellite - canopy-map.html's own "show the
+// topography under this heat/canopy view" toggle.
+const TOPO_TILE = (z, x, y) => `https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/${z}/${y}/${x}`;
 const TILE_ATTRIBUTION = {
   street: '© OpenStreetMap contributors',
   aerial: 'Imagery © Esri, Maxar, Earthstar Geographics',
+  topo: 'Esri, HERE, Garmin, FAO, NOAA, USGS',
 };
 
 const ITM_WKID = 2039;
@@ -2842,15 +2874,17 @@ function mercatorToPixel(mx, my, zoom) {
   return [px, py];
 }
 
+const TILE_URL_BY_KIND = { aerial: AERIAL_TILE, topo: TOPO_TILE };
 async function fetchTileBitmap(z, x, y, kind) {
-  const tileUrl = kind === 'aerial' ? AERIAL_TILE : OSM_TILE;
+  const tileUrl = TILE_URL_BY_KIND[kind] || OSM_TILE;
   const res = await fetch(tileUrl(z, x, y));
   if (!res.ok) throw new Error(`tile ${z}/${x}/${y}: HTTP ${res.status}`);
   return createImageBitmap(await res.blob());
 }
 
-/** A basemap canvas (size x size), stitched from OSM (or, with
- * kind: 'aerial', Esri World Imagery) tiles and aligned to `bbox` (ITM). */
+/** A basemap canvas (size x size), stitched from OSM (or, with kind:
+ * 'aerial'/'topo', Esri World Imagery/World Topo Map) tiles and aligned to
+ * `bbox` (ITM). */
 async function fetchBasemapCanvas(bbox, size, kind = 'street') {
   const [xmin, ymin, xmax, ymax] = bbox;
   const cornersItm = [[xmin, ymin], [xmax, ymin], [xmax, ymax], [xmin, ymax]];
@@ -2864,9 +2898,9 @@ async function fetchBasemapCanvas(bbox, size, kind = 'street') {
  * returns `project`, a closure over this same fetch's zoom/tile origin, so a
  * caller can place further points (a live route, not just a static centre
  * pin) on the same canvas without re-deriving the transform. `kind` picks
- * the tile source: 'street' (default, OSM) or 'aerial' (Esri World
- * Imagery) - both share the same slippy-tile grid, so the projector math
- * below is identical either way. */
+ * the tile source: 'street' (default, OSM), 'aerial' (Esri World Imagery)
+ * or 'topo' (Esri World Topo Map) - all three share the same slippy-tile
+ * grid, so the projector math below is identical regardless. */
 async function fetchBasemapCanvasWGS84([lonMin, latMin, lonMax, latMax], size, kind = 'street') {
   const cornersWgs84 = [[lonMin, latMin], [lonMax, latMin], [lonMax, latMax], [lonMin, latMax]];
   return stitchBasemap(cornersWgs84, size, kind);

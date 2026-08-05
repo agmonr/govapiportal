@@ -53,9 +53,39 @@ const countOf = (filters) => coQuery({ limit: '1', filters: JSON.stringify(filte
 /* ---------- state ---------- */
 
 const state = {
-  q: '', status: '', type: '', violator: false, government: false,
+  q: '', owner: '', status: '', type: '', violator: false, government: false,
   offset: 0, total: 0, records: [],
 };
+
+// F_OWNER ("אצל" - "care of") is the closest thing this free registry has to
+// an owner/contact name: whoever the company registered to receive its
+// official mail, most often the company's own accountant/lawyer or an
+// authorized signatory for a small company, not a verified shareholder
+// registry (real ownership data is a paid product on ica.justice.gov.il's
+// own site, not in this dataset at all - checked directly, field-by-field,
+// against the live resource before building this). Scoped separately from
+// the general free-text search (state.q) via CKAN's own field-scoped `q`
+// object syntax (`q: {field: term}`, verified directly against the live
+// endpoint) rather than `filters` (exact match only, useless for a partial
+// name) - see buildQParam() below for how the two combine when both are
+// set at once.
+const F_OWNER = 'אצל';
+
+// CKAN's `q` param takes either a plain string (full-text across every
+// field - state.q's own long-standing behavior, left untouched here) or a
+// JSON object mapping field -> term (AND-combined per-field full-text
+// matches - what state.owner needs, scoped to F_OWNER alone). Only one `q`
+// shape can be sent per request, so when BOTH boxes are filled at once the
+// general box is folded into the same object, scoped to company name
+// specifically (the most likely intent behind a second term typed
+// alongside an אצל search) rather than left unscoped, which the object
+// syntax has no way to express.
+function buildQParam() {
+  if (state.owner && state.q) return JSON.stringify({ [F_OWNER]: state.owner, 'שם חברה': state.q });
+  if (state.owner) return JSON.stringify({ [F_OWNER]: state.owner });
+  if (state.q) return state.q;
+  return null;
+}
 
 function activeFilters() {
   const f = {};
@@ -243,7 +273,8 @@ async function loadResults() {
     const params = { limit: String(PAGE_SIZE), offset: String(state.offset) };
     const filters = activeFilters();
     if (Object.keys(filters).length) params.filters = JSON.stringify(filters);
-    if (state.q) params.q = state.q;
+    const q = buildQParam();
+    if (q) params.q = q;
     const r = await coQuery(params);
     state.records = r.records;
     state.total = r.total;
@@ -270,10 +301,13 @@ function onFilterChange() {
    assembled here from data actually fetched, not trusted from a file link
    this dataset doesn't even expose per-query anyway. ---------- */
 
+// אצל included so a CSV downloaded from an אצל-filtered search actually
+// shows the field the results were filtered by, not just why they matched
+// invisibly.
 const EXPORT_FIELDS = [
   'מספר חברה', 'שם חברה', 'שם באנגלית', 'סוג תאגיד', 'סטטוס חברה', 'תת סטטוס',
   'תאור חברה', 'מטרת החברה', 'תאריך התאגדות', 'חברה ממשלתית', 'מגבלות', 'מפרה',
-  'שנה אחרונה של דוח שנתי (שהוגש)', 'שם עיר', 'שם רחוב', 'מספר בית', 'מיקוד',
+  'שנה אחרונה של דוח שנתי (שהוגש)', 'אצל', 'שם עיר', 'שם רחוב', 'מספר בית', 'מיקוד',
 ];
 const DUMP_PAGE = 32000;
 
@@ -284,7 +318,8 @@ async function fetchAllFiltered(onProgress) {
   for (let guard = 0; guard < 100; guard += 1) {
     const params = { limit: String(DUMP_PAGE), offset: String(offset) };
     if (Object.keys(filters).length) params.filters = JSON.stringify(filters);
-    if (state.q) params.q = state.q;
+    const q = buildQParam();
+    if (q) params.q = q;
     const r = await coQuery(params);
     records.push(...r.records);
     offset += r.records.length;
@@ -317,6 +352,7 @@ el('coCsv').addEventListener('click', async () => {
 /* ---------- wiring ---------- */
 
 el('coQ').addEventListener('input', debounce((e) => { state.q = e.target.value.trim(); onFilterChange(); }, 400));
+el('coOwner').addEventListener('input', debounce((e) => { state.owner = e.target.value.trim(); onFilterChange(); }, 400));
 el('coStatus').addEventListener('change', (e) => { state.status = e.target.value; onFilterChange(); });
 el('coType').addEventListener('change', (e) => { state.type = e.target.value; onFilterChange(); });
 el('coViolator').addEventListener('change', (e) => { state.violator = e.target.checked; onFilterChange(); });

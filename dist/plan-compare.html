@@ -676,6 +676,16 @@ button.stat { cursor: pointer; }
    should read as green on every theme, not follow the chart's own colors. */
 .pc-chart-city-link { color: var(--forest); text-decoration: underline; }
 .pc-chart-city-link:hover { opacity: .8; }
+/* renderHBarChart's own optional `href` per entry (see charts.js) - an
+   `<a class="acc-hbar-y">` instead of the usual `<span>`, so it inherits
+   .acc-hbar-y's layout (width/ellipsis/alignment) as-is and only needs its
+   color/hover called out here; same green-link language as
+   .pc-chart-city-link above, for the same reason (theme-stable, not
+   dependent on --accent). Scoped to the `a` tag specifically so every
+   plain `<span class="acc-hbar-y">` chart elsewhere on the site (the vast
+   majority) is untouched. */
+a.acc-hbar-y { color: var(--forest); text-decoration: underline; }
+a.acc-hbar-y:hover { opacity: .8; }
 .acc-hbar-track { flex: 1; block-size: 1.1rem; background: var(--surface); border-radius: 4px; overflow: hidden; }
 .acc-hbar-fill { block-size: 100%; border-radius: 4px; background: var(--accent); }
 .acc-hbar-v { flex: 0 0 auto; font-size: .82rem; font-weight: 600; font-variant-numeric: tabular-nums; min-inline-size: 4.5rem; }
@@ -1363,6 +1373,15 @@ a:focus-visible, button:focus-visible {
   .fin-chart-bar { inline-size: 6px; }
   .fin-chart-bars { gap: 2px; }
   .fin-chart-bars-wrap { gap: .3rem; }
+
+  /* local-finance.html's compare slots #2/#3 (finCompare2/finCompare3) -
+     desktop only. Even with the narrower bars just above, a 4-way grouped
+     chart (main + 3 compares, 8 bars per year) has no real room on a phone
+     screen, so mobile keeps exactly the single #1 compare field it always
+     had - see renderAuthorityCharts()'s own matchMedia check in
+     local-finance.js, which drops anything past that first slot for the
+     same reason even if it's still sitting in the URL from a desktop visit. */
+  .fin-compare-extra { display: none; }
   .fin-chart-plot { gap: .8rem; }
 
   /* The per-year "64% מ-רעננה" header doesn't fit above a narrowed bar
@@ -1955,6 +1974,12 @@ body.accidents-page header.site h1 { inline-size: 100%; }
   background: var(--card); color: var(--fg); font-size: 1.1rem; line-height: 1; cursor: pointer;
 }
 .cm-zoom-controls button:hover { border-color: var(--accent); }
+/* #cmTopoQuickToggle only - the other zoom-control buttons are momentary
+   actions with no on/off state of their own, so this class is otherwise
+   unused; pressed reads the same way .tc-level-btn.active already does
+   elsewhere on this page (solid accent), for the same "this is currently
+   selected" meaning. */
+.cm-zoom-controls button.active { background: var(--accent); color: var(--bg); border-color: var(--accent); }
 
 /* Mobile fullscreen takeover (canopy-map.js's enterMapFullscreen/
    exitMapFullscreen) - a tap on the map on a narrow viewport adds
@@ -2762,25 +2787,36 @@ function renderBarChart(figId, caption, entries, unit = '', colorClass = '', opt
  * A ranked top-N reads far better as rows stacked top-to-bottom than as N
  * vertical bars squeezed into one fixed-height row - a different mark from
  * renderBarChart, not that same one rotated. `entries`: [{ label, value,
- * compare? , color? }] - `compare: true` renders a row in the same grayed-out
- * accent used for a compare authority everywhere else, so two authorities
- * can sit as adjacent rows per category without a legend to look up.
- * `color` (optional) overrides the bar's fill with a specific CSS color
- * instead - tree-canopy.html's comparison chart uses this to match each
- * bar to the same per-entity color used in its stat tiles/table rows,
+ * compare? , color?, href? }] - `compare: true` renders a row in the same
+ * grayed-out accent used for a compare authority everywhere else, so two
+ * authorities can sit as adjacent rows per category without a legend to
+ * look up. `color` (optional) overrides the bar's fill with a specific CSS
+ * color instead - tree-canopy.html's comparison chart uses this to match
+ * each bar to the same per-entity color used in its stat tiles/table rows,
  * rather than every bar sharing one accent regardless of which entity it
- * is. Existing callers that never pass `color` are unaffected - the class-
- * based accent/compare coloring is unchanged when it's absent. */
+ * is. `href` (optional) turns the row's own label into a link (e.g.
+ * canopy-heat-compare.js linking a city/neighborhood/street name out to its
+ * own canopy-map.html view) - taught to renderHBarChart itself rather than
+ * a plan-compare.js-style post-render DOM swap, since that trick only works
+ * when `entries` maps 1:1 by array index onto the rendered rows; several
+ * callers here (canopy-heat-compare.js's own compare charts) FILTER entries
+ * with missing values before rendering, which breaks that index assumption.
+ * Existing callers that never pass `color`/`href` are unaffected. */
 function renderHBarChart(figId, caption, entries, unit) {
   const fig = el(figId);
   if (!entries.length) { fig.innerHTML = `<figcaption>${esc(caption)}</figcaption><p class="acc-hint">אין נתונים להצגה.</p>`; return; }
   const peak = Math.max(...entries.map((e) => e.value));
-  const rows = entries.map((e) => `
+  const rows = entries.map((e) => {
+    const label = e.href
+      ? `<a class="acc-hbar-y" dir="auto" href="${esc(e.href)}">${esc(e.label)}</a>`
+      : `<span class="acc-hbar-y" dir="auto">${esc(e.label)}</span>`;
+    return `
     <div class="acc-hbar${e.compare ? ' acc-hbar-compare' : ''}" title="${esc(e.label)}: ${num(e.value)} ${esc(unit)}">
-      <span class="acc-hbar-y" dir="auto">${esc(e.label)}</span>
+      ${label}
       <div class="acc-hbar-track"><div class="acc-hbar-fill" style="inline-size:${peak ? (e.value / peak) * 100 : 0}%${e.color ? `;background:${e.color}` : ''}"></div></div>
       <span class="acc-hbar-v">${num(e.value)}</span>
-    </div>`).join('');
+    </div>`;
+  }).join('');
   fig.innerHTML = `<figcaption>${esc(caption)}</figcaption><div class="acc-hbars">${rows}</div>`;
 }
 
@@ -2796,6 +2832,16 @@ function renderHBarChart(figId, caption, entries, unit) {
 // without a legend the reader has to look up chart-to-chart.
 const CITY_COLOR_MAIN = 'var(--accent)';
 const CITY_COLOR_COMPARE = 'color-mix(in srgb, var(--accent) 55%, var(--bg) 45%)';
+// A 2nd/3rd compare entity's own table-row swatch (local-finance.html's
+// up-to-3-cities compare) - same --accent tint family CITY_COLOR_COMPARE
+// already uses (not --fin-compare, which is the CHART bars' own separate
+// color system for "compare"), just fading further per extra entity.
+const CITY_COMPARE_COLORS = [
+  CITY_COLOR_COMPARE,
+  'color-mix(in srgb, var(--accent) 35%, var(--bg) 65%)',
+  'color-mix(in srgb, var(--accent) 20%, var(--bg) 80%)',
+];
+const cityCompareColor = (i) => CITY_COMPARE_COLORS[i] ?? CITY_COMPARE_COLORS[CITY_COMPARE_COLORS.length - 1];
 const citySwatchCell = (name, color) => `<td class="fin-city-cell"><span class="acc-legend-swatch" style="background:${color}"></span>${esc(name)}</td>`;
 
 const FIN_PLOT_PX_DESKTOP = 200;
@@ -2847,6 +2893,30 @@ function buildYearSlots(points) {
   return slots;
 }
 
+// Tint step for the 2nd/3rd compare entity's own bars, layered on top of
+// --fin-compare via color-mix rather than new theme variables - same
+// 100/70/45% fade idiom real-estate-compare.js's/canopy-heat-compare.js's
+// own PICK_COLORS already use against --accent. Index 0 (the first/only
+// compare, the sole case that existed before multi-compare) deliberately
+// stays null here and keeps using the original .fin-chart-bar-compare CSS
+// class instead of an inline color - zero visual change for every existing
+// single-compare chart (local-finance.html before this feature, and
+// welfare.html, which still only ever passes one compare entity).
+const COMPARE_TINT_PCT = [null, 70, 45];
+function compareBarColors(i) {
+  const pct = COMPARE_TINT_PCT[i];
+  if (pct == null) return null;
+  // The "light" (second-series) bar mirrors .fin-chart-bar-compare.fin-
+  // chart-bar-light's own 45%-of-compare-color formula, scaled by this same
+  // pct instead of a flat 45% - so compare #2/#3 fade the same way compare
+  // #1 already does, just starting from a dimmer base.
+  const lightPct = Math.round(pct * 0.45);
+  return {
+    dark: `color-mix(in srgb, var(--fin-compare) ${pct}%, var(--bg) ${100 - pct}%)`,
+    light: `color-mix(in srgb, var(--fin-compare) ${lightPct}%, var(--bg) ${100 - lightPct}%)`,
+  };
+}
+
 /**
  * `points`: [{ year, revenue, expense }] for the main entity (`revenue`/
  * `expense` are just the front/back series' values - the names are
@@ -2859,25 +2929,34 @@ function buildYearSlots(points) {
  * subject (welfare.html's national trend, summed across all authorities) -
  * the legend then shows just the series labels with no name prefix.
  *
- * `compare` (optional): { name, points } - a second entity's own two
- * series, drawn as a third, distinctly-colored bar group per year purely
- * for scale/comparison. Keyed by year, not assumed to line up positionally
- * with `points` - the two entities can easily cover different years.
+ * `compare` (optional): a second entity's own two series, drawn as extra,
+ * distinctly-colored bar groups per year purely for scale/comparison. Two
+ * shapes both work: a single `{ name, points }` object (welfare.js's own
+ * calls, and local-finance.html before multi-compare) or an array of up to
+ * 3 such objects (local-finance.html's own up-to-3-cities compare) - always
+ * normalized to an array internally. Each compare entity is keyed by year,
+ * not assumed to line up positionally with `points` - entities can easily
+ * cover different years.
  *
- * Color encodes WHICH ENTITY (main vs compare), not which series - which of
- * the two series a bar is (front vs back) is carried by position (front
- * always first) and a lighter tint of that entity's own color, not a second
- * hue. When `compare` is set, each year also gets a small "X% מ-<name>"
- * label: the main entity's total (front+back) as a percentage of compare's
- * same total.
+ * Color encodes WHICH ENTITY (main vs. which compare), not which series -
+ * which of the two series a bar is (front vs back) is carried by position
+ * (front always first) and a lighter tint of that entity's own color, not a
+ * second hue. When exactly one compare entity is present (still the common
+ * case), each year also gets a small "X% מ-<name>" label: the main entity's
+ * total (front+back) as a percentage of that compare's same total - dropped
+ * when 2+ compare entities are active, since a single ratio would only ever
+ * describe one of them and reads as if it applied to all.
  */
 function renderGroupedChart(figId, caption, points, unit, mainName, labels = { front: 'הכנסות', back: 'הוצאות' }, compare = null) {
   const fig = el(figId);
   if (!points.length) { fig.innerHTML = `<figcaption>${esc(caption)}</figcaption><p class="acc-hint">אין נתונים להצגה.</p>`; return; }
-  const compareByYear = new Map((compare?.points || []).map((p) => [p.year, p]));
+  const compares = Array.isArray(compare) ? compare.filter(Boolean) : (compare ? [compare] : []);
+  const compareByYearList = compares.map((c) => new Map((c.points || []).map((p) => [p.year, p])));
+  const soloCompare = compares.length === 1 ? compares[0] : null;
+  const soloCompareByYear = soloCompare ? compareByYearList[0] : null;
   const peak = Math.max(
     ...points.flatMap((p) => [p.revenue, p.expense]),
-    ...[...compareByYear.values()].flatMap((p) => [p.revenue, p.expense]),
+    ...compareByYearList.flatMap((byYear) => [...byYear.values()].flatMap((p) => [p.revenue, p.expense])),
   );
   const { steps, axisMax } = niceAxisStep(peak);
   const byYear = new Map(points.map((p) => [p.year, p]));
@@ -2885,11 +2964,17 @@ function renderGroupedChart(figId, caption, points, unit, mainName, labels = { f
   const plotHeight = plotPx();
 
   const barH = (v) => (axisMax ? Math.round((v / axisMax) * plotHeight) : 0);
-  const cityBars = (p, mainEntity) => `
+  // `compareIdx` null = main entity (plain accent); 0/1/2 = which compare
+  // entity, in the same order as `compares`.
+  const cityBars = (p, compareIdx) => {
+    const tint = compareIdx == null ? null : compareBarColors(compareIdx);
+    const cls = compareIdx == null ? '' : ' fin-chart-bar-compare';
+    return `
     <div class="fin-chart-bars">
-      <div class="fin-chart-bar${mainEntity ? '' : ' fin-chart-bar-compare'}" style="block-size:${barH(p.revenue)}px"></div>
-      <div class="fin-chart-bar fin-chart-bar-light${mainEntity ? '' : ' fin-chart-bar-compare'}" style="block-size:${barH(p.expense)}px"></div>
+      <div class="fin-chart-bar${cls}" style="block-size:${barH(p.revenue)}px${tint ? `;background:${tint.dark}` : ''}"></div>
+      <div class="fin-chart-bar fin-chart-bar-light${cls}" style="block-size:${barH(p.expense)}px${tint ? `;background:${tint.light}` : ''}"></div>
     </div>`;
+  };
 
   const groups = slots.map((slot) => {
     if (slot.type === 'gap') {
@@ -2901,23 +2986,24 @@ function renderGroupedChart(figId, caption, points, unit, mainName, labels = { f
         </div>`;
     }
     const p = byYear.get(slot.year);
-    const cmp = compareByYear.get(slot.year);
+    const cmpPoints = compares.map((c, i) => ({ i, name: c.name, pt: compareByYearList[i].get(slot.year) })).filter((c) => c.pt);
+    const soloCmp = soloCompareByYear ? soloCompareByYear.get(slot.year) : null;
     const mainTotal = p.revenue + p.expense;
-    const cmpTotal = cmp ? cmp.revenue + cmp.expense : null;
-    const pct = cmp && cmpTotal ? Math.round((mainTotal / cmpTotal) * 100) : null;
+    const soloCmpTotal = soloCmp ? soloCmp.revenue + soloCmp.expense : null;
+    const pct = soloCmp && soloCmpTotal ? Math.round((mainTotal / soloCmpTotal) * 100) : null;
     // A falsy labels.back means a genuine single-series chart (welfare.js's
     // recipients-only comparison, where `expense` is always 0 by
     // construction, not a real second series) - the back half of every
     // title/legend line is dropped rather than describing a series that
     // was never real.
     const title = `${slot.year}${mainName ? ` — ${esc(mainName)}` : ''}: ${esc(labels.front)} ${num(p.revenue)}${labels.back ? `, ${esc(labels.back)} ${num(p.expense)}` : ''} ${esc(unit)}`
-      + (cmp ? `; ${esc(compare.name)}: ${esc(labels.front)} ${num(cmp.revenue)}${labels.back ? `, ${esc(labels.back)} ${num(cmp.expense)}` : ''} ${esc(unit)}` : '');
+      + cmpPoints.map(({ name, pt }) => `; ${esc(name)}: ${esc(labels.front)} ${num(pt.revenue)}${labels.back ? `, ${esc(labels.back)} ${num(pt.expense)}` : ''} ${esc(unit)}`).join('');
     return `
       <div class="fin-chart-group" title="${title}">
-        <span class="fin-chart-pct">${pct != null ? `${pct}%<span class="fin-chart-pct-name"> מ-${esc(compare.name)}</span>` : ''}</span>
+        <span class="fin-chart-pct">${pct != null ? `${pct}%<span class="fin-chart-pct-name"> מ-${esc(soloCompare.name)}</span>` : ''}</span>
         <div class="fin-chart-bars-wrap" style="block-size:${plotHeight}px; background-size:100% ${plotHeight / steps}px">
-          ${cityBars(p, true)}
-          ${cmp ? cityBars(cmp, false) : ''}
+          ${cityBars(p, null)}
+          ${cmpPoints.map(({ i, pt }) => cityBars(pt, i)).join('')}
         </div>
         <span class="fin-chart-y">${slot.year}</span>
       </div>`;
@@ -2926,12 +3012,14 @@ function renderGroupedChart(figId, caption, points, unit, mainName, labels = { f
   const axisLabels = Array.from({ length: steps + 1 }, (_, i) => axisMax - i * (axisMax / steps))
     .map((v) => `<span>${num(Math.round(v))}</span>`).join('');
 
+  const legendSwatch = (i) => compareBarColors(i)?.dark || 'var(--fin-compare)';
+
   fig.className = 'acc-chart acc-chart-wide';
   fig.innerHTML = `
     <figcaption>${esc(caption)}</figcaption>
     <div class="acc-legend">
       <span class="acc-legend-item"><span class="acc-legend-swatch" style="background:var(--accent)"></span>${mainName ? `${esc(mainName)} - ` : ''}${esc(labels.front)}${labels.back ? ` (מלא, ראשון) / ${esc(labels.back)} (בהיר, שני)` : ''}</span>
-      ${compare ? `<span class="acc-legend-item"><span class="acc-legend-swatch" style="background:var(--fin-compare)"></span>${esc(compare.name)} - אותו סדר</span>` : ''}
+      ${compares.map((c, i) => `<span class="acc-legend-item"><span class="acc-legend-swatch" style="background:${legendSwatch(i)}"></span>${esc(c.name)} - אותו סדר</span>`).join('')}
     </div>
     <div class="fin-chart-body">
       <div class="fin-chart-axis">
@@ -2940,7 +3028,7 @@ function renderGroupedChart(figId, caption, points, unit, mainName, labels = { f
       </div>
       <div class="fin-chart-plot">${groups}</div>
     </div>
-    <p class="acc-hint">${esc(unit)}${compare && mainName ? ` - האחוז מעל כל שנה: הסה"כ של ${esc(mainName)} כאחוז מהסה"כ של ${esc(compare.name)} אותה שנה` : ''}</p>`;
+    <p class="acc-hint">${esc(unit)}${soloCompare && mainName ? ` - האחוז מעל כל שנה: הסה"כ של ${esc(mainName)} כאחוז מהסה"כ של ${esc(soloCompare.name)} אותה שנה` : ''}</p>`;
 }
 
 /**

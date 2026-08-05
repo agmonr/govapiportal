@@ -184,10 +184,27 @@
             <input id="finCompare" type="text" list="finAuthorityList" autocomplete="off"
                    spellcheck="false" placeholder="התחילו להקליד שם רשות…">
           </div>
+          <!--
+            2 more compare slots, desktop only (see .fin-compare-extra in
+            style.css) - a 4-way grouped chart has no room on a phone
+            screen, so mobile keeps exactly the single compare field above,
+            same as before this was added.
+          -->
+          <div class="acc-year-pick fin-compare-extra">
+            <label for="finCompare2">רשות השוואה נוספת (אופציונלי):</label>
+            <input id="finCompare2" type="text" list="finAuthorityList" autocomplete="off"
+                   spellcheck="false" placeholder="התחילו להקליד שם רשות…">
+          </div>
+          <div class="acc-year-pick fin-compare-extra">
+            <label for="finCompare3">רשות השוואה נוספת (אופציונלי):</label>
+            <input id="finCompare3" type="text" list="finAuthorityList" autocomplete="off"
+                   spellcheck="false" placeholder="התחילו להקליד שם רשות…">
+          </div>
         </div>
         <p class="acc-hint">
-          רשות ההשוואה מופיעה רק כרקע אפור בגרף ההכנסות/הוצאות, לצורך קנה מידה - הטבלה, הדוח
-          המפורט וה-CSV ממשיכים לשקף אך ורק את הרשות הראשית שנבחרה למעלה.
+          רשויות ההשוואה מופיעות כרקע נוסף בגרפים ובשורות נוספות בטבלאות, לצורך קנה מידה - הדוח
+          המפורט וה-CSV ממשיכים לשקף אך ורק את הרשות הראשית שנבחרה למעלה. עד 2 רשויות השוואה
+          נוספות (סה"כ עד 4 רשויות) זמינות רק בתצוגת מחשב - במסך צר מוצגת רשות השוואה אחת בלבד.
         </p>
         <p id="finCompareWarn" class="notice error" dir="auto" hidden></p>
       </section>
@@ -233,15 +250,18 @@
 
       <section class="acc-section" id="finAreas" aria-labelledby="areasH" hidden>
         <h2 id="areasH">שטחים לפי ייעוד — הרשות שנבחרה</h2>
-        <p class="acc-hint">
-          אחוז גביית הארנונה (למגורים מול לא-למגורים) ושטח מגורים/משרדים/תעשיה/בתי מלון/מלאכה
-          מבוססים על "נספח 2 לטופס 1" ו"נספח א" בדוח הכספי בהתאמה - קיימים לרוב אותן השנים
-          שלרשות יש בהן דוח בכלל, לא פער נוסף משלהם. "לא למגורים" הוא המונח שהמקור עצמו משתמש
-          בו לכל מה שאינו מגורים (משרדים, תעשייה, מלונות וכו') - אין פירוט נפרד ל"עסקית" בלבד.
-          שני הגרפים מציגים את השנה העדכנית ביותר שיש בה נתונים; הטבלה שמתחת מציגה את כל השנים
-          הזמינות לשטחים. שטח השיפוט (בדונם) הוא נתון חד-פעמי שנמצא רק בדוח 2024 - לא מוצג כמגמה,
-          שכן אין נתון מקביל בשנים אחרות להשוואה מולו.
-        </p>
+        <details class="acc-hint">
+          <summary>מה יש כאן, ומה המקור</summary>
+          <p class="acc-hint">
+            אחוז גביית הארנונה (למגורים מול לא-למגורים) ושטח מגורים/משרדים/תעשיה/בתי מלון/מלאכה
+            מבוססים על "נספח 2 לטופס 1" ו"נספח א" בדוח הכספי בהתאמה - קיימים לרוב אותן השנים
+            שלרשות יש בהן דוח בכלל, לא פער נוסף משלהם. "לא למגורים" הוא המונח שהמקור עצמו משתמש
+            בו לכל מה שאינו מגורים (משרדים, תעשייה, מלונות וכו') - אין פירוט נפרד ל"עסקית" בלבד.
+            שני הגרפים מציגים את השנה העדכנית ביותר שיש בה נתונים; הטבלה שמתחת מציגה את כל השנים
+            הזמינות לשטחים. שטח השיפוט (בדונם) הוא נתון חד-פעמי שנמצא רק בדוח 2024 - לא מוצג כמגמה,
+            שכן אין נתון מקביל בשנים אחרות להשוואה מולו.
+          </p>
+        </details>
         <p id="finJurisdictionNote" class="acc-hint" dir="auto" hidden></p>
         <figure id="finChartArnonaCollection" class="acc-chart acc-chart-wide" role="img"></figure>
         <figure id="finChartAreas" class="acc-chart acc-chart-wide" role="img"></figure>

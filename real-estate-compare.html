@@ -91,8 +91,14 @@
       <section class="acc-section" id="recPickSection" aria-labelledby="pickH">
         <h2 id="pickH">בחירה להשוואה</h2>
         <p class="acc-hint" dir="auto" id="recPickHint"></p>
-        <div class="cm-filters tc-picks" id="recPicks"></div>
+        <div class="acc-year-pick">
+          <label for="recPick" id="recPickLabel">עיר:</label>
+          <input id="recPick" type="text" list="recRoster" autocomplete="off" spellcheck="false"
+                 placeholder="התחילו להקליד…">
+          <span class="tc-pick-confirm" id="recPickConfirm" aria-live="polite"></span>
+        </div>
         <datalist id="recRoster"></datalist>
+        <div id="recPickChips" class="cm-chips" hidden></div>
         <p id="recRosterHint" class="acc-hint" dir="auto"></p>
         <p id="recWarn" class="notice error" dir="auto" hidden></p>
       </section>
