@@ -1714,6 +1714,16 @@ body.accidents-page header.site .wrap { justify-content: center; text-align: cen
 body.accidents-page header.site h1 { inline-size: 100%; }
 
 .acc-year-pick { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; margin-block-end: 1.25rem; }
+/* Same fix as .cm-map-exit-fullscreen[hidden]/#trStopConfirm[hidden]
+   elsewhere in this file - this class's own `display: flex` is author-origin
+   and beats the UA [hidden]{display:none} rule regardless of specificity,
+   so an .acc-year-pick row with the `hidden` attribute set stays visually
+   flex-displayed unless explicitly overridden here. arnona-compare.js is the
+   first caller that actually toggles .acc-year-pick rows via .hidden at
+   runtime (every other page's .acc-year-pick rows are permanently visible
+   filter controls) - confirmed live, computed display stayed "flex" with
+   hidden=true until this rule was added. */
+.acc-year-pick[hidden] { display: none; }
 /* inline-flex, not the default inline flow: a checkbox/radio followed by its
    label text needs the checkbox to land first (the RTL start edge) with the
    text immediately after it - relying on plain bidi reordering of a replaced

@@ -161,10 +161,8 @@ let CITY_IDS = [];
 
 const state = {
   size: 100,
-  mode: 'address', // 'address' | 'known'
+  mode: 'address', // 'address' | 'zone' - see setMode()/myBaseResult()'s own comments
   myCity: null, myZone: null, myType: null,
-  knownRate: null,
-  picks: [], // city ids compared against
   checkedDiscounts: new Set(),
 };
 
@@ -198,10 +196,28 @@ function populateCitySelect() {
 }
 
 function zoneOptionsFor(city) {
+  // Givatayim (flat_by_type_no_zone) has no `zones` field at all - it's
+  // priced by building type only, shown in this same dropdown slot
+  // (relabeled "סוג בניין:" below) rather than a second one, since there's
+  // nothing else to pick.
+  if (city.rate_model === 'flat_by_type_no_zone') {
+    return (city.building_types || []).map((t) => ({ id: t.id, label: t.label || t.id }));
+  }
   if (city.zones) return city.zones.map((z) => ({ id: z.id, label: z.label }));
   return [];
 }
 function typeOptionsFor(city) {
+  // Rishon LeZion (flat_by_zone_type) keys its per-zone rates by type id
+  // (e.g. "א"/"אא"/"ב"/"ג"), but its `building_types` field is a plain
+  // {id: description} lookup, not the {id,label} array shape every other
+  // city's building_types uses - read the type ids from a zone's own
+  // `types` object (identical set across zones for this rate_model) and
+  // use `building_types` only for the human-readable label.
+  if (city.rate_model === 'flat_by_zone_type') {
+    const ids = Object.keys(city.zones?.[0]?.types || {});
+    const descriptions = city.building_types || {};
+    return ids.map((id) => ({ id, label: descriptions[id] || id }));
+  }
   if (city.building_types && Array.isArray(city.building_types)) {
     return city.building_types.map((t) => ({ id: t.id, label: t.label || t.id }));
   }
@@ -240,11 +256,14 @@ function renderMySelectors() {
   renderCompare();
 }
 
+/** Both modes ('address' and 'zone') end up at the exact same place - a
+ * myCity/myZone/myType selection plus state.size - they only differ in
+ * which UI got the citizen there (typed address + geocode vs. picking
+ * straight from the dropdowns) and which label the size field wears
+ * ("שטח הדירה" vs "גודל השטח החייב", see arChargeableSize's own input
+ * handler - it writes state.size directly, same variable arSize's handler
+ * writes, not a second field to keep in sync). */
 function myBaseResult() {
-  if (state.mode === 'known') {
-    if (state.knownRate == null || Number.isNaN(state.knownRate)) return null;
-    return { total: state.knownRate * state.size, perSqm: state.knownRate };
-  }
   if (!state.myCity) return null;
   const city = RATES[state.myCity];
   const sel = { zoneId: city.rate_model === 'flat_by_type_no_zone' ? null : state.myZone, typeId: city.rate_model === 'flat_by_type_no_zone' ? state.myZone : state.myType, isVilla: false };
@@ -254,64 +273,20 @@ function myBaseResult() {
 function renderMyResult() {
   const out = el('arMyResult');
   const r = myBaseResult();
-  if (!r) { out.textContent = state.mode === 'known' ? 'הזינו שיעור ידוע.' : 'בחרו עיר (וכתובת/אזור) כדי לחשב.'; return; }
+  if (!r) { out.textContent = 'בחרו עיר (וכתובת/אזור) כדי לחשב.'; return; }
   out.textContent = `לפי ${num(state.size)} מ"ר: כ-${num(Math.round(r.total))} ₪ לשנה (${r.perSqm.toFixed(2)} ₪ למ"ר).`;
 }
 
-/* ---------- compare picks (chip pattern, same idiom as real-estate-compare.js) ---------- */
-
-const MAX_PICKS = 4;
-const PICK_COLORS = ['var(--accent)', 'var(--danger)', 'var(--fin-compare, #999)', '#8a6dcf'];
-
-function updateRosterOptions(query) {
-  const q = (query || '').trim();
-  const candidates = usableCities().filter((id) => id !== state.myCity && !state.picks.includes(id));
-  const matches = q ? candidates.filter((id) => RATES[id].name_he.includes(q)) : candidates;
-  el('arRoster').innerHTML = matches.slice(0, 30).map((id) => `<option value="${esc(RATES[id].name_he)}">`).join('');
-}
-
-function idByLabel(label) {
-  return usableCities().find((id) => RATES[id].name_he === label);
-}
-
-function renderPickChips() {
-  const chips = el('arPickChips');
-  if (!state.picks.length) { chips.hidden = true; chips.innerHTML = ''; return; }
-  chips.hidden = false;
-  chips.innerHTML = state.picks.map((id, i) => `
-    <span class="cm-chip" style="border-color:${PICK_COLORS[i]}">
-      <span class="acc-legend-swatch" style="background:${PICK_COLORS[i]}"></span>
-      <span dir="auto">${esc(RATES[id].name_he)}</span>
-      <button type="button" class="cm-chip-remove" data-idx="${i}" aria-label="הסרה">✕</button>
-    </span>`).join('');
-  chips.querySelectorAll('.cm-chip-remove').forEach((btn) => {
-    btn.addEventListener('click', () => { state.picks.splice(Number(btn.dataset.idx), 1); renderPickChips(); renderCompare(); });
-  });
-}
-
-function commitPick() {
-  const input = el('arPick');
-  const label = input.value.trim();
-  const id = idByLabel(label);
-  if (id && state.picks.length < MAX_PICKS && !state.picks.includes(id) && id !== state.myCity) {
-    state.picks.push(id);
-    renderPickChips();
-    renderCompare();
-  }
-  input.value = '';
-  updateRosterOptions('');
-}
-
-/* ---------- discount checkboxes + cross-city gap notes ---------- */
-
-function activeCityIds() {
-  const me = state.mode === 'known' ? null : state.myCity;
-  return [me, ...state.picks].filter(Boolean);
-}
+/* ---------- discount checkboxes + cross-city gap notes ----------
+ * "put all the cities together in the graph" replaced the old up-to-4
+ * manual pick-chip UI (real-estate-compare.js's idiom) entirely - every
+ * usable city now always appears, so there's no separate "active" subset
+ * to track. The discount union is simply every discount id any usable city
+ * defines. */
 
 function unionDiscounts() {
   const map = new Map(); // id -> { label_he, citiesWith: [id] }
-  for (const id of activeCityIds()) {
+  for (const id of usableCities()) {
     for (const d of RATES[id].discounts || []) {
       if (!map.has(d.id)) map.set(d.id, { label_he: d.label_he, citiesWith: [] });
       map.get(d.id).citiesWith.push(id);
@@ -323,7 +298,6 @@ function unionDiscounts() {
 function renderDiscountChecks() {
   const box = el('arDiscountChecks');
   const union = unionDiscounts();
-  if (!union.size) { box.innerHTML = '<p class="acc-hint" dir="auto">בחרו עיר כדי לראות הנחות זמינות.</p>'; return; }
   const rows = [...union.entries()].sort((a, b) => a[1].label_he.localeCompare(b[1].label_he, 'he'));
   box.innerHTML = rows.map(([id, info]) => `
     <label class="cm-chip" style="cursor:pointer">
@@ -343,37 +317,29 @@ function renderDiscountChecks() {
 
 function labelForCity(id) { return RATES[id].name_he; }
 
+function defaultSelectionFor(city) {
+  const zones = zoneOptionsFor(city);
+  const defaultZone = (city.zones || []).find((z) => z.is_default) || zones[0];
+  const types = typeOptionsFor(city);
+  return { zoneId: city.rate_model === 'flat_by_type_no_zone' ? null : defaultZone?.id, typeId: city.rate_model === 'flat_by_type_no_zone' ? defaultZone?.id : types[0]?.id, isVilla: false };
+}
+
 function resultForCity(id, isMe) {
-  let base;
-  if (isMe) base = myBaseResult();
-  else {
-    const city = RATES[id];
-    const zones = zoneOptionsFor(city);
-    const defaultZone = (city.zones || []).find((z) => z.is_default) || zones[0];
-    const types = typeOptionsFor(city);
-    const sel = { zoneId: city.rate_model === 'flat_by_type_no_zone' ? null : defaultZone?.id, typeId: city.rate_model === 'flat_by_type_no_zone' ? defaultZone?.id : types[0]?.id, isVilla: false };
-    base = computeAnnualTotal(city, sel, state.size);
-  }
+  const base = isMe ? myBaseResult() : computeAnnualTotal(RATES[id], defaultSelectionFor(RATES[id]), state.size);
   if (!base) return null;
 
   let result = base;
   const notes = [];
-  // "Known rate" mode: the citizen typed their own number, not tied to any
-  // specific city's discount rules - skip discount matching for "my" row
-  // entirely rather than checking it against whatever city was last picked
-  // in address mode (state.myCity is stale/irrelevant once mode is 'known').
-  if (!(isMe && state.mode === 'known')) {
-    const cityDiscounts = new Map((RATES[id]?.discounts || []).map((d) => [d.id, d]));
-    for (const discId of state.checkedDiscounts) {
-      if (cityDiscounts.has(discId)) {
-        const applied = applyDiscount(result, cityDiscounts.get(discId), state.size);
-        result = { ...result, total: applied.total };
-        if (applied.note) notes.push(applied.note);
-      } else {
-        const union = unionDiscounts();
-        const definedIn = (union.get(discId)?.citiesWith || []).filter((cid) => cid !== id).map((cid) => labelForCity(cid));
-        notes.push(`הנחת "${union.get(discId)?.label_he || discId}" אינה מוגדרת עבור ${labelForCity(id)}${definedIn.length ? ` - קיימת רק עבור: ${definedIn.join(', ')}` : ''}`);
-      }
+  const cityDiscounts = new Map((RATES[id]?.discounts || []).map((d) => [d.id, d]));
+  for (const discId of state.checkedDiscounts) {
+    if (cityDiscounts.has(discId)) {
+      const applied = applyDiscount(result, cityDiscounts.get(discId), state.size);
+      result = { ...result, total: applied.total };
+      if (applied.note) notes.push(applied.note);
+    } else {
+      const union = unionDiscounts();
+      const definedIn = (union.get(discId)?.citiesWith || []).filter((cid) => cid !== id).map((cid) => labelForCity(cid));
+      notes.push(`הנחת "${union.get(discId)?.label_he || discId}" אינה מוגדרת עבור ${labelForCity(id)}${definedIn.length ? ` - קיימת רק עבור: ${definedIn.join(', ')}` : ''}`);
     }
   }
   return { ...result, notes };
@@ -383,23 +349,23 @@ function renderCompare() {
   const entries = [];
   const details = [];
 
-  const meLabel = state.mode === 'known' ? 'השיעור שלי' : (state.myCity ? labelForCity(state.myCity) : null);
-  if (meLabel) {
+  if (state.myCity) {
     const r = resultForCity(state.myCity, true);
     if (r) {
-      entries.push({ label: `${meLabel} (אני)`, value: Math.round(r.total), color: PICK_COLORS[0] });
-      details.push(detailBlock(meLabel, r));
+      entries.push({ label: `${labelForCity(state.myCity)} (אני)`, value: Math.round(r.total), color: 'var(--accent)' });
+      details.push(detailBlock(labelForCity(state.myCity), r));
     }
   }
-  state.picks.forEach((id, i) => {
+  usableCities().filter((id) => id !== state.myCity).forEach((id) => {
     const r = resultForCity(id, false);
     if (r) {
-      entries.push({ label: labelForCity(id), value: Math.round(r.total), color: PICK_COLORS[(meLabel ? 1 : 0) + i] || PICK_COLORS[i] });
+      entries.push({ label: labelForCity(id), value: Math.round(r.total), color: 'var(--fin-compare, #999)' });
       details.push(detailBlock(labelForCity(id), r));
     }
   });
+  entries.sort((a, b) => b.value - a.value);
 
-  renderHBarChart('arCompareChart', `ארנונה שנתית משוערת - ${num(state.size)} מ"ר`, entries, '₪/שנה');
+  renderHBarChart('arCompareChart', `ארנונה שנתית משוערת - ${num(state.size)} מ"ר, כל הערים`, entries, '₪/שנה');
   el('arCompareDetails').innerHTML = details.join('');
   renderDiscountChecks();
 }
@@ -415,14 +381,20 @@ function detailBlock(label, r) {
 
 /* ---------- wiring ---------- */
 
+/** 'address' and 'zone' both end up picking city/zone/type from the exact
+ * same dropdowns (see myBaseResult's own comment) - the only real
+ * difference is whether the address/geocode row is shown, and which size
+ * field is visible (arSize's generic guess vs. arChargeableSize's "what my
+ * bill actually says", which writes into the very same state.size). */
 function setMode(mode) {
   state.mode = mode;
   el('arModePick').querySelectorAll('.tc-level-btn').forEach((b) => b.classList.toggle('active', b.dataset.mode === mode));
   el('arAddressRow').hidden = mode !== 'address';
-  el('arCityRow').hidden = mode !== 'address';
-  el('arKnownRow').hidden = mode !== 'known';
-  el('arZoneRow').hidden = mode !== 'address' || !zoneOptionsFor(RATES[state.myCity] || {}).length;
-  el('arTypeRow').hidden = mode !== 'address' || !typeOptionsFor(RATES[state.myCity] || {}).length;
+  el('arSizeRow').hidden = mode !== 'address';
+  el('arChargeableRow').hidden = mode !== 'zone';
+  if (mode === 'zone') el('arChargeableSize').value = state.size;
+  el('arZoneRow').hidden = !zoneOptionsFor(RATES[state.myCity] || {}).length;
+  el('arTypeRow').hidden = !typeOptionsFor(RATES[state.myCity] || {}).length;
   renderMyResult();
   renderCompare();
 }
@@ -447,8 +419,9 @@ async function init() {
     if (btn) setMode(btn.dataset.mode);
   });
 
-  el('arKnownRate').addEventListener('input', () => {
-    state.knownRate = Number(el('arKnownRate').value);
+  el('arChargeableSize').addEventListener('input', () => {
+    const v = Number(el('arChargeableSize').value);
+    state.size = v > 0 ? v : state.size;
     renderMyResult();
     renderCompare();
   });
@@ -471,9 +444,6 @@ async function init() {
   el('arCityPick').addEventListener('change', renderMySelectors);
   el('arZonePick').addEventListener('change', () => { state.myZone = el('arZonePick').value; renderMyResult(); renderCompare(); });
   el('arTypePick').addEventListener('change', () => { state.myType = el('arTypePick').value; renderMyResult(); renderCompare(); });
-
-  el('arPick').addEventListener('input', () => updateRosterOptions(el('arPick').value));
-  el('arPick').addEventListener('change', commitPick);
 
   renderCompare();
 }

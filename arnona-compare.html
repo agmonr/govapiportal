@@ -66,14 +66,14 @@
 
       <section class="acc-section" aria-labelledby="myRateH">
         <h2 id="myRateH">הנתונים שלי</h2>
-        <div class="acc-year-pick">
+        <div id="arSizeRow" class="acc-year-pick">
           <label for="arSize">שטח הדירה (מ"ר):</label>
           <input id="arSize" type="number" min="1" step="1" value="100" style="max-width:8em">
         </div>
 
         <div class="cm-filters" id="arModePick" role="group" aria-label="איך למלא">
           <button type="button" data-mode="address" class="tc-level-btn">כתובת</button>
-          <button type="button" data-mode="known" class="tc-level-btn">אני כבר יודע/ת את השיעור שלי</button>
+          <button type="button" data-mode="zone" class="tc-level-btn">אני יודע את איזור תשלום הארנונה</button>
         </div>
 
         <div id="arAddressRow" class="acc-year-pick">
@@ -96,27 +96,16 @@
           <select id="arTypePick"></select>
         </div>
 
-        <div id="arKnownRow" class="acc-year-pick" hidden>
-          <label for="arKnownRate">שיעור ידוע (₪ למ"ר לשנה):</label>
-          <input id="arKnownRate" type="number" min="0" step="0.01" style="max-width:10em">
+        <div id="arChargeableRow" class="acc-year-pick" hidden>
+          <label for="arChargeableSize">גודל השטח החייב (מ"ר):</label>
+          <input id="arChargeableSize" type="number" min="1" step="1" style="max-width:10em">
         </div>
 
         <p id="arMyResult" class="acc-hint" dir="auto"></p>
       </section>
 
-      <section class="acc-section" id="arComparePickSection" aria-labelledby="pickH">
-        <h2 id="pickH">השוואה לערים נוספות</h2>
-        <p class="acc-hint" dir="auto">עד 4 ערים נוספות, לצד השטח שהוזן למעלה.</p>
-        <div class="acc-year-pick">
-          <label for="arPick">עיר:</label>
-          <input id="arPick" type="text" list="arRoster" autocomplete="off" spellcheck="false" placeholder="התחילו להקליד…">
-        </div>
-        <datalist id="arRoster"></datalist>
-        <div id="arPickChips" class="cm-chips" hidden></div>
-      </section>
-
       <section class="acc-section" id="arCompareSection" aria-labelledby="compareH">
-        <h2 id="compareH">השוואה</h2>
+        <h2 id="compareH">השוואה - כל הערים</h2>
         <div id="arCompareChart"></div>
         <div id="arCompareDetails"></div>
       </section>
