@@ -160,9 +160,10 @@ let RATES = null; // loaded arnona_rates.json .cities
 let CITY_IDS = [];
 
 const state = {
-  size: 100,
+  size: 100, // real/physical apartment size - drives every OTHER city's bar always
   mode: 'address', // 'address' | 'zone' - see setMode()/myBaseResult()'s own comments
   myCity: null, myZone: null, myType: null,
+  myOfficialSize: null, // optional; when set, drives ONLY my own city's bar - see myBaseResult()
   checkedDiscounts: new Set(),
 };
 
@@ -227,9 +228,18 @@ function typeOptionsFor(city) {
 function renderMySelectors() {
   const cityId = el('arCityPick').value || null;
   state.myCity = cityId;
+  state.myOfficialSize = null;
+  el('arChargeableSize').value = '';
   const zoneRow = el('arZoneRow');
   const typeRow = el('arTypeRow');
-  if (!cityId) { zoneRow.hidden = true; typeRow.hidden = true; renderMyResult(); return; }
+  const chargeableRow = el('arChargeableRow');
+  const chargeableHint = el('arChargeableHint');
+  if (!cityId) {
+    zoneRow.hidden = true; typeRow.hidden = true; chargeableRow.hidden = true; chargeableHint.hidden = true;
+    renderMyResult(); renderCompare(); return;
+  }
+  chargeableRow.hidden = false;
+  chargeableHint.hidden = false;
   const city = RATES[cityId];
 
   const zones = zoneOptionsFor(city);
@@ -257,24 +267,33 @@ function renderMySelectors() {
 }
 
 /** Both modes ('address' and 'zone') end up at the exact same place - a
- * myCity/myZone/myType selection plus state.size - they only differ in
- * which UI got the citizen there (typed address + geocode vs. picking
- * straight from the dropdowns) and which label the size field wears
- * ("שטח הדירה" vs "גודל השטח החייב", see arChargeableSize's own input
- * handler - it writes state.size directly, same variable arSize's handler
- * writes, not a second field to keep in sync). */
+ * myCity/myZone/myType selection - they only differ in which UI got the
+ * citizen there (typed address + geocode vs. picking straight from the
+ * dropdowns).
+ *
+ * Sizing: a bruto_bruto city (Hod Hasharon is the concrete case that
+ * prompted this) can register MORE square meters against a real bill than
+ * the apartment's actual physical size, because of how it measures area
+ * (see the ברוטו-ברוטו explainer above) - so "my own city's real bill"
+ * and "the physical apartment size used to compare against every OTHER
+ * city" are genuinely two different numbers, not one. `myOfficialSize`
+ * (arChargeableSize, optional) feeds ONLY my own city's bar when set;
+ * every other city's bar always uses the plain `state.size` regardless -
+ * see resultForCity's own isMe branch. */
 function myBaseResult() {
   if (!state.myCity) return null;
   const city = RATES[state.myCity];
   const sel = { zoneId: city.rate_model === 'flat_by_type_no_zone' ? null : state.myZone, typeId: city.rate_model === 'flat_by_type_no_zone' ? state.myZone : state.myType, isVilla: false };
-  return computeAnnualTotal(city, sel, state.size);
+  return computeAnnualTotal(city, sel, state.myOfficialSize ?? state.size);
 }
 
 function renderMyResult() {
   const out = el('arMyResult');
   const r = myBaseResult();
   if (!r) { out.textContent = 'בחרו עיר (וכתובת/אזור) כדי לחשב.'; return; }
-  out.textContent = `לפי ${num(state.size)} מ"ר: כ-${num(Math.round(r.total))} ₪ לשנה (${r.perSqm.toFixed(2)} ₪ למ"ר).`;
+  const usedSize = state.myOfficialSize ?? state.size;
+  const sizeNote = state.myOfficialSize != null ? ' (לפי הארנונה אצל העירייה, לא שטח הדירה הפיזי)' : '';
+  out.textContent = `לפי ${num(usedSize)} מ"ר${sizeNote}: כ-${num(Math.round(r.total))} ₪ לשנה (${r.perSqm.toFixed(2)} ₪ למ"ר).`;
 }
 
 /* ---------- discount checkboxes + cross-city gap notes ----------
@@ -329,24 +348,39 @@ function defaultSelectionFor(city) {
 }
 
 function resultForCity(id, isMe) {
-  const base = isMe ? myBaseResult() : computeAnnualTotal(RATES[id], defaultSelectionFor(RATES[id]), state.size);
+  // The discount's own m² cap (applyDiscount) must be checked against
+  // whichever size actually produced `base` - my own city may be using
+  // myOfficialSize instead of the plain state.size (see myBaseResult).
+  const size = isMe ? (state.myOfficialSize ?? state.size) : state.size;
+  const base = isMe ? myBaseResult() : computeAnnualTotal(RATES[id], defaultSelectionFor(RATES[id]), size);
   if (!base) return null;
 
   let result = base;
-  const notes = [];
   const cityDiscounts = new Map((RATES[id]?.discounts || []).map((d) => [d.id, d]));
   for (const discId of state.checkedDiscounts) {
-    if (cityDiscounts.has(discId)) {
-      const applied = applyDiscount(result, cityDiscounts.get(discId), state.size);
-      result = { ...result, total: applied.total };
-      if (applied.note) notes.push(applied.note);
-    } else {
-      const union = unionDiscounts();
-      const definedIn = (union.get(discId)?.citiesWith || []).filter((cid) => cid !== id).map((cid) => labelForCity(cid));
-      notes.push(`הנחת "${union.get(discId)?.label_he || discId}" אינה מוגדרת עבור ${labelForCity(id)}${definedIn.length ? ` - קיימת רק עבור: ${definedIn.join(', ')}` : ''}`);
-    }
+    if (!cityDiscounts.has(discId)) continue; // who does/doesn't have it is shown per-discount, not per-city - see discountBreakdownBlock
+    const applied = applyDiscount(result, cityDiscounts.get(discId), size);
+    result = { ...result, total: applied.total };
   }
-  return { ...result, notes };
+  return result;
+}
+
+// Per-הנחה, not per-city: for each ticked discount, which cities actually
+// define it and which don't - one glance at "who gives this" instead of
+// hunting through every city's own block for a mention of it.
+function discountBreakdownBlock(discId) {
+  const union = unionDiscounts();
+  const info = union.get(discId);
+  if (!info) return '';
+  const has = new Set(info.citiesWith);
+  const withIt = usableCities().filter((id) => has.has(id)).map(labelForCity);
+  const withoutIt = usableCities().filter((id) => !has.has(id)).map(labelForCity);
+  return `
+    <div class="notice info" dir="auto" style="margin-block-end:.75rem">
+      <strong>${esc(info.label_he)}</strong>
+      <p class="acc-hint" dir="auto">✓ קיימת אצל: ${esc(withIt.join(', ') || '—')}</p>
+      <p class="acc-hint" dir="auto">✗ לא קיימת אצל: ${esc(withoutIt.join(', ') || '—')}</p>
+    </div>`;
 }
 
 // Rule-of-thumb net->gross-gross markup discussed earlier in this project:
@@ -379,21 +413,14 @@ function bruttoBruttoFill(color) {
 
 function renderCompare() {
   const rows = [];
-  const details = [];
 
   if (state.myCity) {
     const r = resultForCity(state.myCity, true);
-    if (r) {
-      rows.push({ id: state.myCity, label: `${labelForCity(state.myCity)} (אני)`, value: Math.round(r.total), color: 'var(--accent)' });
-      if (r.notes.length) details.push(detailBlock(labelForCity(state.myCity), r));
-    }
+    if (r) rows.push({ id: state.myCity, label: `${labelForCity(state.myCity)} (אני)`, value: Math.round(r.total), color: 'var(--accent)' });
   }
   usableCities().filter((id) => id !== state.myCity).forEach((id) => {
     const r = resultForCity(id, false);
-    if (r) {
-      rows.push({ id, label: labelForCity(id), value: Math.round(r.total), color: 'var(--fin-compare, #999)' });
-      if (r.notes.length) details.push(detailBlock(labelForCity(id), r));
-    }
+    if (r) rows.push({ id, label: labelForCity(id), value: Math.round(r.total), color: 'var(--fin-compare, #999)' });
   });
   rows.sort((a, b) => b.value - a.value);
 
@@ -407,39 +434,20 @@ function renderCompare() {
     : row));
 
   renderHBarChart('arCompareChart', `ארנונה שנתית משוערת - ${num(state.size)} מ"ר, כל הערים`, entries, '₪/שנה');
-  el('arCompareDetails').innerHTML = details.join('');
+  el('arCompareDetails').innerHTML = [...state.checkedDiscounts].map(discountBreakdownBlock).join('');
   renderDiscountChecks();
-}
-
-// The chart itself already shows label+value per city (renderHBarChart) -
-// this block exists only to surface discount notes (e.g. "not defined for
-// this city"), so it's skipped entirely for cities with none, and doesn't
-// repeat the ₪ total the chart already carries.
-function detailBlock(label, r) {
-  const notesHtml = r.notes.map((n) => `<li dir="auto">${esc(n)}</li>`).join('');
-  return `
-    <div class="notice info" dir="auto" style="margin-block-end:.75rem">
-      <strong>${esc(label)}:</strong>
-      <ul>${notesHtml}</ul>
-    </div>`;
 }
 
 /* ---------- wiring ---------- */
 
-/** 'address' and 'zone' both end up picking city/zone/type from the exact
- * same dropdowns (see myBaseResult's own comment) - the only real
- * difference is whether the address/geocode row is shown, and which size
- * field is visible (arSize's generic guess vs. arChargeableSize's "what my
- * bill actually says", which writes into the very same state.size). */
+/** Only governs how "my city" gets picked (typed address + geocode vs.
+ * straight from the dropdown) - שטח הדירה and ארנונה אצל העירייה are both
+ * always-available, mode-independent fields (see renderMySelectors for the
+ * latter's visibility, which depends on a city being picked, not on mode). */
 function setMode(mode) {
   state.mode = mode;
   el('arModePick').querySelectorAll('.tc-level-btn').forEach((b) => b.classList.toggle('active', b.dataset.mode === mode));
   el('arAddressRow').hidden = mode !== 'address';
-  el('arSizeRow').hidden = mode !== 'address';
-  el('arChargeableRow').hidden = mode !== 'zone';
-  if (mode === 'zone') el('arChargeableSize').value = state.size;
-  el('arZoneRow').hidden = !zoneOptionsFor(RATES[state.myCity] || {}).length;
-  el('arTypeRow').hidden = !typeOptionsFor(RATES[state.myCity] || {}).length;
   renderMyResult();
   renderCompare();
 }
@@ -465,8 +473,9 @@ async function init() {
   });
 
   el('arChargeableSize').addEventListener('input', () => {
-    const v = Number(el('arChargeableSize').value);
-    state.size = v > 0 ? v : state.size;
+    const raw = el('arChargeableSize').value;
+    const v = Number(raw);
+    state.myOfficialSize = raw !== '' && v > 0 ? v : null;
     renderMyResult();
     renderCompare();
   });
