@@ -1948,9 +1948,18 @@ body.accidents-page header.site h1 { inline-size: 100%; }
 }
 .cm-basemap { position: absolute; inset-block-start: 0; inset-inline-start: 0; inline-size: 100%; block-size: 100%; }
 /* The div itself is just a positioning wrapper - fetchBasemapCanvasWGS84's
-   own <canvas> (with real width/height attributes already matching MAX_DIM)
-   is appended into it at render time, not styled directly here. */
-.cm-basemap canvas { display: block; inline-size: 100%; block-size: 100%; border-radius: 6px; }
+   own <canvas> is appended into it at render time, not styled directly
+   here. object-fit: contain (NOT inline-size/block-size:100% stretching
+   the canvas to fill this square wrapper regardless of its own pixel
+   shape) - the canvas's own width/height now reflect the real bbox aspect
+   ratio (geo-utils.js's stitchBasemap no longer forces a square canvas,
+   see its own comment), and stretching a non-square canvas into a square
+   box is exactly what made the whole-country basemap view look distorted/
+   "3D" (real user report). object-fit centers + letterboxes it instead,
+   the same xMidYMid-meet behavior the overlaid #cmSvg choropleth already
+   uses by default - the two need to agree, or the shape outlines
+   wouldn't trace the imagery underneath. */
+.cm-basemap canvas { display: block; inline-size: 100%; block-size: 100%; object-fit: contain; border-radius: 6px; }
 .cm-svg {
   /* Fixed aspect-ratio + a vh cap, NOT block-size:auto - Israel's own
      bbox is ~1:2.9 (tall/narrow) while a picked city's is closer to 1:1,

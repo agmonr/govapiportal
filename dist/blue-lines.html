@@ -1951,9 +1951,18 @@ body.accidents-page header.site h1 { inline-size: 100%; }
 }
 .cm-basemap { position: absolute; inset-block-start: 0; inset-inline-start: 0; inline-size: 100%; block-size: 100%; }
 /* The div itself is just a positioning wrapper - fetchBasemapCanvasWGS84's
-   own <canvas> (with real width/height attributes already matching MAX_DIM)
-   is appended into it at render time, not styled directly here. */
-.cm-basemap canvas { display: block; inline-size: 100%; block-size: 100%; border-radius: 6px; }
+   own <canvas> is appended into it at render time, not styled directly
+   here. object-fit: contain (NOT inline-size/block-size:100% stretching
+   the canvas to fill this square wrapper regardless of its own pixel
+   shape) - the canvas's own width/height now reflect the real bbox aspect
+   ratio (geo-utils.js's stitchBasemap no longer forces a square canvas,
+   see its own comment), and stretching a non-square canvas into a square
+   box is exactly what made the whole-country basemap view look distorted/
+   "3D" (real user report). object-fit centers + letterboxes it instead,
+   the same xMidYMid-meet behavior the overlaid #cmSvg choropleth already
+   uses by default - the two need to agree, or the shape outlines
+   wouldn't trace the imagery underneath. */
+.cm-basemap canvas { display: block; inline-size: 100%; block-size: 100%; object-fit: contain; border-radius: 6px; }
 .cm-svg {
   /* Fixed aspect-ratio + a vh cap, NOT block-size:auto - Israel's own
      bbox is ~1:2.9 (tall/narrow) while a picked city's is closer to 1:1,
@@ -2866,8 +2875,21 @@ async function stitchBasemap(cornersWgs84, size, kind = 'street') {
   const cornersMerc = cornersWgs84.map(([lon, lat]) => lonLatToMercator(lon, lat));
 
   const mxs = cornersMerc.map((c) => c[0]);
+  const mys = cornersMerc.map((c) => c[1]);
   const mercWidth = Math.max(...mxs) - Math.min(...mxs);
-  let zoom = Math.round(Math.log2((2 * Math.PI * MERCATOR_R) / (TILE_PX * mercWidth / size)));
+  const mercHeight = Math.max(...mys) - Math.min(...mys);
+  // Zoom picked off whichever real-world span (width OR height) is LARGER,
+  // so that one maps to `size` px - the other comes out proportionally
+  // smaller, not stretched to match. Every existing caller (blue-lines.js/
+  // area-cleanup.html/trip-report.html, via bboxAround's always-square
+  // radius box) has mercWidth == mercHeight already, so this is a no-op for
+  // them. canopy-map.js's country-level basemap does NOT have a square
+  // bbox (Israel's full extent is ~3:1 tall vs wide) - picking zoom off
+  // width alone (the old behavior) there, then force-stretching the result
+  // into a square output below, visibly distorted the map enough to read
+  // as fake 3D/tilted perspective (real user report, confirmed by eye
+  // against this exact math, not assumed).
+  let zoom = Math.round(Math.log2((2 * Math.PI * MERCATOR_R) / (TILE_PX * Math.max(mercWidth, mercHeight) / size)));
   zoom = Math.max(0, Math.min(MAX_ZOOM, zoom));
 
   const pxPts = cornersMerc.map(([mx, my]) => mercatorToPixel(mx, my, zoom));
@@ -2914,26 +2936,34 @@ async function stitchBasemap(cornersWgs84, size, kind = 'street') {
   await Promise.all([worker(), worker()]);
   ctx.filter = 'none';
 
+  // Natural pixel size at the zoom already picked above - NOT stretched to
+  // a fixed size x size box (that stretch is exactly what used to distort
+  // a non-square bbox, see this function's own comment above). pxMin/pyMin
+  // etc. are already real pixel coordinates at `zoom`, so a straight 1:1
+  // copy (no destination scaling) is both correct and simpler than the
+  // old to-size rescale.
+  const outW = Math.round(pxMax - pxMin);
+  const outH = Math.round(pyMax - pyMin);
   const out = document.createElement('canvas');
-  out.width = size;
-  out.height = size;
+  out.width = outW;
+  out.height = outH;
   const octx = out.getContext('2d');
   octx.drawImage(
     canvas,
-    pxMin - txMin * TILE_PX, pyMin - tyMin * TILE_PX, pxMax - pxMin, pyMax - pyMin,
-    0, 0, size, size,
+    pxMin - txMin * TILE_PX, pyMin - tyMin * TILE_PX, outW, outH,
+    0, 0, outW, outH,
   );
   octx.font = '11px sans-serif';
   const label = TILE_ATTRIBUTION[kind] || TILE_ATTRIBUTION.street;
   const tw = octx.measureText(label).width;
   octx.fillStyle = 'rgba(255,255,255,0.75)';
-  octx.fillRect(0, size - 16, tw + 8, 16);
+  octx.fillRect(0, outH - 16, tw + 8, 16);
   octx.fillStyle = '#000';
-  octx.fillText(label, 4, size - 4);
+  octx.fillText(label, 4, outH - 4);
 
   const project = (lon, lat) => {
     const [px, py] = mercatorToPixel(...lonLatToMercator(lon, lat), zoom);
-    return [(px - pxMin) / (pxMax - pxMin) * size, (py - pyMin) / (pyMax - pyMin) * size];
+    return [px - pxMin, py - pyMin];
   };
   return { canvas: out, project };
 }
