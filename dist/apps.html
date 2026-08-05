@@ -1982,13 +1982,19 @@ body.accidents-page header.site h1 { inline-size: 100%; }
 .cm-tile-topo { filter: contrast(1.35) saturate(1.15); }
 /* Once a real basemap (street/aerial/topo tiles) is showing underneath, the
    heat/canopy blob rasters compete with the tile imagery's own colors and
-   read as washed out - boosted the same way .cm-tile-topo boosts topo tiles
-   against low contrast. Scoped by the .cm-osm-active class updateTileLayer()
+   read as washed out. A contrast INCREASE (tried first, same idiom as
+   .cm-tile-topo above) made this worse, not better - confirmed live: most
+   of this palette's own pixels are already lighter than mid-gray, so
+   pushing contrast up pushes them further toward white instead of making
+   them pop. Contrast below 1 pulls every pixel back toward mid-gray
+   instead, which darkens (and so makes more visible) exactly those pale
+   pixels; saturate still boosts the actual hue once it's no longer so
+   close to white. Scoped by the .cm-osm-active class updateTileLayer()
    toggles on the map container (see canopy-map.js) rather than baked into
    the overlay images at creation time, since those images are cached/reused
    across a basemap toggle - a pure-CSS ancestor class picks up every
    already-added overlay too, not just ones created after the toggle. */
-.cm-osm-active .leaflet-cmBlobPane-pane img { filter: contrast(1.4) saturate(1.35); }
+.cm-osm-active .leaflet-cmBlob-pane img { filter: contrast(.7) saturate(1.5); }
 
 .cm-zoom-controls { position: absolute; inset-block-start: .5rem; inset-inline-end: .5rem; display: flex; flex-direction: column; gap: .25rem; }
 .cm-zoom-controls button {
