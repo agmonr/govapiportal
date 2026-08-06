@@ -11,21 +11,21 @@
  * tools/canopy_split_build.py/tools/heat_build.py) for how each is
  * actually computed.
  *
- * Three selectable metrics (state.activeMetrics, 1-3 active at once, same
- * "toggle membership, never zero" multi-pick idiom canopy-map.js's own
- * state.cityLayers already uses): public trees (green), private trees
- * (green, a lighter tint), heat (red). Public+private specifically get
- * COMBINED into one two-segment bar when both are active together
- * (renderStackedBarChart) rather than two separate charts, since
- * public+private is exactly total canopy split into its two components -
- * showing them stacked answers "how green, and how much of that is
- * street trees vs. private yards" in one bar instead of two disconnected
- * ones.
+ * Three metrics, always all shown together (state.activeMetrics - no picker
+ * UI anymore; a prior version let a visitor toggle 1-3 of them, but the
+ * all-three default was simpler and just as useful, so the toggle buttons
+ * were dropped and the array left fixed): public trees (green), private
+ * trees (green, a lighter tint), heat (red). Public+private specifically
+ * get COMBINED into one two-segment bar (renderStackedBarChart) rather than
+ * two separate charts, since public+private is exactly total canopy split
+ * into its two components - showing them stacked answers "how green, and
+ * how much of that is street trees vs. private yards" in one bar instead of
+ * two disconnected ones.
  *
  * Compare (up to 4 picks) and the national leaderboard board (every
  * entity at the current level, unscoped by picks - visible even before
  * any pick is made, same as tree-canopy.html's/canopy-split.html's own
- * always-on board) both follow the same active-metric selection.
+ * always-on board) both follow the same fixed metric set.
  *
  * Each level's entries() UNIONS every metric's own source table by key
  * rather than intersecting them - an entity present in one table but not
@@ -635,9 +635,6 @@ function renderAll() {
   for (const btn of el('chcLevelPick').querySelectorAll('.tc-level-btn')) {
     btn.classList.toggle('active', btn.dataset.level === state.level);
   }
-  for (const btn of document.querySelectorAll('.chc-metric-btn')) {
-    btn.classList.toggle('active', state.activeMetrics.includes(btn.dataset.metric));
-  }
   const lvl = LEVELS[state.level];
   pickInputs.forEach((input, i) => {
     el(`chcPickLabel${i}`).textContent = i === 0 ? lvl.pickLabel : `השוואה${PICK_LABELS[i]} (אופציונלי):`;
@@ -657,11 +654,11 @@ function renderAll() {
 }
 
 // Scoped to #chcLevelPick specifically - .tc-level-btn is reused for
-// styling on the metric picker buttons below too (a different container,
-// #chcMetricPick), and a global querySelectorAll('.tc-level-btn') here
+// styling on the board's order-toggle buttons too (a different container,
+// #chcBoardOrderPick), and a global querySelectorAll('.tc-level-btn') here
 // would also wire ITS clicks to this same handler, setting
-// state.level = undefined (no data-level on a metric button) the moment
-// someone toggled a metric instead of a level - a real bug, caught before
+// state.level = undefined (no data-level on an order button) the moment
+// someone toggled best/worst instead of a level - a real bug, caught before
 // shipping via a real click-through test, not by inspection.
 el('chcLevelPick').querySelectorAll('.tc-level-btn').forEach((btn) => {
   btn.addEventListener('click', () => {
@@ -686,23 +683,6 @@ el('chcBoardOrderPick').querySelectorAll('.tc-level-btn').forEach((btn) => {
   btn.addEventListener('click', () => {
     if (state.boardOrder === btn.dataset.order) return;
     state.boardOrder = btn.dataset.order;
-    syncUrl();
-    renderAll();
-  });
-});
-
-// Same toggle-membership idiom as canopy-map.html's own state.cityLayers
-// (city-level multi-metric picker) - up to 3 active, never zero.
-document.querySelectorAll('.chc-metric-btn').forEach((btn) => {
-  btn.addEventListener('click', () => {
-    const id = btn.dataset.metric;
-    const i = state.activeMetrics.indexOf(id);
-    if (i !== -1) {
-      if (state.activeMetrics.length === 1) return; // never zero active metrics
-      state.activeMetrics.splice(i, 1);
-    } else {
-      state.activeMetrics.push(id);
-    }
     syncUrl();
     renderAll();
   });
