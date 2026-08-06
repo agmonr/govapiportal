@@ -73,11 +73,18 @@ than shipping to whoever downloads it.
 | `dist/moag.html` | Same, for the moag explorer. Also holds no snapshot. |
 | `tools/` | Bundler, API re-prober, browser verification. Not part of the site. |
 
-`help-plan-timeline.html`, `help-plan-compare.html`, and
-`help-canopy-heat-compare.html` are documentation, not generated output —
-**whenever a filter, column, badge, chart section, or export button changes
-on the page they document, update the matching help page too**, or it will
-silently drift out of date.
+**Help pages (`help-*.html`) are part of the code, not an afterthought.**
+Every app is meant to have one, registered in `HELP_PAGE` in
+`src/apps.js` (which is what puts its ❓ icon in the shared app-context
+strip, right after "כל האפליקציות" - the same spot on every page, not a
+hand-placed header link). A help page documents that app's own filters,
+columns, badges, chart sections, and export buttons, plus a recommended
+workflow. **Any change to those - in the same commit, not a follow-up -
+must update the matching help page**, exactly like updating a docstring
+when its function changes. This already bit once: three help pages'
+header links went in without regenerating `dist/`, which failed CI and
+silently blocked three Pages deploys - see git log around
+`7d948b7`.
 
 ## Top view
 

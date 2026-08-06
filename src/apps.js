@@ -154,6 +154,30 @@ export async function loadAppsData() {
  * never actually needs to appear as an option). Cross-navigation between
  * related tools without hand-maintaining it per page.
  */
+// Hand-authored help pages, keyed by app id (see help-plan-timeline.html/
+// help-plan-compare.html/help-canopy-heat-compare.html) - not every app has
+// one, so the ❓ icon-link only appears for the ones that do. One shared
+// place to register a new one, instead of hand-adding a header link on
+// every page that gets a help doc (which is how this started, and why it
+// silently went stale on three pages after a header edit - see git log).
+const HELP_PAGE = {
+  accidents: './help-accidents.html',
+  'canopy-map': './help-canopy-map.html',
+  'canopy-heat-compare': './help-canopy-heat-compare.html',
+  'real-estate-map': './help-real-estate-map.html',
+  'real-estate-compare': './help-real-estate-compare.html',
+  'arnona-compare': './help-arnona-compare.html',
+  'blue-lines': './help-blue-lines.html',
+  'plan-timeline': './help-plan-timeline.html',
+  'plan-compare': './help-plan-compare.html',
+  'area-cleanup': './help-area-cleanup.html',
+  'trip-report': './help-trip-report.html',
+  'local-finance': './help-local-finance.html',
+  committees: './help-committees.html',
+  companies: './help-companies.html',
+  welfare: './help-welfare.html',
+};
+
 export function renderAppContext(node, apps, currentId, { includeSelf = true } = {}) {
   const current = apps.find((a) => a.id === currentId);
   if (!current) { node.innerHTML = ''; return; }
@@ -164,6 +188,15 @@ export function renderAppContext(node, apps, currentId, { includeSelf = true } =
       <span class="app-sibling-icon" aria-hidden="true">🏠</span>
       <span class="app-sibling-label">כל האפליקציות</span>
     </a>`;
+
+  // Right after "כל האפליקציות", always in the same spot regardless of
+  // which page this renders on - see HELP_PAGE above.
+  const helpHref = HELP_PAGE[currentId];
+  const helpHtml = helpHref ? `
+    <a class="app-sibling app-sibling-help" href="${esc(helpHref)}" title="עזרה" dir="auto">
+      <span class="app-sibling-icon" aria-hidden="true">❓</span>
+      <span class="app-sibling-label">עזרה</span>
+    </a>` : '';
 
   const siblingsHtml = inCategory.map((a) => (a.id === currentId
     ? `<span class="app-sibling app-sibling-current" title="${esc(a.name_he)}" aria-current="page" dir="auto">
@@ -178,6 +211,6 @@ export function renderAppContext(node, apps, currentId, { includeSelf = true } =
 
   node.innerHTML = `
     <nav class="app-siblings" aria-label="אפליקציות נוספות ב${esc(current.category_he || '')}">
-      ${homeHtml}${siblingsHtml}
+      ${homeHtml}${helpHtml}${siblingsHtml}
     </nav>`;
 }

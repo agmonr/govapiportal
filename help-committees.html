@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>עזרה - ישיבות ועדות תכנון ובנייה</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>❓</text></svg>">
+  <meta name="description" content="מדריך שימוש לדף ישיבות ועדות תכנון ובנייה: כל השדות, כל הכפתורים ותהליך עבודה מומלץ.">
+  <script>
+    try {
+      var t = localStorage.getItem('theme');
+      if (t) document.documentElement.setAttribute('data-theme', t);
+    } catch (e) {}
+  </script>
+  <link rel="stylesheet" href="./src/style.css">
+</head>
+<body>
+  <header class="site">
+    <div class="wrap">
+      <h1>עזרה - ישיבות ועדות תכנון ובנייה</h1>
+      <span class="site-by">פרויקט של רם אגמון<span class="site-disclaimer">המידע באתר עלול להיות שגוי</span><a href="https://hod-hasharon.org/" target="_blank" rel="noopener">הירוקים הוד השרון</a></span>
+      <div class="theme-pick" id="themePick" role="group" aria-label="ערכת נושא">
+        <button type="button" data-theme="clouds">☀️<span class="theme-btn-label"> יום</span></button>
+        <button type="button" data-theme="fashion">🌙<span class="theme-btn-label"> לילה</span></button>
+        <button type="button" data-theme="zebra">🦓<span class="theme-btn-label"> זברה</span></button>
+      </div>
+      <span class="meta"><a href="./committees.html">← 🏛️ חזרה לדף עצמו</a></span>
+      <span class="meta"><a href="./index.html">מפת ה-API</a></span>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <p class="acc-hint" dir="auto">מדריך זה מלווה את <a href="./committees.html">committees.html</a> - חיפוש ישיבות ועדות תכנון ובנייה (מקומיות ומרחביות, כ-68 ועדות) והגעה למסמכי הפרוטוקול שלהן, נשלף חי מ-handasi.complot.co.il.</p>
+
+    <section class="acc-section" aria-labelledby="workflowH">
+      <h2 id="workflowH">תהליך עבודה מומלץ</h2>
+      <ol dir="auto">
+        <li><strong>הקלידו ועדה/יישוב</strong> - השלמה אוטומטית.</li>
+        <li><strong>אופציונלי: סננו</strong> - סוג ישיבה, וטווח תאריכים ("כמה חודשים אחורה" או תאריכים מפורשים).</li>
+        <li><strong>אופציונלי: סינון חופשי</strong> - טקסט חופשי על מספר/סוג/תאריך הישיבה.</li>
+        <li><strong>קראו את כרטיסי הסיכום והגרפים</strong>.</li>
+        <li><strong>הרחיבו שורת ישיבה (▾)</strong> - טוען את רשימת המסמכים שלה, או לחצו על מספר הישיבה למעבר ישיר לפרוטוקול ההחלטות.</li>
+        <li><strong>הורידו CSV</strong> של הרשימה המסוננת, או בנו רשימת מסמכים להורדה מרוכזת.</li>
+      </ol>
+    </section>
+
+    <section class="acc-section" aria-labelledby="controlsH">
+      <h2 id="controlsH">שדות ובקרות</h2>
+      <div class="matrix-wrap">
+        <table class="matrix">
+          <thead><tr><th scope="col">בקרה</th><th scope="col">מה היא עושה</th></tr></thead>
+          <tbody>
+            <tr><td>ועדה / ישוב</td><td>הקלדה + השלמה אוטומטית של שם ועדה או יישוב.</td></tr>
+            <tr><td>סוג ישיבה</td><td>רשימה נפתחת.</td></tr>
+            <tr><td>כמה חודשים אחורה</td><td>מספר - קיצור דרך שממלא את "מתאריך" אוטומטית.</td></tr>
+            <tr><td>מתאריך / עד תאריך</td><td>בחירת תאריכים מפורשת.</td></tr>
+            <tr><td>סינון חופשי</td><td>מסנן רק לפי מספר/סוג/תאריך ישיבה - לא לפי תוכן הפרוטוקול עצמו.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="acc-section" aria-labelledby="colsH">
+      <h2 id="colsH">מה רואים</h2>
+      <div class="matrix-wrap">
+        <table class="matrix">
+          <thead><tr><th scope="col">אזור</th><th scope="col">תוכן</th></tr></thead>
+          <tbody>
+            <tr><td>טבלה</td><td>(חץ הרחבה), מספר ישיבה (גם כפתור להורדת פרוטוקול החלטות), סוג ישיבה, תאריך, יום. הרחבה חושפת רשימת מסמכים עם נושא ותאריך.</td></tr>
+            <tr><td>כרטיסי KPI</td><td>סה"כ ישיבות בסינון הנוכחי, סוגי ישיבה שונים, טווח תאריכים בפועל, רשימות מסמכים שנטענו בהפעלה זו.</td></tr>
+            <tr><td>גרפים</td><td>ישיבות לפי שנה; התפלגות לפי סוג ישיבה (6 המובילים + "אחר").</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="acc-section" aria-labelledby="exportH">
+      <h2 id="exportH">ייצוא ורשימת מסמכים</h2>
+      <div class="matrix-wrap">
+        <table class="matrix">
+          <thead><tr><th scope="col">כפתור</th><th scope="col">מה הוא עושה</th></tr></thead>
+          <tbody>
+            <tr><td>הורדת CSV של הרשימה המסוננת ⭳</td><td>קוד_ועדה, מספר_ישיבה, סוג_ישיבה, תאריך, יום - לשורות המסוננות בלבד.</td></tr>
+            <tr><td>רשימת המסמכים להורדה</td><td>בונה סקריפט bash/curl אחד (curl -K) להורדת כל המסמכים, או רשימת מעקב ידנית עם תיבות סימון (ההתקדמות נשמרת מקומית במכשיר).</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="acc-section" aria-labelledby="tipsH">
+      <h2 id="tipsH">טיפים ומגבלות</h2>
+      <ul dir="auto">
+        <li>ועדות מחוזיות/ארציות מחזירות תמיד אפס תוצאות - הפרוטוקולים שלהן נמצאים מאחורי reCAPTCHA באתר מבא"ת ולא נגישים דרך הכלי הזה.</li>
+        <li>אין ניתוח תוכן: מספר תכנית, סטטוס, ייעוד קרקע, יח"ד, שטח, אחוזי אישור, זמן טיפול ממוצע, פירוט החלטות וענן מילים - אף אחד מאלה לא נכלל, כי זה ידרוש OCR/פענוח טקסט של קבצי ה-PDF, מה שלא נעשה כאן.</li>
+        <li>הורדת מסמכים מרוכזת אינה ZIP - השרת המקורי חוסם רובוטים, כך שההורדה תמיד "קובץ אחד בכל פעם", רק מאורגנת/מקובצת עבורכם.</li>
+      </ul>
+    </section>
+  </main>
+
+  <script type="module">
+    import { el } from './src/ui.js';
+    import { initThemePicker } from './src/theme.js';
+    initThemePicker(el('themePick'));
+  </script>
+</body>
+</html>
