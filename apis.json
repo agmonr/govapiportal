@@ -145,7 +145,7 @@
       "kind": "פרויקט אישי",
       "about": "דוח סטטי - לא API - העוקב אחר רישיונות כריתה/העתקה של עצים שפתוחים כרגע להגשת השגה. כלי אישי, לא ממשלתי, לא חלק ממפת ה-API שלמטה - מוצג כאן כי הוא נשען על נתוני רישוי ממשלתיים.",
       "href": "https://agmonr.github.io/yeela-license-tracker/statics/reports/open_for_objection.html",
-      "external": true,
+      "external": false,
       "category": "trees",
       "category_he": "עצים"
     },
@@ -156,7 +156,7 @@
       "kind": "פרויקט אישי",
       "about": "דוח סטטי - לא API - עוקב אחרי תוכניות בניין (מנהל התכנון, קווים כחולים) שמסמנות עצים לכריתה/העתקה/שימור ונמצאות כרגע בהפקדה להתנגדויות או לקראתה, לפי יישוב - שנים לפני שהיתר כריתה הקשור אליהן (אם בכלל) יופיע במערכת יעל\"ה. תוכנית שהחלון החוקי להתנגדות עליה כנראה כבר חלף (60 יום מהפרסום) מסומנת ומוצגת דהויה. כלי אישי, לא ממשלתי - מוצג כאן כי הוא נשען כולו על נתוני מנהל התכנון.",
       "href": "https://agmonr.github.io/yeela-license-tracker/statics/reports/by_city.html",
-      "external": true,
+      "external": false,
       "category": "trees",
       "category_he": "עצים"
     },
