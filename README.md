@@ -57,6 +57,8 @@ than shipping to whoever downloads it.
 | `moag.html` / `src/moag-explorer.js` | The Ministry of Agriculture explorer: catalogue → dataset → FeatureServer records |
 | `plan-timeline.html` / `src/plan-timeline.js` | How long a building plan takes from submission to approval, by city, with filters (status/city/year/plan-name/min-plans-per-city), a per-plan step-by-step drill-down and a detailed Excel export. Live from Xplan - see `src/plan-data.js`. |
 | `plan-compare.html` / `src/plan-compare.js` | Same plan-duration data, compare up to 4 cities at once (same compare-multiple-entities idiom as `canopy-map.html`), with a per-city year-submitted trend and a per-city plan drill-down (area-colored by size). |
+| `help-plan-timeline.html` | Hand-authored user guide for `plan-timeline.html` — every filter, table column, status badge, the nine per-plan timeline steps, and the export buttons, plus a recommended workflow. Not part of `dist/` (no live data of its own). |
+| `help-plan-compare.html` | Same, for `plan-compare.html` — every field/control, the main compare table, and each optional section (by year, by stage, single-city year trend, by plan size). |
 | `src/plan-render.js` | Shared per-plan/per-plan-list HTML (status badge, step timeline, area-size color scale) - used by both plan pages above so the markup exists once. |
 | `src/idb-cache.js` | Tiny async IndexedDB key-value cache, used by `plan-data.js` so the ~20-27k-row Xplan fetch survives reloads/new tabs (session/localStorage are too small for it). |
 | `tools/canopy_build.py` | One-time local batch job that computes the three canopy tables above from a gitignored local shapefile |
@@ -68,6 +70,12 @@ than shipping to whoever downloads it.
 | `dist/datagov.html` | Same, for the explorer. Holds no snapshot — every row is live. |
 | `dist/moag.html` | Same, for the moag explorer. Also holds no snapshot. |
 | `tools/` | Bundler, API re-prober, browser verification. Not part of the site. |
+
+`help-plan-timeline.html` and `help-plan-compare.html` are documentation, not
+generated output — **whenever a filter, column, badge, chart section, or
+export button changes in `plan-timeline.html`/`plan-timeline.js` or
+`plan-compare.html`/`plan-compare.js`, update the matching help page too**,
+or it will silently drift out of date.
 
 ## Top view
 
