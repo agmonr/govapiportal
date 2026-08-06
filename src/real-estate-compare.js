@@ -388,7 +388,7 @@ const DEALS_ROW_CAP = 300; // hard ceiling on how many (already sorted/filtered)
 const DEALS_INITIAL_ROWS = 10; // visible before "הצג עוד" - the rest sits in a second, hidden tbody
 
 const DEAL_COLUMNS = [
-  { key: 'dt', label: 'תאריך', type: 'text', get: (d) => d.dt || '' },
+  { key: 'dt', label: 'תאריך', type: 'text', cls: 'col-dt', get: (d) => d.dt || '' },
   { key: 'addr', label: 'כתובת', type: 'text', get: (d) => [d.st, d.hn].filter((v) => v != null && v !== '').join(' ') },
   { key: 'gush', label: 'גוש/חלקה', type: 'text', get: (d) => gushHelkaText(d) },
   { key: 'ptype', label: 'סוג נכס', type: 'text', get: (d) => d.pt || '' },
@@ -485,7 +485,7 @@ function renderDealsTableSorted(containerId, deals, state) {
     const plotText = plotAreaText(d);
     return `
     <tr>
-      <td dir="ltr">${esc(d.dt)}</td>
+      <td dir="ltr" class="col-dt">${esc(d.dt)}</td>
       <td dir="auto">${addrCell}</td>
       <td dir="ltr">${esc(gushHelkaText(d) || '—')}</td>
       <td dir="auto">${esc(d.pt || '—')}</td>
@@ -503,7 +503,7 @@ function renderDealsTableSorted(containerId, deals, state) {
   const headCell = (c) => {
     const active = state.col === c.key;
     const nextDir = active && state.dir === 'asc' ? 'desc' : 'asc';
-    return `<th class="sortable${active ? ' sorted' : ''}" data-sort-key="${c.key}" data-sort-dir="${nextDir}"
+    return `<th class="sortable${active ? ' sorted' : ''}${c.cls ? ` ${c.cls}` : ''}" data-sort-key="${c.key}" data-sort-dir="${nextDir}"
                 tabindex="0" role="button"
                 aria-sort="${active ? (state.dir === 'asc' ? 'ascending' : 'descending') : 'none'}">
       ${esc(c.label)}<span class="s-mark">${active ? (state.dir === 'asc' ? '▲' : '▼') : '↕'}</span>
