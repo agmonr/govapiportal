@@ -62,6 +62,8 @@ than shipping to whoever downloads it.
 | `src/plan-render.js` | Shared per-plan/per-plan-list HTML (status badge, step timeline, area-size color scale) - used by both plan pages above so the markup exists once. |
 | `src/idb-cache.js` | Tiny async IndexedDB key-value cache, used by `plan-data.js` so the ~20-27k-row Xplan fetch survives reloads/new tabs (session/localStorage are too small for it). |
 | `tools/canopy_build.py` | One-time local batch job that computes the three canopy tables above from a gitignored local shapefile |
+| `canopy-heat-compare.html` / `src/canopy-heat-compare.js` | Public/private tree canopy % and max heat delta, side by side, by city/neighborhood/street - compare up to 4 at once, plus an always-on national best/worst board. No new data: unions the tables already computed for `tree-canopy.html`/`canopy-split.html`/`heat-islands.html`. |
+| `help-canopy-heat-compare.html` | Hand-authored user guide for `canopy-heat-compare.html` — the three metrics, the compare table, the per-city relative-rank line, the national board, and CSV/WhatsApp export. |
 | `src/portal.js` | Portal drill-in: live request per portal, rendered as a table |
 | `src/explorer.js` | Live in-browser request panel |
 | `src/style.css` | RTL-first styling |
@@ -71,11 +73,11 @@ than shipping to whoever downloads it.
 | `dist/moag.html` | Same, for the moag explorer. Also holds no snapshot. |
 | `tools/` | Bundler, API re-prober, browser verification. Not part of the site. |
 
-`help-plan-timeline.html` and `help-plan-compare.html` are documentation, not
-generated output — **whenever a filter, column, badge, chart section, or
-export button changes in `plan-timeline.html`/`plan-timeline.js` or
-`plan-compare.html`/`plan-compare.js`, update the matching help page too**,
-or it will silently drift out of date.
+`help-plan-timeline.html`, `help-plan-compare.html`, and
+`help-canopy-heat-compare.html` are documentation, not generated output —
+**whenever a filter, column, badge, chart section, or export button changes
+on the page they document, update the matching help page too**, or it will
+silently drift out of date.
 
 ## Top view
 
