@@ -27,7 +27,7 @@
         <button type="button" data-theme="fashion">🌙<span class="theme-btn-label"> לילה</span></button>
         <button type="button" data-theme="zebra">🦓<span class="theme-btn-label"> זברה</span></button>
       </div>
-      <span class="meta"><a href="./plan-timeline.html">← 📋 חזרה לדף עצמו</a></span>
+      <span class="meta"><a href="./plan-timeline.html">← 📋<span class="icon-small">⏱️</span> חזרה לדף עצמו</a></span>
       <span class="meta"><a href="./index.html">מפת ה-API</a></span>
     </div>
   </header>
@@ -52,7 +52,7 @@
     <section class="acc-section" aria-labelledby="controlsH">
       <h2 id="controlsH">סינון ובקרות</h2>
       <div class="matrix-wrap">
-        <table class="matrix">
+        <table class="matrix prose">
           <thead><tr><th scope="col">בקרה</th><th scope="col">מה היא עושה</th></tr></thead>
           <tbody>
             <tr><td>סטטוס: אושרו / בתהליך / הכול</td><td>מסנן לפי station_desc - "אושרו" מציג רק תכניות עם station_desc="אישור" (אלה שאפשר לחשב עבורן משך זמן), "בתהליך" את כל השאר.</td></tr>
@@ -68,7 +68,7 @@
     <section class="acc-section" aria-labelledby="cityColsH">
       <h2 id="cityColsH">עמודות טבלת היישובים</h2>
       <div class="matrix-wrap">
-        <table class="matrix">
+        <table class="matrix prose">
           <thead><tr><th scope="col">עמודה</th><th scope="col">משמעות</th></tr></thead>
           <tbody>
             <tr><td>יישוב</td><td>שם היישוב. לחיצה על השורה מרחיבה/מכווצת את רשימת התכניות שלו.</td></tr>
@@ -85,7 +85,7 @@
     <section class="acc-section" aria-labelledby="planColsH">
       <h2 id="planColsH">עמודות רשימת התכניות (בהרחבת יישוב)</h2>
       <div class="matrix-wrap">
-        <table class="matrix">
+        <table class="matrix prose">
           <thead><tr><th scope="col">עמודה</th><th scope="col">משמעות</th></tr></thead>
           <tbody>
             <tr><td>שם תכנית</td><td>מקושר לחיפוש גוגל על שם התכנית - כלי לאיתור כתבות/דיון ציבורי אודותיה.</td></tr>
@@ -103,7 +103,7 @@
       <h2 id="timelineH">ציר הזמן של תכנית בודדת - תשעת השלבים</h2>
       <p class="acc-hint" dir="auto">כל תכנית עשויה לכלול עד תשעה תאריכי אבן-דרך אמיתיים מ-Xplan, בסדר הזה:</p>
       <div class="matrix-wrap">
-        <table class="matrix">
+        <table class="matrix prose">
           <thead><tr><th scope="col">#</th><th scope="col">שלב</th></tr></thead>
           <tbody>
             <tr><td>1</td><td>הגשה (קבלת תכנית)</td></tr>
@@ -124,7 +124,7 @@
     <section class="acc-section" aria-labelledby="exportH2">
       <h2 id="exportH2">ייצוא נתונים</h2>
       <div class="matrix-wrap">
-        <table class="matrix">
+        <table class="matrix prose">
           <thead><tr><th scope="col">כפתור</th><th scope="col">מה מוריד</th></tr></thead>
           <tbody>
             <tr><td>הורדת Excel מפורט</td><td>שורה אחת לכל תכנית מסוננת: מספר תכנית, שם, יישוב, ועדה, מרחב תכנון, שטח, שני שדות סטטוס, כל תשעת תאריכי השלבים, משך הזמן הכולל, וקישור לתכנית.</td></tr>

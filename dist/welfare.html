@@ -858,6 +858,18 @@ a.acc-hbar-y:hover { opacity: .8; }
 
 .matrix { border-collapse: collapse; inline-size: 100%; font-size: .85rem; }
 .matrix th, .matrix td { padding: .45rem .7rem; text-align: start; white-space: nowrap; }
+/* help-*.html tables hold prose (field/button explanations, a sentence or
+   more per cell), not compact data rows - the site-wide nowrap above is
+   right for numbers/short labels but forces a whole paragraph onto one
+   horizontally-scrolling line on mobile. .prose opts a table back into
+   normal wrapping instead, and gives the first (label) column a sane
+   minimum so it doesn't collapse to one letter per line. */
+.matrix.prose th, .matrix.prose td { white-space: normal; }
+.matrix.prose th:first-child, .matrix.prose td:first-child { min-inline-size: 6rem; }
+@media (max-width: 640px) {
+  .matrix.prose { font-size: .8rem; }
+  .matrix.prose th, .matrix.prose td { padding: .4rem .5rem; }
+}
 .matrix thead th {
   font-size: .75rem;
   font-weight: 600;
@@ -3525,6 +3537,20 @@ const APP_ICON = {
   'real-estate-compare': '💰<span class="icon-small">🏘️</span>',
   'arnona-compare': '🧾',
   'canopy-heat-compare': '🌳<span class="icon-small">🌡️</span>',
+  // The five remaining apps - all 'direct'/'external' - had no entry here,
+  // so every one of them silently fell back to a generic 🔗 in both
+  // appCard() and renderAppContext()'s own siblingsHtml. A real favicon
+  // per external site was considered and rejected: this file's own icons
+  // are deliberately never a network image (see tools/verify.sh's bundle
+  // pass, which asserts the whole site references NO external asset - a
+  // live favicon fetch would break that, plus render differently per
+  // theme/zebra-filter than every other icon here). A distinct emoji each
+  // instead, same idiom as the tree-family badges above.
+  'yeela-feeds': '📡', // RSS/Atom - a feed to subscribe to, not a page to browse
+  'stable-authorities': '🏦', // gov.il's own financial-stability ranking of local authorities
+  meirim: '📢', // מעירים - literally "objecting/commenting" on plans, a civic-voice org
+  'trees-hod-hasharon': '🌳<span class="icon-small">🤝</span>', // community tree guardians, not this site's own tree tools
+  'trees-rehovot': '🌳<span class="icon-small">🛣️</span>', // community street-tree org (רחובות של עצים)
 };
 
 // Render order for categories - not alphabetical on the Hebrew label, and

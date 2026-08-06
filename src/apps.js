@@ -50,6 +50,20 @@ export const APP_ICON = {
   'real-estate-compare': '💰<span class="icon-small">🏘️</span>',
   'arnona-compare': '🧾',
   'canopy-heat-compare': '🌳<span class="icon-small">🌡️</span>',
+  // The five remaining apps - all 'direct'/'external' - had no entry here,
+  // so every one of them silently fell back to a generic 🔗 in both
+  // appCard() and renderAppContext()'s own siblingsHtml. A real favicon
+  // per external site was considered and rejected: this file's own icons
+  // are deliberately never a network image (see tools/verify.sh's bundle
+  // pass, which asserts the whole site references NO external asset - a
+  // live favicon fetch would break that, plus render differently per
+  // theme/zebra-filter than every other icon here). A distinct emoji each
+  // instead, same idiom as the tree-family badges above.
+  'yeela-feeds': '📡', // RSS/Atom - a feed to subscribe to, not a page to browse
+  'stable-authorities': '🏦', // gov.il's own financial-stability ranking of local authorities
+  meirim: '📢', // מעירים - literally "objecting/commenting" on plans, a civic-voice org
+  'trees-hod-hasharon': '🌳<span class="icon-small">🤝</span>', // community tree guardians, not this site's own tree tools
+  'trees-rehovot': '🌳<span class="icon-small">🛣️</span>', // community street-tree org (רחובות של עצים)
 };
 
 // Render order for categories - not alphabetical on the Hebrew label, and

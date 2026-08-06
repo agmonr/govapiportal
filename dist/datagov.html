@@ -858,6 +858,18 @@ a.acc-hbar-y:hover { opacity: .8; }
 
 .matrix { border-collapse: collapse; inline-size: 100%; font-size: .85rem; }
 .matrix th, .matrix td { padding: .45rem .7rem; text-align: start; white-space: nowrap; }
+/* help-*.html tables hold prose (field/button explanations, a sentence or
+   more per cell), not compact data rows - the site-wide nowrap above is
+   right for numbers/short labels but forces a whole paragraph onto one
+   horizontally-scrolling line on mobile. .prose opts a table back into
+   normal wrapping instead, and gives the first (label) column a sane
+   minimum so it doesn't collapse to one letter per line. */
+.matrix.prose th, .matrix.prose td { white-space: normal; }
+.matrix.prose th:first-child, .matrix.prose td:first-child { min-inline-size: 6rem; }
+@media (max-width: 640px) {
+  .matrix.prose { font-size: .8rem; }
+  .matrix.prose th, .matrix.prose td { padding: .4rem .5rem; }
+}
 .matrix thead th {
   font-size: .75rem;
   font-weight: 600;
