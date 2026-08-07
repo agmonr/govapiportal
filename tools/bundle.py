@@ -202,6 +202,21 @@ TARGETS = [
         "data": True,
     },
     {
+        "html": "police-compare.html",
+        "out": "dist/police-compare.html",
+        "entry": "src/police-compare.js",
+        # New data source (tools/police_build.py): city-level (with CBS
+        # population/per-capita) and neighborhood/StatisticArea-level crime-
+        # case data, plus the shared STATISTIC_GROUPS/YEARS/YEAR_QUARTERS/
+        # NATIONAL_UNRESOLVED constants both are indexed against. No street
+        # level - no street-equivalent in crime data. apis.json is only for
+        # apps.js's under-header category strip.
+        "sources": ["src/ui.js", "src/theme.js", "src/charts.js",
+                    "src/police-cities.js", "src/police-neighborhoods.js", "src/police-meta.js",
+                    "src/apps.js", "src/police-compare.js"],
+        "data": True,
+    },
+    {
         "html": "arnona-compare.html",
         "out": "dist/arnona-compare.html",
         "entry": "src/arnona-compare.js",

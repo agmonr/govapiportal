@@ -52,6 +52,7 @@ against a live per-row lookup).
 | GovMap real-estate/"nadlan" deals API (rolling window, accumulated over repeated runs) | `tools/real_estate_fetch.py` → `tools/real_estate_build.py` | `real-estate-map.html`, `real-estate-compare.html` |
 | CBS CPI series (`120010`) | `tools/real_estate_build.py` | Same two real-estate pages (deal price normalization) |
 | CBS road-accident DataStore resources (2020–2024) | `tools/compute_cities.py` | `accidents.html` |
+| Israel Police `crime_records_data` DataStore resources (2021–2025) + CBS population | `tools/police_build.py` | `police-compare.html` |
 | Local-authority audited financial reports (CKAN `local-authorities` / `local-council-1`) | roster logic lives in `src/finance-data.js`; actual figures fetched live per authority | `local-finance.html`, `tools/arnona_authorities.py`'s own roster |
 | Each authority's צו ארנונה (property-tax order) PDF, scraped per-authority site | `tools/arnona_authorities.py` (roster) → `tools/arnona_fetch.py` (PDFs) → hand-extraction into `arnona_rates.json`/overrides | `arnona-compare.html` |
 | Ministry of Interior "רשויות איתנות" (financially-stable authorities) list, behind Cloudflare | `tools/fetch_stable_authorities.mjs` (Playwright, to pass the challenge) | `local-finance.html` (`STABLE_AUTHORITIES`) |
@@ -77,6 +78,7 @@ input that itself is gitignored.
 | `real_estate_fetch.py` **(scheduled — see below)** | GovMap nadlan API, run repeatedly over time and accumulated | `zip/real_estate_deals_raw.jsonl`, `zip/cpi_table.json` (both gitignored) | `python3 tools/real_estate_fetch.py`, or `./tools/real_estate_refresh.sh` for the full chain |
 | `real_estate_build.py` **(scheduled — see below)** | the two files above + reused canopy boundaries | `real-estate-{cities,neighborhoods}.js`, `real-estate-streets.js`, per-city `dist/assets/deals/*.json` | `python3 tools/real_estate_build.py` |
 | `compute_cities.py` | CBS accident DataStore resources (paged, aggregated locally — `datastore_search_sql` is WAF-blocked) | `city-stats.js` | `python3 tools/compute_cities.py` |
+| `police_build.py` | Israel Police `crime_records_data` DataStore resources (5 years, paged, aggregated locally — `datastore_search_sql` WAF-blocked here too, deduped by case id, not offense row) + CBS population (per-capita join) + the offense taxonomy XLSX (validation only) | `police-{cities,neighborhoods,meta}.js` | `python3 tools/police_build.py` |
 | `arnona_authorities.py` | CKAN `local-authorities` roster | `tools/arnona_authorities.json` | `python3 tools/arnona_authorities.py` |
 | `arnona_fetch.py` | each authority's own site, using the roster above | `tools/arnona_output/*.pdf` (gitignored) | `python3 tools/arnona_fetch.py` |
 | — (hand extraction from the PDFs) | `tools/arnona_output/` | `arnona-rates-data.js` (`arnona_rates.json` + `arnona_overrides.json`) | manual |
@@ -139,6 +141,7 @@ why it's the one pipeline worth the automation cost.
 | `local-finance.html` | **hybrid** | Batch: authority roster (`finance-data.js`) + `STABLE_AUTHORITIES` batch file. Live: per-year DataStore figures fetched per authority, plus live CBS population and a `package_show` metadata call |
 | `committees.html` | **hybrid** | Batch: `COMMITTEE_SITES` roster (`committee-sites.js`, hand-maintained). Live: per-council meeting search against `handasi.complot.co.il` |
 | `accidents.html` | **batch** | `city-stats.js` (`compute_cities.py`) + hand-verified `YEAR_STATS` national totals. No fetch. |
+| `police-compare.html` | **batch** | `police-{cities,neighborhoods,meta}.js` (`police_build.py`). No fetch at all. |
 | `arnona-compare.html` | **batch**, + live geocoding | `arnona-rates-data.js` (arnona pipeline above). Live Nominatim only for address lookup, not for the rates themselves |
 | `canopy-map.html` | **batch** | Canopy + heat + boundary + blob `src/*-data.js` files (5 separate pipelines feed one page). No fetch except optional OSM/aerial tile imagery |
 | `canopy-heat-compare.html` | **batch** | Same canopy/heat/canopy-split data files as above, unioned/compared. No fetch at all |

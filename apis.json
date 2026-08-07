@@ -81,6 +81,19 @@
       "category_he": "חברה וקהילה"
     },
     {
+      "id": "police-compare",
+      "name": "Crime Data — Cities & Neighborhoods",
+      "name_he": "נתוני פשיעה — ערים ושכונות",
+      "kind": "אפליקציה",
+      "about": "תיקים פליליים שדווחו למשטרה, 2021–2025, ברמת עיר ושכונה (אזור סטטיסטי) גם יחד - כולל תיקים לאלף תושבים ופילוח לפי סוג עבירה. תיק (לא עבירה) הוא יחידת הספירה - 1,057,182 תיקים סה״כ. 273,036 מהם (26%) אינם משויכים לאף שכונה (הגנת פרטיות/כפר), ועוד 162,114 תיקים (13%) אינם משויכים לאף עיר כלל. ראו tools/police_build.py.",
+      "href": "./police-compare.html",
+      "external": false,
+      "home": "https://data.gov.il/dataset/crime_records_data",
+      "computed_at": "2026-08-07T17:18+03:00",
+      "category": "community",
+      "category_he": "חברה וקהילה"
+    },
+    {
       "id": "arnona-compare",
       "name": "Arnona Calculator — Rate & Discount Comparison",
       "name_he": "מחשבון ארנונה",

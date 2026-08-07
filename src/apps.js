@@ -51,6 +51,7 @@ export const APP_ICON = {
   'arnona-compare': '🧾',
   'canopy-heat-compare': '🌳<span class="icon-small">🌡️</span>',
   'mortality-compare': '🩺',
+  'police-compare': '🚔',
   // The five remaining apps - all 'direct'/'external' - had no entry here,
   // so every one of them silently fell back to a generic 🔗 in both
   // appCard() and renderAppContext()'s own siblingsHtml. A real favicon
@@ -193,6 +194,7 @@ const HELP_PAGE = {
   committees: './help-committees.html',
   companies: './help-companies.html',
   welfare: './help-welfare.html',
+  'police-compare': './help-police-compare.html',
 };
 
 export function renderAppContext(node, apps, currentId, { includeSelf = true } = {}) {
