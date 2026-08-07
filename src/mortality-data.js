@@ -1011,7 +1011,7 @@ export const ZONE_META = {
 
 export const NATIONAL_TOP_CAUSES = [
   {
-    "cause": "כל השאתות הממאירות (סרטן)",
+    "cause": "כל המחלות הממאירות",
     "y2020": {
       "n": 11758,
       "pct": 24.1
