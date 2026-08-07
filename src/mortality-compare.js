@@ -32,11 +32,30 @@ import { initThemePicker } from './theme.js';
 import { renderAppContext, loadAppsData } from './apps.js';
 import { renderBarChart, renderHBarChart } from './charts.js';
 import {
+  SOURCES,
   CITY_MORTALITY, CITY_METRIC_META,
   ZONE_DISTRICT, ZONE_SUBDISTRICT, ZONE_META,
   NATIONAL_TOP_CAUSES, NATIONAL_BY_POPULATION_GROUP,
-  NATIONAL_INFANT_MORTALITY_BY_SECTOR, NATIONAL_MATERNAL_MORTALITY,
+  NATIONAL_INFANT_MORTALITY_BY_SECTOR, NATIONAL_MATERNAL_MORTALITY, NATIONAL_META,
 } from './mortality-data.js';
+
+// Looks up a source's URL by its label text (SOURCES is the single place
+// that pairs the two - every other `source` string sprinkled through
+// CITY_METRIC_META/ZONE_META/NATIONAL_META etc. is one of these same four
+// labels verbatim, so a plain map lookup is enough - no per-call-site URL
+// duplication).
+const SOURCE_URL = new Map(SOURCES.map((s) => [s.label, s.url]));
+function sourceLink(label) {
+  const url = SOURCE_URL.get(label);
+  return url ? `<a href="${esc(url)}" target="_blank" rel="noopener">${esc(label)}</a>` : esc(label);
+}
+
+function renderSources() {
+  el('sourcesList').innerHTML = `
+    <ul>
+      ${SOURCES.map((s) => `<li><a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.label)}</a> - ${esc(s.covers)}</li>`).join('')}
+    </ul>`;
+}
 
 initThemePicker(el('themePick'));
 loadAppsData().then((data) => renderAppContext(el('appContext'), data.apps, 'mortality-compare')).catch(() => {});
@@ -71,7 +90,7 @@ function renderCityBoard() {
   renderCityMetricPicker();
   const meta = CITY_METRIC_META[activeCityMetric];
   const entries = cityEntriesFor(activeCityMetric).sort((a, b) => b.rate - a.rate);
-  el('cityHint').textContent = `${entries.length} יישובים עם נתון ל"${meta.label}" (${meta.period}) - ${meta.source}. ממוצע ארצי: ${num(meta.national)} ${meta.unit}. ערכים עם רקע קווקוו הם על סמך פחות מ-20 מקרים ולכן פחות יציבים.`;
+  el('cityHint').innerHTML = `${entries.length} יישובים עם נתון ל"${esc(meta.label)}" (${esc(meta.period)}) - ${sourceLink(meta.source)}. ממוצע ארצי: ${num(meta.national)} ${esc(meta.unit)}. ערכים עם רקע קווקוו הם על סמך פחות מ-20 מקרים ולכן פחות יציבים.`;
   renderHBarChart('cityBoardCharts', `${meta.label} - כל הערים עם נתון, ${meta.unit}`,
     entries.map((e) => ({ label: e.city + (e.low_n ? ' *' : ''), value: e.rate })),
     meta.unit);
@@ -159,7 +178,7 @@ function renderZone() {
   const note = document.createElement('p');
   note.className = 'acc-hint';
   note.dir = 'auto';
-  note.textContent = ZONE_META.note + ' מקור: ' + ZONE_META.source;
+  note.innerHTML = `${esc(ZONE_META.note)} מקור: ${sourceLink(ZONE_META.source)}`;
   el('zoneSubdistrictTable').after(note);
 }
 
@@ -185,7 +204,7 @@ function renderNationalCauses() {
         <tbody>${rows}</tbody>
       </table>
     </div>
-    <p class="acc-hint" dir="auto">מקור: ${esc(NATIONAL_TOP_CAUSES.length ? 'CBS 125/2024, סיבות מוות בישראל 2020-2022' : '')}. שבץ מוחי (מחלות כלי דם במוח) הוא הרמה היחידה בדף הזה שבה יש לו מספר אמיתי.</p>`;
+    <p class="acc-hint" dir="auto">מקור: ${sourceLink(NATIONAL_META.causesSource)}. שבץ מוחי (מחלות כלי דם במוח) הוא הרמה היחידה בדף הזה שבה יש לו מספר אמיתי.</p>`;
 }
 
 function renderNationalPopGroup() {
@@ -207,7 +226,7 @@ function renderNationalPopGroup() {
       <ul>${items.map((i) => `<li>${esc(i.cause)} - פי ${i.multiplier}</li>`).join('')}</ul>
     </div>`;
   el('natRatiosLists').innerHTML = `
-    <p class="acc-hint" dir="auto">שיעורי תמותה מתוקננים לגיל, ${esc(NATIONAL_BY_POPULATION_GROUP.period)}. מקור: ${esc(NATIONAL_BY_POPULATION_GROUP.source)}.</p>
+    <p class="acc-hint" dir="auto">שיעורי תמותה מתוקננים לגיל, ${esc(NATIONAL_BY_POPULATION_GROUP.period)}. מקור: ${sourceLink(NATIONAL_BY_POPULATION_GROUP.source)}.</p>
     <div style="display:flex; gap:2rem; flex-wrap:wrap">
       ${list('גבוה יותר בקרב ערבים', NATIONAL_BY_POPULATION_GROUP.higherAmongArabs)}
       ${list('גבוה יותר בקרב יהודים', NATIONAL_BY_POPULATION_GROUP.higherAmongJews)}
@@ -224,7 +243,7 @@ function renderNationalInfantSector() {
   const note = document.createElement('p');
   note.className = 'acc-hint';
   note.dir = 'auto';
-  note.textContent = `מקור: ${d.source}`;
+  note.innerHTML = `מקור: ${sourceLink(d.source)}`;
   el('natInfantSectorChart').after(note);
 }
 
@@ -233,11 +252,12 @@ function renderNationalMaternal() {
   el('natMaternal').innerHTML = `
     <p><strong>${m.ratePer100k} ל-100,000 לידות</strong> - כ-${m.deathsPerYear} מקרי מוות בשנה בכלל הארץ.</p>
     <p>${esc(m.note)}</p>
-    <p class="acc-hint" dir="auto">מקור: ${esc(m.source)}</p>`;
+    <p class="acc-hint" dir="auto">מקור: ${sourceLink(m.source)}</p>`;
 }
 
 /* ===================== boot ===================== */
 
+renderSources();
 renderCityRoster();
 renderCityBoard();
 renderZone();
