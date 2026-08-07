@@ -685,6 +685,20 @@ button.stat { cursor: pointer; }
    this too or it stays squeezed regardless of the class on its figure. */
 .acc-chart-wide .acc-bars { max-inline-size: none; }
 .acc-hbars { display: flex; flex-direction: column; gap: .4rem; }
+.acc-hbar-group-header {
+  font-size: .8rem; font-weight: 700; color: var(--muted);
+  margin-block-start: .5rem; padding-block-end: .15rem; border-block-end: 1px solid var(--border);
+}
+.acc-hbar-group-header:first-child { margin-block-start: 0; }
+/* police-compare.js's category-breakdown rows under a groupHeader carry
+   just a city name, not the full "group — city" text the shared 8rem
+   column was sized for - narrowed so the bar itself starts right after the
+   header's own text (a group name like "עבירות נגד גוף") instead of a wide
+   near-empty gap between the header and where the graph actually begins.
+   Same page-specific-narrowing pattern as .tree-canopy-page's own
+   .acc-hbar-y override below (that one widens instead of narrows, for
+   longer labels - same idea, opposite direction). */
+#pcCategoryBreakdown .acc-hbar-y { flex-basis: 4.5rem; }
 .acc-hbar { display: flex; align-items: center; gap: .6rem; }
 .acc-hbar-y {
   flex: 0 0 8rem;
@@ -3098,16 +3112,23 @@ function renderHBarChart(figId, caption, entries, unit, opts = {}) {
   const { formatValue = num } = opts;
   const fig = el(figId);
   if (!entries.length) { fig.innerHTML = `<figcaption>${esc(caption)}</figcaption><p class="acc-hint">אין נתונים להצגה.</p>`; return; }
-  const peak = Math.max(...entries.map((e) => e.value));
+  // `groupHeader` (optional) entries are a label-only divider row - no bar,
+  // no value - used to break a flat list into named sub-sections within one
+  // chart (police-compare.js's category breakdown: one offense-group's
+  // header, then that group's cities as ordinary rows right under it).
+  // Excluded from peak/floor since they carry no value to scale against.
+  const valueEntries = entries.filter((e) => !e.groupHeader);
+  const peak = Math.max(...valueEntries.map((e) => e.value));
   // floor is 0 for every existing caller (counts/rates never go negative),
   // reproducing the old value/peak*100 scaling exactly. mortality-
   // compare.js's socio-economic/peripherality index is the first caller
   // whose values can be negative - Math.min(0, ...) picks up the true
   // (negative) minimum only then, so a value below 0 gets a valid
   // proportional width instead of an invalid negative inline-size.
-  const floor = Math.min(0, ...entries.map((e) => e.value));
+  const floor = Math.min(0, ...valueEntries.map((e) => e.value));
   const range = peak - floor;
   const rows = entries.map((e) => {
+    if (e.groupHeader) return `<div class="acc-hbar-group-header">${esc(e.groupHeader)}</div>`;
     const label = e.href
       ? `<a class="acc-hbar-y" dir="auto" href="${esc(e.href)}">${esc(e.label)}</a>`
       : `<span class="acc-hbar-y" dir="auto">${esc(e.label)}</span>`;
@@ -3337,6 +3358,84 @@ function renderGroupedChart(figId, caption, points, unit, mainName, labels = { f
       <div class="fin-chart-plot">${groups}</div>
     </div>
     <p class="acc-hint">${esc(unit)}${soloCompare && mainName ? ` - האחוז מעל כל שנה: הסה"כ של ${esc(mainName)} כאחוז מהסה"כ של ${esc(soloCompare.name)} אותה שנה` : ''}</p>`;
+}
+
+/* ---------- multi-series year-trend chart -----------------------------
+ * N entities' own single value-per-year series, drawn as adjacent
+ * distinctly-colored bars per year group in one shared chart - reuses the
+ * same axis/plot/group scaffold (.fin-chart-*) as renderGroupedChart, but
+ * for callers with exactly one series per entity (not a front/back pair)
+ * and an arbitrary entity count (not "main + up to 3 compare"). First use:
+ * police-compare.js's year-trend, which previously rendered a fully
+ * separate single-series renderBarChart per picked city/neighborhood -
+ * each on its own independent y-axis scale, so shapes weren't actually
+ * comparable across cities at a glance the way one shared chart is.
+ *
+ * `series`: [{ name, color, points: [{ year, value, active? }] }]. `year`
+ * must be numeric (buildYearSlots's gap-fill does arithmetic on it).
+ * `active` is this page's convention for "partial-year data" - it marks
+ * that year's x-axis label with an asterisk rather than tinting the bar,
+ * since color here already means "which entity", not "highlighted". A
+ * series with no point for a given year renders no bar in that year's
+ * group (not a zero-height one) - genuinely missing data, not a real 0. */
+function renderMultiSeriesChart(figId, caption, series, unit, opts = {}) {
+  const { emptyMessage = 'אין נתונים להצגה.' } = opts;
+  const fig = el(figId);
+  const nonEmpty = series.filter((s) => s.points?.length);
+  if (!nonEmpty.length) { fig.innerHTML = `<figcaption>${esc(caption)}</figcaption><p class="acc-hint">${esc(emptyMessage)}</p>`; return; }
+
+  const allYears = [...new Set(nonEmpty.flatMap((s) => s.points.map((p) => p.year)))].sort((a, b) => a - b);
+  const slots = buildYearSlots(allYears.map((year) => ({ year })));
+  const byYearPerSeries = nonEmpty.map((s) => new Map(s.points.map((p) => [p.year, p])));
+  const peak = Math.max(...nonEmpty.flatMap((s) => s.points.map((p) => p.value)));
+  const { steps, axisMax } = niceAxisStep(peak);
+  const plotHeight = plotPx();
+  const barH = (v) => (axisMax ? Math.round((v / axisMax) * plotHeight) : 0);
+
+  const groups = slots.map((slot) => {
+    if (slot.type === 'gap') {
+      const label = slot.from === slot.to ? String(slot.from) : `${slot.from}-${slot.to}`;
+      return `
+        <div class="fin-chart-group" title="אין נתונים לשנים ${esc(label)}">
+          <div class="fin-chart-gap-box" style="block-size:${plotHeight}px"></div>
+          <span class="fin-chart-y fin-chart-gap-label">${esc(label)}<br>אין נתונים</span>
+        </div>`;
+    }
+    const { year } = slot;
+    const bars = nonEmpty.map((s, i) => {
+      const p = byYearPerSeries[i].get(year);
+      if (!p) return '';
+      return `<div class="fin-chart-bar" style="block-size:${barH(p.value)}px;background:${s.color}" title="${esc(s.name)} — ${year}: ${num(p.value)}${unit ? ` ${esc(unit)}` : ''}"></div>`;
+    }).join('');
+    const anyActive = nonEmpty.some((s, i) => byYearPerSeries[i].get(year)?.active);
+    return `
+      <div class="fin-chart-group" title="${esc(String(year))}">
+        <div class="fin-chart-bars-wrap" style="block-size:${plotHeight}px; background-size:100% ${plotHeight / steps}px">
+          <div class="fin-chart-bars">${bars}</div>
+        </div>
+        <span class="fin-chart-y">${year}${anyActive ? ' *' : ''}</span>
+      </div>`;
+  }).join('');
+
+  const axisLabels = Array.from({ length: steps + 1 }, (_, i) => axisMax - i * (axisMax / steps))
+    .map((v) => `<span>${num(Math.round(v))}</span>`).join('');
+
+  const hasPartial = slots.some((slot) => slot.type === 'year' && nonEmpty.some((s, i) => byYearPerSeries[i].get(slot.year)?.active));
+
+  fig.className = 'acc-chart acc-chart-wide';
+  fig.innerHTML = `
+    <figcaption>${esc(caption)}</figcaption>
+    <div class="acc-legend">
+      ${nonEmpty.map((s) => `<span class="acc-legend-item"><span class="acc-legend-swatch" style="background:${s.color}"></span>${esc(s.name)}</span>`).join('')}
+    </div>
+    <div class="fin-chart-body">
+      <div class="fin-chart-axis">
+        <span class="fin-chart-pct">&nbsp;</span>
+        <div class="fin-chart-axis-scale" style="block-size:${plotHeight}px">${axisLabels}</div>
+      </div>
+      <div class="fin-chart-plot">${groups}</div>
+    </div>
+    <p class="acc-hint">${esc(unit)}${hasPartial ? ' · * שנה עם נתונים חלקיים בלבד' : ''}</p>`;
 }
 
 /**

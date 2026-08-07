@@ -685,6 +685,20 @@ button.stat { cursor: pointer; }
    this too or it stays squeezed regardless of the class on its figure. */
 .acc-chart-wide .acc-bars { max-inline-size: none; }
 .acc-hbars { display: flex; flex-direction: column; gap: .4rem; }
+.acc-hbar-group-header {
+  font-size: .8rem; font-weight: 700; color: var(--muted);
+  margin-block-start: .5rem; padding-block-end: .15rem; border-block-end: 1px solid var(--border);
+}
+.acc-hbar-group-header:first-child { margin-block-start: 0; }
+/* police-compare.js's category-breakdown rows under a groupHeader carry
+   just a city name, not the full "group — city" text the shared 8rem
+   column was sized for - narrowed so the bar itself starts right after the
+   header's own text (a group name like "עבירות נגד גוף") instead of a wide
+   near-empty gap between the header and where the graph actually begins.
+   Same page-specific-narrowing pattern as .tree-canopy-page's own
+   .acc-hbar-y override below (that one widens instead of narrows, for
+   longer labels - same idea, opposite direction). */
+#pcCategoryBreakdown .acc-hbar-y { flex-basis: 4.5rem; }
 .acc-hbar { display: flex; align-items: center; gap: .6rem; }
 .acc-hbar-y {
   flex: 0 0 8rem;
