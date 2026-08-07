@@ -1898,6 +1898,11 @@ body.accidents-page header.site h1 { inline-size: 100%; }
 .tc-level-btn.active {
   color: var(--bg); background: var(--accent); border-color: var(--accent); font-weight: 600;
 }
+/* A trailing "(...)" qualifier (mortality-compare.js's metricButtonLabel) on
+   its own line, smaller/muted, so it doesn't read as run-on with the main
+   label or a neighboring button's own text. */
+.cm-metric-qualifier { display: block; font-size: .75em; opacity: .75; font-weight: 400; }
+.tc-level-btn.active .cm-metric-qualifier { opacity: .9; }
 
 /* The leaderboard shows up to 30 rows (vs. the usual 10) - scrolls in its
    own box, same "long content, fixed-height box" treatment as

@@ -1927,6 +1927,11 @@ body.accidents-page header.site h1 { inline-size: 100%; }
 .tc-level-btn.active {
   color: var(--bg); background: var(--accent); border-color: var(--accent); font-weight: 600;
 }
+/* A trailing "(...)" qualifier (mortality-compare.js's metricButtonLabel) on
+   its own line, smaller/muted, so it doesn't read as run-on with the main
+   label or a neighboring button's own text. */
+.cm-metric-qualifier { display: block; font-size: .75em; opacity: .75; font-weight: 400; }
+.tc-level-btn.active .cm-metric-qualifier { opacity: .9; }
 
 /* The leaderboard shows up to 30 rows (vs. the usual 10) - scrolls in its
    own box, same "long content, fixed-height box" treatment as
@@ -2957,11 +2962,27 @@ function renderBarChart(figId, caption, entries, unit = '', colorClass = '', opt
  * when `entries` maps 1:1 by array index onto the rendered rows; several
  * callers here (canopy-heat-compare.js's own compare charts) FILTER entries
  * with missing values before rendering, which breaks that index assumption.
- * Existing callers that never pass `color`/`href` are unaffected. */
-function renderHBarChart(figId, caption, entries, unit) {
+ * Existing callers that never pass `color`/`href` are unaffected.
+ *
+ * `opts.formatValue` (optional, default `num`) overrides how the printed
+ * number is formatted - `num` itself rounds to 0 decimals, which silently
+ * collapses a small-magnitude index (mortality-compare.js's socio-economic/
+ * peripherality values, typically -2..4) into "0"/"-0" for nearly every
+ * row. Every existing caller leaves this unset, so behavior is unchanged
+ * for them. */
+function renderHBarChart(figId, caption, entries, unit, opts = {}) {
+  const { formatValue = num } = opts;
   const fig = el(figId);
   if (!entries.length) { fig.innerHTML = `<figcaption>${esc(caption)}</figcaption><p class="acc-hint">אין נתונים להצגה.</p>`; return; }
   const peak = Math.max(...entries.map((e) => e.value));
+  // floor is 0 for every existing caller (counts/rates never go negative),
+  // reproducing the old value/peak*100 scaling exactly. mortality-
+  // compare.js's socio-economic/peripherality index is the first caller
+  // whose values can be negative - Math.min(0, ...) picks up the true
+  // (negative) minimum only then, so a value below 0 gets a valid
+  // proportional width instead of an invalid negative inline-size.
+  const floor = Math.min(0, ...entries.map((e) => e.value));
+  const range = peak - floor;
   const rows = entries.map((e) => {
     const label = e.href
       ? `<a class="acc-hbar-y" dir="auto" href="${esc(e.href)}">${esc(e.label)}</a>`
@@ -2974,10 +2995,10 @@ function renderHBarChart(figId, caption, entries, unit) {
     // this unset, so `?? e.value` reproduces prior behavior exactly.
     const shown = e.displayValue ?? e.value;
     return `
-    <div class="acc-hbar${e.compare ? ' acc-hbar-compare' : ''}" title="${esc(e.label)}: ${num(shown)} ${esc(unit)}">
+    <div class="acc-hbar${e.compare ? ' acc-hbar-compare' : ''}" title="${esc(e.label)}: ${formatValue(shown)} ${esc(unit)}">
       ${label}
-      <div class="acc-hbar-track"><div class="acc-hbar-fill" style="inline-size:${peak ? (e.value / peak) * 100 : 0}%${e.color ? `;background:${e.color}` : ''}"></div></div>
-      <span class="acc-hbar-v">${num(shown)}</span>
+      <div class="acc-hbar-track"><div class="acc-hbar-fill" style="inline-size:${range ? ((e.value - floor) / range) * 100 : 0}%${e.color ? `;background:${e.color}` : ''}"></div></div>
+      <span class="acc-hbar-v">${formatValue(shown)}</span>
     </div>`;
   }).join('');
   fig.innerHTML = `<figcaption>${esc(caption)}</figcaption><div class="acc-hbars">${rows}</div>`;
