@@ -83,6 +83,29 @@ CBS_POPULATION_RESOURCE = "38207cf8-afe2-48ed-a3b0-c8f70c796015"  # same id as s
 # rows blew src/police-neighborhoods.js up to 90+ MB.
 MAX_AREA_NAME_LEN = 100
 
+# Offense-family "severity" buckets for the compare page's breakdown charts -
+# a product decision made with the user (not derivable from the source data
+# itself), one StatisticGroup name per bucket member. Three groups
+# (EXCLUDED_GROUPS) are deliberately left out of every bucket: they aren't
+# real offense categories (סעיפי הגדרה = legal definition clauses,
+# שגיאת הזנה = data-entry error) or are a negligible catch-all (שאר עבירות,
+# 228 cases nationally) - excluded from the bucket charts but still present
+# in the full per-group `categories` vector.
+BUCKETS = {
+    "regulatory": ["עבירות תנועה", "עבירות רשוי", "עבירות מנהליות"],
+    "violent": ["עבירות נגד גוף", "עבירות מין", "עבירות נגד אדם"],
+    "nonviolent": ["עבירות כלפי הרכוש", "עבירות מרמה", "עבירות כלפי המוסר", "עבירות כלכליות", "עבירות סדר ציבורי"],
+    "security": ["עבירות בטחון"],
+}
+BUCKET_IDS = ["regulatory", "violent", "nonviolent", "security"]
+BUCKET_LABELS = {
+    "regulatory": "עבירות שגרתיות (תנועה, רישוי, מנהליות)",
+    "violent": "עבירות אלימות",
+    "nonviolent": "עבירות לא-אלימות (רכוש, מרמה, מוסר, כלכליות, סדר ציבורי)",
+    "security": "עבירות בטחון",
+}
+EXCLUDED_GROUPS = {"שאר עבירות", "שגיאת הזנה", "סעיפי הגדרה"}
+
 BASE = "https://data.gov.il/api/3/action/datastore_search"
 YEARS = sorted(RESOURCES)
 PAGE_LIMIT = 10000  # matches compute_cities.py's own Python-side cap (not ckan.js's browser-side 32000 - a different context)
@@ -313,6 +336,7 @@ def build():
 
 def render(data, write=True):
     population = data["population"]
+    n_years = len(YEARS)
 
     # STATISTIC_GROUPS: national total row count, descending - same "busiest
     # first" convention compute_cities.py uses for its own city ordering.
@@ -323,11 +347,37 @@ def render(data, write=True):
     statistic_groups = sorted(national_group_totals, key=national_group_totals.get, reverse=True)
     group_index = {g: i for i, g in enumerate(statistic_groups)}
 
-    def categories_vector(cats):
+    # Every StatisticGroup observed in the live data must land in exactly one
+    # BUCKETS list or EXCLUDED_GROUPS - not zero, not two. Catches a future
+    # year-resource introducing a new group name nobody has categorized yet,
+    # same "abort rather than ship a silently wrong number" discipline as the
+    # reconciliation checks in build().
+    bucket_group_owner = {}
+    for bucket_id, groups in BUCKETS.items():
+        for g in groups:
+            if g in bucket_group_owner:
+                sys.exit(f"BUCKETS config error: '{g}' listed in both '{bucket_group_owner[g]}' and '{bucket_id}'")
+            bucket_group_owner[g] = bucket_id
+    unclassified = [g for g in statistic_groups if g not in bucket_group_owner and g not in EXCLUDED_GROUPS]
+    if unclassified:
+        sys.exit(f"StatisticGroup(s) in the live data with no BUCKETS/EXCLUDED_GROUPS assignment: "
+                 f"{unclassified} - classify in tools/police_build.py's BUCKETS before regenerating.")
+    bucket_group_indices = {bid: [group_index[g] for g in groups] for bid, groups in BUCKETS.items()}
+
+    def raw_categories_vector(cats):
+        """Row counts per STATISTIC_GROUPS, 5-YEAR SUM (internal only - the
+        public `categories`/`buckets` fields below are the per-year average
+        of this)."""
         vec = [0] * len(statistic_groups)
         for group, n in cats.items():
             vec[group_index[group]] = n
         return vec
+
+    def avg_per_year(n):
+        return round(n / n_years)
+
+    def bucket_averages(raw_vec):
+        return [avg_per_year(sum(raw_vec[i] for i in bucket_group_indices[bid])) for bid in BUCKET_IDS]
 
     # city display name: most-common spelling seen, not first-seen.
     city_display_name = {code: votes.most_common(1)[0][0] for code, votes in data["city_name_votes"].items()}
@@ -337,19 +387,22 @@ def render(data, write=True):
         name = city_display_name.get(code)
         if not name:
             continue
-        years_vec = [years_map.get(y, 0) for y in YEARS]
-        total = sum(years_vec)
+        years_vec = [years_map.get(y, 0) for y in YEARS]  # per-year, NOT averaged - the year-trend chart needs the real per-year counts
+        total_5yr = sum(years_vec)
+        avg_total = avg_per_year(total_5yr)
+        raw_cats = raw_categories_vector(data["city_categories"].get(code, {}))
         entry = {
             "code": code,
             "years": years_vec,
-            "total": total,
-            "categories": categories_vector(data["city_categories"].get(code, {})),
-            "unattributed": sum(data["city_unattributed"].get(code, {}).values()),
+            "total": avg_total,
+            "categories": [avg_per_year(n) for n in raw_cats],
+            "buckets": bucket_averages(raw_cats),
+            "unattributed": avg_per_year(sum(data["city_unattributed"].get(code, {}).values())),
         }
         pop = population.get(code)
         if pop:
             entry["population"] = pop
-            entry["perCapita"] = round(total / pop * 1000, 1)
+            entry["perCapita"] = round(avg_total / pop * 1000, 1)
         # A later duplicate name wins harmlessly - same caveat accidents.js
         # documents for its own code-keyed roster (names assumed unique).
         police_cities[name] = entry
@@ -361,21 +414,28 @@ def render(data, write=True):
         if not city_name:
             continue
         years_vec = [years_map.get(y, 0) for y in YEARS]
+        raw_cats = raw_categories_vector(data["nb_categories"].get(key, {}))
         nb_key = f"{city_name}::{area}"
         police_neighborhoods[nb_key] = {
             "years": years_vec,
-            "total": sum(years_vec),
-            "categories": categories_vector(data["nb_categories"].get(key, {})),
+            "total": avg_per_year(sum(years_vec)),
+            "categories": [avg_per_year(n) for n in raw_cats],
+            "buckets": bucket_averages(raw_cats),
         }
 
     year_quarters = {y: len(data["quarters_by_year"][y]) for y in YEARS}
-    total_cases = sum(e["total"] for e in police_cities.values())
+    # National coverage stats (NATIONAL_UNRESOLVED) are a 5-YEAR raw total,
+    # not an average - "what fraction of all cases in the dataset have no
+    # resolvable city" is a data-quality fact about the whole pull, not a
+    # per-year rate, so it stays independent of the avg-per-year framing
+    # every per-entity field above just switched to.
+    total_cases_5yr = sum(sum(v.values()) for v in data["city_years"].values())
     total_unresolved = sum(len(s) for s in data["unresolved_cases_by_year"].values())
-    unresolved_pct = round(100 * total_unresolved / (total_cases + total_unresolved), 1) if (total_cases + total_unresolved) else 0
+    unresolved_pct = round(100 * total_unresolved / (total_cases_5yr + total_unresolved), 1) if (total_cases_5yr + total_unresolved) else 0
     national_unresolved = {"cases": total_unresolved, "pct": unresolved_pct}
 
-    print(f"\nnational: {total_cases} cases (2021-2025) across {len(police_cities)} cities, "
-          f"{len(police_neighborhoods)} city+neighborhood entries, "
+    print(f"\nnational: {total_cases_5yr} cases 2021-2025 ({avg_per_year(total_cases_5yr)}/year avg) across "
+          f"{len(police_cities)} cities, {len(police_neighborhoods)} city+neighborhood entries, "
           f"{total_unresolved} ({unresolved_pct}%) cases unresolved to any city")
 
     cities_header = (
@@ -384,20 +444,28 @@ def render(data, write=True):
         "// resource per year. Keyed by city NAME (matches CITY_REAL_ESTATE/CITY_CANOPY_SPLIT's\n"
         "// own convention, not city-stats.js's code-keyed one - a later duplicate name wins\n"
         "// harmlessly, same caveat accidents.js documents for itself).\n"
-        "//   years: distinct-case counts, parallel to YEARS below.\n"
-        "//   total: sum of years (distinct cases, all 5 years).\n"
-        "//   categories: ALL-YEARS-COMBINED row counts, parallel to STATISTIC_GROUPS below -\n"
+        "// EVERY FIELD BELOW EXCEPT `years` IS A PER-YEAR AVERAGE (5-year total / 5), not a\n"
+        "// 5-year sum - `years` itself stays per-year (that's its whole point, feeds the\n"
+        "// year-trend chart) and is the only field this applies to differently.\n"
+        "//   years: distinct-case counts per year, parallel to YEARS below.\n"
+        "//   total: average distinct cases per year (sum(years) / 5).\n"
+        "//   categories: average row counts per year, parallel to STATISTIC_GROUPS below -\n"
         "//     a case with N offenses in N different categories counts once in EACH of those\n"
         "//     categories, so category totals can exceed `total` - this is a deliberate\n"
         "//     consequence of the source counting offenses-in-a-case, not cases (see this\n"
         "//     dataset's own published methodology) and is called out on-page.\n"
-        "//   unattributed: distinct cases (all years) with no StatisticArea anywhere among\n"
-        "//     their own rows (privacy-suppressed small area / sensitive offense / rural\n"
-        "//     settlement - see the dataset's own methodology notes). Reconciles exactly\n"
-        "//     against POLICE_NEIGHBORHOODS: sum(this city's neighborhood totals) +\n"
-        "//     unattributed == total, checked at build time.\n"
-        "//   population/perCapita: 2022 CBS census population, and total per 1,000 residents -\n"
-        "//     omitted when no population match exists for this city's code."
+        "//   buckets: average row counts per year, parallel to BUCKET_IDS below - the same\n"
+        "//     STATISTIC_GROUPS row counts as `categories`, re-summed into 4 offense-family\n"
+        "//     buckets (see BUCKETS in this script) instead of 15 individual groups. Three\n"
+        "//     groups (EXCLUDED_GROUPS) aren't in any bucket, so bucket totals don't sum to\n"
+        "//     the full `categories` total - by design, not a bug.\n"
+        "//   unattributed: average distinct cases per year with no StatisticArea anywhere\n"
+        "//     among their own rows (privacy-suppressed small area / sensitive offense /\n"
+        "//     rural settlement - see the dataset's own methodology notes). Reconciles\n"
+        "//     exactly against POLICE_NEIGHBORHOODS on the underlying 5-year sums (checked\n"
+        "//     at build time before rounding to a per-year average here).\n"
+        "//   population/perCapita: 2022 CBS census population, and average annual cases per\n"
+        "//     1,000 residents - omitted when no population match exists for this city's code."
     )
     cities_js = render_js("POLICE_CITIES", police_cities, cities_header)
     if write:
@@ -406,12 +474,13 @@ def render(data, write=True):
     nb_header = (
         "Per-city+neighborhood (StatisticArea) crime-case data, 2021-2025 - GENERATED by\n"
         "// tools/police_build.py, do not hand-edit. Keyed \"<city>::<area>\", same convention\n"
-        "// as NEIGHBORHOOD_REAL_ESTATE/NEIGHBORHOOD_CANOPY_SPLIT. No population/perCapita -\n"
-        "// no CBS population figure exists at StatisticArea granularity. Structurally\n"
-        "// incomplete BY DESIGN: only cases whose StatisticArea survived the source's own\n"
-        "// privacy suppression appear here at all - see POLICE_CITIES' own `unattributed`\n"
-        "// field for what's missing from each city, and this dataset's published\n"
-        "// methodology for why."
+        "// as NEIGHBORHOOD_REAL_ESTATE/NEIGHBORHOOD_CANOPY_SPLIT. Every field is a PER-YEAR\n"
+        "// AVERAGE except `years` itself - see POLICE_CITIES' own header for the full\n"
+        "// explanation, identical here. No population/perCapita - no CBS population figure\n"
+        "// exists at StatisticArea granularity. Structurally incomplete BY DESIGN: only\n"
+        "// cases whose StatisticArea survived the source's own privacy suppression appear\n"
+        "// here at all - see POLICE_CITIES' own `unattributed` field for what's missing from\n"
+        "// each city, and this dataset's published methodology for why."
     )
     nb_js = render_js("POLICE_NEIGHBORHOODS", police_neighborhoods, nb_header)
     if write:
@@ -424,6 +493,15 @@ def render(data, write=True):
         f"export const YEARS = {json.dumps([str(y) for y in YEARS])};\n"
         f"export const YEAR_QUARTERS = {json.dumps({str(y): year_quarters[y] for y in YEARS})};\n"
         f"export const NATIONAL_UNRESOLVED = {json.dumps(national_unresolved)};\n"
+        f"// Offense-family buckets for the compare page's breakdown charts (a product\n"
+        f"// decision, not derived from the source) - BUCKET_IDS is the fixed display order,\n"
+        f"// BUCKET_LABELS the Hebrew heading per bucket, BUCKET_GROUPS which STATISTIC_GROUPS\n"
+        f"// (by name) feed each bucket's own sub-bars. EXCLUDED_GROUPS lists the 3 groups in\n"
+        f"// neither a bucket nor these charts at all (still present in `categories` above).\n"
+        f"export const BUCKET_IDS = {json.dumps(BUCKET_IDS)};\n"
+        f"export const BUCKET_LABELS = {json.dumps(BUCKET_LABELS, ensure_ascii=False)};\n"
+        f"export const BUCKET_GROUPS = {json.dumps(BUCKETS, ensure_ascii=False)};\n"
+        f"export const EXCLUDED_GROUPS = {json.dumps(sorted(EXCLUDED_GROUPS), ensure_ascii=False)};\n"
     )
     meta_path = SRC / "police-meta.js"
     if write:
@@ -434,8 +512,8 @@ def render(data, write=True):
         "nb_js": nb_js,
         "meta_js": meta_text,
         "summary": {
-            "total_cases": total_cases, "n_cities": len(police_cities),
-            "n_neighborhoods": len(police_neighborhoods),
+            "total_cases_5yr": total_cases_5yr, "avg_cases_per_year": avg_per_year(total_cases_5yr),
+            "n_cities": len(police_cities), "n_neighborhoods": len(police_neighborhoods),
             "unresolved": national_unresolved,
         },
     }

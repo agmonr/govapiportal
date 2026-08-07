@@ -25,6 +25,16 @@
  * the answer to "how do these compare per offense type" without a 12-
  * segment stacked chart (no shared primitive in charts.js supports that).
  *
+ * Every count-like number sourced from POLICE_CITIES/POLICE_NEIGHBORHOODS
+ * (total, perCapita, categories, buckets, unattributed) is a PER-YEAR
+ * AVERAGE (5-year sum / 5), decided with the user so the page reads as "a
+ * typical year" rather than a 5-year cumulative pile - only `years` itself
+ * stays per-year (it already was). renderCategoryBreakdown() below splits
+ * the per-entity offense breakdown into 4 offense-family charts
+ * (regulatory/violent/nonviolent/security - BUCKET_IDS in police-meta.js,
+ * a product decision, not derived from the source) instead of one top-8
+ * chart, per the same conversation.
+ *
  * Board framing is deliberately NEUTRAL ("מהגבוה לנמוך"/"מהנמוך לגבוה", real-
  * estate-compare.js's own wording), NOT canopy-heat-compare.js's best/worst
  * framing - a crime count is confounded by privacy-suppressed small areas,
@@ -39,7 +49,7 @@ import { initThemePicker } from './theme.js';
 import { renderHBarChart, renderBarChart, citySwatchCell } from './charts.js';
 import { POLICE_CITIES } from './police-cities.js';
 import { POLICE_NEIGHBORHOODS } from './police-neighborhoods.js';
-import { STATISTIC_GROUPS, YEARS, YEAR_QUARTERS, NATIONAL_UNRESOLVED } from './police-meta.js';
+import { STATISTIC_GROUPS, YEARS, YEAR_QUARTERS, NATIONAL_UNRESOLVED, BUCKET_IDS, BUCKET_LABELS, BUCKET_GROUPS } from './police-meta.js';
 import { renderAppContext, loadAppsData } from './apps.js';
 
 initThemePicker(el('themePick'));
@@ -63,13 +73,20 @@ function computeYearNote() {
 }
 
 function computeNationalNotes() {
+  // total/unattributed here are already per-year averages (POLICE_CITIES'
+  // own fields) - the RATIO is identical to the underlying 5-year sums'
+  // ratio, but the absolute numbers are per-year, so the wording says so
+  // explicitly. NATIONAL_UNRESOLVED, by contrast, is a deliberate 5-YEAR
+  // raw total (a data-coverage fact about the whole pull, not a rate) -
+  // worded separately so the two numbers are never read as the same kind
+  // of figure.
   let total = 0;
   let unattributed = 0;
   for (const c of Object.values(POLICE_CITIES)) { total += c.total; unattributed += c.unattributed; }
   const pct = total ? Math.round((unattributed / total) * 1000) / 10 : 0;
-  el('pcUnattributedNote').innerHTML = `בפועל: ${num(unattributed)} תיקים (${pct}%) מתוך התיקים המשויכים לעיר <strong>אינם משויכים</strong> `
-    + `לאף שכונה/אזור סטטיסטי - מופיעים בסה״כ של העיר בלבד. בנוסף, ${num(NATIONAL_UNRESOLVED.cases)} תיקים `
-    + `(${NATIONAL_UNRESOLVED.pct}%) אינם משויכים לאף עיר כלל, ולכן אינם מופיעים בדף זה בשום רמה.`;
+  el('pcUnattributedNote').innerHTML = `בממוצע שנתי: ${num(unattributed)} תיקים (${pct}%) מתוך התיקים המשויכים לעיר <strong>אינם משויכים</strong> `
+    + `לאף שכונה/אזור סטטיסטי - מופיעים בסה״כ של העיר בלבד. בנוסף, לאורך כל 5 השנים (2021–2025) יחד `
+    + `${num(NATIONAL_UNRESOLVED.cases)} תיקים (${NATIONAL_UNRESOLVED.pct}%) אינם משויכים לאף עיר כלל, ולכן אינם מופיעים בדף זה בשום רמה.`;
 }
 
 computeYearNote();
@@ -77,14 +94,19 @@ computeNationalNotes();
 
 /* ---------- metrics ---------- */
 
+// Every count-like field in POLICE_CITIES/POLICE_NEIGHBORHOODS (total,
+// perCapita, categories, buckets, unattributed) is a PER-YEAR AVERAGE
+// (5-year sum / 5), not a 5-year total - see tools/police_build.py's own
+// header comment on POLICE_CITIES. Only `years` itself stays per-year (it
+// already was). Every label below says "ממוצע שנתי" for this reason.
 const METRICS = {
   total: {
-    label: 'סה״כ תיקים', unit: 'תיקים',
+    label: 'ממוצע תיקים לשנה', unit: 'תיקים',
     valueForCity: (name) => POLICE_CITIES[name]?.total,
     valueForNb: (key) => POLICE_NEIGHBORHOODS[key]?.total,
   },
   perCapita: {
-    label: 'תיקים לאלף תושבים', unit: 'לאלף תושבים',
+    label: 'תיקים לאלף תושבים (ממוצע שנתי)', unit: 'לאלף תושבים',
     valueForCity: (name) => POLICE_CITIES[name]?.perCapita,
     // No CBS population figure exists at StatisticArea granularity - same
     // "metric doesn't exist at this level" idiom as canopy-heat-compare.js's
@@ -102,6 +124,9 @@ function valueFor(entity, metricId) {
 }
 function categoriesFor(entity) {
   return entity.level === 'city' ? POLICE_CITIES[entity.name]?.categories : POLICE_NEIGHBORHOODS[entity.key]?.categories;
+}
+function bucketsFor(entity) {
+  return entity.level === 'city' ? POLICE_CITIES[entity.name]?.buckets : POLICE_NEIGHBORHOODS[entity.key]?.buckets;
 }
 function yearsFor(entity) {
   return entity.level === 'city' ? POLICE_CITIES[entity.name]?.years : POLICE_NEIGHBORHOODS[entity.key]?.years;
@@ -261,8 +286,8 @@ function renderCompareTable(entries) {
           <th scope="col">${esc(LEVELS[state.level].label)}</th>
           <th scope="col">${esc(METRICS.total.label)}</th>
           <th scope="col">${esc(METRICS.perCapita.label)}</th>
-          <th scope="col">סוג עבירה מוביל (שורות עבירה)</th>
-          ${isCity ? '<th scope="col">לא משויך לשכונה</th>' : ''}
+          <th scope="col">סוג עבירה מוביל (שורות/שנה בממוצע)</th>
+          ${isCity ? '<th scope="col">לא משויך לשכונה (ממוצע שנתי)</th>' : ''}
         </tr></thead>
         <tbody>${rows}</tbody>
       </table>
@@ -318,28 +343,36 @@ function renderRanks(entries) {
   box.innerHTML = lines.join('');
 }
 
-/* ---------- category breakdown - one hbar chart per picked entity, its own
-   categories[] (all 5 years combined, row counts - see police-cities.js's
-   own header comment for why category totals can exceed the case total),
-   top 8 + an "אחר" bucket for the rest. Replaces real-estate-compare.js's
-   lazy per-city deals section - this is synchronous, no fetch, the data is
-   already in the loaded module. ---------- */
+/* ---------- category breakdown - per picked entity, one hbar chart PER
+   OFFENSE-FAMILY BUCKET (regulatory/violent/nonviolent/security - see
+   BUCKET_IDS/BUCKET_GROUPS/BUCKET_LABELS in police-meta.js, a product
+   decision made with the user, not derived from the source), each bar a
+   member StatisticGroup's own average-per-year row count. Replaces the
+   single top-8-plus-"אחר" chart this section used to render - with only
+   3-5 members per bucket there's no need to truncate, every member group
+   gets its own bar. The 3 EXCLUDED_GROUPS (שאר עבירות/שגיאת הזנה/סעיפי
+   הגדרה) appear in neither this section nor any bucket - not real offense
+   categories or too small to matter (see police-meta.js's own comment).
+   Replaces real-estate-compare.js's lazy per-city deals section - this is
+   synchronous, no fetch, the data is already in the loaded module. ------- */
 
-const CATEGORY_BREAKDOWN_TOP = 8;
+const STATISTIC_GROUP_INDEX = new Map(STATISTIC_GROUPS.map((g, i) => [g, i]));
 
 function renderCategoryBreakdown(entries) {
   const container = el('pcCategoryBreakdown');
-  container.innerHTML = entries.map((_, i) => `<figure id="pc-cat-${i}" class="acc-chart acc-chart-wide" role="img"></figure>`).join('');
-  entries.forEach((e, i) => {
+  container.innerHTML = entries.flatMap((_, ei) => BUCKET_IDS.map((bid, bi) =>
+    `<figure id="pc-cat-${ei}-${bi}" class="acc-chart acc-chart-wide" role="img"></figure>`)).join('');
+  entries.forEach((e, ei) => {
     const cats = categoriesFor(e) || [];
-    const pairs = STATISTIC_GROUPS
-      .map((name, gi) => ({ label: name, value: cats[gi] || 0 }))
-      .filter((p) => p.value > 0)
-      .sort((a, b) => b.value - a.value);
-    const top = pairs.slice(0, CATEGORY_BREAKDOWN_TOP);
-    const restSum = pairs.slice(CATEGORY_BREAKDOWN_TOP).reduce((s, p) => s + p.value, 0);
-    if (restSum > 0) top.push({ label: 'אחר', value: restSum });
-    renderHBarChart(`pc-cat-${i}`, `${e.label} — פילוח לפי סוג עבירה (שורות עבירה)`, top, 'שורות');
+    const bucketTotals = bucketsFor(e) || [];
+    BUCKET_IDS.forEach((bid, bi) => {
+      const bars = BUCKET_GROUPS[bid]
+        .map((groupName) => ({ label: groupName, value: cats[STATISTIC_GROUP_INDEX.get(groupName)] || 0 }))
+        .filter((p) => p.value > 0)
+        .sort((a, b) => b.value - a.value);
+      renderHBarChart(`pc-cat-${ei}-${bi}`,
+        `${e.label} — ${BUCKET_LABELS[bid]} (ממוצע שנתי: ${num(bucketTotals[bi] || 0)})`, bars, 'שורות/שנה');
+    });
   });
 }
 
@@ -512,7 +545,7 @@ function renderCategoryBoard() {
   const entries = categoryEntriesFor(state.level, state.activeCategory).sort((a, b) => b.value - a.value);
   const capped = state.level === 'city' ? entries : entries.slice(0, BOARD_CAP);
   const capNote = capped.length < entries.length ? ` (${num(BOARD_CAP)} מתוך ${num(entries.length)})` : '';
-  el('pcCategoryHint').textContent = `${num(entries.length)} מתוך ${num(levelEntries(state.level).length)} ${lvl.labelPlural} עם לפחות תיק אחד מסוג "${state.activeCategory}"`;
+  el('pcCategoryHint').textContent = `${num(entries.length)} מתוך ${num(levelEntries(state.level).length)} ${lvl.labelPlural} עם תיקים מסוג "${state.activeCategory}" (ממוצע שנתי)`;
   const peak = Math.max(0, ...capped.map((r) => r.value));
   const rowsHtml = capped.map((r) => `
     <div class="acc-hbar" title="${esc(r.label)}: ${num(r.value)}">
@@ -520,25 +553,33 @@ function renderCategoryBoard() {
       <div class="acc-hbar-track"><div class="acc-hbar-fill" style="inline-size:${peak ? (r.value / peak) * 100 : 0}%"></div></div>
       <span class="acc-hbar-v">${num(r.value)}</span>
     </div>`);
-  renderBoardChartChunked('pcCategoryBoardChart', `${num(capped.length)} ${lvl.labelPlural}, מהגבוה לנמוך לפי "${state.activeCategory}"${capNote}`, rowsHtml);
+  renderBoardChartChunked('pcCategoryBoardChart', `${num(capped.length)} ${lvl.labelPlural}, מהגבוה לנמוך לפי "${state.activeCategory}" (ממוצע שנתי)${capNote}`, rowsHtml);
 }
 
 /* ---------- CSV ---------- */
+
+// All numeric columns here are per-year averages, not 5-year totals (see
+// METRICS' own header comment above) - field names say so explicitly so a
+// spreadsheet-literate visitor doesn't mistake them for raw totals.
+const BUCKET_FIELD_NAMES = BUCKET_IDS.map((bid) => `ממוצע_שנתי_${bid}`);
 
 el('pcCsv').addEventListener('click', () => {
   const lvl = LEVELS[state.level];
   const map = labelMap(state.level);
   const entries = state.picks.map((label) => (label ? map.get(label) : null)).filter(Boolean);
-  const fields = [lvl.label, 'עיר', 'סהכ_תיקים', 'תיקים_לאלף_תושבים', ...STATISTIC_GROUPS, 'לא_משויך_לשכונה'];
+  const fields = [lvl.label, 'עיר', 'ממוצע_תיקים_לשנה', 'תיקים_לאלף_תושבים_ממוצע_שנתי',
+    ...BUCKET_FIELD_NAMES, ...STATISTIC_GROUPS, 'לא_משויך_לשכונה_ממוצע_שנתי'];
   const records = entries.map((e) => {
     const cats = categoriesFor(e) || [];
+    const buckets = bucketsFor(e) || [];
     const rec = {
       [lvl.label]: e.label,
       עיר: e.city || '',
-      סהכ_תיקים: valueFor(e, 'total') ?? '',
-      תיקים_לאלף_תושבים: valueFor(e, 'perCapita') ?? '',
-      לא_משויך_לשכונה: entryUnattributed(e) ?? '',
+      ממוצע_תיקים_לשנה: valueFor(e, 'total') ?? '',
+      תיקים_לאלף_תושבים_ממוצע_שנתי: valueFor(e, 'perCapita') ?? '',
+      לא_משויך_לשכונה_ממוצע_שנתי: entryUnattributed(e) ?? '',
     };
+    BUCKET_IDS.forEach((bid, i) => { rec[BUCKET_FIELD_NAMES[i]] = buckets[i] ?? 0; });
     STATISTIC_GROUPS.forEach((g, i) => { rec[g] = cats[i] ?? 0; });
     return rec;
   });
@@ -554,7 +595,7 @@ el('pcShare').addEventListener('click', () => {
   const lines = entries.map((e) => {
     const total = valueFor(e, 'total');
     const perCap = valueFor(e, 'perCapita');
-    const totalText = total != null ? `${num(total)} תיקים` : 'אין נתון';
+    const totalText = total != null ? `${num(total)} תיקים לשנה בממוצע` : 'אין נתון';
     const perCapText = perCap != null ? `${num(perCap)} לאלף תושבים` : 'אין נתון לנפש';
     return `${e.label}: ${totalText} (${perCapText})`;
   });
