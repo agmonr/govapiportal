@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>עזרה - מפת מחירי נדל״ן</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>❓</text></svg>">
+  <meta name="description" content="מדריך שימוש למפת מחירי נדל״ן: כל הבקרות, שכבות המפה והמקרא, ותהליך עבודה מומלץ.">
+  <script>
+    try {
+      var t = localStorage.getItem('theme');
+      if (t) document.documentElement.setAttribute('data-theme', t);
+    } catch (e) {}
+  </script>
+  <link rel="stylesheet" href="./src/style.css">
+</head>
+<body>
+  <header class="site">
+    <div class="wrap">
+      <h1>עזרה - מפת מחירי נדל״ן</h1>
+      <span class="site-by">פרויקט של רם אגמון<span class="site-disclaimer">המידע באתר עלול להיות שגוי</span><a href="https://hod-hasharon.org/" target="_blank" rel="noopener">הירוקים הוד השרון</a></span>
+      <div class="theme-pick" id="themePick" role="group" aria-label="ערכת נושא">
+        <button type="button" data-theme="clouds">☀️<span class="theme-btn-label"> יום</span></button>
+        <button type="button" data-theme="fashion">🌙<span class="theme-btn-label"> לילה</span></button>
+        <button type="button" data-theme="zebra">🦓<span class="theme-btn-label"> זברה</span></button>
+      </div>
+      <span class="meta"><a href="./real-estate-map.html">← 🏘️ חזרה לדף עצמו</a></span>
+      <span class="meta"><a href="./index.html">מפת ה-API</a></span>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <p class="acc-hint" dir="auto">מדריך זה מלווה את <a href="./real-estate-map.html">real-estate-map.html</a> - מפת מחירי נדל"ן (מחיר למ"ר, מותאם למדד המחירים) לפי עיר/שכונה. לטבלה, עסקאות בודדות ולוח ארצי ראו <a href="./real-estate-compare.html">מידע איזורי על מחירי נדל"ן</a>.</p>
+
+    <section class="acc-section" aria-labelledby="workflowH">
+      <h2 id="workflowH">תהליך עבודה מומלץ</h2>
+      <ol dir="auto">
+        <li><strong>בחרו רמה</strong> - ערים או שכונות.</li>
+        <li><strong>בחרו שכבת צביעה</strong> - מחיר למ"ר ו/או כמות עסקאות (ברמת עיר אפשר את שתיהן יחד).</li>
+        <li><strong>ברמת שכונה, בחרו עיר קודם</strong> - דרך "בחירת עיר", ואז הוסיפו שכונות.</li>
+        <li><strong>לחצו/הקלידו להוספה להשוואה</strong> - עד 4 ישויות.</li>
+        <li><strong>לחיצה ארוכה על צורה</strong> - תפריט מהיר עם נתונים ופירוט שנתי, וקישור למעבר לדף ההשוואה.</li>
+        <li><strong>קראו את "שני המדדים יחד"</strong> - גרפי עמודות לישויות שנבחרו.</li>
+      </ol>
+    </section>
+
+    <section class="acc-section" aria-labelledby="controlsH">
+      <h2 id="controlsH">בקרות</h2>
+      <div class="matrix-wrap">
+        <table class="matrix prose">
+          <thead><tr><th scope="col">בקרה</th><th scope="col">מה היא עושה</th></tr></thead>
+          <tbody>
+            <tr><td>רמת השוואה: ערים / שכונות</td><td>קובעת את סוג הישויות.</td></tr>
+            <tr><td>שכבת צביעה: מחיר למ"ר / כמות עסקאות</td><td>ניתן להפעיל את שתיהן יחד ברמת עיר.</td></tr>
+            <tr><td>הוספת עיר להשוואה</td><td>ברמת עיר בלבד - הוספת ערים לגרף ההשוואה.</td></tr>
+            <tr><td>בחירת עיר</td><td>ברמת שכונה - קובעת אילו שכונות מוצגות/ניתנות לבחירה.</td></tr>
+            <tr><td>הוספת שכונה להשוואה</td><td>עד 4 שכונות, יכולות להיות מכמה ערים.</td></tr>
+            <tr><td>הצג רקע מפת OpenStreetMap אמיתי</td><td>תיבת סימון, ברמת שכונה - איטי יותר, דורש רשת.</td></tr>
+            <tr><td>+ / − / ⟲ / ⛶</td><td>זום, איפוס תצוגה, מסך מלא.</td></tr>
+            <tr><td>איפוס למפה המקורית</td><td>איפוס מלא של המצב.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="acc-hint" dir="auto">זום פנימה עמוק לתוך עיר ברמת עיר "קודח" אוטומטית לרמת השכונות שלה.</p>
+    </section>
+
+    <section class="acc-section" aria-labelledby="legendH">
+      <h2 id="legendH">המקרא</h2>
+      <p class="acc-hint" dir="auto">גרדיאנט לפי המדד הפעיל, ממינימום למקסימום שבתצוגה הנוכחית (accent למחיר, אדום לכמות עסקאות). ריבוע "אין נתונים (פחות מ-5 עסקאות)" מסמן מדגם קטן מדי לחישוב חציון אמין. צורות שנבחרו מסומנות במסגרת בצבע הצ'יפ שלהן.</p>
+    </section>
+
+    <section class="acc-section" aria-labelledby="tipsH">
+      <h2 id="tipsH">טיפים ומגבלות</h2>
+      <ul dir="auto">
+        <li>המחיר הוא חציון עסקאות אמיתיות שדווחו (מותאם למדד המחירים), לא הערכת שמאי או מחיר מבוקש.</li>
+        <li>המקור: כ-285,000 עסקאות (GovMap, משרד הבינוי והשיכון, מ-2021 ואילך) - עסקאות קרקע/מגרש/משק חקלאי ומחירים חריגים (מתחת ל-2,000 או מעל 150,000 ₪ למ"ר) הוצאו מהחישוב.</li>
+        <li>אין רמת רחוב במפה זו - אין שכבת גבולות רחוב זמינה, אותה מגבלה כמו במפת עצים וחום.</li>
+        <li>גם כאן ברירת המחדל היא בלי רקע מפה אמיתי - רק צורות; אפשר להפעיל OSM ברמת שכונה.</li>
+      </ul>
+    </section>
+  </main>
+
+  <script type="module">
+    import { el } from './src/ui.js';
+    import { initThemePicker } from './src/theme.js';
+    initThemePicker(el('themePick'));
+  </script>
+</body>
+</html>

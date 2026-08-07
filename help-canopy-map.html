@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>עזרה - מפת עצים וחום</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>❓</text></svg>">
+  <meta name="description" content="מדריך שימוש למפת עצים וחום: כל הבקרות, שכבות המפה והמקרא, ותהליך עבודה מומלץ.">
+  <script>
+    try {
+      var t = localStorage.getItem('theme');
+      if (t) document.documentElement.setAttribute('data-theme', t);
+    } catch (e) {}
+  </script>
+  <link rel="stylesheet" href="./src/style.css">
+</head>
+<body>
+  <header class="site">
+    <div class="wrap">
+      <h1>עזרה - מפת עצים וחום</h1>
+      <span class="site-by">פרויקט של רם אגמון<span class="site-disclaimer">המידע באתר עלול להיות שגוי</span><a href="https://hod-hasharon.org/" target="_blank" rel="noopener">הירוקים הוד השרון</a></span>
+      <div class="theme-pick" id="themePick" role="group" aria-label="ערכת נושא">
+        <button type="button" data-theme="clouds">☀️<span class="theme-btn-label"> יום</span></button>
+        <button type="button" data-theme="fashion">🌙<span class="theme-btn-label"> לילה</span></button>
+        <button type="button" data-theme="zebra">🦓<span class="theme-btn-label"> זברה</span></button>
+      </div>
+      <span class="meta"><a href="./canopy-map.html">← 🗺️ חזרה לדף עצמו</a></span>
+      <span class="meta"><a href="./index.html">מפת ה-API</a></span>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <p class="acc-hint" dir="auto">מדריך זה מלווה את <a href="./canopy-map.html">canopy-map.html</a> - מפה אחת המשלבת כיסוי חופות עצים, חלוקה לעצי רחוב מול עצים פרטיים, ואיי חום. לטבלה/גרפים במקום מפה ראו <a href="./canopy-heat-compare.html">מידע איזורי על עצים וחום</a> ו<a href="./help-canopy-heat-compare.html">העזרה שלו</a>.</p>
+
+    <section class="acc-section" aria-labelledby="workflowH">
+      <h2 id="workflowH">תהליך עבודה מומלץ</h2>
+      <ol dir="auto">
+        <li><strong>בחרו רמת השוואה</strong> - ערים / שכונות / רחובות.</li>
+        <li><strong>בחרו שכבת צביעה</strong> - כיסוי חופות כולל / עצי רחוב / איי חום.</li>
+        <li><strong>ברמת שכונה/רחוב, הקלידו עיר קודם</strong> - חובה לפני שאפשר לבחור שכונה/רחוב.</li>
+        <li><strong>לחצו על צורה במפה</strong> - לבחירה בודדת (לחיצה נוספת מבטלת); ברמת רחוב חפשו בשם והוסיפו עד 4.</li>
+        <li><strong>אופציונלי: הפעילו רקע מפה אמיתי</strong> - רחובות/אוויר/טופוגרפית, וכווננו את עוצמת שכבות החום/העצים.</li>
+        <li><strong>קראו את "כל המדדים יחד"</strong> - שלושה גרפים לכל ישות שנבחרה.</li>
+        <li><strong>קיצור דרך</strong> - לחיצה ארוכה (מגע) או קליק ימני (מחשב) על צורה קופצת ישר לדף ההשוואה עם אותה ישות טעונה מראש.</li>
+      </ol>
+    </section>
+
+    <section class="acc-section" aria-labelledby="controlsH">
+      <h2 id="controlsH">בקרות</h2>
+      <div class="matrix-wrap">
+        <table class="matrix prose">
+          <thead><tr><th scope="col">בקרה</th><th scope="col">מה היא עושה</th></tr></thead>
+          <tbody>
+            <tr><td>רמת השוואה</td><td>ערים / שכונות / רחובות.</td></tr>
+            <tr><td>עיר:</td><td>חובה ברמת שכונה/רחוב לפני שאפשר לבחור; ברמת עיר משמש להוספת ערים נוספות.</td></tr>
+            <tr><td>שכונה: / רחוב:</td><td>בחירה או הוספה, לפי הרמה הפעילה - עד 4 ברמת רחוב.</td></tr>
+            <tr><td>שכבת מפה</td><td>כיסוי חופות כולל / עצי רחוב / איי חום - קובעת מה צובע את הצורות.</td></tr>
+            <tr><td>עוצמת השכבות: חום / עצים</td><td>סליידרים 0–100% (קפיצות 5) לשקיפות שכבות ה-HD.</td></tr>
+            <tr><td>HD</td><td>תיבת סימון - מפעילה מצב רזולוציה גבוהה.</td></tr>
+            <tr><td>הצג כתמי חום</td><td>מציג את שכבת החום הגולמית ("כתם חום") במקום/מעל המפה הרגילה, ברמת שכונה לאחר בחירת עיר.</td></tr>
+            <tr><td>הצג כל עץ בנפרד</td><td>מציג כל עץ בודד כנקודה (כ-2.89 מיליון עצים) במקום ממוצע אזורי.</td></tr>
+            <tr><td>רקע מפה: רחובות / אוויר / טופוגרפית</td><td>שכבת OSM אמיתית אחת בכל פעם; לחיצה חוזרת על הפעילה מכבה אותה.</td></tr>
+            <tr><td>+ / − / ⟲ / ⛶</td><td>זום, איפוס תצוגה, מסך מלא.</td></tr>
+            <tr><td>איפוס למפה המקורית</td><td>מאפס את כל המצב לברירת המחדל.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="acc-section" aria-labelledby="legendH">
+      <h2 id="legendH">המקרא</h2>
+      <p class="acc-hint" dir="auto">פס גרדיאנט לפי השכבה הפעילה, עם ערכי מינימום/מקסימום ויחידה (% או °C); עוצמת הצבע = גודל הערך (ירוק/accent לחופה, אדום לחום). ריבוע נפרד מסמן "אין נתונים". צורות שנבחרו/הושוו מסומנות במסגרת צבעונית מתוך פלטה קבועה, תואמת לצ'יפים "נבחרו להשוואה". כשמופעל כתם חום/עצים ברזולוציה גבוהה, המקרא מציג הסבר טקסטואלי בלבד ולא סקאלה קבועה - הצביעה שם יחסית לחציון האזורי, לא ערך מוחלט.</p>
+    </section>
+
+    <section class="acc-section" aria-labelledby="chartsH">
+      <h2 id="chartsH">"כל המדדים יחד"</h2>
+      <p class="acc-hint" dir="auto">לכל ישות שנבחרה: כיסוי חופות כולל (%), עצי רחוב + עצים פרטיים (בר משולב דו-חלקי, %), ודלתת חום מרבית (°C). אין כאן טבלה - להשוואה טבלאית ולוח ארצי עברו לדף ההשוואה.</p>
+    </section>
+
+    <section class="acc-section" aria-labelledby="tipsH">
+      <h2 id="tipsH">טיפים ומגבלות</h2>
+      <ul dir="auto">
+        <li>אין למפה צורות ברמת רחוב - בוחרים רחוב רק לפי חיפוש שם, לא לפי לחיצה על המפה (יש כ-36,000 מקטעי רחוב, יותר מדי גיאומטריה להצגה).</li>
+        <li>ברירת המחדל היא ללא רקע מפה אמיתי - רק צורות צבעוניות; רקע אמיתי הוא אופציונלי בכל זום.</li>
+        <li>עדיין לא זמינים במנוע המפה החדש: תגיות רב-מדד על המפה, תפריט קליק-ימני ישן, וזום אוטומטי לפרטים.</li>
+        <li>אין למפה ייצוא/שיתוף משלה - כתובת ה-URL נשמרת אוטומטית עם המצב הנוכחי ואפשר להעתיק ולשתף אותה כמו שהיא.</li>
+      </ul>
+    </section>
+  </main>
+
+  <script type="module">
+    import { el } from './src/ui.js';
+    import { initThemePicker } from './src/theme.js';
+    initThemePicker(el('themePick'));
+  </script>
+</body>
+</html>

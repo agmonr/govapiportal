@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>עזרה - תאונות דרכים עם נפגעים</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>❓</text></svg>">
+  <meta name="description" content="מדריך שימוש לדף תאונות דרכים עם נפגעים: כל השדות, כל הכפתורים ותהליך עבודה מומלץ.">
+  <script>
+    try {
+      var t = localStorage.getItem('theme');
+      if (t) document.documentElement.setAttribute('data-theme', t);
+    } catch (e) {}
+  </script>
+  <link rel="stylesheet" href="./src/style.css">
+</head>
+<body>
+  <header class="site">
+    <div class="wrap">
+      <h1>עזרה - תאונות דרכים עם נפגעים</h1>
+      <span class="site-by">פרויקט של רם אגמון<span class="site-disclaimer">המידע באתר עלול להיות שגוי</span><a href="https://hod-hasharon.org/" target="_blank" rel="noopener">הירוקים הוד השרון</a></span>
+      <div class="theme-pick" id="themePick" role="group" aria-label="ערכת נושא">
+        <button type="button" data-theme="clouds">☀️<span class="theme-btn-label"> יום</span></button>
+        <button type="button" data-theme="fashion">🌙<span class="theme-btn-label"> לילה</span></button>
+        <button type="button" data-theme="zebra">🦓<span class="theme-btn-label"> זברה</span></button>
+      </div>
+      <span class="meta"><a href="./accidents.html">← 🚦 חזרה לדף עצמו</a></span>
+      <span class="meta"><a href="./index.html">מפת ה-API</a></span>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <p class="acc-hint" dir="auto">מדריך זה מלווה את <a href="./accidents.html">accidents.html</a> - הדף שמציג תאונות דרכים עם נפגעים בישראל (2020–2024), ארצית או ליישוב ספציפי, מתוך נתוני הלמ"ס.</p>
+
+    <section class="acc-section" aria-labelledby="workflowH">
+      <h2 id="workflowH">תהליך עבודה מומלץ</h2>
+      <ol dir="auto">
+        <li><strong>קראו את הגרפים הארציים</strong> - ברירת מחדל: כל השנים 2020–2024.</li>
+        <li><strong>אופציונלי: בחרו שנה בודדת</strong> - הגרפים והכרטיסים מתעדכנים לאותה שנה בלבד.</li>
+        <li><strong>הקלידו שם יישוב</strong> - רואים את הנתונים שלו וטבלת שנה-אחר-שנה.</li>
+        <li><strong>גללו לטבלת הרשומות החיה</strong> - סננו לפי יישוב בתיבת החיפוש שלה (זו שאילתה נפרדת, שרתית).</li>
+        <li><strong>הורידו CSV</strong> - בדיוק מה שמסונן כרגע בטבלה.</li>
+      </ol>
+    </section>
+
+    <section class="acc-section" aria-labelledby="controlsH">
+      <h2 id="controlsH">שדות ובקרות</h2>
+      <div class="matrix-wrap">
+        <table class="matrix prose">
+          <thead><tr><th scope="col">בקרה</th><th scope="col">מה היא עושה</th></tr></thead>
+          <tbody>
+            <tr><td>שנה:</td><td>"כל השנים (2020–2024)" או שנה בודדת - מסנן את הגרפים הארציים וארבעת כרטיסי הסיכום.</td></tr>
+            <tr><td>ישוב:</td><td>הקלדה חופשית עם השלמה אוטומטית (עד 8 התאמות) - שם מדויק מציג את נתוני היישוב ואת טבלת השנים שלו.</td></tr>
+            <tr><td>תיבת הסינון בטבלה החיה</td><td>מסננת בשרת (לא רק את השורות המוצגות) לפי שם יישוב - שאילתה נפרדת מבחירת "ישוב:" למעלה.</td></tr>
+            <tr><td>הורדת CSV ⭳</td><td>מוריד בדיוק את מה שמסונן כרגע בטבלה החיה, לא את כל 8,315 השורות.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="acc-section" aria-labelledby="colsH">
+      <h2 id="colsH">מה רואים</h2>
+      <div class="matrix-wrap">
+        <table class="matrix prose">
+          <thead><tr><th scope="col">אזור</th><th scope="col">מה זה מציג</th></tr></thead>
+          <tbody>
+            <tr><td>כרטיסי סיכום</td><td><span class="badge bad">הרוגים (תאונות קטלניות)</span>, <span class="badge warn">פצועים קשה</span>, <span class="badge ok">פצועים קל</span>, וסה"כ תאונות עם נפגעים.</td></tr>
+            <tr><td>שני גרפים ארציים</td><td>הרוגים לפי שנה, ומספר התאונות לפי שנה - 2020 עד 2024.</td></tr>
+            <tr><td>טבלת יישוב</td><td>שנה, הרוגים, פצועים קשה, פצועים קל, סה"כ - שנה-אחר-שנה ליישוב שהוקלד.</td></tr>
+            <tr><td>טבלת הרשומות החיה</td><td>שנה, חומרה (קטלנית/קשה/קלה), יישוב, סוג דרך, שעה - שורה אחת לכל תאונה, נשלפת חיה מ-data.gov.il.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="acc-hint" dir="auto">יישוב "0" או ריק מוצג כ"מחוץ לתחום ישוב" - לא הושמט ולא נוחש.</p>
+    </section>
+
+    <section class="acc-section" aria-labelledby="tipsH">
+      <h2 id="tipsH">טיפים</h2>
+      <ul dir="auto">
+        <li>ב-2020–2024, 59% מהתאונות הקטלניות (988 מתוך 1,684) קרו <strong>מחוץ לתחום שיפוט</strong> של יישוב כלשהו - כדאי לזכור את זה כשמסננים רק ליישוב ספציפי, כי חלק ניכר מהתמונה הארצית לא ייכלל.</li>
+        <li>תיבת הסינון בטבלה החיה וכתיבת "ישוב:" למעלה הן שתי שאילתות נפרדות - אפשר להשתמש רק באחת מהן אם רוצים.</li>
+      </ul>
+    </section>
+  </main>
+
+  <script type="module">
+    import { el } from './src/ui.js';
+    import { initThemePicker } from './src/theme.js';
+    initThemePicker(el('themePick'));
+  </script>
+</body>
+</html>

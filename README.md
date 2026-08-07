@@ -57,9 +57,13 @@ than shipping to whoever downloads it.
 | `moag.html` / `src/moag-explorer.js` | The Ministry of Agriculture explorer: catalogue → dataset → FeatureServer records |
 | `plan-timeline.html` / `src/plan-timeline.js` | How long a building plan takes from submission to approval, by city, with filters (status/city/year/plan-name/min-plans-per-city), a per-plan step-by-step drill-down and a detailed Excel export. Live from Xplan - see `src/plan-data.js`. |
 | `plan-compare.html` / `src/plan-compare.js` | Same plan-duration data, compare up to 4 cities at once (same compare-multiple-entities idiom as `canopy-map.html`), with a per-city year-submitted trend and a per-city plan drill-down (area-colored by size). |
+| `help-plan-timeline.html` | Hand-authored user guide for `plan-timeline.html` — every filter, table column, status badge, the nine per-plan timeline steps, and the export buttons, plus a recommended workflow. Not part of `dist/` (no live data of its own). |
+| `help-plan-compare.html` | Same, for `plan-compare.html` — every field/control, the main compare table, and each optional section (by year, by stage, single-city year trend, by plan size). |
 | `src/plan-render.js` | Shared per-plan/per-plan-list HTML (status badge, step timeline, area-size color scale) - used by both plan pages above so the markup exists once. |
 | `src/idb-cache.js` | Tiny async IndexedDB key-value cache, used by `plan-data.js` so the ~20-27k-row Xplan fetch survives reloads/new tabs (session/localStorage are too small for it). |
 | `tools/canopy_build.py` | One-time local batch job that computes the three canopy tables above from a gitignored local shapefile |
+| `canopy-heat-compare.html` / `src/canopy-heat-compare.js` | Public/private tree canopy % and max heat delta, side by side, by city/neighborhood/street - compare up to 4 at once, plus an always-on national best/worst board. No new data: unions the tables already computed for `tree-canopy.html`/`canopy-split.html`/`heat-islands.html`. |
+| `help-canopy-heat-compare.html` | Hand-authored user guide for `canopy-heat-compare.html` — the three metrics, the compare table, the per-city relative-rank line, the national board, and CSV/WhatsApp export. |
 | `src/portal.js` | Portal drill-in: live request per portal, rendered as a table |
 | `src/explorer.js` | Live in-browser request panel |
 | `src/style.css` | RTL-first styling |
@@ -68,6 +72,19 @@ than shipping to whoever downloads it.
 | `dist/datagov.html` | Same, for the explorer. Holds no snapshot — every row is live. |
 | `dist/moag.html` | Same, for the moag explorer. Also holds no snapshot. |
 | `tools/` | Bundler, API re-prober, browser verification. Not part of the site. |
+
+**Help pages (`help-*.html`) are part of the code, not an afterthought.**
+Every app is meant to have one, registered in `HELP_PAGE` in
+`src/apps.js` (which is what puts its ❓ icon in the shared app-context
+strip, right after "כל האפליקציות" - the same spot on every page, not a
+hand-placed header link). A help page documents that app's own filters,
+columns, badges, chart sections, and export buttons, plus a recommended
+workflow. **Any change to those - in the same commit, not a follow-up -
+must update the matching help page**, exactly like updating a docstring
+when its function changes. This already bit once: three help pages'
+header links went in without regenerating `dist/`, which failed CI and
+silently blocked three Pages deploys - see git log around
+`7d948b7`.
 
 ## Top view
 

@@ -51,6 +51,20 @@ export const APP_ICON = {
   'arnona-compare': '🧾',
   'canopy-heat-compare': '🌳<span class="icon-small">🌡️</span>',
   'mortality-compare': '🩺',
+  // The five remaining apps - all 'direct'/'external' - had no entry here,
+  // so every one of them silently fell back to a generic 🔗 in both
+  // appCard() and renderAppContext()'s own siblingsHtml. A real favicon
+  // per external site was considered and rejected: this file's own icons
+  // are deliberately never a network image (see tools/verify.sh's bundle
+  // pass, which asserts the whole site references NO external asset - a
+  // live favicon fetch would break that, plus render differently per
+  // theme/zebra-filter than every other icon here). A distinct emoji each
+  // instead, same idiom as the tree-family badges above.
+  'yeela-feeds': '📡', // RSS/Atom - a feed to subscribe to, not a page to browse
+  'stable-authorities': '🏦', // gov.il's own financial-stability ranking of local authorities
+  meirim: '📢', // מעירים - literally "objecting/commenting" on plans, a civic-voice org
+  'trees-hod-hasharon': '🌳<span class="icon-small">🤝</span>', // community tree guardians, not this site's own tree tools
+  'trees-rehovot': '🌳<span class="icon-small">🛣️</span>', // community street-tree org (רחובות של עצים)
 };
 
 // Render order for categories - not alphabetical on the Hebrew label, and
@@ -155,6 +169,30 @@ export async function loadAppsData() {
  * never actually needs to appear as an option). Cross-navigation between
  * related tools without hand-maintaining it per page.
  */
+// Hand-authored help pages, keyed by app id (see help-plan-timeline.html/
+// help-plan-compare.html/help-canopy-heat-compare.html) - not every app has
+// one, so the ❓ icon-link only appears for the ones that do. One shared
+// place to register a new one, instead of hand-adding a header link on
+// every page that gets a help doc (which is how this started, and why it
+// silently went stale on three pages after a header edit - see git log).
+const HELP_PAGE = {
+  accidents: './help-accidents.html',
+  'canopy-map': './help-canopy-map.html',
+  'canopy-heat-compare': './help-canopy-heat-compare.html',
+  'real-estate-map': './help-real-estate-map.html',
+  'real-estate-compare': './help-real-estate-compare.html',
+  'arnona-compare': './help-arnona-compare.html',
+  'blue-lines': './help-blue-lines.html',
+  'plan-timeline': './help-plan-timeline.html',
+  'plan-compare': './help-plan-compare.html',
+  'area-cleanup': './help-area-cleanup.html',
+  'trip-report': './help-trip-report.html',
+  'local-finance': './help-local-finance.html',
+  committees: './help-committees.html',
+  companies: './help-companies.html',
+  welfare: './help-welfare.html',
+};
+
 export function renderAppContext(node, apps, currentId, { includeSelf = true } = {}) {
   const current = apps.find((a) => a.id === currentId);
   if (!current) { node.innerHTML = ''; return; }
@@ -165,6 +203,15 @@ export function renderAppContext(node, apps, currentId, { includeSelf = true } =
       <span class="app-sibling-icon" aria-hidden="true">🏠</span>
       <span class="app-sibling-label">כל האפליקציות</span>
     </a>`;
+
+  // Right after "כל האפליקציות", always in the same spot regardless of
+  // which page this renders on - see HELP_PAGE above.
+  const helpHref = HELP_PAGE[currentId];
+  const helpHtml = helpHref ? `
+    <a class="app-sibling app-sibling-help" href="${esc(helpHref)}" title="עזרה" dir="auto">
+      <span class="app-sibling-icon" aria-hidden="true">❓</span>
+      <span class="app-sibling-label">עזרה</span>
+    </a>` : '';
 
   const siblingsHtml = inCategory.map((a) => (a.id === currentId
     ? `<span class="app-sibling app-sibling-current" title="${esc(a.name_he)}" aria-current="page" dir="auto">
@@ -179,6 +226,6 @@ export function renderAppContext(node, apps, currentId, { includeSelf = true } =
 
   node.innerHTML = `
     <nav class="app-siblings" aria-label="אפליקציות נוספות ב${esc(current.category_he || '')}">
-      ${homeHtml}${siblingsHtml}
+      ${homeHtml}${helpHtml}${siblingsHtml}
     </nav>`;
 }
