@@ -23,6 +23,16 @@ export const SOURCES = [
     "label": "ישראל היום, מבוסס על נתוני משרד הבריאות",
     "url": "https://www.israelhayom.co.il/health/article/18306603",
     "covers": "תמותת יולדות - אינו בפרסום למ\"ס יחיד, ראו הסבר"
+  },
+  {
+    "label": "מגן דוד אדום, סיכום עונת הרחצה 2024",
+    "url": "https://www.kikar.co.il/israel-news/sm805p",
+    "covers": "טביעה - הרוגים, ארצי בלבד (מד\"א אינו מפרסם לפי מחוז)"
+  },
+  {
+    "label": "התנועה לחופש המידע, מפת הפשיעה בישראל",
+    "url": "https://www.meida.org.il/17146",
+    "covers": "אלימות חמורה לפי מחוז, רצח ארצי - נתוני משטרה שפורסמו רק בעקבות בקשת חופש מידע"
   }
 ];
 
@@ -1277,6 +1287,51 @@ export const NATIONAL_MATERNAL_MORTALITY = {
   "note": "מספר קטן מדי (כ-5 מקרים בשנה בכלל הארץ) לפילוח אמין לפי עיר, אזור או מגזר - נשאר כנתון ארצי יחיד.",
   "source": "ישראל היום, מבוסס על נתוני משרד הבריאות",
   "sourceUrl": "https://www.israelhayom.co.il/health/article/18306603"
+};
+
+export const NATIONAL_MDA_DROWNING = {
+  "y2023": {
+    "treated": 266,
+    "deaths": 51
+  },
+  "y2024": {
+    "treated": 366,
+    "deaths": 54
+  },
+  "treatedByWaterBody2024": {
+    "הים התיכון": 189,
+    "ים המלח": 28,
+    "הכנרת": 26,
+    "ים סוף": 12,
+    "בריכות ציבוריות": 52,
+    "בריכות פרטיות": 43
+  },
+  "note": "מד\"א אינו מפרסם פילוח לפי מחוז - רק לפי סוג גוף המים וגיל.",
+  "source": "מגן דוד אדום, סיכום עונת הרחצה 2024",
+  "sourceUrl": "https://www.kikar.co.il/israel-news/sm805p"
+};
+
+export const NATIONAL_POLICE_VIOLENCE_BY_DISTRICT = {
+  "הדרום": 44000,
+  "ירושלים": 38000,
+  "תל אביב": 30000,
+  "הצפון": 9000,
+  "חיפה": 5756
+};
+
+export const NATIONAL_POLICE_VIOLENCE_META = {
+  "period": "5 שנים (עד 2025)",
+  "note": "קורבנות עבירות אלימות חמורות (רצח, ניסיון רצח, שוד, איומים ותקיפה יחד) - המשטרה אינה מפרסמת רצח בלבד לפי מחוז, רק ארצית ולפי עיר. הנתונים פורסמו רק בעקבות בקשת חופש מידע - המשטרה הפסיקה לפרסם נתוני פשיעה ב-2023.",
+  "source": "התנועה לחופש המידע, מפת הפשיעה בישראל",
+  "sourceUrl": "https://www.meida.org.il/17146"
+};
+
+export const NATIONAL_POLICE_MURDER = {
+  "total": 479,
+  "period": "2023-2024",
+  "note": "עלייה של 85% לעומת השנתיים שקדמו לכך.",
+  "source": "התנועה לחופש המידע, מפת הפשיעה בישראל",
+  "sourceUrl": "https://www.meida.org.il/17146"
 };
 
 export const NATIONAL_META = {

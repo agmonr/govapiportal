@@ -51,6 +51,8 @@ CBS_CAUSES_2024 = "CBS 125/2024, סיבות מוות בישראל 2020-2022"
 CBS_CAUSES_2024_URL = "https://www.cbs.gov.il/he/mediarelease/DocLib/2024/125/05_24_125b.pdf"
 YNET_BEDOUIN_INFANT_URL = "https://www.ynet.co.il/news/article/Skzl11ziLD"
 ISRAELHAYOM_MATERNAL_URL = "https://www.israelhayom.co.il/health/article/18306603"
+MDA_DROWNING_URL = "https://www.kikar.co.il/israel-news/sm805p"
+POLICE_VIOLENCE_MAP_URL = "https://www.meida.org.il/17146"
 
 # Rendered as a clickable source list at the top of the page - every fact on
 # this page traces back to one of these four (the first two cover nearly
@@ -66,6 +68,10 @@ SOURCES = [
      "covers": "תמותת תינוקות בדואים בנגב - אינו בפרסום למ\"ס יחיד, ראו הסבר"},
     {"label": "ישראל היום, מבוסס על נתוני משרד הבריאות", "url": ISRAELHAYOM_MATERNAL_URL,
      "covers": "תמותת יולדות - אינו בפרסום למ\"ס יחיד, ראו הסבר"},
+    {"label": "מגן דוד אדום, סיכום עונת הרחצה 2024", "url": MDA_DROWNING_URL,
+     "covers": "טביעה - הרוגים, ארצי בלבד (מד\"א אינו מפרסם לפי מחוז)"},
+    {"label": "התנועה לחופש המידע, מפת הפשיעה בישראל", "url": POLICE_VIOLENCE_MAP_URL,
+     "covers": "אלימות חמורה לפי מחוז, רצח ארצי - נתוני משטרה שפורסמו רק בעקבות בקשת חופש מידע"},
 ]
 
 # ---------------------------------------------------------------------------
@@ -298,6 +304,51 @@ NATIONAL_MATERNAL_MORTALITY = {
     "sourceUrl": ISRAELHAYOM_MATERNAL_URL,
 }
 
+# Magen David Adom's own end-of-bathing-season tallies - no district/מחוז
+# breakdown exists for this (checked): MDA only publishes by water-body
+# type (sea/pool/etc.) and age group, never by region. y2023/y2024.deaths
+# are actual deaths; byWaterBody2024 is NOT a deaths breakdown - MDA never
+# published deaths-per-water-body, only how the larger treated/rescued
+# count (366 in 2024) splits by water-body type. Keep these visually
+# distinct on the page - a by-water-body chart of the treated count must
+# not be labeled or read as a deaths chart.
+NATIONAL_MDA_DROWNING = {
+    "y2023": {"treated": 266, "deaths": 51},
+    "y2024": {"treated": 366, "deaths": 54},
+    "treatedByWaterBody2024": {
+        "הים התיכון": 189, "ים המלח": 28, "הכנרת": 26, "ים סוף": 12,
+        "בריכות ציבוריות": 52, "בריכות פרטיות": 43,
+    },
+    "note": "מד\"א אינו מפרסם פילוח לפי מחוז - רק לפי סוג גוף המים וגיל.",
+    "source": "מגן דוד אדום, סיכום עונת הרחצה 2024",
+    "sourceUrl": MDA_DROWNING_URL,
+}
+
+# Israel Police stopped publishing crime statistics in 2023 (under Minister
+# Ben Gvir); this district breakdown exists only because "התנועה לחופש
+# המידע" (Movement for Freedom of Information) forced release via a
+# freedom-of-information request. "victims" here is broader than deaths -
+# the underlying category is severe violent offenses combined (murder,
+# attempted murder, robbery, threats, assault) - the police data doesn't
+# break murder out on its own at district level, only nationally and by
+# city (and the page doesn't show city-level here per the user's own
+# scope choice - see NATIONAL_POLICE_MURDER below for the national figure).
+NATIONAL_POLICE_VIOLENCE_BY_DISTRICT = {
+    "הדרום": 44000, "ירושלים": 38000, "תל אביב": 30000, "הצפון": 9000, "חיפה": 5756,
+}
+NATIONAL_POLICE_VIOLENCE_META = {
+    "period": "5 שנים (עד 2025)",
+    "note": "קורבנות עבירות אלימות חמורות (רצח, ניסיון רצח, שוד, איומים ותקיפה יחד) - המשטרה אינה מפרסמת רצח בלבד לפי מחוז, רק ארצית ולפי עיר. הנתונים פורסמו רק בעקבות בקשת חופש מידע - המשטרה הפסיקה לפרסם נתוני פשיעה ב-2023.",
+    "source": "התנועה לחופש המידע, מפת הפשיעה בישראל",
+    "sourceUrl": POLICE_VIOLENCE_MAP_URL,
+}
+NATIONAL_POLICE_MURDER = {
+    "total": 479, "period": "2023-2024",
+    "note": "עלייה של 85% לעומת השנתיים שקדמו לכך.",
+    "source": "התנועה לחופש המידע, מפת הפשיעה בישראל",
+    "sourceUrl": POLICE_VIOLENCE_MAP_URL,
+}
+
 NATIONAL_META = {"causesSource": CBS_CAUSES_2024, "causesPeriod": "2020-2022"}
 
 
@@ -329,6 +380,10 @@ def main():
         write_js("NATIONAL_BY_POPULATION_GROUP", NATIONAL_BY_POPULATION_GROUP),
         write_js("NATIONAL_INFANT_MORTALITY_BY_SECTOR", NATIONAL_INFANT_MORTALITY_BY_SECTOR),
         write_js("NATIONAL_MATERNAL_MORTALITY", NATIONAL_MATERNAL_MORTALITY),
+        write_js("NATIONAL_MDA_DROWNING", NATIONAL_MDA_DROWNING),
+        write_js("NATIONAL_POLICE_VIOLENCE_BY_DISTRICT", NATIONAL_POLICE_VIOLENCE_BY_DISTRICT),
+        write_js("NATIONAL_POLICE_VIOLENCE_META", NATIONAL_POLICE_VIOLENCE_META),
+        write_js("NATIONAL_POLICE_MURDER", NATIONAL_POLICE_MURDER),
         write_js("NATIONAL_META", NATIONAL_META),
     ]
     commented_header = "\n".join(f"// {line}" for line in header.split("\n"))

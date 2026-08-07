@@ -37,6 +37,7 @@ import {
   ZONE_DISTRICT, ZONE_SUBDISTRICT, ZONE_META,
   NATIONAL_TOP_CAUSES, NATIONAL_BY_POPULATION_GROUP,
   NATIONAL_INFANT_MORTALITY_BY_SECTOR, NATIONAL_MATERNAL_MORTALITY, NATIONAL_META,
+  NATIONAL_MDA_DROWNING, NATIONAL_POLICE_VIOLENCE_BY_DISTRICT, NATIONAL_POLICE_VIOLENCE_META, NATIONAL_POLICE_MURDER,
 } from './mortality-data.js';
 
 // Looks up a source's URL by its label text (SOURCES is the single place
@@ -255,6 +256,32 @@ function renderNationalMaternal() {
     <p class="acc-hint" dir="auto">מקור: ${sourceLink(m.source)}</p>`;
 }
 
+function renderMdaDrowning() {
+  const d = NATIONAL_MDA_DROWNING;
+  // treatedByWaterBody2024 is the 366-treated count split by water body -
+  // NOT a deaths breakdown (MDA never published one) - the chart title
+  // says "טופלו" (treated), not "הרוגי" (deaths), to keep that distinction
+  // visible on the chart itself, not just in the note below it.
+  const byWater = Object.entries(d.treatedByWaterBody2024).map(([label, value]) => ({ label, value }));
+  renderBarChart('mdaDrowningChart', 'מקרי טביעה שטופלו, 2024 - לפי סוג גוף מים', byWater, 'מקרים');
+  el('mdaDrowningNote').innerHTML =
+    `סה״כ <strong>הרוגי טביעה (ארצי)</strong>: ${d.y2023.deaths} ב-2023 (מתוך ${d.y2023.treated} שטופלו), ${d.y2024.deaths} ב-2024 (מתוך ${d.y2024.treated} שטופלו). התרשים למעלה הוא פילוח כלל הנטפלים (לא רק הרוגים) לפי סוג גוף מים - מד"א לא פרסם פילוח הרוגים בלבד. ` +
+    `${esc(d.note)} מקור: ${sourceLink(d.source)}`;
+}
+
+function renderPoliceViolence() {
+  const entries = Object.entries(NATIONAL_POLICE_VIOLENCE_BY_DISTRICT)
+    .map(([label, value]) => ({ label, value }))
+    .sort((a, b) => b.value - a.value);
+  renderHBarChart('policeViolenceChart', `קורבנות אלימות חמורה, ${NATIONAL_POLICE_VIOLENCE_META.period}`, entries, 'קורבנות');
+  el('policeViolenceNote').innerHTML = `${esc(NATIONAL_POLICE_VIOLENCE_META.note)} מקור: ${sourceLink(NATIONAL_POLICE_VIOLENCE_META.source)}`;
+
+  const p = NATIONAL_POLICE_MURDER;
+  el('policeMurderNote').innerHTML =
+    `<p><strong>${num(p.total)} נרצחו בישראל, ${esc(p.period)}</strong> - ${esc(p.note)}</p>
+     <p class="acc-hint" dir="auto">מקור: ${sourceLink(p.source)}</p>`;
+}
+
 /* ===================== boot ===================== */
 
 renderSources();
@@ -265,3 +292,5 @@ renderNationalCauses();
 renderNationalPopGroup();
 renderNationalInfantSector();
 renderNationalMaternal();
+renderMdaDrowning();
+renderPoliceViolence();
