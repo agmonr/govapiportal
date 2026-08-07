@@ -5,26 +5,52 @@ across three separate granularities (see that page's own header comment for
 why they're kept apart rather than one merged table): city, zone (district/
 sub-district), and national.
 
-Unlike every other *_build.py in this directory, there is no bulk raw source
-file to parse - the underlying CBS publications only ever printed the top-10/
-bottom-10 localities per table (confirmed against both the PDF and DOCX
-renditions of the 2019 press release - not a PDF-conversion artifact), so the
-full ~127-locality table was never public. The data below is hand-transcribed
-directly from those publications, which is why this script is a plain literal
-dict rather than a fetch-and-parse pipeline - there's nothing bigger to
-automate against. Re-run only if a source value is corrected.
+Two very different pipelines feed the CITY level, deliberately kept
+distinguishable in the output (see CITY_EXTREMES_2019 vs
+load_local_authorities()'s own comments):
+  - Most city metrics ARE parsed from a real bulk file (CBS's local-
+    authorities processing package, up to 256 localities) - a first version
+    of this script wrongly assumed no such file existed and hand-transcribed
+    CBS press-release extremes instead, until a reviewer correctly pointed
+    out CBS publishes fuller per-locality files elsewhere. That
+    hand-transcribed data (CITY_EXTREMES_2019) is kept for the two metrics
+    (heart disease and cancer MORTALITY) that genuinely still don't exist
+    in any fuller file found - not for the metrics the local-authorities
+    file already covers better.
+  - ZONE and part of NATIONAL still come from that same hand-transcribed
+    2019 press release (its district/sub-district figures, some of which
+    are chart-only in the PDF - no fuller file exists for those either).
 
 Sources (see scratchpad research session, 2026-08-07):
-  CITY   - "פרופיל בריאותי-חברתי של היישובים בישראל, 2011-2017", CBS pub.
-           370/2019 (4/12/2019). Localities with 10,000+ residents (127
-           examined); tables only list the 10 highest + 10 lowest per metric,
-           plus the national average - not the full 127.
+  CITY (local authorities, PRIMARY) - "הרשויות המקומיות בישראל, 2022", CBS
+           pub. 1879, processing-data package (p_libud_22.xlsx) - up to 256
+           localities, real per-locality numbers for overall/infant
+           mortality, life expectancy, diabetes, cancer INCIDENCE (not
+           mortality) by sex, socio-economic and peripherality indices.
+           https://www.cbs.gov.il/he/publications/DocLib/2019/hamakomiot1999_2017/p_libud_22.xlsx
+           Requires openpyxl - not part of this repo's normal toolchain, so
+           NOT assumed to be installed globally. One-time setup:
+               python3 -m venv tools/.mortalityvenv
+               tools/.mortalityvenv/bin/pip install openpyxl
+           Needs the xlsx itself in zip/ (gitignored, not committed):
+               curl -sL -o zip/local_authorities_2022_p_libud_22.xlsx \\
+                   "https://www.cbs.gov.il/he/publications/DocLib/2019/hamakomiot1999_2017/p_libud_22.xlsx"
+  CITY (2019 extremes, heart disease + cancer mortality ONLY) - "פרופיל
+           בריאותי-חברתי של היישובים בישראל, 2011-2017", CBS pub. 370/2019.
+           Localities with 10,000+ residents (127 examined); tables only
+           list the 10 highest + 10 lowest per metric, plus the national
+           average - confirmed against both the PDF and DOCX renditions,
+           not a PDF-conversion artifact, and no fuller companion file was
+           found (checked the press release page directly, and CBS's own
+           "מארז קובצי נתונים לעיבוד" package for this series - it doesn't
+           include this particular publication).
            https://www.cbs.gov.il/he/mediarelease/DocLib/2019/370/05_19_370b.pdf
-  ZONE   - Same publication's district (מחוז)/sub-district (נפה) figures -
-           some are real numbers (life expectancy, overall mortality, infant
-           mortality, diabetes extremes), others are chart-only in the PDF
-           (cancer/heart disease by נפה) and so are recorded here as a
-           qualitative rank, not a rate - see `note` on those entries.
+  ZONE   - Same 2019 publication's district (מחוז)/sub-district (נפה)
+           figures - some are real numbers (life expectancy, overall
+           mortality, infant mortality, diabetes extremes), others are
+           chart-only in the PDF (cancer/heart disease by נפה) and so are
+           recorded here as a qualitative rank, not a rate - see `note` on
+           those entries.
   NATIONAL - "סיבות מוות בישראל, 2020-2022", CBS pub. 125/2024 (17/4/2024),
            table א (top 10 causes, 2020-2022) - this is the ONLY source with
            real stroke numbers at all; stroke never appears in the CITY or
@@ -33,11 +59,14 @@ Sources (see scratchpad research session, 2026-08-07):
            group (Jewish/Arab) ratios and life expectancy from the same
            report. Bedouin-specific infant mortality and maternal mortality
            are one-off figures from Ynet/Israel Hayom health reporting citing
-           CBS/Ministry of Health (no single CBS publication page covers both
-           - kept as a `source` string per fact instead of one shared URL).
+           CBS/Ministry of Health (no single CBS publication page covers
+           both). MDA drowning and police violence-by-district are national/
+           NGO sources, not CBS at all - see their own constants below for
+           why (MDA never publishes a district breakdown; police crime data
+           only exists publicly because of a freedom-of-information fight).
 
 Usage:
-    python3 tools/mortality_build.py
+    tools/.mortalityvenv/bin/python3 tools/mortality_build.py
 """
 import json
 from pathlib import Path
@@ -45,6 +74,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 SRC = ROOT / "src"
 
+LOCAL_AUTHORITIES_2022 = "CBS 1879/2022, הרשויות המקומיות בישראל 2022 - קובץ נתונים לעיבוד"
+LOCAL_AUTHORITIES_2022_URL = "https://www.cbs.gov.il/he/publications/DocLib/2019/hamakomiot1999_2017/p_libud_22.xlsx"
 CBS_LOCALITIES_2019 = "CBS 370/2019, פרופיל בריאותי-חברתי של היישובים בישראל 2011-2017"
 CBS_LOCALITIES_2019_URL = "https://www.cbs.gov.il/he/mediarelease/DocLib/2019/370/05_19_370b.pdf"
 CBS_CAUSES_2024 = "CBS 125/2024, סיבות מוות בישראל 2020-2022"
@@ -60,8 +91,10 @@ POLICE_VIOLENCE_MAP_URL = "https://www.meida.org.il/17146"
 # publication - see their own `source` fields below and the page's own "מה
 # ייחודי כאן" explainer for why that distinction matters).
 SOURCES = [
+    {"label": LOCAL_AUTHORITIES_2022, "url": LOCAL_AUTHORITIES_2022_URL,
+     "covers": "ערים (עד 256 רשויות): תמותה כללית, תמותת תינוקות, תוחלת חיים, סוכרת, היארעות סרטן, מדד חברתי-כלכלי ופריפריאליות"},
     {"label": CBS_LOCALITIES_2019, "url": CBS_LOCALITIES_2019_URL,
-     "covers": "ערים (65 יישובים), אזור (מחוז/נפה), תוחלת חיים לפי מגזר"},
+     "covers": "ערים: תמותה ממחלות לב ומסרטן בלבד (~20 יישובים כל אחד), אזור (מחוז/נפה), תוחלת חיים לפי מגזר"},
     {"label": CBS_CAUSES_2024, "url": CBS_CAUSES_2024_URL,
      "covers": "ארצי: התפלגות סיבות מוות (היחיד עם מספר לשבץ מוחי), פערי תמותה יהודים/ערבים"},
     {"label": "ynet, מבוסס על נתוני הלמ\"ס/משרד הבריאות", "url": YNET_BEDOUIN_INFANT_URL,
@@ -72,19 +105,28 @@ SOURCES = [
      "covers": "טביעה - הרוגים, ארצי בלבד (מד\"א אינו מפרסם לפי מחוז)"},
     {"label": "התנועה לחופש המידע, מפת הפשיעה בישראל", "url": POLICE_VIOLENCE_MAP_URL,
      "covers": "אלימות חמורה לפי מחוז, רצח ארצי - נתוני משטרה שפורסמו רק בעקבות בקשת חופש מידע"},
+    {"label": "CBS 362/2017, תוחלת חיים בישראל 2016", "url": "https://www.cbs.gov.il/he/mediarelease/DocLib/2017/362/05_17_362b.pdf",
+     "covers": "תוחלת חיים לפי דת (יהודים/מוסלמים/דרוזים/נוצרים ערבים) - פילוח שונה מ\"יהודים מול ערבים\""},
 ]
 
 # ---------------------------------------------------------------------------
-# CITY level - only localities that were actually named in a CBS top/bottom-10
-# table appear here; every other Israeli locality simply has no publicly
-# published cause-specific figure (see mortality-compare.html's own notice).
-# `n` = national average for that metric, repeated on every entry it applies
-# to would be redundant - stored once in CITY_METRICS below instead.
+# CITY level, part 1: heart-disease and cancer MORTALITY - the two metrics
+# that exist ONLY as CBS top-10/bottom-10 extremes (127 localities examined,
+# but never published beyond the extremes - confirmed against both the PDF
+# and DOCX renditions, see module docstring). Every other city metric below
+# (CITY_LOCAL_AUTHORITIES) comes from a real per-locality file instead and
+# covers up to 256 localities - these two do not, and can't, until CBS
+# publishes (or is asked for) the full table.
 # ---------------------------------------------------------------------------
 
 # rate/ci are as printed; a `low_n` flag marks values CBS itself parenthesised
 # as based on 5-19 cases (statistically unstable, still shown but flagged).
-CITY_MORTALITY = {
+# Overall mortality/infant mortality/life expectancy/diabetes ALSO appeared
+# in this same 2019 report as top/bottom-10 extremes, but are deliberately
+# NOT kept here - CITY_LOCAL_AUTHORITIES below supersedes them with a real
+# per-locality number (up to 256 localities instead of ~20), from a
+# different CBS publication with genuinely fuller coverage.
+CITY_EXTREMES_2019 = {
     # --- לוח א: שיעור תמותה מתוקנן לגיל (ל-1,000 תושבים), ממוצע 2013-2017 ---
     "מודיעין-מכבים-רעות": {"overallMortality": {"rate": 3.2, "ci": [2.9, 3.4]},
         "heartDisease": {"rate": 154.5, "ci": [121.4, 187.5]},
@@ -211,15 +253,183 @@ CITY_MORTALITY = {
 # מבשרת ציון already exist from earlier tables) by merging instead of
 # shadowing - Python dict literals would otherwise just silently keep only
 # the first "קריית טבעון" as one entry.
-CITY_MORTALITY["קריית טבעון"].update(CITY_MORTALITY.pop("קריית טבעון "))
-CITY_MORTALITY["מבשרת ציון"].update(CITY_MORTALITY.pop("מבשרת ציון "))
+CITY_EXTREMES_2019["קריית טבעון"].update(CITY_EXTREMES_2019.pop("קריית טבעון "))
+CITY_EXTREMES_2019["מבשרת ציון"].update(CITY_EXTREMES_2019.pop("מבשרת ציון "))
+
+# ---------------------------------------------------------------------------
+# CITY level, part 2: everything else, from a REAL per-locality file this
+# time - CBS's annual "הרשויות המקומיות בישראל" processing-data package
+# (found after a reviewer correctly pointed out the 2019 report almost
+# certainly had a fuller companion file - it didn't, that link 404s, but
+# this is the actual fuller source, a different CBS publication entirely).
+# Up to 256 localities instead of ~20-65, and a real parser instead of
+# hand-transcription, because this genuinely IS a bulk machine-readable
+# file (unlike CITY_EXTREMES_2019 above).
+#
+# Source: CBS, "הרשויות המקומיות בישראל, 2022" (pub. 1879), the "קובצי
+# נתונים לעיבוד 1999-2024" package's 2022 file (p_libud_22.xlsx):
+# https://www.cbs.gov.il/he/publications/DocLib/2019/hamakomiot1999_2017/p_libud_22.xlsx
+# Sheet "נתונים פיזיים ונתוני אוכלוסייה", row 3 (0-indexed) is the header.
+# Column indices below were confirmed by name against that header, not
+# guessed by position - a merged-header row makes position alone unreliable.
+LOCAL_AUTHORITIES_XLSX = ROOT / "zip" / "local_authorities_2022_p_libud_22.xlsx"
+
+_LA_COLS = {
+    "name": 0, "code": 1, "district": 2, "pop": 12,
+    "infant_rate": 36, "death_rate": 38,
+    "life_exp": 80, "diab_rate": 82,
+    "cancer_m_rate": 86, "cancer_f_rate": 88,
+    "cluster": 242, "cluster_val": 243, "cluster_rank": 244,
+    "periph_cluster": 248, "periph_val": 249, "periph_rank": 250,
+}
+
+
+def _la_num(v):
+    """Cells in this file are either a clean float (per-locality rows) or a
+    whitespace/comma-padded string (the aggregate rows, and some low-n
+    per-locality cells use parens the same way CITY_EXTREMES_2019's source
+    does). Returns (value, low_n) or None for missing/suppressed ('..', '-')."""
+    if isinstance(v, (int, float)):
+        return round(float(v), 2), False
+    if isinstance(v, str):
+        s = v.replace("\xa0", "").strip()
+        low_n = s.startswith("(") and s.endswith(")")
+        s = s.strip("()").replace(",", "").strip()
+        try:
+            return round(float(s), 2), low_n
+        except ValueError:
+            return None
+    return None
+
+
+def load_local_authorities():
+    import openpyxl
+    wb = openpyxl.load_workbook(LOCAL_AUTHORITIES_XLSX, read_only=True, data_only=True)
+    ws = wb["נתונים פיזיים ונתוני אוכלוסייה "]
+    rows = list(ws.iter_rows(values_only=True))
+    data_rows = [r for r in rows[4:] if r[0] and r[1]]  # drop header rows and the כלל ארצי/עיריות/... aggregate rows (no code)
+
+    national_row = next(r for r in rows if r[0] == "כלל ארצי")
+
+    def rate_field(row, key):
+        parsed = _la_num(row[_LA_COLS[key]])
+        if parsed is None:
+            return None
+        value, low_n = parsed
+        return {"rate": value, "low_n": low_n} if low_n else {"rate": value}
+
+    out = {}
+    for r in data_rows:
+        name = str(r[0]).strip()
+        entry = {
+            "code": r[_LA_COLS["code"]],
+            "district": str(r[_LA_COLS["district"]]).strip() if r[_LA_COLS["district"]] else None,
+        }
+        overall = rate_field(r, "death_rate")
+        if overall:
+            entry["overallMortality"] = overall
+        infant = rate_field(r, "infant_rate")
+        if infant:
+            entry["infantMortality"] = infant
+        life_exp = _la_num(r[_LA_COLS["life_exp"]])
+        if life_exp:
+            entry["lifeExpectancy"] = {"rate": life_exp[0]}
+        diab = rate_field(r, "diab_rate")
+        if diab:
+            entry["diabetes"] = diab
+        cm = rate_field(r, "cancer_m_rate")
+        if cm:
+            entry["cancerIncidenceMen"] = cm
+        cf = rate_field(r, "cancer_f_rate")
+        if cf:
+            entry["cancerIncidenceWomen"] = cf
+        cluster = _la_num(r[_LA_COLS["cluster"]])
+        cluster_val = _la_num(r[_LA_COLS["cluster_val"]])
+        cluster_rank = _la_num(r[_LA_COLS["cluster_rank"]])
+        if cluster_val:
+            entry["socioEconomic"] = {
+                "cluster": cluster[0] if cluster else None,
+                "value": cluster_val[0],
+                "rank": cluster_rank[0] if cluster_rank else None,
+            }
+        periph_val = _la_num(r[_LA_COLS["periph_val"]])
+        periph_rank = _la_num(r[_LA_COLS["periph_rank"]])
+        periph_cluster = _la_num(r[_LA_COLS["periph_cluster"]])
+        if periph_val:
+            entry["peripherality"] = {
+                "cluster": periph_cluster[0] if periph_cluster else None,
+                "value": periph_val[0],
+                "rank": periph_rank[0] if periph_rank else None,
+            }
+        out[name] = entry
+
+    national = {k: _la_num(national_row[i])[0] for k, i in _LA_COLS.items() if k in
+                ("death_rate", "infant_rate", "life_exp", "diab_rate", "cancer_m_rate", "cancer_f_rate")}
+    return out, national
+
+
+# A locality's name sometimes differs between the two CBS sources - either
+# a real rename (נצרת עילית -> נוף הגליל, official since 2019) or just
+# inconsistent hyphen/space styling (תל אביב-יפו vs תל אביב -יפו, the same
+# קרית/קריית טבעון kind of inconsistency already handled above, just
+# across files this time instead of within one).
+_NAME_ALIAS_TO_LOCAL_AUTHORITIES = {
+    "נצרת עילית": "נוף הגליל",
+    "תל אביב-יפו": "תל אביב -יפו",
+}
+
+
+def build_city_mortality():
+    local_authorities, national = load_local_authorities()
+
+    # Only heartDisease/cancer (renamed cancerMortality) survive from
+    # CITY_EXTREMES_2019 - every other field there is superseded by
+    # local_authorities' broader, more current coverage (see that dict's
+    # own header comment).
+    merged = {name: dict(fields) for name, fields in local_authorities.items()}
+    unmatched = []
+    for city, fields in CITY_EXTREMES_2019.items():
+        target_name = _NAME_ALIAS_TO_LOCAL_AUTHORITIES.get(city, city)
+        overlay = {}
+        if "heartDisease" in fields:
+            overlay["heartDisease"] = fields["heartDisease"]
+        if "cancer" in fields:
+            overlay["cancerMortality"] = fields["cancer"]
+        if not overlay:
+            continue
+        if target_name not in merged:
+            unmatched.append(city)
+            merged[target_name] = overlay
+        else:
+            merged[target_name].update(overlay)
+    if unmatched:
+        raise SystemExit(f"CITY_EXTREMES_2019 localities not found in local_authorities file (name mismatch?): {unmatched}")
+
+    return merged, national
+
+
+CITY_MORTALITY, _LA_NATIONAL = build_city_mortality()
 
 CITY_METRIC_META = {
-    "overallMortality": {"label": "תמותה כללית (מתוקננת)", "unit": "ל-1,000 תושבים", "national": 4.9, "source": CBS_LOCALITIES_2019, "period": "ממוצע 2013-2017"},
+    "overallMortality": {"label": "תמותה כללית (מתוקננת)", "unit": "ל-1,000 תושבים", "national": _LA_NATIONAL["death_rate"], "source": LOCAL_AUTHORITIES_2022, "period": "2022"},
     "heartDisease": {"label": "תמותה ממחלות לב", "unit": "ל-100,000 (גיל 45+)", "national": 247.05, "source": CBS_LOCALITIES_2019, "period": "ממוצע 2012-2016"},
-    "cancer": {"label": "תמותה מסרטן", "unit": "ל-100,000 (גיל 45+)", "national": 412.31, "source": CBS_LOCALITIES_2019, "period": "ממוצע 2012-2016"},
-    "infantMortality": {"label": "תמותת תינוקות", "unit": "ל-1,000 לידות חי", "national": 3.1, "source": CBS_LOCALITIES_2019, "period": "ממוצע 2013-2017"},
-    "diabetes": {"label": "הימצאות סוכרת", "unit": "ל-1,000 תושבים", "national": 56.2, "source": CBS_LOCALITIES_2019, "period": "ממוצע 2012-2016"},
+    "cancerMortality": {"label": "תמותה מסרטן", "unit": "ל-100,000 (גיל 45+)", "national": 412.31, "source": CBS_LOCALITIES_2019, "period": "ממוצע 2012-2016"},
+    "infantMortality": {"label": "תמותת תינוקות", "unit": "ל-1,000 לידות חי", "national": _LA_NATIONAL["infant_rate"], "source": LOCAL_AUTHORITIES_2022, "period": "2022"},
+    "diabetes": {"label": "הימצאות סוכרת (מקרים)", "unit": "ל-1,000 תושבים", "national": _LA_NATIONAL["diab_rate"], "source": LOCAL_AUTHORITIES_2022, "period": "2022"},
+    "lifeExpectancy": {"label": "תוחלת חיים", "unit": "שנים", "national": _LA_NATIONAL["life_exp"], "source": LOCAL_AUTHORITIES_2022, "period": "2022"},
+    "cancerIncidenceMen": {"label": "היארעות סרטן, גברים (לא תמותה)", "unit": "ל-100,000", "national": _LA_NATIONAL["cancer_m_rate"], "source": LOCAL_AUTHORITIES_2022, "period": "2022"},
+    "cancerIncidenceWomen": {"label": "היארעות סרטן, נשים (לא תמותה)", "unit": "ל-100,000", "national": _LA_NATIONAL["cancer_f_rate"], "source": LOCAL_AUTHORITIES_2022, "period": "2022"},
+}
+
+# Not mortality metrics - shown as their own leaderboard entries anyway
+# (same UI, same city roster) since a viewer comparing mortality across
+# cities will often want to see whether it lines up with socio-economic
+# standing without leaving the page. `value` is the continuous index (a
+# far better regressor than the 1-10 cluster alone); `rank` is 1-255
+# (socio-economic) or 1-255 (peripherality), 1 = lowest/most peripheral.
+CITY_CONTEXT_METRIC_META = {
+    "socioEconomic": {"label": "מדד חברתי-כלכלי (ערך)", "unit": "", "source": LOCAL_AUTHORITIES_2022, "period": "2019"},
+    "peripherality": {"label": "מדד פריפריאליות (ערך)", "unit": "", "source": LOCAL_AUTHORITIES_2022, "period": "2022/23"},
 }
 
 # ---------------------------------------------------------------------------
@@ -288,6 +498,40 @@ NATIONAL_BY_POPULATION_GROUP = {
         {"cause": "דמנציה (קיהיון)", "multiplier": 1.3},
     ],
     "source": CBS_CAUSES_2024, "period": "2020-2022, שיעורים מתוקננים לגיל",
+}
+
+# Jewish/Arab is CBS's own primary split for cause-specific mortality
+# (NATIONAL_BY_POPULATION_GROUP above), but life expectancy is ALSO
+# published broken out by religion within the Arab population (Muslim/
+# Druze/Christian-Arab aren't interchangeable - Druze life expectancy is
+# consistently higher than Muslim, for instance) - a different, older CBS
+# publication than every other NATIONAL_* fact on this page.
+NATIONAL_LIFE_EXPECTANCY_BY_RELIGION = {
+    "groups": [
+        {"label": "יהודים", "men": 81.2, "women": 84.6},
+        {"label": "מוסלמים", "men": 76.5, "women": 80.9},
+        {"label": "דרוזים", "men": 79.4, "women": 82.4},
+        {"label": "נוצרים ערבים", "men": 78.9, "women": 83.5},
+    ],
+    "period": "ממוצע 2014-2016",
+    "source": "CBS 362/2017, תוחלת חיים בישראל 2016",
+    "sourceUrl": "https://www.cbs.gov.il/he/mediarelease/DocLib/2017/362/05_17_362b.pdf",
+}
+
+# There's no official Haredi/secular/religious mortality statistic at all -
+# "מידת דתיות" (religiosity) isn't a census category the way religion is,
+# only a self-reported item on CBS's own Social Survey, never crossed with
+# mortality data in anything found. What DOES exist, from the SAME 2019
+# CBS publication already cited everywhere else on this page: known
+# Haredi-majority cities showing life expectancy well above what their own
+# (low) socio-economic index would predict - a real, sourced finding, just
+# not a clean "Haredi mortality rate" number. Every city named here already
+# has its own real numbers in CITY_MORTALITY (life expectancy, socio-
+# economic index) - this is a pointer to go compare them, not new data.
+NATIONAL_HAREDI_NOTE = {
+    "cities": ["מודיעין עילית", "בני ברק", "ביתר עילית", "בית שמש", "ירושלים"],
+    "note": "יישובים חרדים ברובם המציגים תוחלת חיים גבוהה יחסית, חריגה ביחס למדד החברתי-כלכלי הנמוך שלהם - הקשר ההפוך שמתקיים ברוב היישובים האחרים. אין נתון רשמי נפרד ל\"תמותה חרדית\" - זו תצפית על יישובים ספציפיים, לא סטטיסטיקה של מגזר.",
+    "source": CBS_LOCALITIES_2019,
 }
 
 NATIONAL_INFANT_MORTALITY_BY_SECTOR = {
@@ -373,11 +617,14 @@ def main():
         write_js("SOURCES", SOURCES),
         write_js("CITY_MORTALITY", CITY_MORTALITY),
         write_js("CITY_METRIC_META", CITY_METRIC_META),
+        write_js("CITY_CONTEXT_METRIC_META", CITY_CONTEXT_METRIC_META),
         write_js("ZONE_DISTRICT", ZONE_DISTRICT),
         write_js("ZONE_SUBDISTRICT", ZONE_SUBDISTRICT),
         write_js("ZONE_META", ZONE_META),
         write_js("NATIONAL_TOP_CAUSES", NATIONAL_TOP_CAUSES),
         write_js("NATIONAL_BY_POPULATION_GROUP", NATIONAL_BY_POPULATION_GROUP),
+        write_js("NATIONAL_LIFE_EXPECTANCY_BY_RELIGION", NATIONAL_LIFE_EXPECTANCY_BY_RELIGION),
+        write_js("NATIONAL_HAREDI_NOTE", NATIONAL_HAREDI_NOTE),
         write_js("NATIONAL_INFANT_MORTALITY_BY_SECTOR", NATIONAL_INFANT_MORTALITY_BY_SECTOR),
         write_js("NATIONAL_MATERNAL_MORTALITY", NATIONAL_MATERNAL_MORTALITY),
         write_js("NATIONAL_MDA_DROWNING", NATIONAL_MDA_DROWNING),

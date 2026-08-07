@@ -4,16 +4,21 @@
  * purpose rather than merged into one table/map (see mortality-data.js's
  * own header comment and the page's own "מה יש כאן" notice for why):
  *
- *  - CITY: real per-locality figures, but only for the 65 localities CBS
- *    itself named as a top-10/bottom-10 extreme in "פרופיל בריאותי-חברתי
- *    של היישובים בישראל, 2011-2017" - not a national roster. A choropleth
- *    map (this site's usual idiom - see canopy-map.js) was deliberately
- *    NOT used here: with only 65 of ~200 localities having any figure at
- *    all, a map would be mostly empty/gray, and boundary geometry doesn't
- *    exist for most of these small towns anyway (MAP_CITIES only covers
- *    the cities canopy_build.py/real_estate_build.py needed). A leaderboard
- *    naturally just lists whoever has data, the same reasoning
- *    real-estate-compare.js already established for this repo.
+ *  - CITY: two very different coverage levels sharing one leaderboard UI.
+ *    Most metrics (overall/infant mortality, life expectancy, diabetes,
+ *    cancer INCIDENCE, socio-economic/peripherality index) come from CBS's
+ *    real per-locality "הרשויות המקומיות בישראל" processing file - up to
+ *    256 localities, a real parsed spreadsheet (see tools/mortality_build.py).
+ *    Two metrics (heart disease and cancer MORTALITY) still come only from
+ *    the older "פרופיל בריאותי-חברתי" press release's top-10/bottom-10
+ *    extremes (~20 localities each) - that publication was never released
+ *    as a fuller file (checked directly, see that script's own docstring).
+ *    A choropleth map (this site's usual idiom - see canopy-map.js) was
+ *    deliberately NOT used here: boundary geometry doesn't exist for most
+ *    of these smaller towns anyway (MAP_CITIES only covers the cities
+ *    canopy_build.py/real_estate_build.py needed). A leaderboard naturally
+ *    just lists whoever has data for the metric currently picked, the same
+ *    reasoning real-estate-compare.js already established for this repo.
  *  - ZONE: district (מחוז)/sub-district (נפה) - some real rates, some
  *    qualitative-rank-only (see ZONE_DISTRICT/ZONE_SUBDISTRICT `rank`-only
  *    entries in mortality-data.js) because the source only ever published
@@ -33,11 +38,12 @@ import { renderAppContext, loadAppsData } from './apps.js';
 import { renderBarChart, renderHBarChart } from './charts.js';
 import {
   SOURCES,
-  CITY_MORTALITY, CITY_METRIC_META,
+  CITY_MORTALITY, CITY_METRIC_META, CITY_CONTEXT_METRIC_META,
   ZONE_DISTRICT, ZONE_SUBDISTRICT, ZONE_META,
   NATIONAL_TOP_CAUSES, NATIONAL_BY_POPULATION_GROUP,
   NATIONAL_INFANT_MORTALITY_BY_SECTOR, NATIONAL_MATERNAL_MORTALITY, NATIONAL_META,
   NATIONAL_MDA_DROWNING, NATIONAL_POLICE_VIOLENCE_BY_DISTRICT, NATIONAL_POLICE_VIOLENCE_META, NATIONAL_POLICE_MURDER,
+  NATIONAL_LIFE_EXPECTANCY_BY_RELIGION, NATIONAL_HAREDI_NOTE,
 } from './mortality-data.js';
 
 // Looks up a source's URL by its label text (SOURCES is the single place
@@ -69,19 +75,32 @@ if (!Number.isNaN(created.getTime())) {
 
 /* ===================== CITIES ===================== */
 
-const CITY_METRIC_ORDER = ['overallMortality', 'heartDisease', 'cancer', 'infantMortality', 'diabetes'];
+// Mortality/health metrics first, then the two context-only ones
+// (socioEconomic/peripherality have no `national` average - they're an
+// index, not a rate - see CITY_CONTEXT_METRIC_META's own comment).
+const ALL_CITY_METRIC_META = { ...CITY_METRIC_META, ...CITY_CONTEXT_METRIC_META };
+const CITY_METRIC_ORDER = [
+  'overallMortality', 'heartDisease', 'cancerMortality', 'infantMortality',
+  'lifeExpectancy', 'diabetes', 'cancerIncidenceMen', 'cancerIncidenceWomen',
+  'socioEconomic', 'peripherality',
+];
 
+// socioEconomic/peripherality store their continuous number as `.value`
+// (alongside `.cluster`/`.rank`), every mortality/health metric as `.rate`
+// (alongside `.ci`/`.low_n`) - `.rate ?? .value` reads whichever this
+// metric actually has, so the rest of the UI doesn't need to know which
+// of the two metric families it's currently showing.
 function cityEntriesFor(metricId) {
   return Object.entries(CITY_MORTALITY)
-    .filter(([, v]) => v[metricId]?.rate != null)
-    .map(([city, v]) => ({ city, ...v[metricId] }));
+    .filter(([, v]) => (v[metricId]?.rate ?? v[metricId]?.value) != null)
+    .map(([city, v]) => ({ city, ...v[metricId], rate: v[metricId].rate ?? v[metricId].value }));
 }
 
 let activeCityMetric = CITY_METRIC_ORDER[0];
 
 function renderCityMetricPicker() {
   const box = el('cityMetricPick');
-  box.innerHTML = CITY_METRIC_ORDER.map((id) => `<button type="button" data-metric="${id}" class="tc-level-btn${id === activeCityMetric ? ' active' : ''}">${esc(CITY_METRIC_META[id].label)}</button>`).join('');
+  box.innerHTML = CITY_METRIC_ORDER.map((id) => `<button type="button" data-metric="${id}" class="tc-level-btn${id === activeCityMetric ? ' active' : ''}">${esc(ALL_CITY_METRIC_META[id].label)}</button>`).join('');
   box.querySelectorAll('button').forEach((btn) => {
     btn.addEventListener('click', () => { activeCityMetric = btn.dataset.metric; renderCityBoard(); });
   });
@@ -89,9 +108,10 @@ function renderCityMetricPicker() {
 
 function renderCityBoard() {
   renderCityMetricPicker();
-  const meta = CITY_METRIC_META[activeCityMetric];
+  const meta = ALL_CITY_METRIC_META[activeCityMetric];
   const entries = cityEntriesFor(activeCityMetric).sort((a, b) => b.rate - a.rate);
-  el('cityHint').innerHTML = `${entries.length} יישובים עם נתון ל"${esc(meta.label)}" (${esc(meta.period)}) - ${sourceLink(meta.source)}. ממוצע ארצי: ${num(meta.national)} ${esc(meta.unit)}. ערכים עם רקע קווקוו הם על סמך פחות מ-20 מקרים ולכן פחות יציבים.`;
+  const nationalPart = meta.national != null ? ` ממוצע ארצי: ${num(meta.national)} ${esc(meta.unit)}.` : '';
+  el('cityHint').innerHTML = `${entries.length} יישובים עם נתון ל"${esc(meta.label)}" (${esc(meta.period)}) - ${sourceLink(meta.source)}.${nationalPart} ערכים עם רקע קווקוו הם על סמך פחות מ-20 מקרים ולכן פחות יציבים.`;
   renderHBarChart('cityBoardCharts', `${meta.label} - כל הערים עם נתון, ${meta.unit}`,
     entries.map((e) => ({ label: e.city + (e.low_n ? ' *' : ''), value: e.rate })),
     meta.unit);
@@ -116,11 +136,12 @@ function cityCsvRows() {
   for (const [city, metrics] of Object.entries(CITY_MORTALITY)) {
     for (const metricId of CITY_METRIC_ORDER) {
       const m = metrics[metricId];
-      if (m?.rate == null) continue;
+      const rate = m?.rate ?? m?.value;
+      if (rate == null) continue;
       rows.push({
-        city, metric: CITY_METRIC_META[metricId].label, rate: m.rate,
-        unit: CITY_METRIC_META[metricId].unit, ci_low: m.ci?.[0] ?? '', ci_high: m.ci?.[1] ?? '',
-        low_n: m.low_n ? 'כן' : '', period: CITY_METRIC_META[metricId].period,
+        city, metric: ALL_CITY_METRIC_META[metricId].label, rate,
+        unit: ALL_CITY_METRIC_META[metricId].unit, ci_low: m.ci?.[0] ?? '', ci_high: m.ci?.[1] ?? '',
+        low_n: m.low_n ? 'כן' : '', period: ALL_CITY_METRIC_META[metricId].period,
       });
     }
   }
@@ -234,6 +255,34 @@ function renderNationalPopGroup() {
     </div>`;
 }
 
+function renderNationalReligion() {
+  const d = NATIONAL_LIFE_EXPECTANCY_BY_RELIGION;
+  const entries = [];
+  for (const g of d.groups) {
+    entries.push({ label: `${g.label} - גברים`, value: g.men });
+    entries.push({ label: `${g.label} - נשים`, value: g.women });
+  }
+  renderHBarChart('natReligionChart', `תוחלת חיים לפי דת, ${d.period}`, entries, 'שנים');
+  el('natReligionNote').innerHTML = `פילוח שונה מ"יהודים מול ערבים" למעלה - כאן ערבים מפוצלים למוסלמים/דרוזים/נוצרים. מקור: ${sourceLink(d.source)}`;
+}
+
+function renderNationalHaredi() {
+  const h = NATIONAL_HAREDI_NOTE;
+  const cityRows = h.cities.map((city) => {
+    const v = CITY_MORTALITY[city];
+    const le = v?.lifeExpectancy?.rate;
+    const se = v?.socioEconomic;
+    const parts = [];
+    if (le != null) parts.push(`תוחלת חיים ${le}`);
+    if (se) parts.push(`אשכול חברתי-כלכלי ${se.cluster}/10`);
+    return `<li><strong>${esc(city)}</strong>${parts.length ? ' - ' + esc(parts.join(', ')) : ''}</li>`;
+  }).join('');
+  el('natHaredi').innerHTML = `
+    <p>${esc(h.note)}</p>
+    <ul>${cityRows}</ul>
+    <p class="acc-hint" dir="auto">נתוני תוחלת חיים ומדד חברתי-כלכלי לכל עיר - ראו את אותן ערים בלוח "ערים" למעלה. מקור: ${sourceLink(h.source)}</p>`;
+}
+
 function renderNationalInfantSector() {
   const d = NATIONAL_INFANT_MORTALITY_BY_SECTOR;
   renderBarChart('natInfantSectorChart', `תמותת תינוקות לפי מגזר, ${d.unit}`, [
@@ -290,6 +339,8 @@ renderCityBoard();
 renderZone();
 renderNationalCauses();
 renderNationalPopGroup();
+renderNationalReligion();
+renderNationalHaredi();
 renderNationalInfantSector();
 renderNationalMaternal();
 renderMdaDrowning();

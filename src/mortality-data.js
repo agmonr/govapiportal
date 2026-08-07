@@ -5,9 +5,14 @@
 
 export const SOURCES = [
   {
+    "label": "CBS 1879/2022, הרשויות המקומיות בישראל 2022 - קובץ נתונים לעיבוד",
+    "url": "https://www.cbs.gov.il/he/publications/DocLib/2019/hamakomiot1999_2017/p_libud_22.xlsx",
+    "covers": "ערים (עד 256 רשויות): תמותה כללית, תמותת תינוקות, תוחלת חיים, סוכרת, היארעות סרטן, מדד חברתי-כלכלי ופריפריאליות"
+  },
+  {
     "label": "CBS 370/2019, פרופיל בריאותי-חברתי של היישובים בישראל 2011-2017",
     "url": "https://www.cbs.gov.il/he/mediarelease/DocLib/2019/370/05_19_370b.pdf",
-    "covers": "ערים (65 יישובים), אזור (מחוז/נפה), תוחלת חיים לפי מגזר"
+    "covers": "ערים: תמותה ממחלות לב ומסרטן בלבד (~20 יישובים כל אחד), אזור (מחוז/נפה), תוחלת חיים לפי מגזר"
   },
   {
     "label": "CBS 125/2024, סיבות מוות בישראל 2020-2022",
@@ -33,92 +38,339 @@ export const SOURCES = [
     "label": "התנועה לחופש המידע, מפת הפשיעה בישראל",
     "url": "https://www.meida.org.il/17146",
     "covers": "אלימות חמורה לפי מחוז, רצח ארצי - נתוני משטרה שפורסמו רק בעקבות בקשת חופש מידע"
+  },
+  {
+    "label": "CBS 362/2017, תוחלת חיים בישראל 2016",
+    "url": "https://www.cbs.gov.il/he/mediarelease/DocLib/2017/362/05_17_362b.pdf",
+    "covers": "תוחלת חיים לפי דת (יהודים/מוסלמים/דרוזים/נוצרים ערבים) - פילוח שונה מ\"יהודים מול ערבים\""
   }
 ];
 
 export const CITY_MORTALITY = {
-  "מודיעין-מכבים-רעות": {
+  "אום אל-פחם": {
+    "code": 2710,
+    "district": "חיפה",
     "overallMortality": {
-      "rate": 3.2,
-      "ci": [
-        2.9,
-        3.4
-      ]
-    },
-    "heartDisease": {
-      "rate": 154.5,
-      "ci": [
-        121.4,
-        187.5
-      ]
+      "rate": 6.16
     },
     "infantMortality": {
-      "rate": 1.7,
-      "low_n": true
-    }
-  },
-  "שוהם": {
-    "overallMortality": {
-      "rate": 3.2,
-      "ci": [
-        2.7,
-        3.7
-      ]
-    },
-    "heartDisease": {
-      "rate": 157.5,
-      "ci": [
-        84.0,
-        231.0
-      ]
-    }
-  },
-  "מודיעין עילית": {
-    "overallMortality": {
-      "rate": 3.3,
-      "ci": [
-        2.7,
-        3.8
-      ]
+      "rate": 4.2
     },
     "lifeExpectancy": {
-      "total": 87.6,
-      "sizeClass": "50k-99999",
-      "rank": "highest"
-    }
-  },
-  "גבעת זאב": {
-    "overallMortality": {
-      "rate": 3.4,
-      "ci": [
-        2.8,
-        3.9
-      ]
-    }
-  },
-  "מבשרת ציון": {
-    "overallMortality": {
-      "rate": 3.6,
-      "ci": [
-        3.3,
-        3.9
-      ]
+      "rate": 78.75
     },
     "diabetes": {
-      "rate": 41.5,
+      "rate": 109.29
+    },
+    "cancerIncidenceMen": {
+      "rate": 312.99
+    },
+    "cancerIncidenceWomen": {
+      "rate": 219.08
+    },
+    "socioEconomic": {
+      "cluster": 2.0,
+      "value": -1.35,
+      "rank": 20.0
+    },
+    "peripherality": {
+      "cluster": 5.0,
+      "value": 0.17,
+      "rank": 146.0
+    }
+  },
+  "אופקים": {
+    "code": 31,
+    "district": "הדרום",
+    "overallMortality": {
+      "rate": 6.51
+    },
+    "infantMortality": {
+      "rate": 3.6,
+      "low_n": true
+    },
+    "diabetes": {
+      "rate": 68.68
+    },
+    "cancerIncidenceMen": {
+      "rate": 343.08
+    },
+    "cancerIncidenceWomen": {
+      "rate": 353.67
+    },
+    "socioEconomic": {
+      "cluster": 3.0,
+      "value": -0.69,
+      "rank": 72.0
+    },
+    "peripherality": {
+      "cluster": 3.0,
+      "value": -0.47,
+      "rank": 66.0
+    },
+    "cancerMortality": {
+      "rate": 511.3,
       "ci": [
-        40.9,
-        42.1
+        436.0,
+        586.7
       ]
+    }
+  },
+  "אור יהודה": {
+    "code": 2400,
+    "district": "תל אביב",
+    "overallMortality": {
+      "rate": 5.26
+    },
+    "diabetes": {
+      "rate": 64.86
+    },
+    "cancerIncidenceMen": {
+      "rate": 306.0
+    },
+    "cancerIncidenceWomen": {
+      "rate": 275.14
+    },
+    "socioEconomic": {
+      "cluster": 5.0,
+      "value": 0.07,
+      "rank": 137.0
+    },
+    "peripherality": {
+      "cluster": 8.0,
+      "value": 2.48,
+      "rank": 241.0
+    }
+  },
+  "אור עקיבא": {
+    "code": 1020,
+    "district": "חיפה",
+    "overallMortality": {
+      "rate": 6.04
+    },
+    "diabetes": {
+      "rate": 66.13
+    },
+    "socioEconomic": {
+      "cluster": 5.0,
+      "value": -0.02,
+      "rank": 126.0
+    },
+    "peripherality": {
+      "cluster": 6.0,
+      "value": 0.42,
+      "rank": 167.0
+    },
+    "cancerMortality": {
+      "rate": 516.8,
+      "ci": [
+        435.9,
+        597.7
+      ]
+    }
+  },
+  "אילת": {
+    "code": 2600,
+    "district": "הדרום",
+    "overallMortality": {
+      "rate": 5.39
+    },
+    "infantMortality": {
+      "rate": 2.0,
+      "low_n": true
+    },
+    "lifeExpectancy": {
+      "rate": 80.49
+    },
+    "diabetes": {
+      "rate": 54.88
+    },
+    "cancerIncidenceMen": {
+      "rate": 374.9
+    },
+    "cancerIncidenceWomen": {
+      "rate": 347.96
+    },
+    "socioEconomic": {
+      "cluster": 6.0,
+      "value": 0.23,
+      "rank": 149.0
+    },
+    "peripherality": {
+      "cluster": 1.0,
+      "value": -2.48,
+      "rank": 1.0
+    },
+    "cancerMortality": {
+      "rate": 495.7,
+      "ci": [
+        435.6,
+        555.8
+      ]
+    }
+  },
+  "אלעד": {
+    "code": 1309,
+    "district": "המרכז",
+    "overallMortality": {
+      "rate": 3.44
+    },
+    "infantMortality": {
+      "rate": 2.0,
+      "low_n": true
+    },
+    "diabetes": {
+      "rate": 56.05
+    },
+    "cancerIncidenceMen": {
+      "rate": 234.72
+    },
+    "cancerIncidenceWomen": {
+      "rate": 231.67
+    },
+    "socioEconomic": {
+      "cluster": 2.0,
+      "value": -1.42,
+      "rank": 19.0
+    },
+    "peripherality": {
+      "cluster": 7.0,
+      "value": 1.52,
+      "rank": 224.0
+    }
+  },
+  "אריאל": {
+    "code": 3570,
+    "district": "אזור יהודה והשומרון",
+    "overallMortality": {
+      "rate": 4.81
+    },
+    "diabetes": {
+      "rate": 56.81
+    },
+    "socioEconomic": {
+      "cluster": 6.0,
+      "value": 0.24,
+      "rank": 151.0
+    },
+    "peripherality": {
+      "cluster": 5.0,
+      "value": 0.22,
+      "rank": 151.0
+    }
+  },
+  "אשדוד": {
+    "code": 70,
+    "district": "הדרום",
+    "overallMortality": {
+      "rate": 5.0
+    },
+    "infantMortality": {
+      "rate": 2.7
+    },
+    "lifeExpectancy": {
+      "rate": 82.47
+    },
+    "diabetes": {
+      "rate": 60.59
+    },
+    "cancerIncidenceMen": {
+      "rate": 338.8
+    },
+    "cancerIncidenceWomen": {
+      "rate": 316.44
+    },
+    "socioEconomic": {
+      "cluster": 5.0,
+      "value": -0.19,
+      "rank": 108.0
+    },
+    "peripherality": {
+      "cluster": 7.0,
+      "value": 1.21,
+      "rank": 211.0
+    }
+  },
+  "אשקלון": {
+    "code": 7100,
+    "district": "הדרום",
+    "overallMortality": {
+      "rate": 5.18
+    },
+    "infantMortality": {
+      "rate": 2.0
+    },
+    "lifeExpectancy": {
+      "rate": 82.12
+    },
+    "diabetes": {
+      "rate": 58.08
+    },
+    "cancerIncidenceMen": {
+      "rate": 368.56
+    },
+    "cancerIncidenceWomen": {
+      "rate": 337.31
+    },
+    "socioEconomic": {
+      "cluster": 5.0,
+      "value": -0.08,
+      "rank": 119.0
+    },
+    "peripherality": {
+      "cluster": 6.0,
+      "value": 0.57,
+      "rank": 177.0
+    }
+  },
+  "באקה אל-גרביה": {
+    "code": 6000,
+    "district": "חיפה",
+    "overallMortality": {
+      "rate": 6.77
+    },
+    "infantMortality": {
+      "rate": 5.4,
+      "low_n": true
+    },
+    "diabetes": {
+      "rate": 92.18
+    },
+    "cancerIncidenceMen": {
+      "rate": 276.41
+    },
+    "cancerIncidenceWomen": {
+      "rate": 249.79
+    },
+    "socioEconomic": {
+      "cluster": 4.0,
+      "value": -0.64,
+      "rank": 75.0
+    },
+    "peripherality": {
+      "cluster": 6.0,
+      "value": 0.45,
+      "rank": 170.0
     }
   },
   "באר יעקב": {
+    "code": 2530,
+    "district": "המרכז",
     "overallMortality": {
-      "rate": 3.6,
-      "ci": [
-        3.1,
-        4.1
-      ]
+      "rate": 3.42
+    },
+    "diabetes": {
+      "rate": 51.86
+    },
+    "socioEconomic": {
+      "cluster": 7.0,
+      "value": 0.82,
+      "rank": 197.0
+    },
+    "peripherality": {
+      "cluster": 8.0,
+      "value": 2.0,
+      "rank": 233.0
     },
     "heartDisease": {
       "rate": 163.9,
@@ -128,22 +380,2006 @@ export const CITY_MORTALITY = {
       ]
     }
   },
-  "גדרה": {
+  "באר שבע": {
+    "code": 9000,
+    "district": "הדרום",
     "overallMortality": {
-      "rate": 3.7,
+      "rate": 5.46
+    },
+    "infantMortality": {
+      "rate": 2.6
+    },
+    "lifeExpectancy": {
+      "rate": 81.47
+    },
+    "diabetes": {
+      "rate": 60.66
+    },
+    "cancerIncidenceMen": {
+      "rate": 356.76
+    },
+    "cancerIncidenceWomen": {
+      "rate": 313.37
+    },
+    "socioEconomic": {
+      "cluster": 5.0,
+      "value": -0.01,
+      "rank": 128.0
+    },
+    "peripherality": {
+      "cluster": 5.0,
+      "value": 0.17,
+      "rank": 145.0
+    }
+  },
+  "בית שאן": {
+    "code": 9200,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 6.15
+    },
+    "diabetes": {
+      "rate": 63.3
+    },
+    "socioEconomic": {
+      "cluster": 5.0,
+      "value": -0.28,
+      "rank": 102.0
+    },
+    "peripherality": {
+      "cluster": 3.0,
+      "value": -0.61,
+      "rank": 47.0
+    },
+    "cancerMortality": {
+      "rate": 491.9,
       "ci": [
-        3.4,
-        4.1
+        401.6,
+        528.1
       ]
     }
   },
-  "רמת השרון": {
+  "בית שמש": {
+    "code": 2610,
+    "district": "ירושלים",
     "overallMortality": {
-      "rate": 3.7,
+      "rate": 4.92
+    },
+    "infantMortality": {
+      "rate": 3.7
+    },
+    "lifeExpectancy": {
+      "rate": 82.42
+    },
+    "diabetes": {
+      "rate": 55.73
+    },
+    "cancerIncidenceMen": {
+      "rate": 274.81
+    },
+    "cancerIncidenceWomen": {
+      "rate": 260.96
+    },
+    "socioEconomic": {
+      "cluster": 2.0,
+      "value": -1.43,
+      "rank": 18.0
+    },
+    "peripherality": {
+      "cluster": 6.0,
+      "value": 0.67,
+      "rank": 183.0
+    }
+  },
+  "ביתר עילית": {
+    "code": 3780,
+    "district": "אזור יהודה והשומרון",
+    "overallMortality": {
+      "rate": 5.09
+    },
+    "infantMortality": {
+      "rate": 2.5
+    },
+    "lifeExpectancy": {
+      "rate": 81.68
+    },
+    "diabetes": {
+      "rate": 61.15
+    },
+    "cancerIncidenceMen": {
+      "rate": 209.22
+    },
+    "cancerIncidenceWomen": {
+      "rate": 296.67
+    },
+    "socioEconomic": {
+      "cluster": 1.0,
+      "value": -1.92,
+      "rank": 10.0
+    },
+    "peripherality": {
+      "cluster": 5.0,
+      "value": 0.33,
+      "rank": 165.0
+    }
+  },
+  "בני ברק": {
+    "code": 6100,
+    "district": "תל אביב",
+    "overallMortality": {
+      "rate": 5.15
+    },
+    "infantMortality": {
+      "rate": 2.9
+    },
+    "lifeExpectancy": {
+      "rate": 82.79
+    },
+    "diabetes": {
+      "rate": 56.28
+    },
+    "cancerIncidenceMen": {
+      "rate": 264.07
+    },
+    "cancerIncidenceWomen": {
+      "rate": 273.1
+    },
+    "socioEconomic": {
+      "cluster": 2.0,
+      "value": -1.54,
+      "rank": 14.0
+    },
+    "peripherality": {
+      "cluster": 10.0,
+      "value": 3.99,
+      "rank": 252.0
+    }
+  },
+  "בת ים": {
+    "code": 6200,
+    "district": "תל אביב",
+    "overallMortality": {
+      "rate": 5.88
+    },
+    "infantMortality": {
+      "rate": 2.0,
+      "low_n": true
+    },
+    "lifeExpectancy": {
+      "rate": 80.91
+    },
+    "diabetes": {
+      "rate": 59.86
+    },
+    "cancerIncidenceMen": {
+      "rate": 373.77
+    },
+    "cancerIncidenceWomen": {
+      "rate": 359.06
+    },
+    "socioEconomic": {
+      "cluster": 5.0,
+      "value": -0.13,
+      "rank": 112.0
+    },
+    "peripherality": {
+      "cluster": 9.0,
+      "value": 2.68,
+      "rank": 243.0
+    },
+    "cancerMortality": {
+      "rate": 497.8,
       "ci": [
-        3.5,
-        3.9
+        473.0,
+        521.8
       ]
+    }
+  },
+  "גבעת שמואל": {
+    "code": 681,
+    "district": "המרכז",
+    "overallMortality": {
+      "rate": 3.75
+    },
+    "diabetes": {
+      "rate": 43.36
+    },
+    "cancerIncidenceMen": {
+      "rate": 262.3
+    },
+    "cancerIncidenceWomen": {
+      "rate": 296.44
+    },
+    "socioEconomic": {
+      "cluster": 8.0,
+      "value": 1.11,
+      "rank": 212.0
+    },
+    "peripherality": {
+      "cluster": 10.0,
+      "value": 3.9,
+      "rank": 251.0
+    },
+    "heartDisease": {
+      "rate": 167.8,
+      "ci": [
+        123.8,
+        211.8
+      ]
+    }
+  },
+  "גבעתיים": {
+    "code": 6300,
+    "district": "תל אביב",
+    "overallMortality": {
+      "rate": 4.51
+    },
+    "lifeExpectancy": {
+      "rate": 85.09
+    },
+    "diabetes": {
+      "rate": 39.41
+    },
+    "cancerIncidenceMen": {
+      "rate": 327.75
+    },
+    "cancerIncidenceWomen": {
+      "rate": 328.95
+    },
+    "socioEconomic": {
+      "cluster": 9.0,
+      "value": 1.53,
+      "rank": 242.0
+    },
+    "peripherality": {
+      "cluster": 10.0,
+      "value": 4.97,
+      "rank": 255.0
+    }
+  },
+  "דימונה": {
+    "code": 2200,
+    "district": "הדרום",
+    "overallMortality": {
+      "rate": 6.41
+    },
+    "infantMortality": {
+      "rate": 4.7,
+      "low_n": true
+    },
+    "diabetes": {
+      "rate": 77.22
+    },
+    "cancerIncidenceMen": {
+      "rate": 354.84
+    },
+    "cancerIncidenceWomen": {
+      "rate": 315.89
+    },
+    "socioEconomic": {
+      "cluster": 5.0,
+      "value": -0.31,
+      "rank": 100.0
+    },
+    "peripherality": {
+      "cluster": 2.0,
+      "value": -0.97,
+      "rank": 22.0
+    }
+  },
+  "הוד השרון": {
+    "code": 9700,
+    "district": "המרכז",
+    "overallMortality": {
+      "rate": 3.73
+    },
+    "infantMortality": {
+      "rate": 2.6,
+      "low_n": true
+    },
+    "lifeExpectancy": {
+      "rate": 85.9
+    },
+    "diabetes": {
+      "rate": 42.97
+    },
+    "cancerIncidenceMen": {
+      "rate": 281.67
+    },
+    "cancerIncidenceWomen": {
+      "rate": 287.32
+    },
+    "socioEconomic": {
+      "cluster": 9.0,
+      "value": 1.55,
+      "rank": 245.0
+    },
+    "peripherality": {
+      "cluster": 8.0,
+      "value": 2.13,
+      "rank": 236.0
+    }
+  },
+  "הרצלייה": {
+    "code": 6400,
+    "district": "תל אביב",
+    "overallMortality": {
+      "rate": 4.11
+    },
+    "infantMortality": {
+      "rate": 1.7,
+      "low_n": true
+    },
+    "lifeExpectancy": {
+      "rate": 84.89
+    },
+    "diabetes": {
+      "rate": 42.74
+    },
+    "cancerIncidenceMen": {
+      "rate": 327.61
+    },
+    "cancerIncidenceWomen": {
+      "rate": 330.32
+    },
+    "socioEconomic": {
+      "cluster": 8.0,
+      "value": 1.25,
+      "rank": 225.0
+    },
+    "peripherality": {
+      "cluster": 8.0,
+      "value": 2.13,
+      "rank": 235.0
+    }
+  },
+  "חדרה": {
+    "code": 6500,
+    "district": "חיפה",
+    "overallMortality": {
+      "rate": 5.49
+    },
+    "infantMortality": {
+      "rate": 2.6
+    },
+    "lifeExpectancy": {
+      "rate": 81.59
+    },
+    "diabetes": {
+      "rate": 61.86
+    },
+    "cancerIncidenceMen": {
+      "rate": 331.31
+    },
+    "cancerIncidenceWomen": {
+      "rate": 322.2
+    },
+    "socioEconomic": {
+      "cluster": 6.0,
+      "value": 0.24,
+      "rank": 150.0
+    },
+    "peripherality": {
+      "cluster": 6.0,
+      "value": 0.78,
+      "rank": 189.0
+    }
+  },
+  "חולון": {
+    "code": 6600,
+    "district": "תל אביב",
+    "overallMortality": {
+      "rate": 5.01
+    },
+    "infantMortality": {
+      "rate": 1.3,
+      "low_n": true
+    },
+    "lifeExpectancy": {
+      "rate": 82.74
+    },
+    "diabetes": {
+      "rate": 57.06
+    },
+    "cancerIncidenceMen": {
+      "rate": 350.91
+    },
+    "cancerIncidenceWomen": {
+      "rate": 326.94
+    },
+    "socioEconomic": {
+      "cluster": 7.0,
+      "value": 0.45,
+      "rank": 166.0
+    },
+    "peripherality": {
+      "cluster": 9.0,
+      "value": 3.05,
+      "rank": 247.0
+    }
+  },
+  "חיפה": {
+    "code": 4000,
+    "district": "חיפה",
+    "overallMortality": {
+      "rate": 5.01
+    },
+    "infantMortality": {
+      "rate": 1.6
+    },
+    "lifeExpectancy": {
+      "rate": 83.09
+    },
+    "diabetes": {
+      "rate": 47.97
+    },
+    "cancerIncidenceMen": {
+      "rate": 340.73
+    },
+    "cancerIncidenceWomen": {
+      "rate": 353.26
+    },
+    "socioEconomic": {
+      "cluster": 7.0,
+      "value": 0.44,
+      "rank": 165.0
+    },
+    "peripherality": {
+      "cluster": 6.0,
+      "value": 0.91,
+      "rank": 198.0
+    }
+  },
+  "חריש": {
+    "code": 1247,
+    "district": "חיפה",
+    "overallMortality": {
+      "rate": 4.47
+    },
+    "infantMortality": {
+      "rate": 2.5,
+      "low_n": true
+    },
+    "diabetes": {
+      "rate": 138.05
+    },
+    "socioEconomic": {
+      "cluster": 5.0,
+      "value": -0.0,
+      "rank": 129.0
+    },
+    "peripherality": {
+      "cluster": 5.0,
+      "value": 0.21,
+      "rank": 150.0
+    }
+  },
+  "טבריה": {
+    "code": 6700,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 5.89
+    },
+    "infantMortality": {
+      "rate": 3.1,
+      "low_n": true
+    },
+    "diabetes": {
+      "rate": 54.95
+    },
+    "cancerIncidenceMen": {
+      "rate": 374.58
+    },
+    "cancerIncidenceWomen": {
+      "rate": 285.34
+    },
+    "socioEconomic": {
+      "cluster": 4.0,
+      "value": -0.58,
+      "rank": 81.0
+    },
+    "peripherality": {
+      "cluster": 3.0,
+      "value": -0.56,
+      "rank": 54.0
+    }
+  },
+  "טייבה": {
+    "code": 2730,
+    "district": "המרכז",
+    "overallMortality": {
+      "rate": 6.58
+    },
+    "infantMortality": {
+      "rate": 3.5,
+      "low_n": true
+    },
+    "diabetes": {
+      "rate": 94.56
+    },
+    "cancerIncidenceMen": {
+      "rate": 280.5
+    },
+    "cancerIncidenceWomen": {
+      "rate": 235.1
+    },
+    "socioEconomic": {
+      "cluster": 3.0,
+      "value": -0.74,
+      "rank": 63.0
+    },
+    "peripherality": {
+      "cluster": 6.0,
+      "value": 0.92,
+      "rank": 199.0
+    }
+  },
+  "טירה": {
+    "code": 2720,
+    "district": "המרכז",
+    "overallMortality": {
+      "rate": 5.84
+    },
+    "diabetes": {
+      "rate": 87.25
+    },
+    "cancerIncidenceMen": {
+      "rate": 276.63
+    },
+    "cancerIncidenceWomen": {
+      "rate": 264.21
+    },
+    "socioEconomic": {
+      "cluster": 5.0,
+      "value": -0.35,
+      "rank": 96.0
+    },
+    "peripherality": {
+      "cluster": 6.0,
+      "value": 1.11,
+      "rank": 209.0
+    },
+    "heartDisease": {
+      "rate": 397.4,
+      "ci": [
+        304.1,
+        490.8
+      ]
+    }
+  },
+  "טירת כרמל": {
+    "code": 2100,
+    "district": "חיפה",
+    "overallMortality": {
+      "rate": 6.1
+    },
+    "diabetes": {
+      "rate": 65.19
+    },
+    "socioEconomic": {
+      "cluster": 5.0,
+      "value": 0.01,
+      "rank": 134.0
+    },
+    "peripherality": {
+      "cluster": 5.0,
+      "value": 0.05,
+      "rank": 128.0
+    }
+  },
+  "טמרה": {
+    "code": 8900,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 5.55
+    },
+    "infantMortality": {
+      "rate": 2.9,
+      "low_n": true
+    },
+    "diabetes": {
+      "rate": 87.58
+    },
+    "cancerIncidenceMen": {
+      "rate": 301.67
+    },
+    "cancerIncidenceWomen": {
+      "rate": 226.72
+    },
+    "socioEconomic": {
+      "cluster": 3.0,
+      "value": -0.88,
+      "rank": 49.0
+    },
+    "peripherality": {
+      "cluster": 4.0,
+      "value": -0.05,
+      "rank": 120.0
+    }
+  },
+  "יבנה": {
+    "code": 2660,
+    "district": "המרכז",
+    "overallMortality": {
+      "rate": 4.78
+    },
+    "infantMortality": {
+      "rate": 1.8,
+      "low_n": true
+    },
+    "lifeExpectancy": {
+      "rate": 82.96
+    },
+    "diabetes": {
+      "rate": 57.88
+    },
+    "cancerIncidenceMen": {
+      "rate": 300.83
+    },
+    "cancerIncidenceWomen": {
+      "rate": 304.56
+    },
+    "socioEconomic": {
+      "cluster": 7.0,
+      "value": 0.54,
+      "rank": 170.0
+    },
+    "peripherality": {
+      "cluster": 7.0,
+      "value": 1.28,
+      "rank": 215.0
+    }
+  },
+  "יהוד-מונוסון": {
+    "code": 9400,
+    "district": "המרכז",
+    "overallMortality": {
+      "rate": 4.55
+    },
+    "diabetes": {
+      "rate": 50.32
+    },
+    "cancerIncidenceMen": {
+      "rate": 318.59
+    },
+    "cancerIncidenceWomen": {
+      "rate": 304.76
+    },
+    "socioEconomic": {
+      "cluster": 7.0,
+      "value": 0.99,
+      "rank": 208.0
+    },
+    "peripherality": {
+      "cluster": 8.0,
+      "value": 2.28,
+      "rank": 238.0
+    }
+  },
+  "יקנעם עילית": {
+    "code": 240,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 4.71
+    },
+    "diabetes": {
+      "rate": 57.17
+    },
+    "cancerIncidenceMen": {
+      "rate": 307.71
+    },
+    "cancerIncidenceWomen": {
+      "rate": 346.51
+    },
+    "socioEconomic": {
+      "cluster": 7.0,
+      "value": 0.79,
+      "rank": 193.0
+    },
+    "peripherality": {
+      "cluster": 5.0,
+      "value": 0.06,
+      "rank": 130.0
+    }
+  },
+  "ירושלים": {
+    "code": 3000,
+    "district": "ירושלים",
+    "overallMortality": {
+      "rate": 4.79
+    },
+    "infantMortality": {
+      "rate": 3.2
+    },
+    "lifeExpectancy": {
+      "rate": 83.22
+    },
+    "diabetes": {
+      "rate": 56.12
+    },
+    "cancerIncidenceMen": {
+      "rate": 273.09
+    },
+    "cancerIncidenceWomen": {
+      "rate": 284.22
+    },
+    "socioEconomic": {
+      "cluster": 2.0,
+      "value": -1.12,
+      "rank": 31.0
+    },
+    "peripherality": {
+      "cluster": 9.0,
+      "value": 3.49,
+      "rank": 250.0
+    }
+  },
+  "כפר יונה": {
+    "code": 168,
+    "district": "המרכז",
+    "overallMortality": {
+      "rate": 3.68
+    },
+    "diabetes": {
+      "rate": 55.04
+    },
+    "cancerIncidenceMen": {
+      "rate": 260.88
+    },
+    "cancerIncidenceWomen": {
+      "rate": 318.4
+    },
+    "socioEconomic": {
+      "cluster": 7.0,
+      "value": 0.81,
+      "rank": 196.0
+    },
+    "peripherality": {
+      "cluster": 6.0,
+      "value": 0.94,
+      "rank": 201.0
+    }
+  },
+  "כפר סבא": {
+    "code": 6900,
+    "district": "המרכז",
+    "overallMortality": {
+      "rate": 4.2
+    },
+    "lifeExpectancy": {
+      "rate": 85.09
+    },
+    "diabetes": {
+      "rate": 44.97
+    },
+    "cancerIncidenceMen": {
+      "rate": 287.21
+    },
+    "cancerIncidenceWomen": {
+      "rate": 309.22
+    },
+    "socioEconomic": {
+      "cluster": 8.0,
+      "value": 1.21,
+      "rank": 222.0
+    },
+    "peripherality": {
+      "cluster": 8.0,
+      "value": 1.95,
+      "rank": 230.0
+    }
+  },
+  "כפר קאסם": {
+    "code": 634,
+    "district": "המרכז",
+    "overallMortality": {
+      "rate": 5.92
+    },
+    "infantMortality": {
+      "rate": 5.6,
+      "low_n": true
+    },
+    "diabetes": {
+      "rate": 112.0
+    },
+    "cancerIncidenceMen": {
+      "rate": 209.86
+    },
+    "cancerIncidenceWomen": {
+      "rate": 243.52
+    },
+    "socioEconomic": {
+      "cluster": 3.0,
+      "value": -0.68,
+      "rank": 73.0
+    },
+    "peripherality": {
+      "cluster": 7.0,
+      "value": 1.44,
+      "rank": 219.0
+    }
+  },
+  "כרמיאל": {
+    "code": 1139,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 5.4
+    },
+    "infantMortality": {
+      "rate": 3.9,
+      "low_n": true
+    },
+    "diabetes": {
+      "rate": 58.19
+    },
+    "cancerIncidenceMen": {
+      "rate": 368.81
+    },
+    "cancerIncidenceWomen": {
+      "rate": 365.28
+    },
+    "socioEconomic": {
+      "cluster": 6.0,
+      "value": 0.13,
+      "rank": 141.0
+    },
+    "peripherality": {
+      "cluster": 4.0,
+      "value": -0.28,
+      "rank": 88.0
+    }
+  },
+  "לוד": {
+    "code": 7000,
+    "district": "המרכז",
+    "overallMortality": {
+      "rate": 5.68
+    },
+    "infantMortality": {
+      "rate": 2.4
+    },
+    "lifeExpectancy": {
+      "rate": 80.86
+    },
+    "diabetes": {
+      "rate": 68.82
+    },
+    "cancerIncidenceMen": {
+      "rate": 337.52
+    },
+    "cancerIncidenceWomen": {
+      "rate": 310.96
+    },
+    "socioEconomic": {
+      "cluster": 4.0,
+      "value": -0.56,
+      "rank": 82.0
+    },
+    "peripherality": {
+      "cluster": 8.0,
+      "value": 1.74,
+      "rank": 228.0
+    }
+  },
+  "מגאר": {
+    "code": 481,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 5.36
+    },
+    "infantMortality": {
+      "rate": 3.4,
+      "low_n": true
+    },
+    "diabetes": {
+      "rate": 66.38
+    },
+    "cancerIncidenceMen": {
+      "rate": 314.54
+    },
+    "cancerIncidenceWomen": {
+      "rate": 251.41
+    },
+    "socioEconomic": {
+      "cluster": 3.0,
+      "value": -0.82,
+      "rank": 56.0
+    },
+    "peripherality": {
+      "cluster": 3.0,
+      "value": -0.54,
+      "rank": 58.0
+    }
+  },
+  "מגדל העמק": {
+    "code": 874,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 6.32
+    },
+    "infantMortality": {
+      "rate": 5.7,
+      "low_n": true
+    },
+    "diabetes": {
+      "rate": 63.01
+    },
+    "cancerIncidenceMen": {
+      "rate": 365.07
+    },
+    "cancerIncidenceWomen": {
+      "rate": 325.01
+    },
+    "socioEconomic": {
+      "cluster": 5.0,
+      "value": -0.32,
+      "rank": 99.0
+    },
+    "peripherality": {
+      "cluster": 4.0,
+      "value": 0.0,
+      "rank": 124.0
+    }
+  },
+  "מודיעין-מכבים-רעות": {
+    "code": 1200,
+    "district": "המרכז",
+    "overallMortality": {
+      "rate": 3.12
+    },
+    "lifeExpectancy": {
+      "rate": 87.06
+    },
+    "diabetes": {
+      "rate": 60.33
+    },
+    "cancerIncidenceMen": {
+      "rate": 286.2
+    },
+    "cancerIncidenceWomen": {
+      "rate": 285.7
+    },
+    "socioEconomic": {
+      "cluster": 9.0,
+      "value": 1.4,
+      "rank": 237.0
+    },
+    "peripherality": {
+      "cluster": 6.0,
+      "value": 1.13,
+      "rank": 210.0
+    },
+    "heartDisease": {
+      "rate": 154.5,
+      "ci": [
+        121.4,
+        187.5
+      ]
+    }
+  },
+  "מודיעין עילית": {
+    "code": 3797,
+    "district": "אזור יהודה והשומרון",
+    "overallMortality": {
+      "rate": 4.15
+    },
+    "infantMortality": {
+      "rate": 3.0
+    },
+    "lifeExpectancy": {
+      "rate": 83.41
+    },
+    "diabetes": {
+      "rate": 45.97
+    },
+    "cancerIncidenceMen": {
+      "rate": 259.51
+    },
+    "cancerIncidenceWomen": {
+      "rate": 225.1
+    },
+    "socioEconomic": {
+      "cluster": 1.0,
+      "value": -2.25,
+      "rank": 6.0
+    },
+    "peripherality": {
+      "cluster": 6.0,
+      "value": 0.87,
+      "rank": 195.0
+    }
+  },
+  "מעלה אדומים": {
+    "code": 3616,
+    "district": "אזור יהודה והשומרון",
+    "overallMortality": {
+      "rate": 3.89
+    },
+    "diabetes": {
+      "rate": 48.66
+    },
+    "cancerIncidenceMen": {
+      "rate": 290.04
+    },
+    "cancerIncidenceWomen": {
+      "rate": 296.09
+    },
+    "socioEconomic": {
+      "cluster": 6.0,
+      "value": 0.33,
+      "rank": 159.0
+    },
+    "peripherality": {
+      "cluster": 5.0,
+      "value": 0.29,
+      "rank": 162.0
+    },
+    "heartDisease": {
+      "rate": 146.9,
+      "ci": [
+        107.9,
+        185.9
+      ]
+    }
+  },
+  "מעלות-תרשיחא": {
+    "code": 1063,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 5.67
+    },
+    "diabetes": {
+      "rate": 61.12
+    },
+    "cancerIncidenceMen": {
+      "rate": 373.36
+    },
+    "cancerIncidenceWomen": {
+      "rate": 355.63
+    },
+    "socioEconomic": {
+      "cluster": 5.0,
+      "value": -0.04,
+      "rank": 124.0
+    },
+    "peripherality": {
+      "cluster": 3.0,
+      "value": -0.62,
+      "rank": 46.0
+    }
+  },
+  "נהרייה": {
+    "code": 9100,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 5.35
+    },
+    "infantMortality": {
+      "rate": 2.1,
+      "low_n": true
+    },
+    "lifeExpectancy": {
+      "rate": 81.84
+    },
+    "diabetes": {
+      "rate": 58.42
+    },
+    "cancerIncidenceMen": {
+      "rate": 370.43
+    },
+    "cancerIncidenceWomen": {
+      "rate": 356.09
+    },
+    "socioEconomic": {
+      "cluster": 6.0,
+      "value": 0.25,
+      "rank": 152.0
+    },
+    "peripherality": {
+      "cluster": 4.0,
+      "value": -0.3,
+      "rank": 86.0
+    }
+  },
+  "נוף הגליל": {
+    "code": 1061,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 6.25
+    },
+    "infantMortality": {
+      "rate": 3.0,
+      "low_n": true
+    },
+    "diabetes": {
+      "rate": 62.43
+    },
+    "cancerIncidenceMen": {
+      "rate": 411.1
+    },
+    "cancerIncidenceWomen": {
+      "rate": 355.5
+    },
+    "socioEconomic": {
+      "cluster": 5.0,
+      "value": -0.17,
+      "rank": 109.0
+    },
+    "peripherality": {
+      "cluster": 5.0,
+      "value": 0.14,
+      "rank": 137.0
+    },
+    "cancerMortality": {
+      "rate": 505.1,
+      "ci": [
+        461.0,
+        549.1
+      ]
+    }
+  },
+  "נס ציונה": {
+    "code": 7200,
+    "district": "המרכז",
+    "overallMortality": {
+      "rate": 3.68
+    },
+    "lifeExpectancy": {
+      "rate": 86.52
+    },
+    "diabetes": {
+      "rate": 44.74
+    },
+    "cancerIncidenceMen": {
+      "rate": 271.21
+    },
+    "cancerIncidenceWomen": {
+      "rate": 286.4
+    },
+    "socioEconomic": {
+      "cluster": 8.0,
+      "value": 1.33,
+      "rank": 232.0
+    },
+    "peripherality": {
+      "cluster": 8.0,
+      "value": 2.23,
+      "rank": 237.0
+    }
+  },
+  "נצרת": {
+    "code": 7300,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 5.65
+    },
+    "infantMortality": {
+      "rate": 5.0
+    },
+    "lifeExpectancy": {
+      "rate": 80.32
+    },
+    "diabetes": {
+      "rate": 85.99
+    },
+    "cancerIncidenceMen": {
+      "rate": 327.14
+    },
+    "cancerIncidenceWomen": {
+      "rate": 273.16
+    },
+    "socioEconomic": {
+      "cluster": 3.0,
+      "value": -0.67,
+      "rank": 74.0
+    },
+    "peripherality": {
+      "cluster": 5.0,
+      "value": 0.29,
+      "rank": 161.0
+    }
+  },
+  "נשר": {
+    "code": 2500,
+    "district": "חיפה",
+    "overallMortality": {
+      "rate": 4.55
+    },
+    "diabetes": {
+      "rate": 50.45
+    },
+    "cancerIncidenceMen": {
+      "rate": 323.05
+    },
+    "cancerIncidenceWomen": {
+      "rate": 307.11
+    },
+    "socioEconomic": {
+      "cluster": 7.0,
+      "value": 0.64,
+      "rank": 182.0
+    },
+    "peripherality": {
+      "cluster": 5.0,
+      "value": 0.25,
+      "rank": 156.0
+    }
+  },
+  "נתיבות": {
+    "code": 246,
+    "district": "הדרום",
+    "overallMortality": {
+      "rate": 5.4
+    },
+    "infantMortality": {
+      "rate": 3.4
+    },
+    "diabetes": {
+      "rate": 63.37
+    },
+    "cancerIncidenceMen": {
+      "rate": 273.48
+    },
+    "cancerIncidenceWomen": {
+      "rate": 274.77
+    },
+    "socioEconomic": {
+      "cluster": 3.0,
+      "value": -0.71,
+      "rank": 69.0
+    },
+    "peripherality": {
+      "cluster": 4.0,
+      "value": -0.28,
+      "rank": 90.0
+    }
+  },
+  "נתניה": {
+    "code": 7400,
+    "district": "המרכז",
+    "overallMortality": {
+      "rate": 4.82
+    },
+    "infantMortality": {
+      "rate": 1.8
+    },
+    "lifeExpectancy": {
+      "rate": 83.13
+    },
+    "diabetes": {
+      "rate": 52.43
+    },
+    "cancerIncidenceMen": {
+      "rate": 319.35
+    },
+    "cancerIncidenceWomen": {
+      "rate": 302.9
+    },
+    "socioEconomic": {
+      "cluster": 6.0,
+      "value": 0.12,
+      "rank": 139.0
+    },
+    "peripherality": {
+      "cluster": 7.0,
+      "value": 1.51,
+      "rank": 223.0
+    }
+  },
+  "סח'נין": {
+    "code": 7500,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 5.17
+    },
+    "infantMortality": {
+      "rate": 3.4,
+      "low_n": true
+    },
+    "diabetes": {
+      "rate": 83.04
+    },
+    "cancerIncidenceMen": {
+      "rate": 299.78
+    },
+    "cancerIncidenceWomen": {
+      "rate": 218.45
+    },
+    "socioEconomic": {
+      "cluster": 4.0,
+      "value": -0.61,
+      "rank": 77.0
+    },
+    "peripherality": {
+      "cluster": 4.0,
+      "value": -0.27,
+      "rank": 91.0
+    }
+  },
+  "עכו": {
+    "code": 7600,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 6.46
+    },
+    "infantMortality": {
+      "rate": 3.4,
+      "low_n": true
+    },
+    "lifeExpectancy": {
+      "rate": 79.2
+    },
+    "diabetes": {
+      "rate": 70.69
+    },
+    "cancerIncidenceMen": {
+      "rate": 381.69
+    },
+    "cancerIncidenceWomen": {
+      "rate": 349.7
+    },
+    "socioEconomic": {
+      "cluster": 4.0,
+      "value": -0.46,
+      "rank": 94.0
+    },
+    "peripherality": {
+      "cluster": 4.0,
+      "value": -0.08,
+      "rank": 115.0
+    },
+    "cancerMortality": {
+      "rate": 494.5,
+      "ci": [
+        447.0,
+        542.0
+      ]
+    }
+  },
+  "עפולה": {
+    "code": 7700,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 5.57
+    },
+    "infantMortality": {
+      "rate": 1.5,
+      "low_n": true
+    },
+    "lifeExpectancy": {
+      "rate": 81.26
+    },
+    "diabetes": {
+      "rate": 59.54
+    },
+    "cancerIncidenceMen": {
+      "rate": 367.42
+    },
+    "cancerIncidenceWomen": {
+      "rate": 340.19
+    },
+    "socioEconomic": {
+      "cluster": 5.0,
+      "value": -0.21,
+      "rank": 104.0
+    },
+    "peripherality": {
+      "cluster": 5.0,
+      "value": 0.06,
+      "rank": 129.0
+    }
+  },
+  "עראבה": {
+    "code": 531,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 5.49
+    },
+    "infantMortality": {
+      "rate": 2.8,
+      "low_n": true
+    },
+    "diabetes": {
+      "rate": 93.55
+    },
+    "cancerIncidenceMen": {
+      "rate": 320.46
+    },
+    "cancerIncidenceWomen": {
+      "rate": 201.41
+    },
+    "socioEconomic": {
+      "cluster": 3.0,
+      "value": -0.86,
+      "rank": 51.0
+    },
+    "peripherality": {
+      "cluster": 3.0,
+      "value": -0.33,
+      "rank": 83.0
+    }
+  },
+  "ערד": {
+    "code": 2560,
+    "district": "הדרום",
+    "overallMortality": {
+      "rate": 5.66
+    },
+    "infantMortality": {
+      "rate": 3.0,
+      "low_n": true
+    },
+    "diabetes": {
+      "rate": 79.23
+    },
+    "cancerIncidenceMen": {
+      "rate": 374.15
+    },
+    "cancerIncidenceWomen": {
+      "rate": 348.67
+    },
+    "socioEconomic": {
+      "cluster": 3.0,
+      "value": -0.7,
+      "rank": 70.0
+    },
+    "peripherality": {
+      "cluster": 2.0,
+      "value": -0.93,
+      "rank": 26.0
+    }
+  },
+  "פתח תקווה": {
+    "code": 7900,
+    "district": "המרכז",
+    "overallMortality": {
+      "rate": 4.7
+    },
+    "infantMortality": {
+      "rate": 2.0
+    },
+    "lifeExpectancy": {
+      "rate": 83.42
+    },
+    "diabetes": {
+      "rate": 53.53
+    },
+    "cancerIncidenceMen": {
+      "rate": 316.75
+    },
+    "cancerIncidenceWomen": {
+      "rate": 330.63
+    },
+    "socioEconomic": {
+      "cluster": 7.0,
+      "value": 0.61,
+      "rank": 178.0
+    },
+    "peripherality": {
+      "cluster": 9.0,
+      "value": 3.09,
+      "rank": 248.0
+    }
+  },
+  "צפת": {
+    "code": 8000,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 5.61
+    },
+    "infantMortality": {
+      "rate": 2.1,
+      "low_n": true
+    },
+    "diabetes": {
+      "rate": 48.21
+    },
+    "cancerIncidenceMen": {
+      "rate": 319.99
+    },
+    "cancerIncidenceWomen": {
+      "rate": 300.29
+    },
+    "socioEconomic": {
+      "cluster": 2.0,
+      "value": -1.22,
+      "rank": 23.0
+    },
+    "peripherality": {
+      "cluster": 2.0,
+      "value": -0.95,
+      "rank": 25.0
+    }
+  },
+  "קלנסווה": {
+    "code": 638,
+    "district": "המרכז",
+    "overallMortality": {
+      "rate": 6.39
+    },
+    "infantMortality": {
+      "rate": 2.0,
+      "low_n": true
+    },
+    "diabetes": {
+      "rate": 118.7
+    },
+    "cancerIncidenceMen": {
+      "rate": 188.84
+    },
+    "cancerIncidenceWomen": {
+      "rate": 193.72
+    },
+    "socioEconomic": {
+      "cluster": 3.0,
+      "value": -0.79,
+      "rank": 58.0
+    },
+    "peripherality": {
+      "cluster": 6.0,
+      "value": 0.79,
+      "rank": 191.0
+    },
+    "heartDisease": {
+      "rate": 403.9,
+      "ci": [
+        274.5,
+        533.3
+      ]
+    }
+  },
+  "קריית אונו": {
+    "code": 2620,
+    "district": "תל אביב",
+    "overallMortality": {
+      "rate": 3.76
+    },
+    "diabetes": {
+      "rate": 42.99
+    },
+    "cancerIncidenceMen": {
+      "rate": 292.15
+    },
+    "cancerIncidenceWomen": {
+      "rate": 327.6
+    },
+    "socioEconomic": {
+      "cluster": 9.0,
+      "value": 1.6,
+      "rank": 246.0
+    },
+    "peripherality": {
+      "cluster": 9.0,
+      "value": 3.21,
+      "rank": 249.0
+    }
+  },
+  "קריית אתא": {
+    "code": 6800,
+    "district": "חיפה",
+    "overallMortality": {
+      "rate": 5.31
+    },
+    "infantMortality": {
+      "rate": 1.7,
+      "low_n": true
+    },
+    "lifeExpectancy": {
+      "rate": 81.77
+    },
+    "diabetes": {
+      "rate": 61.08
+    },
+    "cancerIncidenceMen": {
+      "rate": 363.18
+    },
+    "cancerIncidenceWomen": {
+      "rate": 325.62
+    },
+    "socioEconomic": {
+      "cluster": 6.0,
+      "value": 0.15,
+      "rank": 142.0
+    },
+    "peripherality": {
+      "cluster": 5.0,
+      "value": 0.29,
+      "rank": 163.0
+    }
+  },
+  "קריית ביאליק": {
+    "code": 9500,
+    "district": "חיפה",
+    "overallMortality": {
+      "rate": 5.09
+    },
+    "diabetes": {
+      "rate": 57.49
+    },
+    "cancerIncidenceMen": {
+      "rate": 369.56
+    },
+    "cancerIncidenceWomen": {
+      "rate": 368.39
+    },
+    "socioEconomic": {
+      "cluster": 6.0,
+      "value": 0.39,
+      "rank": 162.0
+    },
+    "peripherality": {
+      "cluster": 6.0,
+      "value": 0.66,
+      "rank": 179.0
+    }
+  },
+  "קריית גת": {
+    "code": 2630,
+    "district": "הדרום",
+    "overallMortality": {
+      "rate": 5.75
+    },
+    "infantMortality": {
+      "rate": 2.5,
+      "low_n": true
+    },
+    "lifeExpectancy": {
+      "rate": 81.25
+    },
+    "diabetes": {
+      "rate": 66.01
+    },
+    "cancerIncidenceMen": {
+      "rate": 335.51
+    },
+    "cancerIncidenceWomen": {
+      "rate": 297.08
+    },
+    "socioEconomic": {
+      "cluster": 4.0,
+      "value": -0.46,
+      "rank": 92.0
+    },
+    "peripherality": {
+      "cluster": 5.0,
+      "value": 0.2,
+      "rank": 148.0
+    }
+  },
+  "קריית ים": {
+    "code": 9600,
+    "district": "חיפה",
+    "overallMortality": {
+      "rate": 5.7
+    },
+    "infantMortality": {
+      "rate": 2.7,
+      "low_n": true
+    },
+    "diabetes": {
+      "rate": 62.13
+    },
+    "cancerIncidenceMen": {
+      "rate": 381.68
+    },
+    "cancerIncidenceWomen": {
+      "rate": 348.96
+    },
+    "socioEconomic": {
+      "cluster": 5.0,
+      "value": -0.15,
+      "rank": 111.0
+    },
+    "peripherality": {
+      "cluster": 6.0,
+      "value": 0.45,
+      "rank": 169.0
+    }
+  },
+  "קריית מוצקין": {
+    "code": 8200,
+    "district": "חיפה",
+    "overallMortality": {
+      "rate": 5.28
+    },
+    "infantMortality": {
+      "rate": 1.8,
+      "low_n": true
+    },
+    "diabetes": {
+      "rate": 58.21
+    },
+    "cancerIncidenceMen": {
+      "rate": 406.75
+    },
+    "cancerIncidenceWomen": {
+      "rate": 353.4
+    },
+    "socioEconomic": {
+      "cluster": 7.0,
+      "value": 0.45,
+      "rank": 167.0
+    },
+    "peripherality": {
+      "cluster": 6.0,
+      "value": 0.56,
+      "rank": 175.0
+    }
+  },
+  "קריית מלאכי": {
+    "code": 1034,
+    "district": "הדרום",
+    "overallMortality": {
+      "rate": 5.64
+    },
+    "infantMortality": {
+      "rate": 3.3,
+      "low_n": true
+    },
+    "diabetes": {
+      "rate": 69.44
+    },
+    "cancerIncidenceMen": {
+      "rate": 334.51
+    },
+    "cancerIncidenceWomen": {
+      "rate": 327.27
+    },
+    "socioEconomic": {
+      "cluster": 4.0,
+      "value": -0.61,
+      "rank": 79.0
+    },
+    "peripherality": {
+      "cluster": 6.0,
+      "value": 0.5,
+      "rank": 173.0
+    }
+  },
+  "קריית שמונה": {
+    "code": 2800,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 5.85
+    },
+    "diabetes": {
+      "rate": 58.77
+    },
+    "cancerIncidenceMen": {
+      "rate": 385.33
+    },
+    "cancerIncidenceWomen": {
+      "rate": 319.72
+    },
+    "socioEconomic": {
+      "cluster": 5.0,
+      "value": -0.09,
+      "rank": 115.0
+    },
+    "peripherality": {
+      "cluster": 1.0,
+      "value": -1.26,
+      "rank": 11.0
+    }
+  },
+  "ראש העין": {
+    "code": 2640,
+    "district": "המרכז",
+    "overallMortality": {
+      "rate": 4.45
+    },
+    "infantMortality": {
+      "rate": 1.8,
+      "low_n": true
+    },
+    "lifeExpectancy": {
+      "rate": 83.81
+    },
+    "diabetes": {
+      "rate": 62.17
+    },
+    "cancerIncidenceMen": {
+      "rate": 303.85
+    },
+    "cancerIncidenceWomen": {
+      "rate": 288.26
+    },
+    "socioEconomic": {
+      "cluster": 7.0,
+      "value": 0.79,
+      "rank": 194.0
+    },
+    "peripherality": {
+      "cluster": 8.0,
+      "value": 1.74,
+      "rank": 227.0
+    }
+  },
+  "ראשון לציון": {
+    "code": 8300,
+    "district": "המרכז",
+    "overallMortality": {
+      "rate": 4.33
+    },
+    "infantMortality": {
+      "rate": 1.3
+    },
+    "lifeExpectancy": {
+      "rate": 84.34
+    },
+    "diabetes": {
+      "rate": 50.73
+    },
+    "cancerIncidenceMen": {
+      "rate": 330.06
+    },
+    "cancerIncidenceWomen": {
+      "rate": 317.95
+    },
+    "socioEconomic": {
+      "cluster": 7.0,
+      "value": 0.76,
+      "rank": 190.0
+    },
+    "peripherality": {
+      "cluster": 9.0,
+      "value": 2.79,
+      "rank": 245.0
+    }
+  },
+  "רהט": {
+    "code": 1161,
+    "district": "הדרום",
+    "overallMortality": {
+      "rate": 5.8
+    },
+    "infantMortality": {
+      "rate": 8.3
+    },
+    "lifeExpectancy": {
+      "rate": 79.13
+    },
+    "diabetes": {
+      "rate": 97.88
+    },
+    "cancerIncidenceMen": {
+      "rate": 275.09
+    },
+    "cancerIncidenceWomen": {
+      "rate": 164.46
+    },
+    "socioEconomic": {
+      "cluster": 1.0,
+      "value": -1.88,
+      "rank": 11.0
+    },
+    "peripherality": {
+      "cluster": 4.0,
+      "value": -0.14,
+      "rank": 104.0
+    }
+  },
+  "רחובות": {
+    "code": 8400,
+    "district": "המרכז",
+    "overallMortality": {
+      "rate": 4.34
+    },
+    "infantMortality": {
+      "rate": 2.0
+    },
+    "lifeExpectancy": {
+      "rate": 84.33
+    },
+    "diabetes": {
+      "rate": 49.6
+    },
+    "cancerIncidenceMen": {
+      "rate": 315.18
+    },
+    "cancerIncidenceWomen": {
+      "rate": 322.16
+    },
+    "socioEconomic": {
+      "cluster": 7.0,
+      "value": 0.66,
+      "rank": 183.0
+    },
+    "peripherality": {
+      "cluster": 8.0,
+      "value": 1.89,
+      "rank": 229.0
+    }
+  },
+  "רמלה": {
+    "code": 8500,
+    "district": "המרכז",
+    "overallMortality": {
+      "rate": 5.58
+    },
+    "infantMortality": {
+      "rate": 2.8
+    },
+    "lifeExpectancy": {
+      "rate": 81.02
+    },
+    "diabetes": {
+      "rate": 69.2
+    },
+    "cancerIncidenceMen": {
+      "rate": 311.3
+    },
+    "cancerIncidenceWomen": {
+      "rate": 301.57
+    },
+    "socioEconomic": {
+      "cluster": 5.0,
+      "value": -0.32,
+      "rank": 98.0
+    },
+    "peripherality": {
+      "cluster": 8.0,
+      "value": 1.95,
+      "rank": 231.0
+    }
+  },
+  "רמת גן": {
+    "code": 8600,
+    "district": "תל אביב",
+    "overallMortality": {
+      "rate": 4.53
+    },
+    "infantMortality": {
+      "rate": 0.8,
+      "low_n": true
+    },
+    "lifeExpectancy": {
+      "rate": 84.86
+    },
+    "diabetes": {
+      "rate": 41.34
+    },
+    "cancerIncidenceMen": {
+      "rate": 295.22
+    },
+    "cancerIncidenceWomen": {
+      "rate": 283.27
+    },
+    "socioEconomic": {
+      "cluster": 8.0,
+      "value": 1.08,
+      "rank": 210.0
+    },
+    "peripherality": {
+      "cluster": 10.0,
+      "value": 4.14,
+      "rank": 253.0
+    }
+  },
+  "רמת השרון": {
+    "code": 2650,
+    "district": "תל אביב",
+    "overallMortality": {
+      "rate": 3.78
+    },
+    "diabetes": {
+      "rate": 38.27
+    },
+    "cancerIncidenceMen": {
+      "rate": 313.82
+    },
+    "cancerIncidenceWomen": {
+      "rate": 354.21
+    },
+    "socioEconomic": {
+      "cluster": 9.0,
+      "value": 1.65,
+      "rank": 247.0
+    },
+    "peripherality": {
+      "cluster": 8.0,
+      "value": 2.35,
+      "rank": 239.0
     },
     "heartDisease": {
       "rate": 168.1,
@@ -151,26 +2387,755 @@ export const CITY_MORTALITY = {
         143.5,
         192.8
       ]
-    },
-    "diabetes": {
-      "rate": 39.6,
-      "ci": [
-        38.6,
-        40.6
-      ]
+    }
+  },
+  "רעננה": {
+    "code": 8700,
+    "district": "המרכז",
+    "overallMortality": {
+      "rate": 3.59
     },
     "infantMortality": {
-      "rate": 1.4,
+      "rate": 1.1,
       "low_n": true
+    },
+    "lifeExpectancy": {
+      "rate": 86.25
+    },
+    "diabetes": {
+      "rate": 39.72
+    },
+    "cancerIncidenceMen": {
+      "rate": 314.15
+    },
+    "cancerIncidenceWomen": {
+      "rate": 318.34
+    },
+    "socioEconomic": {
+      "cluster": 8.0,
+      "value": 1.23,
+      "rank": 223.0
+    },
+    "peripherality": {
+      "cluster": 8.0,
+      "value": 2.01,
+      "rank": 234.0
+    }
+  },
+  "שדרות": {
+    "code": 1031,
+    "district": "הדרום",
+    "overallMortality": {
+      "rate": 6.38
+    },
+    "infantMortality": {
+      "rate": 1.8,
+      "low_n": true
+    },
+    "diabetes": {
+      "rate": 66.09
+    },
+    "cancerIncidenceMen": {
+      "rate": 386.14
+    },
+    "cancerIncidenceWomen": {
+      "rate": 272.31
+    },
+    "socioEconomic": {
+      "cluster": 5.0,
+      "value": -0.13,
+      "rank": 113.0
+    },
+    "peripherality": {
+      "cluster": 4.0,
+      "value": -0.14,
+      "rank": 105.0
+    },
+    "cancerMortality": {
+      "rate": 530.8,
+      "ci": [
+        453.8,
+        607.8
+      ]
+    }
+  },
+  "שפרעם": {
+    "code": 8800,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 5.08
+    },
+    "infantMortality": {
+      "rate": 2.2,
+      "low_n": true
+    },
+    "diabetes": {
+      "rate": 79.59
+    },
+    "cancerIncidenceMen": {
+      "rate": 320.36
+    },
+    "cancerIncidenceWomen": {
+      "rate": 257.42
+    },
+    "socioEconomic": {
+      "cluster": 3.0,
+      "value": -0.73,
+      "rank": 64.0
+    },
+    "peripherality": {
+      "cluster": 5.0,
+      "value": 0.15,
+      "rank": 140.0
+    }
+  },
+  "תל אביב -יפו": {
+    "code": 5000,
+    "district": "תל אביב",
+    "overallMortality": {
+      "rate": 5.09
+    },
+    "infantMortality": {
+      "rate": 1.3
+    },
+    "lifeExpectancy": {
+      "rate": 83.05
+    },
+    "diabetes": {
+      "rate": 42.82
+    },
+    "cancerIncidenceMen": {
+      "rate": 325.88
+    },
+    "cancerIncidenceWomen": {
+      "rate": 336.72
+    },
+    "socioEconomic": {
+      "cluster": 8.0,
+      "value": 1.18,
+      "rank": 218.0
+    },
+    "peripherality": {
+      "cluster": 10.0,
+      "value": 4.19,
+      "rank": 254.0
+    }
+  },
+  "אבו גוש": {
+    "code": 472,
+    "district": "ירושלים",
+    "overallMortality": {
+      "rate": 5.28
+    },
+    "socioEconomic": {
+      "cluster": 3.0,
+      "value": -0.72,
+      "rank": 67.0
+    },
+    "peripherality": {
+      "cluster": 6.0,
+      "value": 0.81,
+      "rank": 192.0
+    }
+  },
+  "אבו סנאן": {
+    "code": 473,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 5.26
+    },
+    "infantMortality": {
+      "rate": 6.5,
+      "low_n": true
+    },
+    "diabetes": {
+      "rate": 76.34
+    },
+    "socioEconomic": {
+      "cluster": 3.0,
+      "value": -0.75,
+      "rank": 62.0
+    },
+    "peripherality": {
+      "cluster": 4.0,
+      "value": -0.21,
+      "rank": 97.0
+    },
+    "heartDisease": {
+      "rate": 434.1,
+      "ci": [
+        297.6,
+        570.6
+      ]
+    }
+  },
+  "אבן יהודה": {
+    "code": 182,
+    "district": "המרכז",
+    "overallMortality": {
+      "rate": 3.99
+    },
+    "diabetes": {
+      "rate": 45.2
+    },
+    "socioEconomic": {
+      "cluster": 9.0,
+      "value": 1.54,
+      "rank": 243.0
+    },
+    "peripherality": {
+      "cluster": 7.0,
+      "value": 1.22,
+      "rank": 212.0
+    }
+  },
+  "אורנית": {
+    "code": 3760,
+    "district": "אזור יהודה והשומרון",
+    "overallMortality": {
+      "rate": 3.3
+    },
+    "socioEconomic": {
+      "cluster": 8.0,
+      "value": 1.31,
+      "rank": 230.0
+    },
+    "peripherality": {
+      "cluster": 6.0,
+      "value": 0.97,
+      "rank": 203.0
+    }
+  },
+  "אזור": {
+    "code": 565,
+    "district": "תל אביב",
+    "overallMortality": {
+      "rate": 4.65
+    },
+    "diabetes": {
+      "rate": 52.37
+    },
+    "socioEconomic": {
+      "cluster": 7.0,
+      "value": 0.59,
+      "rank": 174.0
+    },
+    "peripherality": {
+      "cluster": 9.0,
+      "value": 2.73,
+      "rank": 244.0
+    }
+  },
+  "אכסאל": {
+    "code": 478,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 5.92
+    },
+    "diabetes": {
+      "rate": 103.84
+    },
+    "socioEconomic": {
+      "cluster": 3.0,
+      "value": -0.94,
+      "rank": 42.0
+    },
+    "peripherality": {
+      "cluster": 4.0,
+      "value": -0.14,
+      "rank": 106.0
+    },
+    "heartDisease": {
+      "rate": 470.3,
+      "ci": [
+        282.6,
+        658.0
+      ]
+    }
+  },
+  "אליכין": {
+    "code": 41,
+    "district": "המרכז",
+    "overallMortality": {
+      "rate": 5.2,
+      "low_n": true
+    },
+    "socioEconomic": {
+      "cluster": 7.0,
+      "value": 0.43,
+      "rank": 163.0
+    },
+    "peripherality": {
+      "cluster": 6.0,
+      "value": 0.66,
+      "rank": 180.0
+    }
+  },
+  "אלפי מנשה": {
+    "code": 3750,
+    "district": "אזור יהודה והשומרון",
+    "overallMortality": {
+      "rate": 4.26
+    },
+    "socioEconomic": {
+      "cluster": 8.0,
+      "value": 1.19,
+      "rank": 219.0
+    },
+    "peripherality": {
+      "cluster": 6.0,
+      "value": 0.72,
+      "rank": 186.0
+    }
+  },
+  "אלקנה": {
+    "code": 3560,
+    "district": "אזור יהודה והשומרון",
+    "overallMortality": {
+      "rate": 2.6,
+      "low_n": true
+    },
+    "socioEconomic": {
+      "cluster": 8.0,
+      "value": 1.03,
+      "rank": 209.0
+    },
+    "peripherality": {
+      "cluster": 6.0,
+      "value": 0.77,
+      "rank": 188.0
+    }
+  },
+  "אעבלין": {
+    "code": 529,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 5.65
+    },
+    "diabetes": {
+      "rate": 81.26
+    },
+    "socioEconomic": {
+      "cluster": 3.0,
+      "value": -0.71,
+      "rank": 68.0
+    },
+    "peripherality": {
+      "cluster": 5.0,
+      "value": 0.07,
+      "rank": 131.0
+    }
+  },
+  "אפרת": {
+    "code": 3650,
+    "district": "אזור יהודה והשומרון",
+    "overallMortality": {
+      "rate": 4.67
+    },
+    "diabetes": {
+      "rate": 37.46
+    },
+    "socioEconomic": {
+      "cluster": 7.0,
+      "value": 0.54,
+      "rank": 171.0
+    },
+    "peripherality": {
+      "cluster": 5.0,
+      "value": 0.07,
+      "rank": 132.0
+    }
+  },
+  "בועיינה-נוג'ידאת": {
+    "code": 482,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 5.21
+    },
+    "socioEconomic": {
+      "cluster": 2.0,
+      "value": -1.1,
+      "rank": 34.0
+    },
+    "peripherality": {
+      "cluster": 3.0,
+      "value": -0.57,
+      "rank": 52.0
+    }
+  },
+  "בוקעאתא": {
+    "code": 4001,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 6.1
+    },
+    "socioEconomic": {
+      "cluster": 3.0,
+      "value": -1.02,
+      "rank": 38.0
+    },
+    "peripherality": {
+      "cluster": 1.0,
+      "value": -1.48,
+      "rank": 8.0
+    }
+  },
+  "ביר אל-מכסור": {
+    "code": 998,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 4.42
+    },
+    "socioEconomic": {
+      "cluster": 2.0,
+      "value": -1.25,
+      "rank": 22.0
+    },
+    "peripherality": {
+      "cluster": 4.0,
+      "value": -0.13,
+      "rank": 109.0
+    }
+  },
+  "בית אל": {
+    "code": 3574,
+    "district": "אזור יהודה והשומרון",
+    "overallMortality": {
+      "rate": 3.54
+    },
+    "socioEconomic": {
+      "cluster": 4.0,
+      "value": -0.64,
+      "rank": 76.0
+    },
+    "peripherality": {
+      "cluster": 4.0,
+      "value": -0.19,
+      "rank": 99.0
+    }
+  },
+  "בית אריה-עופרים": {
+    "code": 3652,
+    "district": "אזור יהודה והשומרון",
+    "overallMortality": {
+      "rate": 3.4
+    },
+    "socioEconomic": {
+      "cluster": 7.0,
+      "value": 0.88,
+      "rank": 201.0
+    },
+    "peripherality": {
+      "cluster": 6.0,
+      "value": 0.7,
+      "rank": 185.0
+    }
+  },
+  "בית ג'ן": {
+    "code": 480,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 4.41
+    },
+    "diabetes": {
+      "rate": 59.61
+    },
+    "socioEconomic": {
+      "cluster": 4.0,
+      "value": -0.46,
+      "rank": 93.0
+    },
+    "peripherality": {
+      "cluster": 2.0,
+      "value": -0.74,
+      "rank": 37.0
+    }
+  },
+  "בית דגן": {
+    "code": 466,
+    "district": "המרכז",
+    "overallMortality": {
+      "rate": 4.15
+    },
+    "socioEconomic": {
+      "cluster": 7.0,
+      "value": 0.59,
+      "rank": 175.0
+    },
+    "peripherality": {
+      "cluster": 8.0,
+      "value": 2.48,
+      "rank": 240.0
+    }
+  },
+  "בני עי\"ש": {
+    "code": 1066,
+    "district": "המרכז",
+    "overallMortality": {
+      "rate": 5.19
+    },
+    "socioEconomic": {
+      "cluster": 5.0,
+      "value": 0.05,
+      "rank": 136.0
+    },
+    "peripherality": {
+      "cluster": 6.0,
+      "value": 0.76,
+      "rank": 187.0
+    }
+  },
+  "בנימינה-גבעת עדה": {
+    "code": 9800,
+    "district": "חיפה",
+    "overallMortality": {
+      "rate": 4.38
+    },
+    "diabetes": {
+      "rate": 39.16
+    },
+    "socioEconomic": {
+      "cluster": 8.0,
+      "value": 1.31,
+      "rank": 229.0
+    },
+    "peripherality": {
+      "cluster": 5.0,
+      "value": 0.28,
+      "rank": 159.0
+    }
+  },
+  "בסמ\"ה": {
+    "code": 1326,
+    "district": "חיפה",
+    "overallMortality": {
+      "rate": 5.27
+    },
+    "infantMortality": {
+      "rate": 8.2,
+      "low_n": true
+    },
+    "diabetes": {
+      "rate": 105.7
+    },
+    "socioEconomic": {
+      "cluster": 2.0,
+      "value": -1.1,
+      "rank": 33.0
+    },
+    "peripherality": {
+      "cluster": 5.0,
+      "value": 0.16,
+      "rank": 143.0
+    }
+  },
+  "בסמת טבעון": {
+    "code": 944,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 5.32
+    },
+    "socioEconomic": {
+      "cluster": 3.0,
+      "value": -0.89,
+      "rank": 48.0
+    },
+    "peripherality": {
+      "cluster": 4.0,
+      "value": -0.08,
+      "rank": 116.0
+    }
+  },
+  "בענה": {
+    "code": 483,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 5.32
+    },
+    "socioEconomic": {
+      "cluster": 2.0,
+      "value": -1.09,
+      "rank": 36.0
+    },
+    "peripherality": {
+      "cluster": 4.0,
+      "value": -0.13,
+      "rank": 107.0
+    }
+  },
+  "גבעת זאב": {
+    "code": 3730,
+    "district": "אזור יהודה והשומרון",
+    "overallMortality": {
+      "rate": 3.4
+    },
+    "infantMortality": {
+      "rate": 3.4,
+      "low_n": true
+    },
+    "diabetes": {
+      "rate": 83.15
+    },
+    "socioEconomic": {
+      "cluster": 5.0,
+      "value": -0.2,
+      "rank": 107.0
+    },
+    "peripherality": {
+      "cluster": 6.0,
+      "value": 0.68,
+      "rank": 184.0
+    }
+  },
+  "ג'דיידה-מכר": {
+    "code": 1292,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 6.69
+    },
+    "infantMortality": {
+      "rate": 4.2,
+      "low_n": true
+    },
+    "socioEconomic": {
+      "cluster": 3.0,
+      "value": -0.88,
+      "rank": 50.0
+    },
+    "peripherality": {
+      "cluster": 4.0,
+      "value": -0.16,
+      "rank": 100.0
+    },
+    "heartDisease": {
+      "rate": 508.5,
+      "ci": [
+        373.8,
+        643.1
+      ]
+    },
+    "cancerMortality": {
+      "rate": 501.8,
+      "ci": [
+        374.1,
+        629.4
+      ]
+    }
+  },
+  "גדרה": {
+    "code": 2550,
+    "district": "המרכז",
+    "overallMortality": {
+      "rate": 3.77
+    },
+    "diabetes": {
+      "rate": 95.11
+    },
+    "cancerIncidenceMen": {
+      "rate": 284.33
+    },
+    "cancerIncidenceWomen": {
+      "rate": 263.5
+    },
+    "socioEconomic": {
+      "cluster": 7.0,
+      "value": 0.75,
+      "rank": 189.0
+    },
+    "peripherality": {
+      "cluster": 6.0,
+      "value": 0.93,
+      "rank": 200.0
+    }
+  },
+  "ג'ולס": {
+    "code": 485,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 5.3
+    },
+    "diabetes": {
+      "rate": 142.84
+    },
+    "socioEconomic": {
+      "cluster": 5.0,
+      "value": -0.2,
+      "rank": 106.0
+    },
+    "peripherality": {
+      "cluster": 4.0,
+      "value": -0.28,
+      "rank": 89.0
+    }
+  },
+  "ג'לג'וליה": {
+    "code": 627,
+    "district": "המרכז",
+    "overallMortality": {
+      "rate": 5.51
+    },
+    "socioEconomic": {
+      "cluster": 3.0,
+      "value": -0.96,
+      "rank": 41.0
+    },
+    "peripherality": {
+      "cluster": 7.0,
+      "value": 1.46,
+      "rank": 221.0
+    }
+  },
+  "גן יבנה": {
+    "code": 166,
+    "district": "המרכז",
+    "overallMortality": {
+      "rate": 3.99
+    },
+    "diabetes": {
+      "rate": 86.02
+    },
+    "cancerIncidenceMen": {
+      "rate": 319.03
+    },
+    "cancerIncidenceWomen": {
+      "rate": 269.31
+    },
+    "socioEconomic": {
+      "cluster": 7.0,
+      "value": 0.77,
+      "rank": 191.0
+    },
+    "peripherality": {
+      "cluster": 6.0,
+      "value": 0.67,
+      "rank": 182.0
+    },
+    "cancerMortality": {
+      "rate": 267.9,
+      "ci": [
+        190.6,
+        345.2
+      ]
     }
   },
   "גני תקווה": {
+    "code": 229,
+    "district": "המרכז",
     "overallMortality": {
-      "rate": 3.8,
-      "ci": [
-        3.4,
-        4.3
-      ]
+      "rate": 3.48
+    },
+    "diabetes": {
+      "rate": 45.92
+    },
+    "socioEconomic": {
+      "cluster": 9.0,
+      "value": 1.45,
+      "rank": 239.0
+    },
+    "peripherality": {
+      "cluster": 9.0,
+      "value": 2.92,
+      "rank": 246.0
     },
     "heartDisease": {
       "rate": 137.6,
@@ -180,36 +3145,28 @@ export const CITY_MORTALITY = {
       ]
     }
   },
-  "קריית טבעון": {
+  "ג'סר א-זרקא": {
+    "code": 541,
+    "district": "חיפה",
     "overallMortality": {
-      "rate": 3.9,
-      "ci": [
-        3.5,
-        4.2
-      ]
+      "rate": 8.24
+    },
+    "infantMortality": {
+      "rate": 7.5,
+      "low_n": true
     },
     "diabetes": {
-      "rate": 40.2,
-      "ci": [
-        39.5,
-        40.9
-      ]
-    }
-  },
-  "ג'סר א-זרקא": {
-    "overallMortality": {
-      "rate": 9.3,
-      "ci": [
-        8.1,
-        10.5
-      ]
+      "rate": 49.61
     },
-    "cancer": {
-      "rate": 550.5,
-      "ci": [
-        340.2,
-        760.9
-      ]
+    "socioEconomic": {
+      "cluster": 2.0,
+      "value": -1.48,
+      "rank": 15.0
+    },
+    "peripherality": {
+      "cluster": 5.0,
+      "value": 0.26,
+      "rank": 157.0
     },
     "heartDisease": {
       "rate": 403.3,
@@ -218,188 +3175,948 @@ export const CITY_MORTALITY = {
         610.1
       ]
     },
-    "diabetes": {
-      "rate": 138.1,
+    "cancerMortality": {
+      "rate": 550.5,
       "ci": [
-        136.2,
-        140.0
+        340.2,
+        760.9
       ]
+    }
+  },
+  "ג'ש (גוש חלב)": {
+    "code": 487,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 4.9,
+      "low_n": true
     },
-    "infantMortality": {
-      "rate": 8.6,
+    "diabetes": {
+      "rate": 59.43
+    },
+    "socioEconomic": {
+      "cluster": 7.0,
+      "value": 0.47,
+      "rank": 168.0
+    },
+    "peripherality": {
+      "cluster": 2.0,
+      "value": -0.95,
+      "rank": 24.0
+    }
+  },
+  "ג'ת": {
+    "code": 628,
+    "district": "חיפה",
+    "overallMortality": {
+      "rate": 5.59
+    },
+    "diabetes": {
+      "rate": 46.38
+    },
+    "socioEconomic": {
+      "cluster": 5.0,
+      "value": -0.07,
+      "rank": 121.0
+    },
+    "peripherality": {
+      "cluster": 6.0,
+      "value": 0.47,
+      "rank": 171.0
+    }
+  },
+  "דאלית אל-כרמל": {
+    "code": 494,
+    "district": "חיפה",
+    "overallMortality": {
+      "rate": 5.27
+    },
+    "diabetes": {
+      "rate": 65.84
+    },
+    "socioEconomic": {
+      "cluster": 5.0,
+      "value": -0.28,
+      "rank": 103.0
+    },
+    "peripherality": {
+      "cluster": 4.0,
+      "value": -0.1,
+      "rank": 112.0
+    },
+    "heartDisease": {
+      "rate": 413.3,
+      "ci": [
+        300.3,
+        526.3
+      ]
+    }
+  },
+  "דבורייה": {
+    "code": 489,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 5.14
+    },
+    "diabetes": {
+      "rate": 88.39
+    },
+    "socioEconomic": {
+      "cluster": 4.0,
+      "value": -0.52,
+      "rank": 86.0
+    },
+    "peripherality": {
+      "cluster": 4.0,
+      "value": -0.29,
+      "rank": 87.0
+    }
+  },
+  "דייר אל-אסד": {
+    "code": 490,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 5.65
+    },
+    "diabetes": {
+      "rate": 82.0
+    },
+    "socioEconomic": {
+      "cluster": 4.0,
+      "value": -0.6,
+      "rank": 80.0
+    },
+    "peripherality": {
+      "cluster": 4.0,
+      "value": -0.22,
+      "rank": 95.0
+    },
+    "cancerMortality": {
+      "rate": 216.0,
+      "ci": [
+        107.0,
+        325.0
+      ],
       "low_n": true
     }
   },
-  "לקיה": {
+  "דייר חנא": {
+    "code": 492,
+    "district": "הצפון",
     "overallMortality": {
-      "rate": 7.5,
-      "ci": [
-        6.2,
-        8.7
-      ]
+      "rate": 4.95
     },
-    "cancer": {
+    "diabetes": {
+      "rate": 81.94
+    },
+    "socioEconomic": {
+      "cluster": 4.0,
+      "value": -0.61,
+      "rank": 78.0
+    },
+    "peripherality": {
+      "cluster": 3.0,
+      "value": -0.44,
+      "rank": 71.0
+    }
+  },
+  "הר אדר": {
+    "code": 3769,
+    "district": "אזור יהודה והשומרון",
+    "overallMortality": {
+      "rate": 2.0,
+      "low_n": true
+    },
+    "socioEconomic": {
+      "cluster": 9.0,
+      "value": 1.72,
+      "rank": 250.0
+    },
+    "peripherality": {
+      "cluster": 6.0,
+      "value": 0.48,
+      "rank": 172.0
+    }
+  },
+  "זכרון יעקב": {
+    "code": 9300,
+    "district": "חיפה",
+    "overallMortality": {
+      "rate": 4.03
+    },
+    "diabetes": {
+      "rate": 41.0
+    },
+    "cancerIncidenceMen": {
+      "rate": 292.21
+    },
+    "cancerIncidenceWomen": {
+      "rate": 319.07
+    },
+    "socioEconomic": {
+      "cluster": 8.0,
+      "value": 1.13,
+      "rank": 215.0
+    },
+    "peripherality": {
+      "cluster": 5.0,
+      "value": 0.22,
+      "rank": 153.0
+    }
+  },
+  "זמר": {
+    "code": 1290,
+    "district": "המרכז",
+    "overallMortality": {
+      "rate": 5.6
+    },
+    "socioEconomic": {
+      "cluster": 4.0,
+      "value": -0.48,
+      "rank": 90.0
+    },
+    "peripherality": {
+      "cluster": 6.0,
+      "value": 0.45,
+      "rank": 168.0
+    }
+  },
+  "זרזיר": {
+    "code": 975,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 5.86
+    },
+    "infantMortality": {
+      "rate": 5.4,
+      "low_n": true
+    },
+    "socioEconomic": {
+      "cluster": 2.0,
+      "value": -1.09,
+      "rank": 35.0
+    },
+    "peripherality": {
+      "cluster": 4.0,
+      "value": -0.09,
+      "rank": 113.0
+    }
+  },
+  "חורה": {
+    "code": 1303,
+    "district": "הדרום",
+    "overallMortality": {
+      "rate": 4.76
+    },
+    "infantMortality": {
+      "rate": 9.5
+    },
+    "diabetes": {
+      "rate": 75.66
+    },
+    "socioEconomic": {
+      "cluster": 1.0,
+      "value": -2.23,
+      "rank": 7.0
+    },
+    "peripherality": {
+      "cluster": 3.0,
+      "value": -0.51,
+      "rank": 60.0
+    },
+    "cancerMortality": {
+      "rate": 202.0,
+      "ci": [
+        78.4,
+        324.8
+      ],
+      "low_n": true
+    }
+  },
+  "חורפיש": {
+    "code": 496,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 5.14
+    },
+    "socioEconomic": {
+      "cluster": 5.0,
+      "value": -0.34,
+      "rank": 97.0
+    },
+    "peripherality": {
+      "cluster": 2.0,
+      "value": -0.83,
+      "rank": 32.0
+    }
+  },
+  "חצור הגלילית": {
+    "code": 2034,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 6.54
+    },
+    "socioEconomic": {
+      "cluster": 4.0,
+      "value": -0.48,
+      "rank": 89.0
+    },
+    "peripherality": {
+      "cluster": 2.0,
+      "value": -0.96,
+      "rank": 23.0
+    }
+  },
+  "טובא-זנגרייה": {
+    "code": 962,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 5.75
+    },
+    "socioEconomic": {
+      "cluster": 3.0,
+      "value": -0.91,
+      "rank": 43.0
+    },
+    "peripherality": {
+      "cluster": 2.0,
+      "value": -1.03,
+      "rank": 19.0
+    }
+  },
+  "טורעאן": {
+    "code": 498,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 5.27
+    },
+    "diabetes": {
+      "rate": 81.07
+    },
+    "socioEconomic": {
+      "cluster": 3.0,
+      "value": -0.84,
+      "rank": 54.0
+    },
+    "peripherality": {
+      "cluster": 3.0,
+      "value": -0.37,
+      "rank": 79.0
+    },
+    "heartDisease": {
+      "rate": 416.2,
+      "ci": [
+        265.8,
+        566.6
+      ]
+    }
+  },
+  "יאנוח-ג'ת": {
+    "code": 1295,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 5.12
+    },
+    "socioEconomic": {
+      "cluster": 5.0,
+      "value": -0.39,
+      "rank": 95.0
+    },
+    "peripherality": {
+      "cluster": 3.0,
+      "value": -0.56,
+      "rank": 53.0
+    }
+  },
+  "יבנאל": {
+    "code": 46,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 4.2,
+      "low_n": true
+    },
+    "socioEconomic": {
+      "cluster": 2.0,
+      "value": -1.15,
+      "rank": 28.0
+    },
+    "peripherality": {
+      "cluster": 3.0,
+      "value": -0.64,
+      "rank": 44.0
+    }
+  },
+  "יסוד המעלה": {
+    "code": 29,
+    "district": "הצפון",
+    "socioEconomic": {
+      "cluster": 7.0,
+      "value": 0.98,
+      "rank": 207.0
+    },
+    "peripherality": {
+      "cluster": 1.0,
+      "value": -1.16,
+      "rank": 18.0
+    }
+  },
+  "יפיע": {
+    "code": 499,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 5.06
+    },
+    "infantMortality": {
+      "rate": 3.1,
+      "low_n": true
+    },
+    "diabetes": {
+      "rate": 89.1
+    },
+    "socioEconomic": {
+      "cluster": 3.0,
+      "value": -0.9,
+      "rank": 47.0
+    },
+    "peripherality": {
+      "cluster": 5.0,
+      "value": 0.15,
+      "rank": 138.0
+    }
+  },
+  "ירוחם": {
+    "code": 831,
+    "district": "הדרום",
+    "overallMortality": {
+      "rate": 7.22
+    },
+    "infantMortality": {
+      "rate": 4.1,
+      "low_n": true
+    },
+    "diabetes": {
+      "rate": 71.74
+    },
+    "socioEconomic": {
+      "cluster": 4.0,
+      "value": -0.5,
+      "rank": 87.0
+    },
+    "peripherality": {
+      "cluster": 2.0,
+      "value": -1.02,
+      "rank": 20.0
+    }
+  },
+  "ירכא": {
+    "code": 502,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 5.24
+    },
+    "infantMortality": {
+      "rate": 7.2,
+      "low_n": true
+    },
+    "diabetes": {
+      "rate": 59.24
+    },
+    "socioEconomic": {
+      "cluster": 3.0,
+      "value": -0.72,
+      "rank": 66.0
+    },
+    "peripherality": {
+      "cluster": 3.0,
+      "value": -0.32,
+      "rank": 85.0
+    },
+    "cancerMortality": {
+      "rate": 264.1,
+      "ci": [
+        178.6,
+        349.7
+      ]
+    }
+  },
+  "כאבול": {
+    "code": 504,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 5.29
+    },
+    "infantMortality": {
+      "rate": 5.4,
+      "low_n": true
+    },
+    "diabetes": {
+      "rate": 89.76
+    },
+    "socioEconomic": {
+      "cluster": 3.0,
+      "value": -0.84,
+      "rank": 55.0
+    },
+    "peripherality": {
+      "cluster": 4.0,
+      "value": -0.12,
+      "rank": 110.0
+    }
+  },
+  "כאוכב אבו אל-היג'א": {
+    "code": 505,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 5.1,
+      "low_n": true
+    },
+    "socioEconomic": {
+      "cluster": 4.0,
+      "value": -0.47,
+      "rank": 91.0
+    },
+    "peripherality": {
+      "cluster": 4.0,
+      "value": -0.25,
+      "rank": 92.0
+    }
+  },
+  "כוכב יאיר": {
+    "code": 1224,
+    "district": "המרכז",
+    "overallMortality": {
+      "rate": 3.9
+    },
+    "socioEconomic": {
+      "cluster": 10.0,
+      "value": 1.83,
+      "rank": 251.0
+    },
+    "peripherality": {
+      "cluster": 6.0,
+      "value": 0.87,
+      "rank": 194.0
+    }
+  },
+  "כסיפה": {
+    "code": 1059,
+    "district": "הדרום",
+    "overallMortality": {
+      "rate": 5.11
+    },
+    "infantMortality": {
+      "rate": 6.0
+    },
+    "diabetes": {
+      "rate": 64.2
+    },
+    "socioEconomic": {
+      "cluster": 1.0,
+      "value": -2.32,
+      "rank": 4.0
+    },
+    "peripherality": {
+      "cluster": 2.0,
+      "value": -0.79,
+      "rank": 34.0
+    },
+    "heartDisease": {
+      "rate": 154.0,
+      "ci": [
+        45.7,
+        262.7
+      ],
+      "low_n": true
+    },
+    "cancerMortality": {
+      "rate": 291.0,
+      "ci": [
+        147.0,
+        435.7
+      ],
+      "low_n": true
+    }
+  },
+  "כסרא-סמיע": {
+    "code": 1296,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 5.97
+    },
+    "infantMortality": {
+      "rate": 7.7,
+      "low_n": true
+    },
+    "socioEconomic": {
+      "cluster": 3.0,
+      "value": -0.73,
+      "rank": 65.0
+    },
+    "peripherality": {
+      "cluster": 3.0,
+      "value": -0.65,
+      "rank": 42.0
+    }
+  },
+  "כעביה-טבאש-חג'אג'רה": {
+    "code": 978,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 5.7
+    },
+    "socioEconomic": {
+      "cluster": 3.0,
+      "value": -0.91,
+      "rank": 44.0
+    },
+    "peripherality": {
+      "cluster": 4.0,
+      "value": -0.1,
+      "rank": 111.0
+    }
+  },
+  "כפר ברא": {
+    "code": 633,
+    "district": "המרכז",
+    "overallMortality": {
+      "rate": 4.0,
+      "low_n": true
+    },
+    "socioEconomic": {
+      "cluster": 4.0,
+      "value": -0.54,
+      "rank": 84.0
+    },
+    "peripherality": {
+      "cluster": 7.0,
+      "value": 1.33,
+      "rank": 217.0
+    }
+  },
+  "כפר ורדים": {
+    "code": 1263,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 4.09
+    },
+    "socioEconomic": {
+      "cluster": 9.0,
+      "value": 1.49,
+      "rank": 241.0
+    },
+    "peripherality": {
+      "cluster": 3.0,
+      "value": -0.6,
+      "rank": 48.0
+    }
+  },
+  "כפר יאסיף": {
+    "code": 507,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 5.99
+    },
+    "diabetes": {
+      "rate": 88.94
+    },
+    "socioEconomic": {
+      "cluster": 5.0,
+      "value": -0.08,
+      "rank": 117.0
+    },
+    "peripherality": {
+      "cluster": 4.0,
+      "value": -0.13,
+      "rank": 108.0
+    }
+  },
+  "כפר כמא": {
+    "code": 508,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 5.7,
+      "low_n": true
+    },
+    "socioEconomic": {
+      "cluster": 6.0,
+      "value": 0.3,
+      "rank": 157.0
+    },
+    "peripherality": {
+      "cluster": 3.0,
+      "value": -0.5,
+      "rank": 61.0
+    }
+  },
+  "כפר כנא": {
+    "code": 509,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 4.89
+    },
+    "infantMortality": {
+      "rate": 3.8,
+      "low_n": true
+    },
+    "diabetes": {
+      "rate": 89.14
+    },
+    "cancerIncidenceMen": {
+      "rate": 247.71
+    },
+    "cancerIncidenceWomen": {
+      "rate": 203.97
+    },
+    "socioEconomic": {
+      "cluster": 2.0,
+      "value": -1.11,
+      "rank": 32.0
+    },
+    "peripherality": {
+      "cluster": 4.0,
+      "value": -0.08,
+      "rank": 117.0
+    },
+    "heartDisease": {
+      "rate": 402.1,
+      "ci": [
+        273.1,
+        531.1
+      ]
+    }
+  },
+  "כפר מנדא": {
+    "code": 510,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 5.67
+    },
+    "infantMortality": {
+      "rate": 4.3,
+      "low_n": true
+    },
+    "diabetes": {
+      "rate": 88.85
+    },
+    "socioEconomic": {
+      "cluster": 2.0,
+      "value": -1.48,
+      "rank": 16.0
+    },
+    "peripherality": {
+      "cluster": 4.0,
+      "value": -0.2,
+      "rank": 98.0
+    }
+  },
+  "כפר קרע": {
+    "code": 654,
+    "district": "חיפה",
+    "overallMortality": {
+      "rate": 5.64
+    },
+    "infantMortality": {
+      "rate": 3.8,
+      "low_n": true
+    },
+    "diabetes": {
+      "rate": 98.94
+    },
+    "socioEconomic": {
+      "cluster": 5.0,
+      "value": -0.21,
+      "rank": 105.0
+    },
+    "peripherality": {
+      "cluster": 5.0,
+      "value": 0.24,
+      "rank": 154.0
+    },
+    "cancerMortality": {
+      "rate": 266.8,
+      "ci": [
+        176.4,
+        357.2
+      ]
+    }
+  },
+  "כפר שמריהו": {
+    "code": 267,
+    "district": "תל אביב",
+    "overallMortality": {
+      "rate": 3.6,
+      "low_n": true
+    },
+    "socioEconomic": {
+      "cluster": 10.0,
+      "value": 2.07,
+      "rank": 254.0
+    },
+    "peripherality": {
+      "cluster": 8.0,
+      "value": 1.68,
+      "rank": 226.0
+    }
+  },
+  "כפר תבור": {
+    "code": 47,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 3.9,
+      "low_n": true
+    },
+    "socioEconomic": {
+      "cluster": 8.0,
+      "value": 1.35,
+      "rank": 234.0
+    },
+    "peripherality": {
+      "cluster": 3.0,
+      "value": -0.37,
+      "rank": 76.0
+    }
+  },
+  "להבים": {
+    "code": 1271,
+    "district": "הדרום",
+    "overallMortality": {
+      "rate": 2.67
+    },
+    "socioEconomic": {
+      "cluster": 10.0,
+      "value": 2.02,
+      "rank": 253.0
+    },
+    "peripherality": {
+      "cluster": 3.0,
+      "value": -0.34,
+      "rank": 81.0
+    }
+  },
+  "לקיה": {
+    "code": 1060,
+    "district": "הדרום",
+    "overallMortality": {
+      "rate": 5.26
+    },
+    "infantMortality": {
+      "rate": 8.1
+    },
+    "diabetes": {
+      "rate": 106.53
+    },
+    "socioEconomic": {
+      "cluster": 1.0,
+      "value": -2.05,
+      "rank": 9.0
+    },
+    "peripherality": {
+      "cluster": 3.0,
+      "value": -0.46,
+      "rank": 67.0
+    },
+    "cancerMortality": {
       "rate": 285.0,
       "ci": [
         92.5,
         478.4
       ],
       "low_n": true
-    },
-    "diabetes": {
-      "rate": 107.1,
-      "ci": [
-        105.6,
-        108.6
-      ]
-    },
-    "infantMortality": {
-      "rate": 8.6
     }
   },
-  "תל שבע": {
+  "מבשרת ציון": {
+    "code": 1015,
+    "district": "ירושלים",
     "overallMortality": {
-      "rate": 6.9,
-      "ci": [
-        6.0,
-        7.9
-      ]
+      "rate": 3.3
     },
-    "cancer": {
-      "rate": 314.0,
-      "ci": [
-        137.9,
-        490.6
-      ],
+    "diabetes": {
+      "rate": 43.43
+    },
+    "cancerIncidenceMen": {
+      "rate": 274.9
+    },
+    "cancerIncidenceWomen": {
+      "rate": 264.21
+    },
+    "socioEconomic": {
+      "cluster": 8.0,
+      "value": 1.15,
+      "rank": 216.0
+    },
+    "peripherality": {
+      "cluster": 6.0,
+      "value": 0.94,
+      "rank": 202.0
+    }
+  },
+  "מג'ד אל-כרום": {
+    "code": 516,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 5.32
+    },
+    "infantMortality": {
+      "rate": 5.8,
       "low_n": true
     },
     "diabetes": {
-      "rate": 111.7,
-      "ci": [
-        108.2,
-        115.2
-      ]
+      "rate": 89.66
     },
-    "infantMortality": {
-      "rate": 11.9
-    }
-  },
-  "אכסאל": {
-    "overallMortality": {
-      "rate": 6.9,
-      "ci": [
-        5.9,
-        7.9
-      ]
+    "socioEconomic": {
+      "cluster": 3.0,
+      "value": -0.75,
+      "rank": 61.0
+    },
+    "peripherality": {
+      "cluster": 4.0,
+      "value": -0.23,
+      "rank": 94.0
     },
     "heartDisease": {
-      "rate": 470.3,
+      "rate": 413.4,
       "ci": [
-        282.6,
-        658.0
+        267.4,
+        559.3
       ]
+    }
+  },
+  "מגדל": {
+    "code": 65,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 6.0,
+      "low_n": true
     },
     "diabetes": {
-      "rate": 104.1,
-      "ci": [
-        102.3,
-        105.8
-      ]
-    }
-  },
-  "פוריידיס": {
-    "overallMortality": {
-      "rate": 6.8,
-      "ci": [
-        5.9,
-        7.7
-      ]
-    }
-  },
-  "טייבה": {
-    "overallMortality": {
-      "rate": 6.7,
-      "ci": [
-        6.2,
-        7.2
-      ]
+      "rate": 81.66
     },
-    "diabetes": {
-      "rate": 103.3,
-      "ci": [
-        101.7,
-        105.0
-      ]
-    }
-  },
-  "כפר קאסם": {
-    "overallMortality": {
-      "rate": 6.7,
-      "ci": [
-        6.0,
-        7.5
-      ]
+    "socioEconomic": {
+      "cluster": 6.0,
+      "value": 0.12,
+      "rank": 140.0
     },
-    "diabetes": {
-      "rate": 109.0,
-      "ci": [
-        106.6,
-        111.3
-      ]
-    },
-    "infantMortality": {
-      "rate": 8.3
-    }
-  },
-  "דימונה": {
-    "overallMortality": {
-      "rate": 6.7,
-      "ci": [
-        6.3,
-        7.0
-      ]
-    }
-  },
-  "ג'דיידה-מכר": {
-    "overallMortality": {
-      "rate": 6.6,
-      "ci": [
-        5.9,
-        7.3
-      ]
-    },
-    "heartDisease": {
-      "rate": 508.5,
-      "ci": [
-        373.8,
-        643.1
-      ]
-    },
-    "cancer": {
-      "rate": 501.8,
-      "ci": [
-        374.1,
-        629.4
-      ]
-    }
-  },
-  "אופקים": {
-    "overallMortality": {
-      "rate": 6.5,
-      "ci": [
-        6.0,
-        6.9
-      ]
-    },
-    "cancer": {
-      "rate": 511.3,
-      "ci": [
-        436.0,
-        586.7
-      ]
+    "peripherality": {
+      "cluster": 2.0,
+      "value": -0.76,
+      "rank": 35.0
     }
   },
   "מג'דל שמס": {
+    "code": 4201,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 5.59
+    },
+    "socioEconomic": {
+      "cluster": 3.0,
+      "value": -0.82,
+      "rank": 57.0
+    },
+    "peripherality": {
+      "cluster": 1.0,
+      "value": -1.52,
+      "rank": 5.0
+    },
     "heartDisease": {
       "rate": 106.0,
       "ci": [
@@ -408,7 +4125,7 @@ export const CITY_MORTALITY = {
       ],
       "low_n": true
     },
-    "cancer": {
+    "cancerMortality": {
       "rate": 186.0,
       "ci": [
         94.4,
@@ -417,7 +4134,687 @@ export const CITY_MORTALITY = {
       "low_n": true
     }
   },
+  "מזכרת בתיה": {
+    "code": 28,
+    "district": "המרכז",
+    "overallMortality": {
+      "rate": 3.62
+    },
+    "diabetes": {
+      "rate": 56.01
+    },
+    "socioEconomic": {
+      "cluster": 8.0,
+      "value": 1.29,
+      "rank": 228.0
+    },
+    "peripherality": {
+      "cluster": 6.0,
+      "value": 1.1,
+      "rank": 208.0
+    }
+  },
+  "מזרעה": {
+    "code": 517,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 7.1,
+      "low_n": true
+    },
+    "socioEconomic": {
+      "cluster": 4.0,
+      "value": -0.49,
+      "rank": 88.0
+    },
+    "peripherality": {
+      "cluster": 4.0,
+      "value": -0.22,
+      "rank": 96.0
+    }
+  },
+  "מטולה": {
+    "code": 43,
+    "district": "הצפון",
+    "socioEconomic": {
+      "cluster": 7.0,
+      "value": 0.9,
+      "rank": 203.0
+    },
+    "peripherality": {
+      "cluster": 1.0,
+      "value": -1.42,
+      "rank": 10.0
+    }
+  },
+  "מיתר": {
+    "code": 1268,
+    "district": "הדרום",
+    "overallMortality": {
+      "rate": 3.49
+    },
+    "socioEconomic": {
+      "cluster": 9.0,
+      "value": 1.55,
+      "rank": 244.0
+    },
+    "peripherality": {
+      "cluster": 3.0,
+      "value": -0.54,
+      "rank": 57.0
+    }
+  },
+  "מסעדה": {
+    "code": 4203,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 4.4,
+      "low_n": true
+    },
+    "socioEconomic": {
+      "cluster": 2.0,
+      "value": -1.07,
+      "rank": 37.0
+    },
+    "peripherality": {
+      "cluster": 1.0,
+      "value": -1.48,
+      "rank": 9.0
+    }
+  },
+  "מעיליא": {
+    "code": 518,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 3.4,
+      "low_n": true
+    },
+    "socioEconomic": {
+      "cluster": 7.0,
+      "value": 0.86,
+      "rank": 198.0
+    },
+    "peripherality": {
+      "cluster": 3.0,
+      "value": -0.67,
+      "rank": 41.0
+    }
+  },
+  "מעלה אפרים": {
+    "code": 3608,
+    "district": "אזור יהודה והשומרון",
+    "socioEconomic": {
+      "cluster": 4.0,
+      "value": -0.53,
+      "rank": 85.0
+    },
+    "peripherality": {
+      "cluster": 3.0,
+      "value": -0.37,
+      "rank": 78.0
+    }
+  },
+  "מעלה עירון": {
+    "code": 1327,
+    "district": "חיפה",
+    "overallMortality": {
+      "rate": 6.52
+    },
+    "infantMortality": {
+      "rate": 5.1,
+      "low_n": true
+    },
+    "diabetes": {
+      "rate": 110.91
+    },
+    "socioEconomic": {
+      "cluster": 2.0,
+      "value": -1.15,
+      "rank": 27.0
+    },
+    "peripherality": {
+      "cluster": 5.0,
+      "value": 0.15,
+      "rank": 139.0
+    }
+  },
+  "מצפה רמון": {
+    "code": 99,
+    "district": "הדרום",
+    "overallMortality": {
+      "rate": 6.39
+    },
+    "socioEconomic": {
+      "cluster": 3.0,
+      "value": -0.78,
+      "rank": 59.0
+    },
+    "peripherality": {
+      "cluster": 1.0,
+      "value": -1.52,
+      "rank": 6.0
+    }
+  },
+  "משהד": {
+    "code": 520,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 7.44
+    },
+    "socioEconomic": {
+      "cluster": 2.0,
+      "value": -1.18,
+      "rank": 24.0
+    },
+    "peripherality": {
+      "cluster": 5.0,
+      "value": 0.04,
+      "rank": 125.0
+    }
+  },
+  "נחף": {
+    "code": 522,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 6.59
+    },
+    "infantMortality": {
+      "rate": 5.1,
+      "low_n": true
+    },
+    "diabetes": {
+      "rate": 108.52
+    },
+    "socioEconomic": {
+      "cluster": 2.0,
+      "value": -1.15,
+      "rank": 29.0
+    },
+    "peripherality": {
+      "cluster": 3.0,
+      "value": -0.43,
+      "rank": 72.0
+    }
+  },
+  "סאג'ור": {
+    "code": 525,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 4.9,
+      "low_n": true
+    },
+    "socioEconomic": {
+      "cluster": 4.0,
+      "value": -0.55,
+      "rank": 83.0
+    },
+    "peripherality": {
+      "cluster": 3.0,
+      "value": -0.57,
+      "rank": 51.0
+    }
+  },
+  "סביון": {
+    "code": 587,
+    "district": "המרכז",
+    "overallMortality": {
+      "rate": 4.2,
+      "low_n": true
+    },
+    "socioEconomic": {
+      "cluster": 10.0,
+      "value": 2.35,
+      "rank": 255.0
+    },
+    "peripherality": {
+      "cluster": 9.0,
+      "value": 2.63,
+      "rank": 242.0
+    }
+  },
+  "ע'ג'ר": {
+    "code": 4501,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 5.4,
+      "low_n": true
+    },
+    "socioEconomic": {
+      "cluster": 3.0,
+      "value": -0.99,
+      "rank": 40.0
+    },
+    "peripherality": {
+      "cluster": 1.0,
+      "value": -1.5,
+      "rank": 7.0
+    }
+  },
+  "עומר": {
+    "code": 666,
+    "district": "הדרום",
+    "overallMortality": {
+      "rate": 3.66
+    },
+    "socioEconomic": {
+      "cluster": 10.0,
+      "value": 1.92,
+      "rank": 252.0
+    },
+    "peripherality": {
+      "cluster": 3.0,
+      "value": -0.37,
+      "rank": 77.0
+    }
+  },
+  "עיילבון": {
+    "code": 530,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 4.35
+    },
+    "socioEconomic": {
+      "cluster": 5.0,
+      "value": -0.04,
+      "rank": 123.0
+    },
+    "peripherality": {
+      "cluster": 3.0,
+      "value": -0.48,
+      "rank": 62.0
+    }
+  },
+  "עילוט": {
+    "code": 511,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 5.77
+    },
+    "socioEconomic": {
+      "cluster": 2.0,
+      "value": -1.46,
+      "rank": 17.0
+    },
+    "peripherality": {
+      "cluster": 4.0,
+      "value": 0.0,
+      "rank": 123.0
+    }
+  },
+  "עין מאהל": {
+    "code": 532,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 5.49
+    },
+    "infantMortality": {
+      "rate": 4.5,
+      "low_n": true
+    },
+    "diabetes": {
+      "rate": 88.55
+    },
+    "socioEconomic": {
+      "cluster": 2.0,
+      "value": -1.18,
+      "rank": 25.0
+    },
+    "peripherality": {
+      "cluster": 4.0,
+      "value": -0.14,
+      "rank": 102.0
+    }
+  },
+  "עין קנייא": {
+    "code": 4502,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 6.6,
+      "low_n": true
+    },
+    "socioEconomic": {
+      "cluster": 3.0,
+      "value": -0.86,
+      "rank": 52.0
+    },
+    "peripherality": {
+      "cluster": 1.0,
+      "value": -1.53,
+      "rank": 4.0
+    }
+  },
+  "עמנואל": {
+    "code": 3660,
+    "district": "אזור יהודה והשומרון",
+    "overallMortality": {
+      "rate": 7.5,
+      "low_n": true
+    },
+    "socioEconomic": {
+      "cluster": 2.0,
+      "value": -1.67,
+      "rank": 12.0
+    },
+    "peripherality": {
+      "cluster": 5.0,
+      "value": 0.07,
+      "rank": 133.0
+    }
+  },
+  "עספיא": {
+    "code": 534,
+    "district": "חיפה",
+    "overallMortality": {
+      "rate": 5.28
+    },
+    "diabetes": {
+      "rate": 69.38
+    },
+    "socioEconomic": {
+      "cluster": 5.0,
+      "value": -0.29,
+      "rank": 101.0
+    },
+    "peripherality": {
+      "cluster": 4.0,
+      "value": -0.09,
+      "rank": 114.0
+    }
+  },
+  "ערערה": {
+    "code": 637,
+    "district": "חיפה",
+    "overallMortality": {
+      "rate": 4.39
+    },
+    "infantMortality": {
+      "rate": 5.3,
+      "low_n": true
+    },
+    "diabetes": {
+      "rate": 75.25
+    },
+    "cancerIncidenceMen": {
+      "rate": 230.98
+    },
+    "cancerIncidenceWomen": {
+      "rate": 181.07
+    },
+    "socioEconomic": {
+      "cluster": 3.0,
+      "value": -0.7,
+      "rank": 71.0
+    },
+    "peripherality": {
+      "cluster": 5.0,
+      "value": 0.26,
+      "rank": 158.0
+    }
+  },
+  "ערערה-בנגב": {
+    "code": 1192,
+    "district": "הדרום",
+    "overallMortality": {
+      "rate": 6.35
+    },
+    "infantMortality": {
+      "rate": 8.0
+    },
+    "diabetes": {
+      "rate": 86.96
+    },
+    "socioEconomic": {
+      "cluster": 1.0,
+      "value": -2.48,
+      "rank": 2.0
+    },
+    "peripherality": {
+      "cluster": 2.0,
+      "value": -0.89,
+      "rank": 30.0
+    },
+    "cancerMortality": {
+      "rate": 358.0,
+      "ci": [
+        159.7,
+        555.7
+      ],
+      "low_n": true
+    }
+  },
+  "פוריידיס": {
+    "code": 537,
+    "district": "חיפה",
+    "overallMortality": {
+      "rate": 6.56
+    },
+    "infantMortality": {
+      "rate": 4.1,
+      "low_n": true
+    },
+    "diabetes": {
+      "rate": 98.51
+    },
+    "socioEconomic": {
+      "cluster": 3.0,
+      "value": -0.85,
+      "rank": 53.0
+    },
+    "peripherality": {
+      "cluster": 5.0,
+      "value": 0.16,
+      "rank": 141.0
+    }
+  },
+  "פסוטה": {
+    "code": 535,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 6.4,
+      "low_n": true
+    },
+    "socioEconomic": {
+      "cluster": 6.0,
+      "value": 0.27,
+      "rank": 153.0
+    },
+    "peripherality": {
+      "cluster": 2.0,
+      "value": -0.92,
+      "rank": 28.0
+    }
+  },
+  "פקיעין (בוקייעה)": {
+    "code": 536,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 5.15
+    },
+    "socioEconomic": {
+      "cluster": 5.0,
+      "value": -0.08,
+      "rank": 118.0
+    },
+    "peripherality": {
+      "cluster": 3.0,
+      "value": -0.69,
+      "rank": 40.0
+    }
+  },
+  "פרדס חנה-כרכור": {
+    "code": 7800,
+    "district": "חיפה",
+    "overallMortality": {
+      "rate": 4.71
+    },
+    "infantMortality": {
+      "rate": 1.5,
+      "low_n": true
+    },
+    "diabetes": {
+      "rate": 54.17
+    },
+    "cancerIncidenceMen": {
+      "rate": 313.31
+    },
+    "cancerIncidenceWomen": {
+      "rate": 331.31
+    },
+    "socioEconomic": {
+      "cluster": 7.0,
+      "value": 0.74,
+      "rank": 188.0
+    },
+    "peripherality": {
+      "cluster": 6.0,
+      "value": 0.51,
+      "rank": 174.0
+    }
+  },
+  "פרדסייה": {
+    "code": 171,
+    "district": "המרכז",
+    "overallMortality": {
+      "rate": 2.84
+    },
+    "socioEconomic": {
+      "cluster": 9.0,
+      "value": 1.46,
+      "rank": 240.0
+    },
+    "peripherality": {
+      "cluster": 6.0,
+      "value": 1.01,
+      "rank": 205.0
+    }
+  },
+  "קדומים": {
+    "code": 3557,
+    "district": "אזור יהודה והשומרון",
+    "overallMortality": {
+      "rate": 3.4,
+      "low_n": true
+    },
+    "socioEconomic": {
+      "cluster": 5.0,
+      "value": -0.01,
+      "rank": 127.0
+    },
+    "peripherality": {
+      "cluster": 5.0,
+      "value": 0.13,
+      "rank": 136.0
+    }
+  },
+  "קדימה-צורן": {
+    "code": 195,
+    "district": "המרכז",
+    "overallMortality": {
+      "rate": 3.72
+    },
+    "diabetes": {
+      "rate": 43.33
+    },
+    "socioEconomic": {
+      "cluster": 8.0,
+      "value": 1.25,
+      "rank": 226.0
+    },
+    "peripherality": {
+      "cluster": 6.0,
+      "value": 1.03,
+      "rank": 206.0
+    }
+  },
+  "קצרין": {
+    "code": 4100,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 5.33
+    },
+    "socioEconomic": {
+      "cluster": 5.0,
+      "value": -0.17,
+      "rank": 110.0
+    },
+    "peripherality": {
+      "cluster": 1.0,
+      "value": -1.25,
+      "rank": 12.0
+    }
+  },
+  "קריית ארבע": {
+    "code": 3611,
+    "district": "אזור יהודה והשומרון",
+    "overallMortality": {
+      "rate": 5.17
+    },
+    "socioEconomic": {
+      "cluster": 3.0,
+      "value": -0.91,
+      "rank": 46.0
+    },
+    "peripherality": {
+      "cluster": 3.0,
+      "value": -0.47,
+      "rank": 64.0
+    }
+  },
+  "קריית טבעון": {
+    "code": 2300,
+    "district": "חיפה",
+    "overallMortality": {
+      "rate": 3.75
+    },
+    "diabetes": {
+      "rate": 38.49
+    },
+    "socioEconomic": {
+      "cluster": 8.0,
+      "value": 1.24,
+      "rank": 224.0
+    },
+    "peripherality": {
+      "cluster": 5.0,
+      "value": 0.09,
+      "rank": 135.0
+    }
+  },
+  "קריית יערים": {
+    "code": 1137,
+    "district": "ירושלים",
+    "overallMortality": {
+      "rate": 4.97
+    },
+    "socioEconomic": {
+      "cluster": 2.0,
+      "value": -1.17,
+      "rank": 26.0
+    },
+    "peripherality": {
+      "cluster": 6.0,
+      "value": 0.79,
+      "rank": 190.0
+    }
+  },
   "קריית עקרון": {
+    "code": 469,
+    "district": "המרכז",
+    "overallMortality": {
+      "rate": 4.82
+    },
+    "diabetes": {
+      "rate": 61.57
+    },
+    "socioEconomic": {
+      "cluster": 6.0,
+      "value": 0.11,
+      "rank": 138.0
+    },
+    "peripherality": {
+      "cluster": 7.0,
+      "value": 1.45,
+      "rank": 220.0
+    },
     "heartDisease": {
       "rate": 110.0,
       "ci": [
@@ -427,431 +4824,1243 @@ export const CITY_MORTALITY = {
       "low_n": true
     }
   },
-  "מעלה אדומים": {
-    "heartDisease": {
-      "rate": 146.9,
-      "ci": [
-        107.9,
-        185.9
-      ]
+  "קרני שומרון": {
+    "code": 3640,
+    "district": "אזור יהודה והשומרון",
+    "overallMortality": {
+      "rate": 4.87
+    },
+    "socioEconomic": {
+      "cluster": 6.0,
+      "value": 0.22,
+      "rank": 147.0
+    },
+    "peripherality": {
+      "cluster": 5.0,
+      "value": 0.31,
+      "rank": 164.0
     }
   },
-  "כסיפה": {
-    "heartDisease": {
-      "rate": 154.0,
-      "ci": [
-        45.7,
-        262.7
-      ],
+  "ראמה": {
+    "code": 543,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 5.17
+    },
+    "socioEconomic": {
+      "cluster": 5.0,
+      "value": -0.11,
+      "rank": 114.0
+    },
+    "peripherality": {
+      "cluster": 3.0,
+      "value": -0.52,
+      "rank": 59.0
+    }
+  },
+  "ראש פינה": {
+    "code": 26,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 4.3,
       "low_n": true
     },
-    "cancer": {
-      "rate": 291.0,
-      "ci": [
-        147.0,
-        435.7
-      ],
-      "low_n": true
+    "socioEconomic": {
+      "cluster": 7.0,
+      "value": 0.62,
+      "rank": 180.0
     },
-    "infantMortality": {
-      "rate": 16.0
+    "peripherality": {
+      "cluster": 2.0,
+      "value": -0.92,
+      "rank": 27.0
     }
   },
-  "גבעת שמואל": {
-    "heartDisease": {
-      "rate": 167.8,
-      "ci": [
-        123.8,
-        211.8
-      ]
-    }
-  },
-  "אבו סנאן": {
-    "heartDisease": {
-      "rate": 434.1,
-      "ci": [
-        297.6,
-        570.6
-      ]
-    }
-  },
-  "טורעאן": {
-    "heartDisease": {
-      "rate": 416.2,
-      "ci": [
-        265.8,
-        566.6
-      ]
-    }
-  },
-  "מג'ד אל-כרום": {
-    "heartDisease": {
-      "rate": 413.4,
-      "ci": [
-        267.4,
-        559.3
-      ]
-    }
-  },
-  "דאלית אל-כרמל": {
-    "heartDisease": {
-      "rate": 413.3,
-      "ci": [
-        300.3,
-        526.3
-      ]
-    }
-  },
-  "קלנסווה": {
-    "heartDisease": {
-      "rate": 403.9,
-      "ci": [
-        274.5,
-        533.3
-      ]
-    },
-    "diabetes": {
-      "rate": 122.5,
-      "ci": [
-        119.9,
-        125.1
-      ]
-    }
-  },
-  "כפר כנא": {
-    "heartDisease": {
-      "rate": 402.1,
-      "ci": [
-        273.1,
-        531.1
-      ]
+  "ריינה": {
+    "code": 542,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 5.02
     },
     "infantMortality": {
-      "rate": 7.5,
-      "low_n": true
-    }
-  },
-  "טירה": {
-    "heartDisease": {
-      "rate": 397.4,
-      "ci": [
-        304.1,
-        490.8
-      ]
-    }
-  },
-  "ערערה-בנגב": {
-    "cancer": {
-      "rate": 358.0,
-      "ci": [
-        159.7,
-        555.7
-      ],
-      "low_n": true
-    }
-  },
-  "דייר אל-אסד": {
-    "cancer": {
-      "rate": 216.0,
-      "ci": [
-        107.0,
-        325.0
-      ],
-      "low_n": true
-    }
-  },
-  "חורה": {
-    "cancer": {
-      "rate": 202.0,
-      "ci": [
-        78.4,
-        324.8
-      ],
-      "low_n": true
-    },
-    "infantMortality": {
-      "rate": 9.7
-    }
-  },
-  "ירכא": {
-    "cancer": {
-      "rate": 264.1,
-      "ci": [
-        178.6,
-        349.7
-      ]
-    }
-  },
-  "כפר קרע": {
-    "cancer": {
-      "rate": 266.8,
-      "ci": [
-        176.4,
-        357.2
-      ]
-    },
-    "infantMortality": {
-      "rate": 7.4,
-      "low_n": true
-    }
-  },
-  "גן יבנה": {
-    "cancer": {
-      "rate": 267.9,
-      "ci": [
-        190.6,
-        345.2
-      ]
-    }
-  },
-  "שדרות": {
-    "cancer": {
-      "rate": 530.8,
-      "ci": [
-        453.8,
-        607.8
-      ]
-    }
-  },
-  "אור עקיבא": {
-    "cancer": {
-      "rate": 516.8,
-      "ci": [
-        435.9,
-        597.7
-      ]
-    }
-  },
-  "נצרת עילית": {
-    "cancer": {
-      "rate": 505.1,
-      "ci": [
-        461.0,
-        549.1
-      ]
-    }
-  },
-  "בת ים": {
-    "cancer": {
-      "rate": 497.8,
-      "ci": [
-        473.0,
-        521.8
-      ]
-    },
-    "lifeExpectancy": {
-      "total": 81.0,
-      "men": 78.4,
-      "women": 83.3,
-      "sizeClass": "100k+",
-      "rank": "lowest"
-    }
-  },
-  "אילת": {
-    "cancer": {
-      "rate": 495.7,
-      "ci": [
-        435.6,
-        555.8
-      ]
-    },
-    "infantMortality": {
-      "rate": 1.3,
-      "low_n": true
-    },
-    "lifeExpectancy": {
-      "total": 80.0,
-      "sizeClass": "50k-99999"
-    }
-  },
-  "עכו": {
-    "cancer": {
-      "rate": 494.5,
-      "ci": [
-        447.0,
-        542.0
-      ]
-    }
-  },
-  "בית שאן": {
-    "cancer": {
-      "rate": 491.9,
-      "ci": [
-        401.6,
-        528.1
-      ]
-    }
-  },
-  "כפר סבא": {
-    "infantMortality": {
-      "rate": 0.9,
-      "low_n": true
-    }
-  },
-  "רעננה": {
-    "infantMortality": {
-      "rate": 1.3,
+      "rate": 3.4,
       "low_n": true
     },
     "diabetes": {
-      "rate": 40.3,
-      "ci": [
-        40.0,
-        40.5
-      ]
-    }
-  },
-  "תל אביב-יפו": {
-    "infantMortality": {
-      "rate": 1.6
-    }
-  },
-  "רמת גן": {
-    "infantMortality": {
-      "rate": 1.6
+      "rate": 69.73
     },
-    "diabetes": {
-      "rate": 42.0,
-      "ci": [
-        41.2,
-        42.8
-      ]
+    "socioEconomic": {
+      "cluster": 3.0,
+      "value": -1.01,
+      "rank": 39.0
     },
-    "lifeExpectancy": {
-      "total": 84.6,
-      "men": 82.6,
-      "women": 86.4,
-      "sizeClass": "100k+",
-      "rank": "highest"
-    }
-  },
-  "פתח תקווה": {
-    "infantMortality": {
-      "rate": 1.6
-    }
-  },
-  "הרצלייה": {
-    "infantMortality": {
-      "rate": 1.7,
-      "low_n": true
-    },
-    "diabetes": {
-      "rate": 43.5,
-      "ci": [
-        43.1,
-        44.0
-      ]
-    }
-  },
-  "ראשון לציון": {
-    "infantMortality": {
-      "rate": 1.9
-    }
-  },
-  "רהט": {
-    "infantMortality": {
-      "rate": 10.5
+    "peripherality": {
+      "cluster": 5.0,
+      "value": 0.22,
+      "rank": 152.0
     }
   },
   "רכסים": {
+    "code": 922,
+    "district": "חיפה",
+    "overallMortality": {
+      "rate": 4.51
+    },
     "infantMortality": {
-      "rate": 7.7,
+      "rate": 4.5,
+      "low_n": true
+    },
+    "diabetes": {
+      "rate": 53.9
+    },
+    "socioEconomic": {
+      "cluster": 2.0,
+      "value": -1.62,
+      "rank": 13.0
+    },
+    "peripherality": {
+      "cluster": 5.0,
+      "value": 0.08,
+      "rank": 134.0
+    }
+  },
+  "רמת ישי": {
+    "code": 122,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 3.22
+    },
+    "socioEconomic": {
+      "cluster": 8.0,
+      "value": 1.32,
+      "rank": 231.0
+    },
+    "peripherality": {
+      "cluster": 4.0,
+      "value": -0.02,
+      "rank": 122.0
+    }
+  },
+  "שבלי - אום אל-גנם": {
+    "code": 913,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 5.07
+    },
+    "socioEconomic": {
+      "cluster": 3.0,
+      "value": -0.78,
+      "rank": 60.0
+    },
+    "peripherality": {
+      "cluster": 3.0,
+      "value": -0.34,
+      "rank": 82.0
+    }
+  },
+  "שגב-שלום": {
+    "code": 1286,
+    "district": "הדרום",
+    "overallMortality": {
+      "rate": 6.74
+    },
+    "infantMortality": {
+      "rate": 6.6,
+      "low_n": true
+    },
+    "diabetes": {
+      "rate": 101.58
+    },
+    "socioEconomic": {
+      "cluster": 1.0,
+      "value": -2.21,
+      "rank": 8.0
+    },
+    "peripherality": {
+      "cluster": 3.0,
+      "value": -0.58,
+      "rank": 49.0
+    }
+  },
+  "שוהם": {
+    "code": 1304,
+    "district": "המרכז",
+    "overallMortality": {
+      "rate": 3.14
+    },
+    "diabetes": {
+      "rate": 44.44
+    },
+    "socioEconomic": {
+      "cluster": 9.0,
+      "value": 1.71,
+      "rank": 248.0
+    },
+    "peripherality": {
+      "cluster": 7.0,
+      "value": 1.27,
+      "rank": 213.0
+    },
+    "heartDisease": {
+      "rate": 157.5,
+      "ci": [
+        84.0,
+        231.0
+      ]
+    }
+  },
+  "שלומי": {
+    "code": 812,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 4.47
+    },
+    "socioEconomic": {
+      "cluster": 6.0,
+      "value": 0.16,
+      "rank": 143.0
+    },
+    "peripherality": {
+      "cluster": 3.0,
+      "value": -0.69,
+      "rank": 39.0
+    }
+  },
+  "שעב": {
+    "code": 538,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 6.87
+    },
+    "socioEconomic": {
+      "cluster": 2.0,
+      "value": -1.14,
+      "rank": 30.0
+    },
+    "peripherality": {
+      "cluster": 3.0,
+      "value": -0.38,
+      "rank": 75.0
+    }
+  },
+  "שער שומרון": {
+    "code": 3826,
+    "district": "אזור יהודה והשומרון"
+  },
+  "תל מונד": {
+    "code": 154,
+    "district": "המרכז",
+    "overallMortality": {
+      "rate": 3.64
+    },
+    "diabetes": {
+      "rate": 57.8
+    },
+    "socioEconomic": {
+      "cluster": 9.0,
+      "value": 1.43,
+      "rank": 238.0
+    },
+    "peripherality": {
+      "cluster": 6.0,
+      "value": 1.0,
+      "rank": 204.0
+    }
+  },
+  "תל שבע": {
+    "code": 1054,
+    "district": "הדרום",
+    "overallMortality": {
+      "rate": 7.1
+    },
+    "infantMortality": {
+      "rate": 9.1
+    },
+    "diabetes": {
+      "rate": 114.59
+    },
+    "socioEconomic": {
+      "cluster": 1.0,
+      "value": -2.32,
+      "rank": 3.0
+    },
+    "peripherality": {
+      "cluster": 3.0,
+      "value": -0.44,
+      "rank": 70.0
+    },
+    "cancerMortality": {
+      "rate": 314.0,
+      "ci": [
+        137.9,
+        490.6
+      ],
       "low_n": true
     }
   },
-  "ערערה": {
+  "אל קסום": {
+    "code": 69,
+    "district": "הדרום",
+    "overallMortality": {
+      "rate": 4.16
+    },
     "infantMortality": {
-      "rate": 7.4,
+      "rate": 8.9
+    },
+    "socioEconomic": {
+      "cluster": 1.0,
+      "value": -2.27,
+      "rank": 5.0
+    },
+    "peripherality": {
+      "cluster": 3.0,
+      "value": -0.58,
+      "rank": 50.0
+    }
+  },
+  "אל-בטוף": {
+    "code": 65,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 6.0
+    },
+    "socioEconomic": {
+      "cluster": 2.0,
+      "value": -1.32,
+      "rank": 21.0
+    },
+    "peripherality": {
+      "cluster": 3.0,
+      "value": -0.47,
+      "rank": 63.0
+    }
+  },
+  "אלונה": {
+    "code": 45,
+    "district": "חיפה",
+    "overallMortality": {
+      "rate": 4.9,
       "low_n": true
-    }
-  },
-  "בנימינה-גבעת עדה": {
-    "diabetes": {
-      "rate": 37.4,
-      "ci": [
-        37.0,
-        37.8
-      ]
-    }
-  },
-  "גבעתיים": {
-    "diabetes": {
-      "rate": 41.1,
-      "ci": [
-        40.7,
-        41.4
-      ]
-    }
-  },
-  "קדימה-צורן": {
-    "diabetes": {
-      "rate": 41.2,
-      "ci": [
-        40.4,
-        42.0
-      ]
-    }
-  },
-  "זכרון יעקב": {
-    "diabetes": {
-      "rate": 44.2,
-      "ci": [
-        44.1,
-        44.4
-      ]
-    }
-  },
-  "אום אל-פחם": {
-    "diabetes": {
-      "rate": 110.9,
-      "ci": [
-        108.7,
-        113.1
-      ]
     },
-    "lifeExpectancy": {
-      "total": 79.0,
-      "sizeClass": "50k-99999",
-      "rank": "lowest"
-    }
-  },
-  "נחף": {
-    "diabetes": {
-      "rate": 108.3,
-      "ci": [
-        107.1,
-        109.5
-      ]
-    }
-  },
-  "מעלה עירון": {
-    "diabetes": {
-      "rate": 106.1,
-      "ci": [
-        103.9,
-        108.4
-      ]
-    }
-  },
-  "הוד השרון": {
-    "lifeExpectancy": {
-      "total": 86.0,
-      "sizeClass": "50k-99999"
-    }
-  },
-  "לוד": {
-    "lifeExpectancy": {
-      "total": 80.3,
-      "sizeClass": "50k-99999"
+    "socioEconomic": {
+      "cluster": 8.0,
+      "value": 1.16,
+      "rank": 217.0
     },
-    "note": "עיר מעורבת"
+    "peripherality": {
+      "cluster": 4.0,
+      "value": -0.04,
+      "rank": 121.0
+    }
   },
-  "רמלה": {
-    "lifeExpectancy": {
-      "total": 80.9,
-      "sizeClass": "50k-99999"
+  "אשכול": {
+    "code": 38,
+    "district": "הדרום",
+    "overallMortality": {
+      "rate": 3.95
     },
-    "note": "עיר מעורבת"
+    "infantMortality": {
+      "rate": 3.6,
+      "low_n": true
+    },
+    "socioEconomic": {
+      "cluster": 6.0,
+      "value": 0.34,
+      "rank": 160.0
+    },
+    "peripherality": {
+      "cluster": 2.0,
+      "value": -0.84,
+      "rank": 31.0
+    }
+  },
+  "באר טוביה": {
+    "code": 33,
+    "district": "הדרום",
+    "overallMortality": {
+      "rate": 3.78
+    },
+    "socioEconomic": {
+      "cluster": 7.0,
+      "value": 0.87,
+      "rank": 200.0
+    },
+    "peripherality": {
+      "cluster": 6.0,
+      "value": 0.57,
+      "rank": 176.0
+    }
+  },
+  "בוסתן אל-מרג'": {
+    "code": 66,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 6.22
+    },
+    "socioEconomic": {
+      "cluster": 3.0,
+      "value": -0.91,
+      "rank": 45.0
+    },
+    "peripherality": {
+      "cluster": 3.0,
+      "value": -0.32,
+      "rank": 84.0
+    }
+  },
+  "בני שמעון": {
+    "code": 41,
+    "district": "הדרום",
+    "overallMortality": {
+      "rate": 4.13
+    },
+    "socioEconomic": {
+      "cluster": 7.0,
+      "value": 0.98,
+      "rank": 206.0
+    },
+    "peripherality": {
+      "cluster": 3.0,
+      "value": -0.42,
+      "rank": 74.0
+    }
+  },
+  "ברנר": {
+    "code": 28,
+    "district": "המרכז",
+    "overallMortality": {
+      "rate": 2.7
+    },
+    "socioEconomic": {
+      "cluster": 8.0,
+      "value": 1.25,
+      "rank": 227.0
+    },
+    "peripherality": {
+      "cluster": 7.0,
+      "value": 1.31,
+      "rank": 216.0
+    }
+  },
+  "גדרות": {
+    "code": 32,
+    "district": "המרכז",
+    "overallMortality": {
+      "rate": 3.88
+    },
+    "socioEconomic": {
+      "cluster": 9.0,
+      "value": 1.71,
+      "rank": 249.0
+    },
+    "peripherality": {
+      "cluster": 6.0,
+      "value": 0.85,
+      "rank": 193.0
+    }
+  },
+  "גולן": {
+    "code": 71,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 3.64
+    },
+    "socioEconomic": {
+      "cluster": 6.0,
+      "value": 0.22,
+      "rank": 148.0
+    },
+    "peripherality": {
+      "cluster": 1.0,
+      "value": -1.24,
+      "rank": 14.0
+    }
+  },
+  "גוש עציון": {
+    "code": 76,
+    "district": "אזור יהודה והשומרון",
+    "overallMortality": {
+      "rate": 3.47
+    },
+    "infantMortality": {
+      "rate": 2.2,
+      "low_n": true
+    },
+    "socioEconomic": {
+      "cluster": 6.0,
+      "value": 0.17,
+      "rank": 144.0
+    },
+    "peripherality": {
+      "cluster": 4.0,
+      "value": -0.07,
+      "rank": 119.0
+    }
+  },
+  "גזר": {
+    "code": 30,
+    "district": "המרכז",
+    "overallMortality": {
+      "rate": 3.6
+    },
+    "socioEconomic": {
+      "cluster": 8.0,
+      "value": 1.12,
+      "rank": 214.0
+    },
+    "peripherality": {
+      "cluster": 6.0,
+      "value": 1.1,
+      "rank": 207.0
+    }
+  },
+  "גן רווה": {
+    "code": 27,
+    "district": "המרכז",
+    "overallMortality": {
+      "rate": 4.08
+    },
+    "socioEconomic": {
+      "cluster": 8.0,
+      "value": 1.33,
+      "rank": 233.0
+    },
+    "peripherality": {
+      "cluster": 7.0,
+      "value": 1.54,
+      "rank": 225.0
+    }
+  },
+  "דרום השרון": {
+    "code": 20,
+    "district": "המרכז",
+    "overallMortality": {
+      "rate": 3.52
+    },
+    "socioEconomic": {
+      "cluster": 9.0,
+      "value": 1.4,
+      "rank": 236.0
+    },
+    "peripherality": {
+      "cluster": 7.0,
+      "value": 1.49,
+      "rank": 222.0
+    }
+  },
+  "הגלבוע": {
+    "code": 8,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 4.53
+    },
+    "socioEconomic": {
+      "cluster": 5.0,
+      "value": -0.08,
+      "rank": 116.0
+    },
+    "peripherality": {
+      "cluster": 3.0,
+      "value": -0.42,
+      "rank": 73.0
+    }
+  },
+  "הגליל העליון": {
+    "code": 1,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 3.22
+    },
+    "infantMortality": {
+      "rate": 3.9,
+      "low_n": true
+    },
+    "socioEconomic": {
+      "cluster": 7.0,
+      "value": 0.6,
+      "rank": 176.0
+    },
+    "peripherality": {
+      "cluster": 1.0,
+      "value": -1.24,
+      "rank": 15.0
+    }
+  },
+  "הגליל התחתון": {
+    "code": 3,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 5.01
+    },
+    "socioEconomic": {
+      "cluster": 7.0,
+      "value": 0.54,
+      "rank": 172.0
+    },
+    "peripherality": {
+      "cluster": 3.0,
+      "value": -0.56,
+      "rank": 55.0
+    }
+  },
+  "הערבה התיכונה": {
+    "code": 54,
+    "district": "הדרום",
+    "overallMortality": {
+      "rate": 2.2,
+      "low_n": true
+    },
+    "socioEconomic": {
+      "cluster": 7.0,
+      "value": 0.87,
+      "rank": 199.0
+    },
+    "peripherality": {
+      "cluster": 1.0,
+      "value": -1.83,
+      "rank": 3.0
+    }
+  },
+  "הר חברון": {
+    "code": 78,
+    "district": "אזור יהודה והשומרון",
+    "overallMortality": {
+      "rate": 3.2
+    },
+    "socioEconomic": {
+      "cluster": 5.0,
+      "value": -0.04,
+      "rank": 122.0
+    },
+    "peripherality": {
+      "cluster": 3.0,
+      "value": -0.65,
+      "rank": 43.0
+    }
+  },
+  "זבולון": {
+    "code": 12,
+    "district": "חיפה",
+    "overallMortality": {
+      "rate": 3.54
+    },
+    "socioEconomic": {
+      "cluster": 5.0,
+      "value": 0.03,
+      "rank": 135.0
+    },
+    "peripherality": {
+      "cluster": 5.0,
+      "value": 0.04,
+      "rank": 126.0
+    }
+  },
+  "חבל אילות": {
+    "code": 53,
+    "district": "הדרום",
+    "overallMortality": {
+      "rate": 3.58
+    },
+    "socioEconomic": {
+      "cluster": 5.0,
+      "value": -0.0,
+      "rank": 131.0
+    },
+    "peripherality": {
+      "cluster": 1.0,
+      "value": -2.41,
+      "rank": 2.0
+    }
+  },
+  "חבל יבנה": {
+    "code": 29,
+    "district": "המרכז",
+    "overallMortality": {
+      "rate": 4.54
+    },
+    "socioEconomic": {
+      "cluster": 5.0,
+      "value": -0.0,
+      "rank": 130.0
+    },
+    "peripherality": {
+      "cluster": 6.0,
+      "value": 0.89,
+      "rank": 196.0
+    }
+  },
+  "חבל מודיעין": {
+    "code": 25,
+    "district": "המרכז",
+    "overallMortality": {
+      "rate": 3.93
+    },
+    "socioEconomic": {
+      "cluster": 7.0,
+      "value": 0.9,
+      "rank": 202.0
+    },
+    "peripherality": {
+      "cluster": 7.0,
+      "value": 1.43,
+      "rank": 218.0
+    }
+  },
+  "חוף אשקלון": {
+    "code": 36,
+    "district": "הדרום",
+    "overallMortality": {
+      "rate": 3.95
+    },
+    "socioEconomic": {
+      "cluster": 7.0,
+      "value": 0.67,
+      "rank": 185.0
+    },
+    "peripherality": {
+      "cluster": 5.0,
+      "value": 0.16,
+      "rank": 144.0
+    }
+  },
+  "חוף הכרמל": {
+    "code": 15,
+    "district": "חיפה",
+    "overallMortality": {
+      "rate": 3.76
+    },
+    "socioEconomic": {
+      "cluster": 7.0,
+      "value": 0.97,
+      "rank": 205.0
+    },
+    "peripherality": {
+      "cluster": 5.0,
+      "value": 0.04,
+      "rank": 127.0
+    }
+  },
+  "חוף השרון": {
+    "code": 19,
+    "district": "המרכז",
+    "overallMortality": {
+      "rate": 3.29
+    },
+    "socioEconomic": {
+      "cluster": 9.0,
+      "value": 1.38,
+      "rank": 235.0
+    },
+    "peripherality": {
+      "cluster": 7.0,
+      "value": 1.28,
+      "rank": 214.0
+    }
+  },
+  "יואב": {
+    "code": 35,
+    "district": "הדרום",
+    "overallMortality": {
+      "rate": 3.2
+    },
+    "socioEconomic": {
+      "cluster": 8.0,
+      "value": 1.08,
+      "rank": 211.0
+    },
+    "peripherality": {
+      "cluster": 5.0,
+      "value": 0.19,
+      "rank": 147.0
+    }
+  },
+  "לב השרון": {
+    "code": 18,
+    "district": "המרכז",
+    "overallMortality": {
+      "rate": 4.06
+    },
+    "socioEconomic": {
+      "cluster": 8.0,
+      "value": 1.19,
+      "rank": 220.0
+    },
+    "peripherality": {
+      "cluster": 6.0,
+      "value": 0.9,
+      "rank": 197.0
+    }
+  },
+  "לכיש": {
+    "code": 50,
+    "district": "הדרום",
+    "overallMortality": {
+      "rate": 4.52
+    },
+    "socioEconomic": {
+      "cluster": 7.0,
+      "value": 0.6,
+      "rank": 177.0
+    },
+    "peripherality": {
+      "cluster": 4.0,
+      "value": -0.14,
+      "rank": 103.0
+    }
+  },
+  "מבואות החרמון": {
+    "code": 55,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 3.83
+    },
+    "socioEconomic": {
+      "cluster": 7.0,
+      "value": 0.8,
+      "rank": 195.0
+    },
+    "peripherality": {
+      "cluster": 1.0,
+      "value": -1.16,
+      "rank": 17.0
+    }
+  },
+  "מגידו": {
+    "code": 13,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 3.82
+    },
+    "socioEconomic": {
+      "cluster": 7.0,
+      "value": 0.49,
+      "rank": 169.0
+    },
+    "peripherality": {
+      "cluster": 4.0,
+      "value": -0.08,
+      "rank": 118.0
+    }
+  },
+  "מגילות ים המלח": {
+    "code": 74,
+    "district": "אזור יהודה והשומרון",
+    "socioEconomic": {
+      "cluster": 7.0,
+      "value": 0.73,
+      "rank": 187.0
+    },
+    "peripherality": {
+      "cluster": 3.0,
+      "value": -0.55,
+      "rank": 56.0
+    }
+  },
+  "מטה אשר": {
+    "code": 4,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 4.41
+    },
+    "infantMortality": {
+      "rate": 2.8,
+      "low_n": true
+    },
+    "socioEconomic": {
+      "cluster": 7.0,
+      "value": 0.56,
+      "rank": 173.0
+    },
+    "peripherality": {
+      "cluster": 3.0,
+      "value": -0.45,
+      "rank": 69.0
+    }
+  },
+  "מטה בנימין": {
+    "code": 73,
+    "district": "אזור יהודה והשומרון",
+    "overallMortality": {
+      "rate": 4.06
+    },
+    "infantMortality": {
+      "rate": 2.4
+    },
+    "socioEconomic": {
+      "cluster": 5.0,
+      "value": -0.03,
+      "rank": 125.0
+    },
+    "peripherality": {
+      "cluster": 5.0,
+      "value": 0.2,
+      "rank": 149.0
+    }
+  },
+  "מטה יהודה": {
+    "code": 26,
+    "district": "ירושלים",
+    "overallMortality": {
+      "rate": 3.79
+    },
+    "infantMortality": {
+      "rate": 1.9,
+      "low_n": true
+    },
+    "socioEconomic": {
+      "cluster": 7.0,
+      "value": 0.78,
+      "rank": 192.0
+    },
+    "peripherality": {
+      "cluster": 6.0,
+      "value": 0.42,
+      "rank": 166.0
+    }
+  },
+  "מנשה": {
+    "code": 14,
+    "district": "חיפה",
+    "overallMortality": {
+      "rate": 4.63
+    },
+    "socioEconomic": {
+      "cluster": 7.0,
+      "value": 0.64,
+      "rank": 181.0
+    },
+    "peripherality": {
+      "cluster": 5.0,
+      "value": 0.28,
+      "rank": 160.0
+    }
+  },
+  "מעלה יוסף": {
+    "code": 52,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 3.72
+    },
+    "socioEconomic": {
+      "cluster": 7.0,
+      "value": 0.69,
+      "rank": 186.0
+    },
+    "peripherality": {
+      "cluster": 2.0,
+      "value": -0.76,
+      "rank": 36.0
+    }
+  },
+  "מרום הגליל": {
+    "code": 2,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 5.9
+    },
+    "socioEconomic": {
+      "cluster": 5.0,
+      "value": 0.01,
+      "rank": 133.0
+    },
+    "peripherality": {
+      "cluster": 2.0,
+      "value": -0.89,
+      "rank": 29.0
+    }
+  },
+  "מרחבים": {
+    "code": 42,
+    "district": "הדרום",
+    "overallMortality": {
+      "rate": 4.24
+    },
+    "socioEconomic": {
+      "cluster": 6.0,
+      "value": 0.28,
+      "rank": 154.0
+    },
+    "peripherality": {
+      "cluster": 3.0,
+      "value": -0.47,
+      "rank": 65.0
+    }
+  },
+  "משגב": {
+    "code": 56,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 3.4
+    },
+    "infantMortality": {
+      "rate": 3.0,
+      "low_n": true
+    },
+    "socioEconomic": {
+      "cluster": 7.0,
+      "value": 0.61,
+      "rank": 179.0
+    },
+    "peripherality": {
+      "cluster": 3.0,
+      "value": -0.45,
+      "rank": 68.0
+    }
+  },
+  "נווה מדבר": {
+    "code": 68,
+    "district": "הדרום",
+    "overallMortality": {
+      "rate": 4.11
+    },
+    "infantMortality": {
+      "rate": 7.6,
+      "low_n": true
+    },
+    "socioEconomic": {
+      "cluster": 1.0,
+      "value": -2.84,
+      "rank": 1.0
+    },
+    "peripherality": {
+      "cluster": 2.0,
+      "value": -1.0,
+      "rank": 21.0
+    }
+  },
+  "נחל שורק": {
+    "code": 31,
+    "district": "המרכז",
+    "overallMortality": {
+      "rate": 3.48
+    },
+    "socioEconomic": {
+      "cluster": 5.0,
+      "value": -0.07,
+      "rank": 120.0
+    },
+    "peripherality": {
+      "cluster": 6.0,
+      "value": 0.64,
+      "rank": 178.0
+    }
+  },
+  "עמק הירדן": {
+    "code": 6,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 3.43
+    },
+    "socioEconomic": {
+      "cluster": 7.0,
+      "value": 0.43,
+      "rank": 164.0
+    },
+    "peripherality": {
+      "cluster": 2.0,
+      "value": -0.8,
+      "rank": 33.0
+    }
+  },
+  "עמק המעיינות": {
+    "code": 7,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 4.3
+    },
+    "socioEconomic": {
+      "cluster": 6.0,
+      "value": 0.28,
+      "rank": 155.0
+    },
+    "peripherality": {
+      "cluster": 2.0,
+      "value": -0.73,
+      "rank": 38.0
+    }
+  },
+  "עמק חפר": {
+    "code": 16,
+    "district": "המרכז",
+    "overallMortality": {
+      "rate": 3.75
+    },
+    "socioEconomic": {
+      "cluster": 8.0,
+      "value": 1.2,
+      "rank": 221.0
+    },
+    "peripherality": {
+      "cluster": 6.0,
+      "value": 0.67,
+      "rank": 181.0
+    }
+  },
+  "עמק יזרעאל": {
+    "code": 9,
+    "district": "הצפון",
+    "overallMortality": {
+      "rate": 4.14
+    },
+    "socioEconomic": {
+      "cluster": 8.0,
+      "value": 1.12,
+      "rank": 213.0
+    },
+    "peripherality": {
+      "cluster": 4.0,
+      "value": -0.15,
+      "rank": 101.0
+    }
+  },
+  "ערבות הירדן": {
+    "code": 75,
+    "district": "אזור יהודה והשומרון",
+    "overallMortality": {
+      "rate": 2.99
+    },
+    "socioEconomic": {
+      "cluster": 6.0,
+      "value": 0.36,
+      "rank": 161.0
+    },
+    "peripherality": {
+      "cluster": 3.0,
+      "value": -0.62,
+      "rank": 45.0
+    }
+  },
+  "רמת נגב": {
+    "code": 48,
+    "district": "הדרום",
+    "overallMortality": {
+      "rate": 2.5
+    },
+    "socioEconomic": {
+      "cluster": 6.0,
+      "value": 0.31,
+      "rank": 158.0
+    },
+    "peripherality": {
+      "cluster": 1.0,
+      "value": -1.21,
+      "rank": 16.0
+    }
+  },
+  "שדות דן": {
+    "code": 40,
+    "district": "המרכז",
+    "overallMortality": {
+      "rate": 3.36
+    },
+    "infantMortality": {
+      "rate": 2.6,
+      "low_n": true
+    },
+    "socioEconomic": {
+      "cluster": 6.0,
+      "value": 0.22,
+      "rank": 146.0
+    },
+    "peripherality": {
+      "cluster": 8.0,
+      "value": 1.97,
+      "rank": 232.0
+    }
+  },
+  "שדות נגב": {
+    "code": 39,
+    "district": "הדרום",
+    "overallMortality": {
+      "rate": 4.59
+    },
+    "socioEconomic": {
+      "cluster": 6.0,
+      "value": 0.18,
+      "rank": 145.0
+    },
+    "peripherality": {
+      "cluster": 3.0,
+      "value": -0.36,
+      "rank": 80.0
+    }
+  },
+  "שומרון": {
+    "code": 72,
+    "district": "אזור יהודה והשומרון",
+    "overallMortality": {
+      "rate": 4.13
+    },
+    "infantMortality": {
+      "rate": 2.6,
+      "low_n": true
+    },
+    "socioEconomic": {
+      "cluster": 6.0,
+      "value": 0.29,
+      "rank": 156.0
+    },
+    "peripherality": {
+      "cluster": 5.0,
+      "value": 0.25,
+      "rank": 155.0
+    }
+  },
+  "שער הנגב": {
+    "code": 37,
+    "district": "הדרום",
+    "overallMortality": {
+      "rate": 3.03
+    },
+    "socioEconomic": {
+      "cluster": 7.0,
+      "value": 0.92,
+      "rank": 204.0
+    },
+    "peripherality": {
+      "cluster": 4.0,
+      "value": -0.24,
+      "rank": 93.0
+    }
+  },
+  "שפיר": {
+    "code": 34,
+    "district": "הדרום",
+    "overallMortality": {
+      "rate": 6.01
+    },
+    "infantMortality": {
+      "rate": 4.7,
+      "low_n": true
+    },
+    "socioEconomic": {
+      "cluster": 5.0,
+      "value": 0.01,
+      "rank": 132.0
+    },
+    "peripherality": {
+      "cluster": 5.0,
+      "value": 0.16,
+      "rank": 142.0
+    }
+  },
+  "תמר": {
+    "code": 51,
+    "district": "הדרום",
+    "overallMortality": {
+      "rate": 1.8,
+      "low_n": true
+    },
+    "socioEconomic": {
+      "cluster": 7.0,
+      "value": 0.66,
+      "rank": 184.0
+    },
+    "peripherality": {
+      "cluster": 1.0,
+      "value": -1.25,
+      "rank": 13.0
+    }
   }
 };
 
@@ -859,9 +6068,9 @@ export const CITY_METRIC_META = {
   "overallMortality": {
     "label": "תמותה כללית (מתוקננת)",
     "unit": "ל-1,000 תושבים",
-    "national": 4.9,
-    "source": "CBS 370/2019, פרופיל בריאותי-חברתי של היישובים בישראל 2011-2017",
-    "period": "ממוצע 2013-2017"
+    "national": 4.87,
+    "source": "CBS 1879/2022, הרשויות המקומיות בישראל 2022 - קובץ נתונים לעיבוד",
+    "period": "2022"
   },
   "heartDisease": {
     "label": "תמותה ממחלות לב",
@@ -870,7 +6079,7 @@ export const CITY_METRIC_META = {
     "source": "CBS 370/2019, פרופיל בריאותי-חברתי של היישובים בישראל 2011-2017",
     "period": "ממוצע 2012-2016"
   },
-  "cancer": {
+  "cancerMortality": {
     "label": "תמותה מסרטן",
     "unit": "ל-100,000 (גיל 45+)",
     "national": 412.31,
@@ -880,16 +6089,52 @@ export const CITY_METRIC_META = {
   "infantMortality": {
     "label": "תמותת תינוקות",
     "unit": "ל-1,000 לידות חי",
-    "national": 3.1,
-    "source": "CBS 370/2019, פרופיל בריאותי-חברתי של היישובים בישראל 2011-2017",
-    "period": "ממוצע 2013-2017"
+    "national": 2.78,
+    "source": "CBS 1879/2022, הרשויות המקומיות בישראל 2022 - קובץ נתונים לעיבוד",
+    "period": "2022"
   },
   "diabetes": {
-    "label": "הימצאות סוכרת",
+    "label": "הימצאות סוכרת (מקרים)",
     "unit": "ל-1,000 תושבים",
-    "national": 56.2,
-    "source": "CBS 370/2019, פרופיל בריאותי-חברתי של היישובים בישראל 2011-2017",
-    "period": "ממוצע 2012-2016"
+    "national": 55.9,
+    "source": "CBS 1879/2022, הרשויות המקומיות בישראל 2022 - קובץ נתונים לעיבוד",
+    "period": "2022"
+  },
+  "lifeExpectancy": {
+    "label": "תוחלת חיים",
+    "unit": "שנים",
+    "national": 82.91,
+    "source": "CBS 1879/2022, הרשויות המקומיות בישראל 2022 - קובץ נתונים לעיבוד",
+    "period": "2022"
+  },
+  "cancerIncidenceMen": {
+    "label": "היארעות סרטן, גברים (לא תמותה)",
+    "unit": "ל-100,000",
+    "national": 315.0,
+    "source": "CBS 1879/2022, הרשויות המקומיות בישראל 2022 - קובץ נתונים לעיבוד",
+    "period": "2022"
+  },
+  "cancerIncidenceWomen": {
+    "label": "היארעות סרטן, נשים (לא תמותה)",
+    "unit": "ל-100,000",
+    "national": 304.0,
+    "source": "CBS 1879/2022, הרשויות המקומיות בישראל 2022 - קובץ נתונים לעיבוד",
+    "period": "2022"
+  }
+};
+
+export const CITY_CONTEXT_METRIC_META = {
+  "socioEconomic": {
+    "label": "מדד חברתי-כלכלי (ערך)",
+    "unit": "",
+    "source": "CBS 1879/2022, הרשויות המקומיות בישראל 2022 - קובץ נתונים לעיבוד",
+    "period": "2019"
+  },
+  "peripherality": {
+    "label": "מדד פריפריאליות (ערך)",
+    "unit": "",
+    "source": "CBS 1879/2022, הרשויות המקומיות בישראל 2022 - קובץ נתונים לעיבוד",
+    "period": "2022/23"
   }
 };
 
@@ -1270,6 +6515,46 @@ export const NATIONAL_BY_POPULATION_GROUP = {
   ],
   "source": "CBS 125/2024, סיבות מוות בישראל 2020-2022",
   "period": "2020-2022, שיעורים מתוקננים לגיל"
+};
+
+export const NATIONAL_LIFE_EXPECTANCY_BY_RELIGION = {
+  "groups": [
+    {
+      "label": "יהודים",
+      "men": 81.2,
+      "women": 84.6
+    },
+    {
+      "label": "מוסלמים",
+      "men": 76.5,
+      "women": 80.9
+    },
+    {
+      "label": "דרוזים",
+      "men": 79.4,
+      "women": 82.4
+    },
+    {
+      "label": "נוצרים ערבים",
+      "men": 78.9,
+      "women": 83.5
+    }
+  ],
+  "period": "ממוצע 2014-2016",
+  "source": "CBS 362/2017, תוחלת חיים בישראל 2016",
+  "sourceUrl": "https://www.cbs.gov.il/he/mediarelease/DocLib/2017/362/05_17_362b.pdf"
+};
+
+export const NATIONAL_HAREDI_NOTE = {
+  "cities": [
+    "מודיעין עילית",
+    "בני ברק",
+    "ביתר עילית",
+    "בית שמש",
+    "ירושלים"
+  ],
+  "note": "יישובים חרדים ברובם המציגים תוחלת חיים גבוהה יחסית, חריגה ביחס למדד החברתי-כלכלי הנמוך שלהם - הקשר ההפוך שמתקיים ברוב היישובים האחרים. אין נתון רשמי נפרד ל\"תמותה חרדית\" - זו תצפית על יישובים ספציפיים, לא סטטיסטיקה של מגזר.",
+  "source": "CBS 370/2019, פרופיל בריאותי-חברתי של היישובים בישראל 2011-2017"
 };
 
 export const NATIONAL_INFANT_MORTALITY_BY_SECTOR = {
