@@ -46,7 +46,7 @@
 
 import { el, esc, num, debounce, buildCsv, saveCsv } from './ui.js';
 import { initThemePicker } from './theme.js';
-import { renderHBarChart, renderBarChart, citySwatchCell } from './charts.js';
+import { renderHBarChart, renderMultiSeriesChart, citySwatchCell } from './charts.js';
 import { POLICE_CITIES } from './police-cities.js';
 import { POLICE_NEIGHBORHOODS } from './police-neighborhoods.js';
 import { STATISTIC_GROUPS, YEARS, YEAR_QUARTERS, NATIONAL_UNRESOLVED, BUCKET_IDS, BUCKET_LABELS, BUCKET_GROUPS } from './police-meta.js';
@@ -343,51 +343,164 @@ function renderRanks(entries) {
   box.innerHTML = lines.join('');
 }
 
-/* ---------- category breakdown - per picked entity, one hbar chart PER
-   OFFENSE-FAMILY BUCKET (regulatory/violent/nonviolent/security - see
-   BUCKET_IDS/BUCKET_GROUPS/BUCKET_LABELS in police-meta.js, a product
-   decision made with the user, not derived from the source), each bar a
-   member StatisticGroup's own average-per-year row count. Replaces the
-   single top-8-plus-"אחר" chart this section used to render - with only
-   3-5 members per bucket there's no need to truncate, every member group
-   gets its own bar. The 3 EXCLUDED_GROUPS (שאר עבירות/שגיאת הזנה/סעיפי
-   הגדרה) appear in neither this section nor any bucket - not real offense
-   categories or too small to matter (see police-meta.js's own comment).
-   Replaces real-estate-compare.js's lazy per-city deals section - this is
-   synchronous, no fetch, the data is already in the loaded module. ------- */
+/* ---------- category breakdown - one hbar chart PER OFFENSE-FAMILY BUCKET
+   (regulatory/violent/nonviolent/security - see BUCKET_IDS/BUCKET_GROUPS/
+   BUCKET_LABELS in police-meta.js, a product decision made with the user,
+   not derived from the source), combining every picked entity into that
+   SAME chart rather than each entity getting its own copy (previously one
+   full set of bucket charts per entity - same "separate chart per entity"
+   issue renderYearTrend had, fixed the same way: one shared chart, entity
+   identity carried by pickColorFor color instead of a wholly separate
+   chart). Unlike renderYearTrend's grouped-vertical-bar chart though, this
+   stays the existing renderHBarChart leaderboard style entirely unchanged,
+   using its `groupHeader` row (a label-only divider, no bar) to split the
+   list into a named sub-section per offense-group (BUCKET_GROUPS order),
+   that group's cities as ordinary rows right under it, in PICK order (not
+   value order) so a city sits in the same relative position under every
+   group's header rather than reshuffling group to group - same-category
+   bars from different cities sit together under one heading, and each
+   row's own label is just the city name (color is what ties a row back to
+   a city, same as every other combined chart on this page - the group
+   name itself only needs to appear once, in the header, not repeated on
+   every row under it).
+   Each bar is a member StatisticGroup's own average-per-year row count, or
+   (see `normalize` below) that count per 1000 residents when every picked
+   entity has a population figure - only true at city level.
+   The 3 EXCLUDED_GROUPS (שאר עבירות/שגיאת הזנה/סעיפי הגדרה) appear in
+   neither this section nor any bucket - not real offense categories or too
+   small to matter (see police-meta.js's own comment). ------- */
 
 const STATISTIC_GROUP_INDEX = new Map(STATISTIC_GROUPS.map((g, i) => [g, i]));
 
+// Display order for the category-breakdown charts only (a reading-order
+// preference, not a data concern) - BUCKET_IDS itself stays whatever
+// tools/police_build.py generated it as (regulatory/violent/nonviolent/
+// security), since that array's order is also what indexes into every
+// entity's own parallel `buckets` totals - reordering it here instead of
+// there avoids a full data regenerate (a network fetch against data.gov.il)
+// for what's purely a chart-order preference.
+const CATEGORY_DISPLAY_ORDER = ['security', 'violent', 'nonviolent', 'regulatory'];
+
+// Same reading-order-only reordering as CATEGORY_DISPLAY_ORDER above, one
+// level down: which of a bucket's own member groups comes first. Falls
+// back to BUCKET_GROUPS[bid]'s own (generated) order for any bucket with
+// no override here - only 'violent' has one so far.
+const GROUP_DISPLAY_ORDER = {
+  violent: ['עבירות נגד אדם', 'עבירות מין', 'עבירות נגד גוף'],
+};
+
+// A single offense sub-category's own per-1000-residents rate is often a
+// small fraction (unlike the ~20-35 range of the page's one overall
+// perCapita figure) - num()'s 0-decimal rounding would flatten most rows
+// to a meaningless "0". Same 'he-IL' locale formatting, just 2 decimals.
+const numRate = (v) => (v == null ? '—' : Number(v).toLocaleString('he-IL', { maximumFractionDigits: 2 }));
+
+// Display-only clarification for one specific StatisticGroup name, whose
+// plain name alone ("offenses against a person") reads as broader than
+// what it actually covers. A UI-layer relabel, not touching the group name
+// itself - that's generated data (STATISTIC_GROUPS/BUCKET_GROUPS in
+// police-meta.js) used as a real lookup key elsewhere, not just display
+// text, so it can't just be edited to add a parenthetical there.
+const GROUP_LABEL_OVERRIDES = { 'עבירות נגד אדם': 'עבירות נגד אדם (רצח, הריגה)' };
+const groupLabel = (groupName) => GROUP_LABEL_OVERRIDES[groupName] || groupName;
+
 function renderCategoryBreakdown(entries) {
   const container = el('pcCategoryBreakdown');
-  container.innerHTML = entries.flatMap((_, ei) => BUCKET_IDS.map((bid, bi) =>
-    `<figure id="pc-cat-${ei}-${bi}" class="acc-chart acc-chart-wide" role="img"></figure>`)).join('');
-  entries.forEach((e, ei) => {
-    const cats = categoriesFor(e) || [];
-    const bucketTotals = bucketsFor(e) || [];
-    BUCKET_IDS.forEach((bid, bi) => {
-      const bars = BUCKET_GROUPS[bid]
-        .map((groupName) => ({ label: groupName, value: cats[STATISTIC_GROUP_INDEX.get(groupName)] || 0 }))
-        .filter((p) => p.value > 0)
-        .sort((a, b) => b.value - a.value);
-      renderHBarChart(`pc-cat-${ei}-${bi}`,
-        `${e.label} — ${BUCKET_LABELS[bid]} (ממוצע שנתי: ${num(bucketTotals[bi] || 0)})`, bars, 'שורות/שנה');
+  container.innerHTML = CATEGORY_DISPLAY_ORDER.map((_, oi) =>
+    `<figure id="pc-cat-${oi}" class="acc-chart acc-chart-wide" role="img"></figure>`).join('');
+  const multi = entries.length > 1;
+  // Per-1000 needs every picked entity's own population - only available at
+  // city level (see populationFor's own comment). Falls back to raw average
+  // -per-year counts at neighborhood level rather than hiding the charts.
+  const normalize = entries.every((e) => populationFor(e) != null);
+  const rateFor = (e, idx) => {
+    const raw = (categoriesFor(e) || [])[idx] || 0;
+    return normalize ? (raw / populationFor(e)) * 1000 : raw;
+  };
+  const unit = normalize ? 'לאלף תושבים' : 'שורות/שנה';
+  const formatValue = normalize ? numRate : num;
+
+  CATEGORY_DISPLAY_ORDER.forEach((bid, oi) => {
+    const bi = BUCKET_IDS.indexOf(bid);
+    const bars = (GROUP_DISPLAY_ORDER[bid] || BUCKET_GROUPS[bid]).flatMap((groupName) => {
+      const idx = STATISTIC_GROUP_INDEX.get(groupName);
+      // Pick order, not value order - so a city sits in the same relative
+      // position under every group's header instead of jumping around
+      // group to group depending on which offense happens to be bigger for
+      // which city that time.
+      const rows = entries
+        .map((e, ei) => ({ e, ei, value: rateFor(e, idx) }))
+        .filter(({ value }) => value > 0);
+      if (!rows.length) return [];
+      if (!multi) return rows.map(({ value }) => ({ label: groupLabel(groupName), value }));
+      return [
+        { groupHeader: groupLabel(groupName) },
+        ...rows.map(({ e, ei, value }) => ({ label: e.label, value, color: pickColorFor(ei) })),
+      ];
     });
+    const bucketLabel = normalize ? `${BUCKET_LABELS[bid]} לאלף תושבים` : BUCKET_LABELS[bid];
+    const bucketRawTotal = (bucketsFor(entries[0]) || [])[bi] || 0;
+    const bucketTotal = normalize ? (bucketRawTotal / populationFor(entries[0])) * 1000 : bucketRawTotal;
+    const caption = multi
+      ? `${bucketLabel} — השוואה`
+      : `${entries[0].label} — ${bucketLabel} (ממוצע שנתי: ${formatValue(bucketTotal)})`;
+    renderHBarChart(`pc-cat-${oi}`, caption, bars, unit, { formatValue });
   });
 }
 
-/* ---------- year trend - one bar chart per picked entity, distinct-case
-   counts per year. A year with fewer than 4 quarters observed (see
-   YEAR_QUARTERS) is marked `active` so renderBarChart highlights it. ---- */
+/* ---------- year trend - two combined charts (raw count, then per-1000-
+   residents), all picked entities as distinctly-colored bars per year in
+   each (previously a fully separate raw-count-only chart per entity, each
+   on its own y-axis scale - not actually comparable at a glance). Same
+   per-entity color (pickColorFor) as everywhere else on this page. A year
+   with fewer than 4 quarters observed (see YEAR_QUARTERS) is marked
+   `active`, which renderMultiSeriesChart surfaces as an asterisk on that
+   year's label rather than a bar tint, since color here means "which
+   entity".
+   The per-1000 chart divides each YEAR's own raw count by the city's
+   POLICE_CITIES population - not the same number as METRICS.perCapita
+   (that's a 5-year AVERAGE rate, this is the rate for that specific year).
+   Neighborhoods have no population figure at all (see METRICS.perCapita's
+   own comment) so this second chart is simply omitted when none of the
+   picked entities have one, same as that metric already disappears at
+   neighborhood level elsewhere on this page. ---- */
+
+function populationFor(e) {
+  return e.level === 'city' ? POLICE_CITIES[e.name]?.population : null;
+}
 
 function renderYearTrend(entries) {
+  const suffix = entries.length > 1 ? ' — השוואה' : '';
+
+  const totalSeries = entries.map((e, i) => ({
+    name: e.label,
+    color: pickColorFor(i),
+    points: YEARS.map((y, yi) => ({ year: Number(y), value: (yearsFor(e) || [])[yi] || 0, active: YEAR_QUARTERS[y] < 4 })),
+  }));
+
+  const perCapitaSeries = entries.map((e, i) => {
+    const pop = populationFor(e);
+    if (!pop) return null;
+    return {
+      name: e.label,
+      color: pickColorFor(i),
+      points: YEARS.map((y, yi) => ({
+        year: Number(y),
+        value: ((yearsFor(e) || [])[yi] || 0) / pop * 1000,
+        active: YEAR_QUARTERS[y] < 4,
+      })),
+    };
+  }).filter(Boolean);
+
   const container = el('pcYearTrend');
-  container.innerHTML = entries.map((_, i) => `<figure id="pc-year-${i}" class="acc-chart" role="img"></figure>`).join('');
-  entries.forEach((e, i) => {
-    const yearsVec = yearsFor(e) || [];
-    const chartEntries = YEARS.map((y, yi) => ({ label: y, value: yearsVec[yi] || 0, active: YEAR_QUARTERS[y] < 4 }));
-    renderBarChart(`pc-year-${i}`, `${e.label} — תיקים לפי שנה`, chartEntries, 'תיקים');
-  });
+  container.innerHTML = `
+    <figure id="pc-year-combined" class="acc-chart acc-chart-wide" role="img"></figure>
+    ${perCapitaSeries.length ? '<figure id="pc-year-combined-percap" class="acc-chart acc-chart-wide" role="img"></figure>' : ''}`;
+
+  renderMultiSeriesChart('pc-year-combined', `תיקים לפי שנה${suffix}`, totalSeries, 'תיקים');
+  if (perCapitaSeries.length) {
+    renderMultiSeriesChart('pc-year-combined-percap', `תיקים לאלף תושבים לפי שנה${suffix}`, perCapitaSeries, 'לאלף תושבים');
+  }
 }
 
 function renderCompare() {
