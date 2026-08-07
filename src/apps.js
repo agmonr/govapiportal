@@ -50,6 +50,7 @@ export const APP_ICON = {
   'real-estate-compare': '💰<span class="icon-small">🏘️</span>',
   'arnona-compare': '🧾',
   'canopy-heat-compare': '🌳<span class="icon-small">🌡️</span>',
+  'mortality-compare': '🩺',
 };
 
 // Render order for categories - not alphabetical on the Hebrew label, and
@@ -64,7 +65,7 @@ export const APP_ICON = {
 // where either category's entries happen to sit in the apps array. A
 // category outside this list entirely still renders (under its own
 // heading, after these) rather than silently dropping its apps.
-const CATEGORY_ORDER = ['civic', 'home', 'trees', 'money', 'direct', 'external'];
+const CATEGORY_ORDER = ['civic', 'community', 'home', 'trees', 'money', 'direct', 'external'];
 
 // Pulled out of its own category and rendered first, standalone, with no
 // category heading at all - by explicit request, this one app is meant to

@@ -68,6 +68,19 @@
       "category_he": "הבית והשכונה שלי"
     },
     {
+      "id": "mortality-compare",
+      "name": "Causes of Death — City / Zone / National",
+      "name_he": "סיבות מוות בישראל",
+      "kind": "אפליקציה",
+      "about": "תמותה ממחלות לב, סרטן, תמותת תינוקות וסוכרת בשלוש רמות דיוק נפרדות: 65 ערים שהלמ״ס עצמה בחרה לציין בשמן (לא רשימה ארצית מלאה - זה כל מה שפורסם), מחוז/נפה, וארצי (כולל שבץ מוחי ופערים בין יהודים לערבים - זמינים רק ברמה הארצית). לא מקור נתונים מקוון - נתונים ידניים מתוך פרסומי הלמ״ס (ראו tools/mortality_build.py).",
+      "href": "./mortality-compare.html",
+      "external": false,
+      "home": "https://www.cbs.gov.il/he/mediarelease/DocLib/2019/370/05_19_370b.pdf",
+      "computed_at": "2026-08-07T14:53+03:00",
+      "category": "community",
+      "category_he": "חברה וקהילה"
+    },
+    {
       "id": "arnona-compare",
       "name": "Arnona Calculator — Rate & Discount Comparison",
       "name_he": "מחשבון ארנונה",
