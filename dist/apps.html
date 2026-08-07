@@ -2948,14 +2948,16 @@ const APP_ICON = {
 // where either category's entries happen to sit in the apps array. A
 // category outside this list entirely still renders (under its own
 // heading, after these) rather than silently dropping its apps.
-const CATEGORY_ORDER = ['civic', 'community', 'home', 'trees', 'money', 'direct', 'external'];
+const CATEGORY_ORDER = ['community', 'civic', 'home', 'trees', 'money', 'direct', 'external'];
 
-// Pulled out of its own category and rendered first, standalone, with no
-// category heading at all - by explicit request, this one app is meant to
-// read as the page's own headline, not "item one of a civic-action list".
-// Still removed from its category's normal grouping below so it doesn't
-// also render a second time under "פעילות חברתית ומעורבות אזרחית".
-const PINNED_APP_ID = 'accidents';
+// accidents.html used to be pulled out here and rendered standalone with no
+// category heading, as the page's own headline. That stopped making sense
+// once it moved into the same "חברה וקהילה" category as mortality-compare.html
+// (see apis.json) - by explicit follow-up request, the two now render
+// together, grouped, at the top of the page instead. No app is pinned
+// anymore; `pinned` below is always undefined and every app renders through
+// the normal per-category path.
+const PINNED_APP_ID = null;
 
 // The native hover tooltip (title=) can't be styled - the browser draws it,
 // wrapping to as many lines as the full `about` text needs (some run past

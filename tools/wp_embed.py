@@ -44,16 +44,19 @@ OUT = ROOT / "dist" / "wordpress-embed.html"
 # repo's own Pages settings (in which case update this one constant).
 BASE_URL = "https://agmonr.github.io/govapiportal/"
 
-# Kept in the same order as CATEGORY_ORDER in src/apps.js - civic-action
-# items first, then whatever's tied to your own address, then the
-# tree-specific tools, then money/accountability. Anything outside this list
-# (currently just "external") still renders, after these, under its own
+# Kept in the same order as CATEGORY_ORDER in src/apps.js - חברה וקהילה
+# first (accidents.html + mortality-compare.html), then civic-action items,
+# then whatever's tied to your own address, then the tree-specific tools,
+# then money/accountability. Anything outside this list (currently just
+# "direct"/"external") still renders, after these, under its own
 # category_he heading.
-CATEGORY_ORDER = ["civic", "home", "trees", "money"]
+CATEGORY_ORDER = ["community", "civic", "home", "trees", "money"]
 
-# Kept in sync with PINNED_APP_ID in src/apps.js - pulled out of its own
-# category and rendered first, standalone, with no category heading.
-PINNED_APP_ID = "accidents"
+# Kept in sync with PINNED_APP_ID in src/apps.js - no app is pinned/pulled
+# out standalone anymore (accidents.html moved into the same category as
+# mortality-compare.html and renders grouped with it instead - see that
+# constant's own comment in apps.js for why).
+PINNED_APP_ID = None
 
 WRAP = "ram-govapps-embed"
 
