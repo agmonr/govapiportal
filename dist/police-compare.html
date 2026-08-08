@@ -4064,6 +4064,16 @@ function renderCompareTable(entries) {
 
 function renderCompareCharts(entries) {
   const container = el('pcCompareCharts');
+  // A single bar filling its own chart end-to-end (nothing to compare it
+  // against) says nothing a plain number doesn't already say better - and
+  // the per-1000 rate would just be a second, unrelated-looking stat with
+  // the same problem, so only the raw total prints here as text instead
+  // (user request: no graph, and no per-1000 figure, for a single pick).
+  if (entries.length === 1) {
+    const total = valueFor(entries[0], 'total');
+    container.innerHTML = `<p class="acc-hint" dir="auto">${esc(METRICS.total.label)}: ${total != null ? `<strong>${num(total)}</strong> ${esc(METRICS.total.unit)}` : 'אין נתון'}</p>`;
+    return;
+  }
   container.innerHTML = METRIC_ORDER.map((_, i) => `<figure id="pc-compare-${i}" class="acc-chart acc-chart-wide" role="img"></figure>`).join('');
   METRIC_ORDER.forEach((metricId, i) => {
     const figId = `pc-compare-${i}`;
