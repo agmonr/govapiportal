@@ -79,9 +79,18 @@ if (!Number.isNaN(created.getTime())) {
 // (socioEconomic/peripherality have no `national` average - they're an
 // index, not a rate - see CITY_CONTEXT_METRIC_META's own comment).
 const ALL_CITY_METRIC_META = { ...CITY_METRIC_META, ...CITY_CONTEXT_METRIC_META };
+// "תמותה מ<cause>" reads redundant once the picker/board caption already
+// says "תמותה" via context (every metric here already is one) - drop the
+// prefix for these 2 cause-specific labels, leaving just the cause itself
+// (user request). Metrics that aren't "מ<cause>" shaped (overallMortality/
+// infantMortality's own wording, cancerIncidence's own "(לא תמותה)"
+// qualifier) are untouched. A UI-layer relabel, not touching
+// mortality-data.js (generated straight from the CBS source).
+ALL_CITY_METRIC_META.heartDisease = { ...ALL_CITY_METRIC_META.heartDisease, label: 'מחלות לב' };
+ALL_CITY_METRIC_META.cancerMortality = { ...ALL_CITY_METRIC_META.cancerMortality, label: 'סרטן' };
 const CITY_METRIC_ORDER = [
-  'overallMortality', 'heartDisease', 'cancerMortality', 'infantMortality',
-  'lifeExpectancy', 'diabetes', 'cancerIncidenceMen', 'cancerIncidenceWomen',
+  'lifeExpectancy', 'overallMortality', 'heartDisease', 'cancerMortality', 'infantMortality',
+  'diabetes', 'cancerIncidenceMen', 'cancerIncidenceWomen',
   'socioEconomic', 'peripherality',
 ];
 
