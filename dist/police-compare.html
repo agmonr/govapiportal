@@ -1956,6 +1956,11 @@ body.accidents-page header.site h1 { inline-size: 100%; }
    grow to fit whichever level currently has the longest leaderboard. */
 .tc-board-scroll { max-block-size: 32rem; overflow-y: auto; }
 .tc-board-scroll .acc-hbars { padding-inline-end: .3rem; }
+/* police-compare.html's "דירוג לפי סוג עבירה" board only - same scrolling
+   idiom as .tc-board-scroll above, capped to ~15 visible rows instead of
+   32rem (user request), since this list is per-category and can run to 100+
+   cities otherwise. */
+.tc-board-scroll-15 { max-block-size: 28.5rem; }
 /* The caption (which entity/metric this ranks) stays visible while
    scrolling through up to ~27,700 rows, instead of scrolling away after
    the first screenful. */
@@ -2580,7 +2585,7 @@ body.accidents-page header.site h1 { inline-size: 100%; }
     <div id="app">
       <div id="appContext" class="app-context"></div>
 
-      <details class="notice info" dir="auto" open>
+      <details class="notice info" dir="auto">
         <summary><strong>מה יש כאן, ומה המקור</strong></summary>
         <p>
           תיקי חקירה פליליים שבהם ישנו חשד לביצוע עבירה, לפי <strong>עיר או שכונה (אזור סטטיסטי)</strong> -
@@ -2672,7 +2677,7 @@ body.accidents-page header.site h1 { inline-size: 100%; }
         <h2 id="categoryBoardH">דירוג לפי סוג עבירה</h2>
         <p class="acc-hint" dir="auto" id="pcCategoryHint"></p>
         <div class="cm-filters" id="pcCategoryPick" role="group" aria-label="סוג עבירה"></div>
-        <div id="pcCategoryBoardChart"></div>
+        <div id="pcCategoryBoardChart" class="acc-chart-wide tc-board-scroll tc-board-scroll-15"></div>
       </section>
 
       <section class="acc-section" id="pcBoardSection" aria-labelledby="boardH">
@@ -3785,6 +3790,13 @@ function topCategory(entity) {
   return bestIdx === -1 ? null : { name: STATISTIC_GROUPS[bestIdx], value: bestVal };
 }
 
+// Every STATISTIC_GROUPS name starts with "עבירות " - redundant once it's
+// one row among many in the compare section's own body (renderCompareTable/
+// renderCategoryBreakdown), which is already understood to be about
+// offenses. Section captions/headings keep the full word; this is body rows
+// only.
+const stripOffensesWord = (name) => name.replace(/^עבירות\s+/, '');
+
 /* ---------- levels ---------- */
 
 function neighborhoodLabel(city, name) {
@@ -3833,22 +3845,58 @@ const pickColorFor = (i) => pickColor(i, 'var(--accent)');
 const perCapitaColorFor = (i) => pickColor(i, 'var(--danger)');
 const METRIC_COLOR_FOR = { total: pickColorFor, perCapita: perCapitaColorFor };
 
+/* ---------- category order (shared by the "דירוג לפי סוג עבירה" picker
+   below and renderCategoryBreakdown's own charts in the compare section, so
+   both list offense categories in the same reading order) ---------- */
+
+// Display order for the category-breakdown charts (a reading-order
+// preference, not a data concern) - BUCKET_IDS itself stays whatever
+// tools/police_build.py generated it as (regulatory/violent/nonviolent/
+// security), since that array's order is also what indexes into every
+// entity's own parallel `buckets` totals - reordering it here instead of
+// there avoids a full data regenerate (a network fetch against data.gov.il)
+// for what's purely a chart-order preference.
+const CATEGORY_DISPLAY_ORDER = ['security', 'violent', 'nonviolent', 'regulatory'];
+
+// Same reading-order-only reordering as CATEGORY_DISPLAY_ORDER above, one
+// level down: which of a bucket's own member groups comes first. Falls
+// back to BUCKET_GROUPS[bid]'s own (generated) order for any bucket with
+// no override here - only 'violent' has one so far.
+const GROUP_DISPLAY_ORDER = {
+  violent: ['עבירות נגד אדם', 'עבירות מין', 'עבירות נגד גוף'],
+};
+
+// "דירוג לפי סוג עבירה" picker's own category list: same bucket/group
+// reading order as renderCategoryBreakdown above, plus "שאר עבירות" appended
+// (it's a real, non-negligible catch-all count worth ranking by, just not a
+// member of any of the 4 offense-family buckets). "סעיפי הגדרה" and "שגיאת
+// הזנה" are dropped entirely (unlike "שאר עבירות") - definition-bookkeeping
+// and data-entry-error rows, not real offense categories, so ranking cities
+// by them would be meaningless (user request).
+const CATEGORY_BOARD_GROUPS = [
+  ...CATEGORY_DISPLAY_ORDER.flatMap((bid) => GROUP_DISPLAY_ORDER[bid] || BUCKET_GROUPS[bid]),
+  'שאר עבירות',
+];
+
 /* ---------- state + URL ---------- */
 
 const VALID_LEVELS = ['city', 'neighborhood'];
 
+const DEFAULT_CITY_PICKS = ['ירושלים', 'תל אביב יפו', 'חיפה', 'באר שבע'];
+
 const state = {
-  level: 'city', picks: [], cityFilter: null, boardOrder: 'best', activeCategory: STATISTIC_GROUPS[0],
+  level: 'city', picks: [...DEFAULT_CITY_PICKS], cityFilter: null, boardOrder: 'best', activeCategory: CATEGORY_BOARD_GROUPS[0],
 };
 
 function readStateFromUrl() {
   const p = new URLSearchParams(location.search);
   if (VALID_LEVELS.includes(p.get('level'))) state.level = p.get('level');
   const maxPicks = LEVELS[state.level]?.maxPicks || 0;
-  state.picks = p.getAll('p').filter(Boolean).slice(0, maxPicks);
+  state.picks = p.has('p') ? p.getAll('p').filter(Boolean).slice(0, maxPicks)
+    : (state.level === 'city' ? DEFAULT_CITY_PICKS.slice(0, maxPicks) : []);
   if (p.get('city')) state.cityFilter = p.get('city');
   if (p.get('order') === 'worst') state.boardOrder = 'worst';
-  if (STATISTIC_GROUPS.includes(p.get('cat'))) state.activeCategory = p.get('cat');
+  if (CATEGORY_BOARD_GROUPS.includes(p.get('cat'))) state.activeCategory = p.get('cat');
 }
 
 function syncUrl() {
@@ -3857,7 +3905,7 @@ function syncUrl() {
   state.picks.forEach((v) => { if (v) p.append('p', v); });
   if (state.cityFilter) p.set('city', state.cityFilter);
   if (state.boardOrder === 'worst') p.set('order', 'worst');
-  if (state.activeCategory !== STATISTIC_GROUPS[0]) p.set('cat', state.activeCategory);
+  if (state.activeCategory !== CATEGORY_BOARD_GROUPS[0]) p.set('cat', state.activeCategory);
   history.replaceState(null, '', `?${p}`);
 }
 
@@ -3917,7 +3965,7 @@ function renderCompareTable(entries) {
       ${citySwatchCell(e.label, pickColorFor(i))}
       <td>${total != null ? num(total) : '—'}</td>
       <td>${perCap != null ? num(perCap) : '—'}</td>
-      <td dir="auto">${top ? `${esc(top.name)} (${num(top.value)})` : '—'}</td>
+      <td dir="auto">${top ? `${esc(stripOffensesWord(top.name))} (${num(top.value)})` : '—'}</td>
       ${isCity ? `<td>${num(entryUnattributed(e) ?? 0)}</td>` : ''}
     </tr>`;
   }).join('');
@@ -4014,23 +4062,6 @@ function renderRanks(entries) {
 
 const STATISTIC_GROUP_INDEX = new Map(STATISTIC_GROUPS.map((g, i) => [g, i]));
 
-// Display order for the category-breakdown charts only (a reading-order
-// preference, not a data concern) - BUCKET_IDS itself stays whatever
-// tools/police_build.py generated it as (regulatory/violent/nonviolent/
-// security), since that array's order is also what indexes into every
-// entity's own parallel `buckets` totals - reordering it here instead of
-// there avoids a full data regenerate (a network fetch against data.gov.il)
-// for what's purely a chart-order preference.
-const CATEGORY_DISPLAY_ORDER = ['security', 'violent', 'nonviolent', 'regulatory'];
-
-// Same reading-order-only reordering as CATEGORY_DISPLAY_ORDER above, one
-// level down: which of a bucket's own member groups comes first. Falls
-// back to BUCKET_GROUPS[bid]'s own (generated) order for any bucket with
-// no override here - only 'violent' has one so far.
-const GROUP_DISPLAY_ORDER = {
-  violent: ['עבירות נגד אדם', 'עבירות מין', 'עבירות נגד גוף'],
-};
-
 // A single offense sub-category's own per-1000-residents rate is often a
 // small fraction (unlike the ~20-35 range of the page's one overall
 // perCapita figure) - num()'s 0-decimal rounding would flatten most rows
@@ -4043,8 +4074,8 @@ const numRate = (v) => (v == null ? '—' : Number(v).toLocaleString('he-IL', { 
 // itself - that's generated data (STATISTIC_GROUPS/BUCKET_GROUPS in
 // police-meta.js) used as a real lookup key elsewhere, not just display
 // text, so it can't just be edited to add a parenthetical there.
-const GROUP_LABEL_OVERRIDES = { 'עבירות נגד אדם': 'עבירות נגד אדם (רצח, הריגה)' };
-const groupLabel = (groupName) => GROUP_LABEL_OVERRIDES[groupName] || groupName;
+const GROUP_LABEL_OVERRIDES = { 'עבירות נגד אדם': 'נגד אדם (רצח, הריגה)' };
+const groupLabel = (groupName) => GROUP_LABEL_OVERRIDES[groupName] || stripOffensesWord(groupName);
 
 function renderCategoryBreakdown(entries) {
   const container = el('pcCategoryBreakdown');
@@ -4272,7 +4303,7 @@ function renderBoard() {
 
 function renderCategoryPicker() {
   const box = el('pcCategoryPick');
-  box.innerHTML = STATISTIC_GROUPS.map((g) => `<button type="button" data-cat="${esc(g)}" class="tc-level-btn${g === state.activeCategory ? ' active' : ''}">${esc(g)}</button>`).join('');
+  box.innerHTML = CATEGORY_BOARD_GROUPS.map((g) => `<button type="button" data-cat="${esc(g)}" class="tc-level-btn${g === state.activeCategory ? ' active' : ''}">${esc(g)}</button>`).join('');
   box.querySelectorAll('button').forEach((btn) => {
     btn.addEventListener('click', () => {
       if (state.activeCategory === btn.dataset.cat) return;

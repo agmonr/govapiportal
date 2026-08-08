@@ -1953,6 +1953,11 @@ body.accidents-page header.site h1 { inline-size: 100%; }
    grow to fit whichever level currently has the longest leaderboard. */
 .tc-board-scroll { max-block-size: 32rem; overflow-y: auto; }
 .tc-board-scroll .acc-hbars { padding-inline-end: .3rem; }
+/* police-compare.html's "דירוג לפי סוג עבירה" board only - same scrolling
+   idiom as .tc-board-scroll above, capped to ~15 visible rows instead of
+   32rem (user request), since this list is per-category and can run to 100+
+   cities otherwise. */
+.tc-board-scroll-15 { max-block-size: 28.5rem; }
 /* The caption (which entity/metric this ranks) stays visible while
    scrolling through up to ~27,700 rows, instead of scrolling away after
    the first screenful. */
