@@ -751,7 +751,7 @@ function renderCategoryBoard() {
   const entries = categoryEntriesFor(state.level, state.activeCategory).sort((a, b) => b.value - a.value);
   const capped = state.level === 'city' ? entries : entries.slice(0, BOARD_CAP);
   const capNote = capped.length < entries.length ? ` (${num(BOARD_CAP)} מתוך ${num(entries.length)})` : '';
-  el('pcCategoryHint').textContent = `${num(entries.length)} מתוך ${num(levelEntries(state.level).length)} ${lvl.labelPlural} עם תיקים מסוג "${state.activeCategory}" (ממוצע שנתי)`;
+  el('pcCategoryHint').textContent = `${num(entries.length)} מתוך ${num(levelEntries(state.level).length)} ${lvl.labelPlural} עם תיקים מסוג "${groupLabel(state.activeCategory)}" (ממוצע שנתי)`;
   const peak = Math.max(0, ...capped.map((r) => r.value));
   const rowsHtml = capped.map((r) => `
     <div class="acc-hbar" title="${esc(r.label)}: ${num(r.value)}">
@@ -759,7 +759,7 @@ function renderCategoryBoard() {
       <div class="acc-hbar-track"><div class="acc-hbar-fill" style="inline-size:${peak ? (r.value / peak) * 100 : 0}%"></div></div>
       <span class="acc-hbar-v">${num(r.value)}</span>
     </div>`);
-  renderBoardChartChunked('pcCategoryBoardChart', `${num(capped.length)} ${lvl.labelPlural}, מהגבוה לנמוך לפי "${state.activeCategory}" (ממוצע שנתי)${capNote}`, rowsHtml);
+  renderBoardChartChunked('pcCategoryBoardChart', `${num(capped.length)} ${lvl.labelPlural}, מהגבוה לנמוך לפי "${groupLabel(state.activeCategory)}" (ממוצע שנתי)${capNote}`, rowsHtml);
 }
 
 /* ---------- CSV ---------- */
