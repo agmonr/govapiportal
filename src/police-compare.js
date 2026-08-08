@@ -463,10 +463,23 @@ function renderCategoryBreakdown(entries) {
         .map((e, ei) => ({ e, ei, value: rateFor(e, idx) }))
         .filter(({ value }) => value > 0);
       if (!rows.length) return [];
-      if (!multi) return rows.map(({ value }) => ({ label: groupLabel(groupName), value }));
+      // renderHBarChart scales every bar in the whole figure against ONE
+      // shared peak - fine within a group, but a bucket combines groups of
+      // very different natural scale (e.g. violent's own נגד גוף routinely
+      // 50-100x נגד אדם's rate), so under a single shared peak the smaller
+      // groups' bars all but disappear. Pre-normalized to 0-100 = "% of this
+      // GROUP's own highest bar" instead (peak always reaches exactly 100,
+      // same effect as renderHBarChart's own peak-relative scaling, just
+      // scoped per group) - the printed/tooltip number still shows the real
+      // rate via displayValue, only the bar's fill is renormalized (user
+      // request: "the graph with the most, fill the line, others relative
+      // to it" - per category, not per bucket).
+      const groupPeak = Math.max(...rows.map((r) => r.value));
+      const scaled = rows.map((r) => ({ ...r, displayValue: r.value, value: (r.value / groupPeak) * 100 }));
+      if (!multi) return scaled.map(({ value, displayValue }) => ({ label: groupLabel(groupName), value, displayValue }));
       return [
         { groupHeader: groupLabel(groupName) },
-        ...rows.map(({ e, ei, value }) => ({ label: e.label, value, color: pickColorFor(ei) })),
+        ...scaled.map(({ e, ei, value, displayValue }) => ({ label: e.label, value, displayValue, color: pickColorFor(ei) })),
       ];
     });
     const bucketLabel = normalize ? `${BUCKET_LABELS[bid]} לאלף תושבים` : BUCKET_LABELS[bid];

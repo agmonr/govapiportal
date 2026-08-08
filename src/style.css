@@ -1244,6 +1244,22 @@ a.acc-hbar-y:hover { opacity: .8; }
 .matrix.preview .col-dt { white-space: nowrap; min-inline-size: 6.5rem; }
 .matrix.preview tbody tr:nth-child(even) { background: color-mix(in srgb, var(--fg) 3%, transparent); }
 
+/* police-compare.js's own compare table (#pcTable) only borrows "preview"
+   for its striped rows, not its prose-wrapping - its own cells are short
+   (a city name, a handful of numbers), so the 22rem wrap-friendly rule
+   above just breaks a city name across 2-3 lines instead of keeping it on
+   one, especially cramped on a narrow phone screen (user request: widen &
+   fix the city name column). Restores the site's normal single-line .matrix
+   behavior for this table specifically. */
+#pcTable .matrix.preview td, #pcTable .matrix.preview th { white-space: nowrap; max-inline-size: none; }
+/* The per-city color swatch there ties a row back to the chart above it -
+   useful on desktop, but not worth the width it costs the city-name column
+   on a narrow phone screen where every column is already tight (user
+   request, mobile only). */
+@media (max-width: 640px) {
+  #pcTable .fin-city-cell .acc-legend-swatch { display: none; }
+}
+
 /* Filter box inside a portal drill-in. */
 .drill-filter { display: flex; gap: .5rem; align-items: center; margin-block-end: .7rem; }
 /* Same treatment as .ck-dl in the data.gov.il explorer: built here from
@@ -1950,16 +1966,47 @@ body.accidents-page header.site h1 { inline-size: 100%; }
 }
 
 /* police-compare.html (also .tree-canopy-page - shares that page shell)
-   shows plain city/neighborhood names in these 3 sections, not the long
+   shows plain city/neighborhood names in these 2 sections, not the long
    combined labels the 9rem mobile width above was sized for - .acc-hbar-y's
    own text-align:end sits a short name against the box's INNER edge (by the
    bar), not the row's own right edge, leaving a bare gap before it on a
    narrow phone screen. Flipped to start so it hugs the right edge instead -
    safe for longer labels too, since text-overflow:ellipsis truncation is
-   unaffected by text-align (user request, mobile only). */
+   unaffected by text-align (user request, mobile only). #pcCompareSection
+   isn't listed here - it gets its own always-on fix below instead. */
 @media (max-width: 640px) {
-  #pcCompareSection .acc-hbar-y, #pcBoardSection .acc-hbar-y, #pcCategoryBoardChart .acc-hbar-y { text-align: start; }
+  #pcBoardSection .acc-hbar-y, #pcCategoryBoardChart .acc-hbar-y { text-align: start; }
 }
+
+/* #pcCompareSection's own leaderboard-style charts (compare bars, category
+   breakdown, single-city neighborhood board): instead of a fixed label
+   column width, shrink-wrap it to the longest city/category name actually
+   on screen, so the bar starts a small fixed gap after that name rather
+   than a wide reserved column leaving shorter names stranded with visible
+   empty space before the bar (user request: "start 2 places after the
+   longest city name"). `.acc-hbar` normally lays out each row as its OWN
+   flex row (see charts.js's renderHBarChart); `display:contents` erases
+   that wrapper from the box tree so its 3 children (name/track/value)
+   become direct grid items instead, letting `.acc-hbars`'s own
+   grid-template-columns size the label column to the widest label across
+   EVERY row at once (same idea as a normal HTML <table>'s auto column
+   sizing) - not achievable with per-row flex-basis, which only sees one
+   row at a time. Column order matches the page's own dir=rtl (name column
+   first = rightmost, value column last = leftmost), same visual order this
+   already had under flexbox. */
+#pcCompareSection .acc-hbars {
+  display: grid;
+  /* minmax(0, 1fr), not bare 1fr - a bare 1fr track won't shrink below the
+     track's own min-content size, so the whole row silently overflows its
+     container instead of the middle (bar) column actually shrinking. */
+  grid-template-columns: max-content minmax(0, 1fr) max-content;
+  column-gap: 1.2rem;
+  row-gap: .4rem;
+  align-items: center;
+}
+#pcCompareSection .acc-hbar { display: contents; }
+#pcCompareSection .acc-hbar-y { flex: unset; text-align: start; }
+#pcCompareSection .acc-hbar-group-header { grid-column: 1 / -1; }
 
 /* The 4 pick fields fill column-by-column (grid-auto-flow: column) rather
    than row-by-row: pick 1 sits directly above pick 2, and pick 3 directly
