@@ -220,16 +220,19 @@ const GROUP_DISPLAY_ORDER = {
 };
 
 // "דירוג לפי סוג עבירה" picker's own category list: same bucket/group
-// reading order as renderCategoryBreakdown above, plus "שאר עבירות" appended
-// (it's a real, non-negligible catch-all count worth ranking by, just not a
-// member of any of the 4 offense-family buckets). "סעיפי הגדרה" and "שגיאת
-// הזנה" are dropped entirely (unlike "שאר עבירות") - definition-bookkeeping
-// and data-entry-error rows, not real offense categories, so ranking cities
-// by them would be meaningless (user request).
-const CATEGORY_BOARD_GROUPS = [
-  ...CATEGORY_DISPLAY_ORDER.flatMap((bid) => GROUP_DISPLAY_ORDER[bid] || BUCKET_GROUPS[bid]),
-  'שאר עבירות',
-];
+// reading order as renderCategoryBreakdown above, "עבירות נגד אדם" moved to
+// the front (also the default active category, since that's just
+// CATEGORY_BOARD_GROUPS[0] - user request), not touching
+// CATEGORY_DISPLAY_ORDER/GROUP_DISPLAY_ORDER itself since those also drive
+// the compare section's own bucket order, unrelated to this picker's
+// default. "שאר עבירות" (a real, non-negligible catch-all - unlike
+// "סעיפי הגדרה"/"שגיאת הזנה", dropped entirely as definition-bookkeeping
+// and data-entry-error rows, not real offense categories) is no longer
+// offered here either (user request).
+const CATEGORY_BOARD_GROUPS = (() => {
+  const all = CATEGORY_DISPLAY_ORDER.flatMap((bid) => GROUP_DISPLAY_ORDER[bid] || BUCKET_GROUPS[bid]);
+  return ['עבירות נגד אדם', ...all.filter((g) => g !== 'עבירות נגד אדם')];
+})();
 
 /* ---------- state + URL ---------- */
 

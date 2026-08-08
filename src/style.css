@@ -1955,9 +1955,15 @@ body.accidents-page header.site h1 { inline-size: 100%; }
    packs a variable number of pills per row depending on each label's own
    width) - 13 options read better as a stable NxM grid than a ragged wrap
    (user request). Scoped to this one filter group by ID, not a change to
-   .cm-filters itself (every other filter row on the site still wraps). */
-#pcCategoryPick { display: grid; grid-template-columns: repeat(3, 1fr); gap: .5rem; }
-#pcCategoryPick .tc-level-btn { text-align: center; }
+   .cm-filters itself (every other filter row on the site still wraps).
+   Desktop only (user request) - the longest option ("נגד אדם (רצח,
+   הריגה)") wraps to 2 lines inside its own cell on a narrow phone screen
+   while its neighbors stay 1 line, an unevenness that reads worse than
+   just letting mobile keep the plain flex-wrap it had before. */
+@media (min-width: 641px) {
+  #pcCategoryPick { display: grid; grid-template-columns: repeat(3, 1fr); gap: .5rem; }
+  #pcCategoryPick .tc-level-btn { text-align: center; }
+}
 
 /* One drill-in group per compared city (up to 4), each tagged with the same
    color swatch used for that city everywhere else on the page. */

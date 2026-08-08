@@ -1987,9 +1987,15 @@ body.accidents-page header.site h1 { inline-size: 100%; }
    packs a variable number of pills per row depending on each label's own
    width) - 13 options read better as a stable NxM grid than a ragged wrap
    (user request). Scoped to this one filter group by ID, not a change to
-   .cm-filters itself (every other filter row on the site still wraps). */
-#pcCategoryPick { display: grid; grid-template-columns: repeat(3, 1fr); gap: .5rem; }
-#pcCategoryPick .tc-level-btn { text-align: center; }
+   .cm-filters itself (every other filter row on the site still wraps).
+   Desktop only (user request) - the longest option ("נגד אדם (רצח,
+   הריגה)") wraps to 2 lines inside its own cell on a narrow phone screen
+   while its neighbors stay 1 line, an unevenness that reads worse than
+   just letting mobile keep the plain flex-wrap it had before. */
+@media (min-width: 641px) {
+  #pcCategoryPick { display: grid; grid-template-columns: repeat(3, 1fr); gap: .5rem; }
+  #pcCategoryPick .tc-level-btn { text-align: center; }
+}
 
 /* One drill-in group per compared city (up to 4), each tagged with the same
    color swatch used for that city everywhere else on the page. */
@@ -3936,16 +3942,19 @@ const GROUP_DISPLAY_ORDER = {
 };
 
 // "דירוג לפי סוג עבירה" picker's own category list: same bucket/group
-// reading order as renderCategoryBreakdown above, plus "שאר עבירות" appended
-// (it's a real, non-negligible catch-all count worth ranking by, just not a
-// member of any of the 4 offense-family buckets). "סעיפי הגדרה" and "שגיאת
-// הזנה" are dropped entirely (unlike "שאר עבירות") - definition-bookkeeping
-// and data-entry-error rows, not real offense categories, so ranking cities
-// by them would be meaningless (user request).
-const CATEGORY_BOARD_GROUPS = [
-  ...CATEGORY_DISPLAY_ORDER.flatMap((bid) => GROUP_DISPLAY_ORDER[bid] || BUCKET_GROUPS[bid]),
-  'שאר עבירות',
-];
+// reading order as renderCategoryBreakdown above, "עבירות נגד אדם" moved to
+// the front (also the default active category, since that's just
+// CATEGORY_BOARD_GROUPS[0] - user request), not touching
+// CATEGORY_DISPLAY_ORDER/GROUP_DISPLAY_ORDER itself since those also drive
+// the compare section's own bucket order, unrelated to this picker's
+// default. "שאר עבירות" (a real, non-negligible catch-all - unlike
+// "סעיפי הגדרה"/"שגיאת הזנה", dropped entirely as definition-bookkeeping
+// and data-entry-error rows, not real offense categories) is no longer
+// offered here either (user request).
+const CATEGORY_BOARD_GROUPS = (() => {
+  const all = CATEGORY_DISPLAY_ORDER.flatMap((bid) => GROUP_DISPLAY_ORDER[bid] || BUCKET_GROUPS[bid]);
+  return ['עבירות נגד אדם', ...all.filter((g) => g !== 'עבירות נגד אדם')];
+})();
 
 /* ---------- state + URL ---------- */
 
