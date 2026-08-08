@@ -143,12 +143,12 @@ function topCategory(entity) {
   return bestIdx === -1 ? null : { name: STATISTIC_GROUPS[bestIdx], value: bestVal };
 }
 
-// Every STATISTIC_GROUPS name starts with "עבירות " - redundant once it's
-// one row among many in the compare section's own body (renderCompareTable/
-// renderCategoryBreakdown), which is already understood to be about
-// offenses. Section captions/headings keep the full word; this is body rows
-// only.
-const stripOffensesWord = (name) => name.replace(/^עבירות\s+/, '');
+// Every STATISTIC_GROUPS name starts with "עבירות " (one exception: "שאר
+// עבירות" carries it as a trailing word instead) - redundant once it's one
+// option/row among many that's already understood to be about offenses
+// (compare section body, category picker). Section captions/headings keep
+// the full word; this is body rows and picker options only.
+const stripOffensesWord = (name) => name.replace(/^עבירות\s+/, '').replace(/\s+עבירות$/, '');
 
 /* ---------- levels ---------- */
 
@@ -723,7 +723,7 @@ function renderBoard() {
 
 function renderCategoryPicker() {
   const box = el('pcCategoryPick');
-  box.innerHTML = CATEGORY_BOARD_GROUPS.map((g) => `<button type="button" data-cat="${esc(g)}" class="tc-level-btn${g === state.activeCategory ? ' active' : ''}">${esc(g)}</button>`).join('');
+  box.innerHTML = CATEGORY_BOARD_GROUPS.map((g) => `<button type="button" data-cat="${esc(g)}" class="tc-level-btn${g === state.activeCategory ? ' active' : ''}">${esc(groupLabel(g))}</button>`).join('');
   box.querySelectorAll('button').forEach((btn) => {
     btn.addEventListener('click', () => {
       if (state.activeCategory === btn.dataset.cat) return;

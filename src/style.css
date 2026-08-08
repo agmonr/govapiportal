@@ -1950,6 +1950,15 @@ body.accidents-page header.site h1 { inline-size: 100%; }
    the first screenful. */
 .tc-board-scroll figcaption { position: sticky; inset-block-start: 0; background: var(--bg); padding-block: .3rem; z-index: 1; }
 
+/* police-compare.html's own "דירוג לפי סוג עבירה" category picker - a
+   fixed 3-column table/grid instead of .cm-filters's own flex-wrap (which
+   packs a variable number of pills per row depending on each label's own
+   width) - 13 options read better as a stable NxM grid than a ragged wrap
+   (user request). Scoped to this one filter group by ID, not a change to
+   .cm-filters itself (every other filter row on the site still wraps). */
+#pcCategoryPick { display: grid; grid-template-columns: repeat(3, 1fr); gap: .5rem; }
+#pcCategoryPick .tc-level-btn { text-align: center; }
+
 /* One drill-in group per compared city (up to 4), each tagged with the same
    color swatch used for that city everywhere else on the page. */
 .tc-drill-group { display: inline-flex; align-items: center; gap: .4rem; flex-wrap: wrap; margin-inline-end: 1rem; }
