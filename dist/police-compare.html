@@ -2667,6 +2667,7 @@ body.accidents-page header.site h1 { inline-size: 100%; }
         <div id="pcTable"></div>
         <div id="pcRanks" class="acc-hint" dir="auto"></div>
         <div id="pcCategoryBreakdown"></div>
+        <div id="pcNeighborhoodViolent"></div>
         <div id="pcYearTrend"></div>
         <div class="fin-export-row">
           <button type="button" id="pcShare" class="drill-dl">שיתוף ההשוואה בוואטסאפ ⤴</button>
@@ -4079,7 +4080,12 @@ const groupLabel = (groupName) => GROUP_LABEL_OVERRIDES[groupName] || stripOffen
 
 function renderCategoryBreakdown(entries) {
   const container = el('pcCategoryBreakdown');
-  container.innerHTML = CATEGORY_DISPLAY_ORDER.map((_, oi) =>
+  // At neighborhood level, only the violent bucket is shown - the other 3
+  // offense-family buckets are far sparser per neighborhood (smaller area,
+  // privacy suppression) and add noise rather than signal at that
+  // granularity (user request).
+  const bucketOrder = state.level === 'neighborhood' ? ['violent'] : CATEGORY_DISPLAY_ORDER;
+  container.innerHTML = bucketOrder.map((_, oi) =>
     `<figure id="pc-cat-${oi}" class="acc-chart acc-chart-wide" role="img"></figure>`).join('');
   const multi = entries.length > 1;
   // Per-1000 needs every picked entity's own population - only available at
@@ -4093,7 +4099,7 @@ function renderCategoryBreakdown(entries) {
   const unit = normalize ? 'לאלף תושבים' : 'שורות/שנה';
   const formatValue = normalize ? numRate : num;
 
-  CATEGORY_DISPLAY_ORDER.forEach((bid, oi) => {
+  bucketOrder.forEach((bid, oi) => {
     const bi = BUCKET_IDS.indexOf(bid);
     const bars = (GROUP_DISPLAY_ORDER[bid] || BUCKET_GROUPS[bid]).flatMap((groupName) => {
       const idx = STATISTIC_GROUP_INDEX.get(groupName);
@@ -4119,6 +4125,50 @@ function renderCategoryBreakdown(entries) {
       : `${entries[0].label} — ${bucketLabel} (ממוצע שנתי: ${formatValue(bucketTotal)})`;
     renderHBarChart(`pc-cat-${oi}`, caption, bars, unit, { formatValue });
   });
+}
+
+/* ---------- single-city violent-offense neighborhood board - shown only
+   when exactly one city is picked (singlePickedCity()), between
+   renderCategoryBreakdown and renderYearTrend (user request: "before תיקים
+   לפי שנה"). Unlike renderCategoryBreakdown above (scoped to the picked
+   entities, grouped by category with color = which entity), this lists
+   EVERY neighborhood of that one city, grouped by neighborhood with color =
+   which violent category (עבירות נגד גוף/מין/נגד אדם only - the other 3
+   offense-family buckets aren't shown here) - a color can't mean "entity"
+   when every row is the same city. Same accent-fade idiom as pickColorFor,
+   walked in GROUP_DISPLAY_ORDER.violent's own order so עבירות נגד אדם
+   (index 0) gets the strongest/least-faded color (user request: "נגד אדם is
+   the darker"). Neighborhoods have no population figure (see populationFor's
+   own comment) so always raw average-per-year counts, never per-1000. ---- */
+
+const violentCategoryColorFor = (idx) => pickColor(idx, 'var(--accent)');
+
+function renderNeighborhoodViolentBoard(cityName) {
+  const container = el('pcNeighborhoodViolent');
+  const violentGroups = GROUP_DISPLAY_ORDER.violent || BUCKET_GROUPS.violent;
+  const neighborhoods = cityName ? levelEntries('neighborhood').filter((e) => e.city === cityName) : [];
+  if (!neighborhoods.length) { container.innerHTML = ''; return; }
+
+  const catValueFor = (e, groupName) => (categoriesFor(e) || [])[STATISTIC_GROUP_INDEX.get(groupName)] || 0;
+  const sorted = neighborhoods
+    .map((e) => ({ e, total: violentGroups.reduce((sum, g) => sum + catValueFor(e, g), 0) }))
+    .filter((r) => r.total > 0)
+    .sort((a, b) => b.total - a.total);
+  if (!sorted.length) { container.innerHTML = ''; return; }
+
+  const bars = sorted.flatMap(({ e }) => {
+    const rows = violentGroups
+      .map((g, gi) => ({ g, gi, value: catValueFor(e, g) }))
+      .filter((r) => r.value > 0);
+    if (!rows.length) return [];
+    return [
+      { groupHeader: e.name },
+      ...rows.map(({ g, gi, value }) => ({ label: groupLabel(g), value, color: violentCategoryColorFor(gi) })),
+    ];
+  });
+
+  container.innerHTML = '<figure id="pc-nb-violent" class="acc-chart acc-chart-wide tc-board-scroll" role="img"></figure>';
+  renderHBarChart('pc-nb-violent', `שכונות ב${cityName} — עבירות אלימות (ממוצע שנתי)`, bars, 'שורות/שנה', { formatValue: num });
 }
 
 /* ---------- year trend - two combined charts (raw count, then per-1000-
@@ -4195,6 +4245,7 @@ function renderCompare() {
   renderCompareTable(entries);
   renderRanks(entries);
   renderCategoryBreakdown(entries);
+  renderNeighborhoodViolentBoard(singlePickedCity());
   renderYearTrend(entries);
 }
 
