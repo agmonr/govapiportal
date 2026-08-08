@@ -234,6 +234,16 @@ const CATEGORY_BOARD_GROUPS = (() => {
   return ['עבירות נגד אדם', ...all.filter((g) => g !== 'עבירות נגד אדם')];
 })();
 
+// renderBoard's own "שכונות ב<city>" group (shown only when singlePickedCity()
+// is truthy) - a small metric picker scoped to that one board, letting it
+// rank the city's own neighborhoods by a violent-offense category or their
+// combined total, not just METRIC_ORDER[0]'s fixed "כל סוגי התיקים" total
+// (user request, replacing the page's old separate per-neighborhood
+// violent-category chart with an interactive single-metric ranking
+// instead). 'total' (the previous fixed behavior) stays the default so
+// nothing regresses for anyone not using the new picker.
+const NB_METRIC_IDS = ['total', 'violentTotal', ...(GROUP_DISPLAY_ORDER.violent || BUCKET_GROUPS.violent)];
+
 /* ---------- state + URL ---------- */
 
 const VALID_LEVELS = ['city', 'neighborhood'];
@@ -242,6 +252,7 @@ const DEFAULT_CITY_PICKS = ['ירושלים', 'תל אביב יפו', 'חיפה'
 
 const state = {
   level: 'city', picks: [...DEFAULT_CITY_PICKS], cityFilter: null, boardOrder: 'best', activeCategory: CATEGORY_BOARD_GROUPS[0],
+  nbMetric: NB_METRIC_IDS[0],
 };
 
 function readStateFromUrl() {
@@ -253,6 +264,7 @@ function readStateFromUrl() {
   if (p.get('city')) state.cityFilter = p.get('city');
   if (p.get('order') === 'worst') state.boardOrder = 'worst';
   if (CATEGORY_BOARD_GROUPS.includes(p.get('cat'))) state.activeCategory = p.get('cat');
+  if (NB_METRIC_IDS.includes(p.get('nbm'))) state.nbMetric = p.get('nbm');
 }
 
 function syncUrl() {
@@ -262,6 +274,7 @@ function syncUrl() {
   if (state.cityFilter) p.set('city', state.cityFilter);
   if (state.boardOrder === 'worst') p.set('order', 'worst');
   if (state.activeCategory !== CATEGORY_BOARD_GROUPS[0]) p.set('cat', state.activeCategory);
+  if (state.nbMetric !== NB_METRIC_IDS[0]) p.set('nbm', state.nbMetric);
   history.replaceState(null, '', `?${p}`);
 }
 
@@ -476,20 +489,27 @@ function renderCategoryBreakdown(entries) {
         .map((e, ei) => ({ e, ei, value: rateFor(e, idx) }))
         .filter(({ value }) => value > 0);
       if (!rows.length) return [];
-      // renderHBarChart scales every bar in the whole figure against ONE
-      // shared peak - fine within a group, but a bucket combines groups of
-      // very different natural scale (e.g. violent's own נגד גוף routinely
-      // 50-100x נגד אדם's rate), so under a single shared peak the smaller
-      // groups' bars all but disappear. Pre-normalized to 0-100 = "% of this
-      // GROUP's own highest bar" instead (peak always reaches exactly 100,
-      // same effect as renderHBarChart's own peak-relative scaling, just
-      // scoped per group) - the printed/tooltip number still shows the real
-      // rate via displayValue, only the bar's fill is renormalized (user
-      // request: "the graph with the most, fill the line, others relative
-      // to it" - per category, not per bucket).
+      // Single entity: only one row per group anyway (nothing to compare
+      // it against WITHIN the group), so the bars stay real numbers -
+      // renderHBarChart's own single shared peak across the whole bucket
+      // then shows each category's true relative size for this one city
+      // (e.g. נגד גוף really is ~60x נגד אדם's rate - user request: "the
+      // graph should represent the number").
+      if (!multi) return rows.map(({ value }) => ({ label: groupLabel(groupName), value }));
+      // Comparing multiple entities: renderHBarChart scales every bar in
+      // the whole figure against ONE shared peak - fine within a group,
+      // but a bucket combines groups of very different natural scale (e.g.
+      // violent's own נגד גוף routinely 50-100x נגד אדם's rate), so under a
+      // single shared peak the smaller groups' bars all but disappear.
+      // Pre-normalized to 0-100 = "% of this GROUP's own highest bar"
+      // instead (peak always reaches exactly 100, same effect as
+      // renderHBarChart's own peak-relative scaling, just scoped per
+      // group) - the printed/tooltip number still shows the real rate via
+      // displayValue, only the bar's fill is renormalized (user request:
+      // "the graph with the most, fill the line, others relative to it" -
+      // per category, not per bucket).
       const groupPeak = Math.max(...rows.map((r) => r.value));
       const scaled = rows.map((r) => ({ ...r, displayValue: r.value, value: (r.value / groupPeak) * 100 }));
-      if (!multi) return scaled.map(({ value, displayValue }) => ({ label: groupLabel(groupName), value, displayValue }));
       return [
         { groupHeader: groupLabel(groupName) },
         ...scaled.map(({ e, ei, value, displayValue }) => ({ label: e.label, value, displayValue, color: pickColorFor(ei) })),
@@ -503,50 +523,6 @@ function renderCategoryBreakdown(entries) {
       : `${entries[0].label} — ${bucketLabel} (ממוצע שנתי: ${formatValue(bucketTotal)})`;
     renderHBarChart(`pc-cat-${oi}`, caption, bars, unit, { formatValue });
   });
-}
-
-/* ---------- single-city violent-offense neighborhood board - shown only
-   when exactly one city is picked (singlePickedCity()), between
-   renderCategoryBreakdown and renderYearTrend (user request: "before תיקים
-   לפי שנה"). Unlike renderCategoryBreakdown above (scoped to the picked
-   entities, grouped by category with color = which entity), this lists
-   EVERY neighborhood of that one city, grouped by neighborhood with color =
-   which violent category (עבירות נגד גוף/מין/נגד אדם only - the other 3
-   offense-family buckets aren't shown here) - a color can't mean "entity"
-   when every row is the same city. Same accent-fade idiom as pickColorFor,
-   walked in GROUP_DISPLAY_ORDER.violent's own order so עבירות נגד אדם
-   (index 0) gets the strongest/least-faded color (user request: "נגד אדם is
-   the darker"). Neighborhoods have no population figure (see populationFor's
-   own comment) so always raw average-per-year counts, never per-1000. ---- */
-
-const violentCategoryColorFor = (idx) => pickColor(idx, 'var(--accent)');
-
-function renderNeighborhoodViolentBoard(cityName) {
-  const container = el('pcNeighborhoodViolent');
-  const violentGroups = GROUP_DISPLAY_ORDER.violent || BUCKET_GROUPS.violent;
-  const neighborhoods = cityName ? levelEntries('neighborhood').filter((e) => e.city === cityName) : [];
-  if (!neighborhoods.length) { container.innerHTML = ''; return; }
-
-  const catValueFor = (e, groupName) => (categoriesFor(e) || [])[STATISTIC_GROUP_INDEX.get(groupName)] || 0;
-  const sorted = neighborhoods
-    .map((e) => ({ e, total: violentGroups.reduce((sum, g) => sum + catValueFor(e, g), 0) }))
-    .filter((r) => r.total > 0)
-    .sort((a, b) => b.total - a.total);
-  if (!sorted.length) { container.innerHTML = ''; return; }
-
-  const bars = sorted.flatMap(({ e }) => {
-    const rows = violentGroups
-      .map((g, gi) => ({ g, gi, value: catValueFor(e, g) }))
-      .filter((r) => r.value > 0);
-    if (!rows.length) return [];
-    return [
-      { groupHeader: e.name },
-      ...rows.map(({ g, gi, value }) => ({ label: groupLabel(g), value, color: violentCategoryColorFor(gi) })),
-    ];
-  });
-
-  container.innerHTML = '<figure id="pc-nb-violent" class="acc-chart acc-chart-wide tc-board-scroll" role="img"></figure>';
-  renderHBarChart('pc-nb-violent', `שכונות ב${cityName} — עבירות אלימות (ממוצע שנתי)`, bars, 'שורות/שנה', { formatValue: num });
 }
 
 /* ---------- year trend - two combined charts (raw count, then per-1000-
@@ -593,10 +569,18 @@ function renderYearTrend(entries) {
     };
   }).filter(Boolean);
 
+  // Same side-by-side-on-desktop/stack-on-mobile flex row every other
+  // "two year charts" pair on the site already uses (accidents.html's own
+  // #accChartKilled/#accChartTotal) - flex-basis:20rem + wrap needs no
+  // media query, it naturally stacks once the row's too narrow for both
+  // (user request, desktop only - which this already is, since a narrow
+  // viewport doesn't have room for two 20rem+ columns).
   const container = el('pcYearTrend');
   container.innerHTML = `
-    <figure id="pc-year-combined" class="acc-chart acc-chart-wide" role="img"></figure>
-    ${perCapitaSeries.length ? '<figure id="pc-year-combined-percap" class="acc-chart acc-chart-wide" role="img"></figure>' : ''}`;
+    <div class="acc-charts">
+      <figure id="pc-year-combined" class="acc-chart" role="img"></figure>
+      ${perCapitaSeries.length ? '<figure id="pc-year-combined-percap" class="acc-chart" role="img"></figure>' : ''}
+    </div>`;
 
   renderMultiSeriesChart('pc-year-combined', `תיקים לפי שנה${suffix}`, totalSeries, 'תיקים');
   if (perCapitaSeries.length) {
@@ -623,7 +607,7 @@ function renderCompare() {
   renderCompareTable(entries);
   renderRanks(entries);
   renderCategoryBreakdown(entries);
-  renderNeighborhoodViolentBoard(singlePickedCity());
+  renderNbBoard();
   renderYearTrend(entries);
 }
 
@@ -694,37 +678,101 @@ function renderBoard() {
     scopeNote.push(`מוצג בתוך ${state.cityFilter} בלבד`);
   }
   el('pcBoardHint').textContent = scopeNote.join(' · ');
-
-  const cityForNb = singlePickedCity();
   el('pcBoardLevel').textContent = 'דירוג ארצי';
 
-  const groups = [];
-  if (cityForNb) {
-    groups.push({
-      id: 'nb',
-      title: `שכונות ב${cityForNb}`,
-      entries: levelEntries('neighborhood').filter((e) => e.city === cityForNb),
-      capAll: false,
-    });
-  }
-  groups.push({ id: 'main', title: lvl.boardTitle, entries, capAll: state.level === 'city' });
+  // ערים - the page's own biggest leaderboard (every city, ~250 rows) -
+  // capped to ~15 visible rows (scrollable) instead of the general 32rem
+  // cap, same idiom as the "דירוג לפי סוג עבירה" board's own
+  // tc-board-scroll-15 (user request). Left off "שכונות" (state.level ===
+  // 'neighborhood', ~2,000 rows) since that wasn't asked for. The single
+  // picked city's own neighborhoods (previously a second board here) now
+  // live in the compare section instead - see renderNbBoard().
+  const mainIsCities = state.level === 'city';
 
-  // One ranking per group, not one per METRIC_ORDER entry - a "ערים"/
-  // "שכונות" board followed immediately by a second board with the exact
-  // same caption prefix read as a duplicate, not two different metrics
-  // (user request). METRIC_ORDER[0] ('total') over perCapita since it's the
-  // page's own primary metric (listed first everywhere else too, e.g.
-  // renderCompareTable's own column order).
+  // Expanded by default (user request) - previously collapsed so the page
+  // didn't open already showing a multi-hundred-row leaderboard, but that's
+  // exactly what a visitor scrolling this far down is looking for.
   const container = el('pcBoardCharts');
-  container.innerHTML = groups.map((g) => `
-    <details class="notice info">
-      <summary><strong dir="auto">${esc(g.title)}</strong></summary>
-      <figure id="pc-board-${g.id}" class="acc-chart acc-chart-wide tc-board-scroll" role="img"></figure>
-    </details>`).join('');
+  container.innerHTML = `
+    <details class="notice info" open>
+      <summary><strong dir="auto">${esc(lvl.boardTitle)}</strong></summary>
+      <figure id="pc-board-main" class="acc-chart acc-chart-wide tc-board-scroll${mainIsCities ? ' tc-board-scroll-15' : ''}" role="img"></figure>
+    </details>`;
 
-  groups.forEach((g) => {
-    renderMetricBoard(`pc-board-${g.id}`, METRIC_ORDER[0], g.entries, { labelPlural: g.title, capAll: g.capAll });
+  // One ranking, not one per METRIC_ORDER entry - a "ערים"/"שכונות" board
+  // followed immediately by a second board with the exact same caption
+  // prefix read as a duplicate, not two different metrics (user request).
+  // METRIC_ORDER[0] ('total') over perCapita since it's the page's own
+  // primary metric (listed first everywhere else too, e.g.
+  // renderCompareTable's own column order).
+  renderMetricBoard('pc-board-main', METRIC_ORDER[0], entries, { labelPlural: lvl.boardTitle, capAll: mainIsCities });
+}
+
+/* ---------- single picked city's own neighborhoods, ranked by a
+   switchable metric - lives in the compare section, right before
+   renderYearTrend's own chart (user request: "put שכונות ב<city> before
+   תיקים לפי שנה" - this used to be a second board under "דירוג ארצי"
+   alongside the national one, moved here instead since it's about ONE
+   city, not a national ranking). Shown only when singlePickedCity() is
+   truthy. ---------- */
+
+// nbMetric's own label/value - 'total' is METRICS.total verbatim (every
+// case, every offense type, same as this board always ranked by before);
+// 'violentTotal' sums the 3 violent-bucket categories; anything else is a
+// single StatisticGroup's own raw average-per-year count (see
+// NB_METRIC_IDS's own comment above).
+function nbMetricLabel(id) {
+  if (id === 'total') return 'סה״כ תיקים';
+  if (id === 'violentTotal') return 'סה״כ עבירות אלימות';
+  return groupLabel(id);
+}
+function nbMetricValue(e, id) {
+  if (id === 'total') return valueFor(e, 'total');
+  const violentGroups = GROUP_DISPLAY_ORDER.violent || BUCKET_GROUPS.violent;
+  if (id === 'violentTotal') {
+    return violentGroups.reduce((sum, g) => sum + ((categoriesFor(e) || [])[STATISTIC_GROUP_INDEX.get(g)] || 0), 0);
+  }
+  return (categoriesFor(e) || [])[STATISTIC_GROUP_INDEX.get(id)] || 0;
+}
+
+function renderNbMetricPicker() {
+  const box = el('pcNbMetricPick');
+  if (!box) return;
+  box.innerHTML = NB_METRIC_IDS.map((id) => `<button type="button" data-nbm="${esc(id)}" class="tc-level-btn${id === state.nbMetric ? ' active' : ''}">${esc(nbMetricLabel(id))}</button>`).join('');
+  box.querySelectorAll('button').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      if (state.nbMetric === btn.dataset.nbm) return;
+      state.nbMetric = btn.dataset.nbm;
+      syncUrl();
+      renderNbBoard();
+    });
   });
+}
+
+function renderNbBoard() {
+  const container = el('pcNbBoard');
+  const cityForNb = singlePickedCity();
+  if (!cityForNb) { container.innerHTML = ''; return; }
+
+  container.innerHTML = `
+    <div class="cm-filters" id="pcNbMetricPick" role="group" aria-label="מדד"></div>
+    <figure id="pc-nb-board" class="acc-chart acc-chart-wide tc-board-scroll" role="img"></figure>`;
+  renderNbMetricPicker();
+
+  const entries = levelEntries('neighborhood').filter((e) => e.city === cityForNb);
+  const id = state.nbMetric;
+  const withVals = entries
+    .map((e) => ({ label: e.label, value: nbMetricValue(e, id) }))
+    .filter((r) => r.value != null)
+    .sort((a, b) => b.value - a.value);
+  const peak = Math.max(0, ...withVals.map((r) => r.value));
+  const rowsHtml = withVals.map((r) => `
+    <div class="acc-hbar" title="${esc(r.label)}: ${num(r.value)}">
+      <span class="acc-hbar-y" dir="auto">${esc(r.label)}</span>
+      <div class="acc-hbar-track"><div class="acc-hbar-fill" style="inline-size:${peak ? (r.value / peak) * 100 : 0}%"></div></div>
+      <span class="acc-hbar-v">${num(r.value)}</span>
+    </div>`);
+  renderBoardChartChunked('pc-nb-board', `${num(withVals.length)} שכונות ב${cityForNb}, מהגבוה לנמוך לפי ${nbMetricLabel(id)}`, rowsHtml);
 }
 
 /* ---------- category leaderboard - pick one StatisticGroup, rank every
