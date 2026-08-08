@@ -683,17 +683,21 @@ function renderBoard() {
   }
   groups.push({ id: 'main', title: lvl.boardTitle, entries, capAll: state.level === 'city' });
 
+  // One ranking per group, not one per METRIC_ORDER entry - a "ערים"/
+  // "שכונות" board followed immediately by a second board with the exact
+  // same caption prefix read as a duplicate, not two different metrics
+  // (user request). METRIC_ORDER[0] ('total') over perCapita since it's the
+  // page's own primary metric (listed first everywhere else too, e.g.
+  // renderCompareTable's own column order).
   const container = el('pcBoardCharts');
   container.innerHTML = groups.map((g) => `
     <details class="notice info">
       <summary><strong dir="auto">${esc(g.title)}</strong></summary>
-      ${METRIC_ORDER.map((_, i) => `<figure id="pc-board-${g.id}-${i}" class="acc-chart acc-chart-wide tc-board-scroll" role="img"></figure>`).join('')}
+      <figure id="pc-board-${g.id}" class="acc-chart acc-chart-wide tc-board-scroll" role="img"></figure>
     </details>`).join('');
 
   groups.forEach((g) => {
-    METRIC_ORDER.forEach((metricId, i) => {
-      renderMetricBoard(`pc-board-${g.id}-${i}`, metricId, g.entries, { labelPlural: g.title, capAll: g.capAll });
-    });
+    renderMetricBoard(`pc-board-${g.id}`, METRIC_ORDER[0], g.entries, { labelPlural: g.title, capAll: g.capAll });
   });
 }
 

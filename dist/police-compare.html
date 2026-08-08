@@ -1981,6 +1981,18 @@ body.accidents-page header.site h1 { inline-size: 100%; }
   .tree-canopy-page .acc-hbar-y { flex-basis: 9rem; }
 }
 
+/* police-compare.html (also .tree-canopy-page - shares that page shell)
+   shows plain city/neighborhood names in these 3 sections, not the long
+   combined labels the 9rem mobile width above was sized for - .acc-hbar-y's
+   own text-align:end sits a short name against the box's INNER edge (by the
+   bar), not the row's own right edge, leaving a bare gap before it on a
+   narrow phone screen. Flipped to start so it hugs the right edge instead -
+   safe for longer labels too, since text-overflow:ellipsis truncation is
+   unaffected by text-align (user request, mobile only). */
+@media (max-width: 640px) {
+  #pcCompareSection .acc-hbar-y, #pcBoardSection .acc-hbar-y, #pcCategoryBoardChart .acc-hbar-y { text-align: start; }
+}
+
 /* The 4 pick fields fill column-by-column (grid-auto-flow: column) rather
    than row-by-row: pick 1 sits directly above pick 2, and pick 3 directly
    above pick 4, instead of 1/2 sharing the top row and 3/4 the bottom one. */
@@ -4331,17 +4343,21 @@ function renderBoard() {
   }
   groups.push({ id: 'main', title: lvl.boardTitle, entries, capAll: state.level === 'city' });
 
+  // One ranking per group, not one per METRIC_ORDER entry - a "ערים"/
+  // "שכונות" board followed immediately by a second board with the exact
+  // same caption prefix read as a duplicate, not two different metrics
+  // (user request). METRIC_ORDER[0] ('total') over perCapita since it's the
+  // page's own primary metric (listed first everywhere else too, e.g.
+  // renderCompareTable's own column order).
   const container = el('pcBoardCharts');
   container.innerHTML = groups.map((g) => `
     <details class="notice info">
       <summary><strong dir="auto">${esc(g.title)}</strong></summary>
-      ${METRIC_ORDER.map((_, i) => `<figure id="pc-board-${g.id}-${i}" class="acc-chart acc-chart-wide tc-board-scroll" role="img"></figure>`).join('')}
+      <figure id="pc-board-${g.id}" class="acc-chart acc-chart-wide tc-board-scroll" role="img"></figure>
     </details>`).join('');
 
   groups.forEach((g) => {
-    METRIC_ORDER.forEach((metricId, i) => {
-      renderMetricBoard(`pc-board-${g.id}-${i}`, metricId, g.entries, { labelPlural: g.title, capAll: g.capAll });
-    });
+    renderMetricBoard(`pc-board-${g.id}`, METRIC_ORDER[0], g.entries, { labelPlural: g.title, capAll: g.capAll });
   });
 }
 
